@@ -1,0 +1,6 @@
+RewriteEngine On
+# Пропускаем реальные файлы и директории (css, js, img)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+# Всё остальное — через index.php
+RewriteRule ^ index.php [QSA,L]
