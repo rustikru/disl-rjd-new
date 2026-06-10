@@ -18,25 +18,27 @@ var TAB_GROUPS = [
   {
     label: 'Движение вагонов',
     tabs: [
-      { id: 'dislocation', label: 'Дислокация' },
-      { id: 'approach',    label: 'Подход вагонов' },
-      { id: 'arrived',     label: 'Прибыло за сутки' },
-      { id: 'trains',      label: 'Бросание поездов' }
+      { id: 'dislocation',  label: 'Дислокация' },
+      { id: 'approach',     label: 'Подход вагонов' },
+      { id: 'departure',    label: 'Отправление вагонов' },
+      { id: 'loading',      label: 'Погрузка' },
+      { id: 'arrived',      label: 'Прибыло за сутки' },
+      { id: 'trains',       label: 'Бросание поездов' }
     ]
   },
   {
     label: 'Аналитика',
     tabs: [
-      { id: 'analysis',   label: 'Анализ за период' },
-      { id: 'recipients', label: 'Вагоны у получателя' }
+      { id: 'analysis',      label: 'Анализ за период' },
+      { id: 'recipients',    label: 'Вагоны у получателя' },
+      { id: 'raw-material',  label: 'Сырьё' }
     ]
   },
   {
     label: 'Простои и оборот',
     tabs: [
-      { id: 'downtime',     label: 'Простои' },
-      { id: 'downtime-sum', label: 'Простои (Сводный)' },
-      { id: 'turnover',     label: 'Оборот' }
+      { id: 'downtime',  label: 'Простои' },
+      { id: 'turnover',  label: 'Оборот' }
     ]
   },
   {
@@ -84,8 +86,12 @@ function switchTab(tabId) {
   document.querySelectorAll('.tab-panel').forEach(function (panel) {
     panel.classList.toggle('active', panel.id === 'panel-' + tabId);
   });
-  if (tabId === 'dislocation' && !window._dislLoaded)    { loadDislocation(); }
-  if (tabId === 'approach'    && !window._approachLoaded) { loadApproachInit(); }
+  if (tabId === 'dislocation'  && !window._dislLoaded)       { loadDislocation(); }
+  if (tabId === 'approach'     && !window._approachLoaded)   { loadApproachInit(); }
+  if (tabId === 'departure'    && !window._departureLoaded)  { loadDepartureInit(); }
+  if (tabId === 'loading'      && !window._loadingLoaded)    { loadLoadingInit(); }
+  if (tabId === 'downtime'     && !window._downtimeLoaded)   { loadDowntimeInit(); }
+  if (tabId === 'raw-material' && !window._rawLoaded)        { loadRawInit(); }
 }
 
 // Внутренние вкладки (pill)
@@ -103,7 +109,11 @@ function initInnerTabs() {
             p.classList.toggle('active', p.id === innerId);
           });
           if (innerId === 'disl-extended'  && !window._extLoaded)       { loadDislocationExtended(); }
-          if (innerId === 'approach-detail' && !window._approachDetLoaded) { window._approachDetLoaded = true; loadApproachDetail(); }
+          if (innerId === 'approach-detail'  && !window._approachDetLoaded)  { window._approachDetLoaded  = true; loadApproachDetail(); }
+          if (innerId === 'departure-detail' && !window._departureDetLoaded) { window._departureDetLoaded = true; loadDepartureDetail(); }
+          if (innerId === 'loading-detail'   && !window._loadingDetLoaded)   { window._loadingDetLoaded   = true; loadLoadingDetail(); }
+          if (innerId === 'downtime-detail'  && !window._downtimeDetLoaded)  { window._downtimeDetLoaded  = true; loadDowntimeDetail(); }
+          if (innerId === 'raw-detail'       && !window._rawDetLoaded)       { window._rawDetLoaded       = true; loadRawDetail(); }
         }
       });
     });
@@ -460,6 +470,325 @@ function renderApproachDetailTable(rows) {
   $('#approachDetTable').html(h + '</tbody>');
 }
 
+// ── Отправление вагонов ─────────────────────────────────────────
+
+function loadDepartureInit() {
+  window._departureLoaded = true;
+  loadDepartureCargos();
+  loadDepartureSummary();
+}
+
+function loadDepartureCargos() {
+  $.getJSON('/api/approach/filters')
+    .done(function (data) {
+      var sel = $('#fDepartureCargo');
+      sel.find('option:not(:first)').remove();
+      (data.cargo || []).forEach(function (v) { sel.append($('<option>').val(v).text(v)); });
+    });
+}
+
+function loadDepartureSummary() {
+  var params = { cargo: $('#fDepartureCargo').val() || undefined };
+  $('#departureSumSub').text('Загрузка...');
+  $.getJSON('/api/departure/summary', params)
+    .done(function (data) {
+      renderRoadStationMetrics('#departureMetrics', data.metrics, data.total, 'Всего отправлено');
+      renderRoadStationTable('#departureSumTable', data.roads, data.cols);
+      $('#departureSumSub').text('Всего: ' + (data.total || 0).toLocaleString('ru-RU') + ' ваг.');
+    })
+    .fail(function () { $('#departureSumSub').text('Ошибка загрузки'); });
+}
+
+function loadDepartureDetail() {
+  var params = { cargo: $('#fDepartureCargo').val() || undefined };
+  $.getJSON('/api/departure/detail', params)
+    .done(function (data) {
+      renderDepartureDetailTable(data.rows);
+      $('#departureDetSub').text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'));
+    });
+}
+
+function renderDepartureDetailTable(rows) {
+  var h = '<thead><tr>' +
+    '<th class="col-meta">№ вагона</th><th class="col-meta">Тип</th><th class="col-meta">Груз</th>' +
+    '<th>Вес (кг)</th><th class="col-meta">Ст. отправл.</th><th class="col-meta">Дорога отпр.</th>' +
+    '<th class="col-meta">Ст. назнач.</th><th class="col-meta">Дорога назнач.</th>' +
+    '<th>Ост. км</th><th class="col-meta">Норм. дата дост.</th>' +
+    '</tr></thead><tbody>';
+  (rows || []).forEach(function (r) {
+    h += '<tr class="row-data">' +
+      '<td class="col-meta" style="font-family:monospace;font-size:11px">' + esc(r.wagon_no) + '</td>' +
+      '<td class="col-meta">' + esc(r.wagon_type_code) + '</td>' +
+      '<td class="col-meta">' + esc(r.cargo_name) + '</td>' +
+      '<td style="text-align:right">' + esc(r.cargo_weight_kg) + '</td>' +
+      '<td class="col-meta">' + esc(r.depart_station) + '</td>' +
+      '<td class="col-meta">' + esc(r.depart_road) + '</td>' +
+      '<td class="col-meta">' + esc(r.dest_station) + '</td>' +
+      '<td class="col-meta">' + esc(r.dest_road) + '</td>' +
+      '<td style="text-align:right">' + esc(r.dist_remain_km) + '</td>' +
+      '<td class="col-meta">' + esc(r.norm_delivery_dt) + '</td>' +
+      '</tr>';
+  });
+  $('#departureDetTable').html(h + '</tbody>');
+}
+
+// ── Погрузка ────────────────────────────────────────────────────
+
+function loadLoadingInit() {
+  window._loadingLoaded = true;
+  loadLoadingCargos();
+  loadLoadingSummary();
+}
+
+function loadLoadingCargos() {
+  $.getJSON('/api/approach/filters')
+    .done(function (data) {
+      var sel = $('#fLoadingCargo');
+      sel.find('option:not(:first)').remove();
+      (data.cargo || []).forEach(function (v) { sel.append($('<option>').val(v).text(v)); });
+    });
+}
+
+function loadLoadingSummary() {
+  var params = { cargo: $('#fLoadingCargo').val() || undefined };
+  $('#loadingSumSub').text('Загрузка...');
+  $.getJSON('/api/loading/summary', params)
+    .done(function (data) {
+      renderRoadStationMetrics('#loadingMetrics', data.metrics, data.total, 'Всего погружено');
+      renderRoadStationTable('#loadingSumTable', data.roads, data.cols);
+      $('#loadingSumSub').text('Всего: ' + (data.total || 0).toLocaleString('ru-RU') + ' ваг.');
+    })
+    .fail(function () { $('#loadingSumSub').text('Ошибка загрузки'); });
+}
+
+function loadLoadingDetail() {
+  var params = { cargo: $('#fLoadingCargo').val() || undefined };
+  $.getJSON('/api/loading/detail', params)
+    .done(function (data) {
+      var h = '<thead><tr>' +
+        '<th class="col-meta">№ вагона</th><th class="col-meta">Тип</th><th class="col-meta">Груз</th>' +
+        '<th>Вес (кг)</th><th class="col-meta">Ст. отправл.</th><th class="col-meta">Дорога</th>' +
+        '<th class="col-meta">Ст. назнач.</th><th class="col-meta">Операция</th><th class="col-meta">Дата опер.</th>' +
+        '</tr></thead><tbody>';
+      (data.rows || []).forEach(function (r) {
+        h += '<tr class="row-data">' +
+          '<td class="col-meta" style="font-family:monospace;font-size:11px">' + esc(r.wagon_no) + '</td>' +
+          '<td class="col-meta">' + esc(r.wagon_type_code) + '</td>' +
+          '<td class="col-meta">' + esc(r.cargo_name) + '</td>' +
+          '<td style="text-align:right">' + esc(r.cargo_weight_kg) + '</td>' +
+          '<td class="col-meta">' + esc(r.depart_station) + '</td>' +
+          '<td class="col-meta">' + esc(r.depart_road) + '</td>' +
+          '<td class="col-meta">' + esc(r.dest_station) + '</td>' +
+          '<td class="col-meta">' + esc(r.oper_mnemonic) + '</td>' +
+          '<td class="col-meta">' + esc(r.oper_dt) + '</td>' +
+          '</tr>';
+      });
+      $('#loadingDetTable').html(h + '</tbody>');
+      $('#loadingDetSub').text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'));
+    });
+}
+
+// ── Простои ──────────────────────────────────────────────────────
+
+function loadDowntimeInit() {
+  window._downtimeLoaded = true;
+  loadDowntimeSummary();
+}
+
+function loadDowntimeSummary() {
+  var params = { min_days: $('#fDowntimeMinDays').val() || 1 };
+  $('#downtimeSumSub').text('Загрузка...');
+  $.getJSON('/api/downtime/summary', params)
+    .done(function (data) {
+      renderDowntimeSummaryTable(data.rows);
+      $('#downtimeSumSub').text('Вагонов с простоем: ' + (data.total || 0).toLocaleString('ru-RU'));
+    })
+    .fail(function () { $('#downtimeSumSub').text('Ошибка загрузки'); });
+}
+
+function loadDowntimeDetail() {
+  var params = { min_days: $('#fDowntimeMinDays').val() || 1 };
+  $.getJSON('/api/downtime/detail', params)
+    .done(function (data) {
+      renderDowntimeDetailTable(data.rows);
+      $('#downtimeDetSub').text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'));
+    });
+}
+
+function renderDowntimeSummaryTable(rows) {
+  if (!rows || !rows.length) {
+    $('#downtimeSumTable').html('<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных</td></tr></tbody>');
+    return;
+  }
+  var h = '<thead><tr>' +
+    '<th class="col-meta">Дорога</th><th class="col-meta">Станция</th>' +
+    '<th class="col-meta">Тип вагона</th><th>Кол-во</th><th>Макс. простой (сут.)</th>' +
+    '</tr></thead><tbody>';
+  rows.forEach(function (r) {
+    var maxIdle = parseFloat(r.max_idle) || 0;
+    var danger  = maxIdle >= 7 ? ' style="color:#E8392A;font-weight:700"' : (maxIdle >= 3 ? ' style="color:#E8A530;font-weight:600"' : '');
+    h += '<tr class="row-data">' +
+      '<td class="col-meta">' + esc(r.oper_road) + '</td>' +
+      '<td class="col-meta">' + esc(r.oper_station) + '</td>' +
+      '<td class="col-meta">' + esc(r.wagon_type_code) + '</td>' +
+      '<td>' + esc(r.cnt) + '</td>' +
+      '<td' + danger + '>' + (maxIdle || '') + '</td>' +
+      '</tr>';
+  });
+  $('#downtimeSumTable').html(h + '</tbody>');
+}
+
+function renderDowntimeDetailTable(rows) {
+  var h = '<thead><tr>' +
+    '<th class="col-meta">№ вагона</th><th class="col-meta">Тип</th><th class="col-meta">Груз</th>' +
+    '<th class="col-meta">Текущая станция</th><th class="col-meta">Дорога</th>' +
+    '<th>Простой (сут.)</th><th class="col-meta">Владелец</th><th class="col-meta">Арендатор</th>' +
+    '</tr></thead><tbody>';
+  (rows || []).forEach(function (r) {
+    var days   = parseFloat(r.idle_time_days) || 0;
+    var danger = days >= 7 ? ' style="color:#E8392A;font-weight:700"' : (days >= 3 ? ' style="color:#E8A530;font-weight:600"' : '');
+    h += '<tr class="row-data">' +
+      '<td class="col-meta" style="font-family:monospace;font-size:11px">' + esc(r.wagon_no) + '</td>' +
+      '<td class="col-meta">' + esc(r.wagon_type_code) + '</td>' +
+      '<td class="col-meta">' + esc(r.cargo_name) + '</td>' +
+      '<td class="col-meta">' + esc(r.oper_station) + '</td>' +
+      '<td class="col-meta">' + esc(r.oper_road) + '</td>' +
+      '<td' + danger + '>' + (days || '') + '</td>' +
+      '<td class="col-meta">' + esc(r.owner) + '</td>' +
+      '<td class="col-meta">' + esc(r.lessee) + '</td>' +
+      '</tr>';
+  });
+  $('#downtimeDetTable').html(h + '</tbody>');
+}
+
+// ── Сырьё ────────────────────────────────────────────────────────
+
+function loadRawInit() {
+  window._rawLoaded = true;
+  loadRawSummary();
+}
+
+function loadRawSummary() {
+  $('#rawSumSub').text('Загрузка...');
+  $.getJSON('/api/raw-material/summary')
+    .done(function (data) {
+      // KPI карточки
+      $('#rawMetrics').html([
+        { label: 'Гружёных вагонов', value: data.total, accent: true },
+        { label: 'Макс. простой (сут.)', value: data.max_idle }
+      ].map(function (k) {
+        return '<div class="kpi-card' + (k.accent ? ' accent' : '') + '">' +
+          '<div class="kpi-value">' + (k.value || 0) + '</div>' +
+          '<div class="kpi-label">' + esc(k.label) + '</div></div>';
+      }).join(''));
+
+      renderRawSummaryTable(data.rows);
+      $('#rawSumSub').text('Всего гружёных: ' + (data.total || 0).toLocaleString('ru-RU') + ' ваг.');
+    })
+    .fail(function () { $('#rawSumSub').text('Ошибка загрузки'); });
+}
+
+function loadRawDetail(cargo) {
+  var params = cargo ? { cargo: cargo } : {};
+  $.getJSON('/api/raw-material/detail', params)
+    .done(function (data) {
+      var h = '<thead><tr>' +
+        '<th class="col-meta">№ вагона</th><th class="col-meta">Тип</th><th class="col-meta">Груз</th>' +
+        '<th>Вес (кг)</th><th>Простой (сут.)</th>' +
+        '<th class="col-meta">Тек. станция</th><th class="col-meta">Дорога</th>' +
+        '<th class="col-meta">Ст. отправл.</th><th class="col-meta">Владелец</th>' +
+        '</tr></thead><tbody>';
+      (data.rows || []).forEach(function (r) {
+        var days   = parseFloat(r.idle_time_days) || 0;
+        var danger = days >= 7 ? ' style="color:#E8392A;font-weight:700"' : '';
+        h += '<tr class="row-data">' +
+          '<td class="col-meta" style="font-family:monospace;font-size:11px">' + esc(r.wagon_no) + '</td>' +
+          '<td class="col-meta">' + esc(r.wagon_type_code) + '</td>' +
+          '<td class="col-meta">' + esc(r.cargo_name) + '</td>' +
+          '<td style="text-align:right">' + esc(r.cargo_weight_kg) + '</td>' +
+          '<td' + danger + '>' + (days || '') + '</td>' +
+          '<td class="col-meta">' + esc(r.oper_station) + '</td>' +
+          '<td class="col-meta">' + esc(r.oper_road) + '</td>' +
+          '<td class="col-meta">' + esc(r.depart_station) + '</td>' +
+          '<td class="col-meta">' + esc(r.owner) + '</td>' +
+          '</tr>';
+      });
+      $('#rawDetTable').html(h + '</tbody>');
+      $('#rawDetSub').text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'));
+    });
+}
+
+function renderRawSummaryTable(rows) {
+  if (!rows || !rows.length) {
+    $('#rawSumTable').html('<tbody><tr><td colspan="4" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных</td></tr></tbody>');
+    return;
+  }
+  var h = '<thead><tr><th class="col-meta">Груз</th><th class="col-meta">Тип вагона</th>' +
+    '<th>Кол-во</th><th>Макс. простой (сут.)</th></tr></thead><tbody>';
+  rows.forEach(function (r) {
+    h += '<tr class="row-data" style="cursor:pointer" onclick="switchRawToDetail(\'' + esc(r.cargo_name).replace(/'/g,'\\\'') + '\')">' +
+      '<td class="col-meta">' + esc(r.cargo_name) + '</td>' +
+      '<td class="col-meta">' + esc(r.wagon_type_code) + '</td>' +
+      '<td>' + esc(r.cnt) + '</td>' +
+      '<td>' + (r.max_idle || '') + '</td>' +
+      '</tr>';
+  });
+  $('#rawSumTable').html(h + '</tbody>');
+}
+
+function switchRawToDetail(cargo) {
+  document.querySelector('#panel-raw-material .inner-tab[data-inner="raw-detail"]').click();
+  loadRawDetail(cargo);
+  window._rawDetLoaded = true;
+}
+
+// ── Общие рендеры (подход/отправление/погрузка) ──────────────────
+
+function renderRoadStationMetrics(selector, metrics, total, label) {
+  var all = [{ road: label, total: total, accent: true }].concat(metrics || []);
+  $(selector).html(all.map(function (m) {
+    return '<div class="kpi-card' + (m.accent ? ' accent' : '') + '">' +
+      '<div class="kpi-value">' + (m.total || 0).toLocaleString('ru-RU') + '</div>' +
+      '<div class="kpi-label">' + esc(m.road) + '</div></div>';
+  }).join(''));
+}
+
+function renderRoadStationTable(selector, roads, cols) {
+  if (!roads || !roads.length) {
+    $(selector).html('<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных. Загрузите справку.</td></tr></tbody>');
+    return;
+  }
+  function fmt(v) { return v || ''; }
+  var h = '<thead><tr>';
+  h += '<th class="col-meta" style="min-width:160px">Дорога</th>';
+  h += '<th class="col-meta" style="min-width:180px">Станция</th>';
+  (cols || []).forEach(function (c) { h += '<th>' + esc(c) + '</th>'; });
+  h += '<th class="col-total-col">Итого</th></tr></thead><tbody>';
+
+  var grandTotals = (cols || []).map(function () { return 0; });
+  var grandSum = 0;
+  (roads || []).forEach(function (road) {
+    var firstRow = true;
+    (road.stations || []).forEach(function (st) {
+      var rowSum = (st.v || []).reduce(function (a, b) { return a + b; }, 0);
+      h += '<tr class="row-data">';
+      h += '<td class="col-meta cell-section">' + (firstRow ? esc(road.road) : '') + '</td>';
+      h += '<td class="col-meta">' + esc(st.station) + '</td>';
+      (st.v || []).forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
+      h += '<td class="col-total-col">' + fmt(rowSum) + '</td></tr>';
+      firstRow = false;
+    });
+    h += '<tr class="row-total"><td class="col-meta" colspan="2">' + esc(road.road) + ' — итого</td>';
+    (road.total || []).forEach(function (v, i) { grandTotals[i] += (v || 0); h += '<td>' + fmt(v) + '</td>'; });
+    h += '<td class="col-total-col">' + (road.grand_total || 0).toLocaleString('ru-RU') + '</td></tr>';
+    grandSum += (road.grand_total || 0);
+  });
+  h += '<tr class="row-total row-grand"><td class="col-meta" colspan="2">Общий итог</td>';
+  grandTotals.forEach(function (v) { h += '<td>' + (v || '') + '</td>'; });
+  h += '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td></tr></tbody>';
+  $(selector).html(h);
+}
+
 // CSV-экспорт
 function exportToCSV() {
   var table = document.getElementById('mainTable');
@@ -514,11 +843,32 @@ $(function () {
     loadApproachSummary();
     if ($('#approach-detail').hasClass('active')) { window._approachDetLoaded = true; loadApproachDetail(); }
   });
-
   $('#btnApproachReset').on('click', function () {
-    $('#fApproachCargo').val('');
-    $('#fApproachPrevCargo').val('');
-    window._approachDetLoaded = false;
-    loadApproachSummary();
+    $('#fApproachCargo').val(''); $('#fApproachPrevCargo').val('');
+    window._approachDetLoaded = false; loadApproachSummary();
+  });
+
+  // Отправление — фильтры
+  $('#btnDepartureApply').on('click', function () {
+    window._departureDetLoaded = false; loadDepartureSummary();
+    if ($('#departure-detail').hasClass('active')) { window._departureDetLoaded = true; loadDepartureDetail(); }
+  });
+  $('#btnDepartureReset').on('click', function () {
+    $('#fDepartureCargo').val(''); window._departureDetLoaded = false; loadDepartureSummary();
+  });
+
+  // Погрузка — фильтры
+  $('#btnLoadingApply').on('click', function () {
+    window._loadingDetLoaded = false; loadLoadingSummary();
+    if ($('#loading-detail').hasClass('active')) { window._loadingDetLoaded = true; loadLoadingDetail(); }
+  });
+  $('#btnLoadingReset').on('click', function () {
+    $('#fLoadingCargo').val(''); window._loadingDetLoaded = false; loadLoadingSummary();
+  });
+
+  // Простои — фильтры
+  $('#btnDowntimeApply').on('click', function () {
+    window._downtimeDetLoaded = false; loadDowntimeSummary();
+    if ($('#downtime-detail').hasClass('active')) { window._downtimeDetLoaded = true; loadDowntimeDetail(); }
   });
 });

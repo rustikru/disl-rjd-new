@@ -77,5 +77,37 @@ return function (App $app, array $config): void {
             return (new \App\Controllers\ApiController($getDb()))->approachFilters($req, $res);
         });
 
+        // Отправление
+        $group->get('/api/departure/summary', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->departureSummary($req, $res);
+        });
+        $group->get('/api/departure/detail', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->departureDetail($req, $res);
+        });
+
+        // Погрузка
+        $group->get('/api/loading/summary', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->loadingSummary($req, $res);
+        });
+        $group->get('/api/loading/detail', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->loadingDetail($req, $res);
+        });
+
+        // Простои
+        $group->get('/api/downtime/summary', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->downtimeSummary($req, $res);
+        });
+        $group->get('/api/downtime/detail', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->downtimeDetail($req, $res);
+        });
+
+        // Сырьё
+        $group->get('/api/raw-material/summary', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->rawMaterialSummary($req, $res);
+        });
+        $group->get('/api/raw-material/detail', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->rawMaterialDetail($req, $res);
+        });
+
     })->add(new \App\Middleware\AuthMiddleware());
 };

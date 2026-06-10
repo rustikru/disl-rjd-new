@@ -188,15 +188,166 @@
 
     </div>
 
+    <!-- Отправление вагонов -->
+    <div id="panel-departure" class="tab-panel">
+      <div class="kpi-grid" id="departureMetrics" style="margin-bottom:16px"></div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 16px;margin-bottom:12px">
+        <div class="filters-inner">
+          <div class="filter-item">
+            <label class="filter-label" for="fDepartureCargo">Груз</label>
+            <select class="filter-input" id="fDepartureCargo" style="min-width:200px">
+              <option value="">— Все грузы —</option>
+            </select>
+          </div>
+          <div class="filter-actions">
+            <button class="btn btn-primary btn-sm" id="btnDepartureApply">Применить</button>
+            <button class="btn btn-ghost btn-sm" id="btnDepartureReset">Сбросить</button>
+          </div>
+        </div>
+      </div>
+      <div class="inner-tabs">
+        <button class="inner-tab active" data-inner="departure-summary">Сводная (по дорогам)</button>
+        <button class="inner-tab" data-inner="departure-detail">Список вагонов</button>
+      </div>
+      <div id="departure-summary" class="inner-panel active">
+        <section class="table-section">
+          <div class="table-toolbar"><div class="table-info">
+            <span class="table-title">Отправление вагонов — сводная</span>
+            <span class="table-sub" id="departureSumSub"></span>
+          </div></div>
+          <div class="table-scroll"><table class="data-table" id="departureSumTable"></table></div>
+        </section>
+      </div>
+      <div id="departure-detail" class="inner-panel">
+        <section class="table-section">
+          <div class="table-toolbar"><div class="table-info">
+            <span class="table-title">Список отправленных вагонов</span>
+            <span class="table-sub" id="departureDetSub"></span>
+          </div></div>
+          <div class="table-scroll"><table class="data-table" id="departureDetTable"></table></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Погрузка -->
+    <div id="panel-loading" class="tab-panel">
+      <div class="kpi-grid" id="loadingMetrics" style="margin-bottom:16px"></div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 16px;margin-bottom:12px">
+        <div class="filters-inner">
+          <div class="filter-item">
+            <label class="filter-label" for="fLoadingCargo">Груз</label>
+            <select class="filter-input" id="fLoadingCargo" style="min-width:200px">
+              <option value="">— Все грузы —</option>
+            </select>
+          </div>
+          <div class="filter-actions">
+            <button class="btn btn-primary btn-sm" id="btnLoadingApply">Применить</button>
+            <button class="btn btn-ghost btn-sm" id="btnLoadingReset">Сбросить</button>
+          </div>
+        </div>
+      </div>
+      <div class="inner-tabs">
+        <button class="inner-tab active" data-inner="loading-summary">Сводная (по станциям)</button>
+        <button class="inner-tab" data-inner="loading-detail">Список вагонов</button>
+      </div>
+      <div id="loading-summary" class="inner-panel active">
+        <section class="table-section">
+          <div class="table-toolbar"><div class="table-info">
+            <span class="table-title">Погруженные вагоны — сводная</span>
+            <span class="table-sub" id="loadingSumSub"></span>
+          </div></div>
+          <div class="table-scroll"><table class="data-table" id="loadingSumTable"></table></div>
+        </section>
+      </div>
+      <div id="loading-detail" class="inner-panel">
+        <section class="table-section">
+          <div class="table-toolbar"><div class="table-info">
+            <span class="table-title">Список погруженных вагонов</span>
+            <span class="table-sub" id="loadingDetSub"></span>
+          </div></div>
+          <div class="table-scroll"><table class="data-table" id="loadingDetTable"></table></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Простои -->
+    <div id="panel-downtime" class="tab-panel">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 16px;margin-bottom:12px">
+        <div class="filters-inner">
+          <div class="filter-item">
+            <label class="filter-label" for="fDowntimeMinDays">Минимум суток</label>
+            <select class="filter-input" id="fDowntimeMinDays">
+              <option value="1">≥ 1 сут.</option>
+              <option value="2">≥ 2 сут.</option>
+              <option value="3">≥ 3 сут.</option>
+              <option value="5">≥ 5 сут.</option>
+              <option value="7">≥ 7 сут.</option>
+            </select>
+          </div>
+          <div class="filter-actions">
+            <button class="btn btn-primary btn-sm" id="btnDowntimeApply">Применить</button>
+          </div>
+        </div>
+      </div>
+      <div class="inner-tabs">
+        <button class="inner-tab active" data-inner="downtime-summary">Сводная по станциям</button>
+        <button class="inner-tab" data-inner="downtime-detail">Список вагонов</button>
+      </div>
+      <div id="downtime-summary" class="inner-panel active">
+        <section class="table-section">
+          <div class="table-toolbar"><div class="table-info">
+            <span class="table-title">Простои — сводная</span>
+            <span class="table-sub" id="downtimeSumSub"></span>
+          </div></div>
+          <div class="table-scroll"><table class="data-table" id="downtimeSumTable"></table></div>
+        </section>
+      </div>
+      <div id="downtime-detail" class="inner-panel">
+        <section class="table-section">
+          <div class="table-toolbar"><div class="table-info">
+            <span class="table-title">Простаивающие вагоны</span>
+            <span class="table-sub" id="downtimeDetSub"></span>
+          </div></div>
+          <div class="table-scroll"><table class="data-table" id="downtimeDetTable"></table></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Сырьё -->
+    <div id="panel-raw-material" class="tab-panel">
+      <div class="kpi-grid" id="rawMetrics" style="margin-bottom:16px"></div>
+      <div class="inner-tabs">
+        <button class="inner-tab active" data-inner="raw-summary">По грузам</button>
+        <button class="inner-tab" data-inner="raw-detail">Список вагонов</button>
+      </div>
+      <div id="raw-summary" class="inner-panel active">
+        <section class="table-section">
+          <div class="table-toolbar"><div class="table-info">
+            <span class="table-title">Сырьё — гружёные вагоны</span>
+            <span class="table-sub" id="rawSumSub"></span>
+          </div></div>
+          <div class="table-scroll"><table class="data-table" id="rawSumTable"></table></div>
+        </section>
+      </div>
+      <div id="raw-detail" class="inner-panel">
+        <section class="table-section">
+          <div class="table-toolbar"><div class="table-info">
+            <span class="table-title">Список вагонов с сырьём</span>
+            <span class="table-sub" id="rawDetSub"></span>
+          </div></div>
+          <div class="table-scroll"><table class="data-table" id="rawDetTable"></table></div>
+        </section>
+      </div>
+    </div>
+
     <?php
     $placeholders = [
-      'arrived'      => 'Прибыло за сутки',
-      'trains'       => 'Бросание поездов',
-      'analysis'     => 'Анализ за период',
-      'recipients'   => 'Вагоны у получателя',
-      'downtime'     => 'Простои',
+      'arrived'    => 'Прибыло за сутки',
+      'trains'     => 'Бросание поездов',
+      'analysis'   => 'Анализ за период',
+      'recipients' => 'Вагоны у получателя',
       'downtime-sum' => 'Простои (Сводный)',
-      'turnover'     => 'Оборот',
+      'turnover'   => 'Оборот',
     ];
     foreach ($placeholders as $id => $title):
     ?>
