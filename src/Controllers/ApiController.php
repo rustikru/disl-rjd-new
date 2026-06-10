@@ -9,8 +9,7 @@ use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * JSON API для фронтенда.
- * Каждый метод — отдельный эндпоинт, возвращает JSON.
- * Чтобы добавить новый раздел — добавьте метод и маршрут в routes.php.
+ * Все запросы к таблице xx_dislocation_rjd.
  */
 class ApiController
 {
@@ -21,145 +20,227 @@ class ApiController
         $this->db = $db;
     }
 
-    /** GET /api/dashboard — KPI-сводка для Dashboard */
+    /** GET /api/reports — список загруженных справок */
+    public function reports(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $rows = $this->db->fetchAll(
+            'SELECT report_dt, COUNT(*) AS cnt
+             FROM xx_dislocation_rjd
+             GROUP BY report_dt
+             ORDER BY report_dt DESC
+             LIMIT 20'
+        );
+
+        $reports = array_map(function (array $r) {
+            $dt    = (string) ($r['report_dt'] ?? '');
+            $label = $dt;
+            try {
+                $d     = new \DateTime($dt);
+                $label = $d->format('d.m.Y H:i');
+            } catch (\Exception $e) {}
+            return [
+                'report_dt' => $dt,
+                'label'     => $label,
+                'cnt'       => (int) $r['cnt'],
+            ];
+        }, $rows);
+
+        return $this->json($response, ['reports' => $reports]);
+    }
+
+    /** GET /api/dashboard — KPI-сводка */
     public function dashboard(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        // Суммируем вагоны по разделам за последнюю имеющуюся дату
+        $latestDt = $this->db->fetchOne(
+            'SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd'
+        );
+        $dt = $latestDt['dt'] ?? null;
+
+        if (!$dt) {
+            return $this->json($response, [
+                'updated_at' => null,
+                'sections'   => [],
+            ]);
+        }
+
+        // Группируем по park_type, в PHP берём первое слово как имя раздела
         $rows = $this->db->fetchAll(
-            "SELECT section_id, section_name,
-                    SUM(wagon_count) AS total,
-                    SUM(CASE WHEN wagon_group = 'Цистерны' THEN wagon_count ELSE 0 END) AS tank_total
-             FROM wagon_dislocation
-             WHERE report_date = (SELECT MAX(report_date) FROM wagon_dislocation)
-             GROUP BY section_id, section_name
-             ORDER BY section_id"
+            'SELECT park_type, COUNT(*) AS total, wagon_type_code
+             FROM xx_dislocation_rjd
+             WHERE report_dt = :dt
+             GROUP BY park_type, wagon_type_code',
+            ['dt' => $dt]
         );
 
-        $updatedAt = $this->db->fetchOne(
-            'SELECT MAX(report_date) AS dt FROM wagon_dislocation'
-        );
-
-        $data = [
-            'updated_at' => $updatedAt['dt'] ?? date('d.m.Y'),
-            'sections'   => array_map(function (array $r) {
-                return [
-                    'id'         => $r['section_id'],
-                    'name'       => $r['section_name'],
-                    'total'      => (int) $r['total'],
-                    'tank_total' => (int) $r['tank_total'],
+        $sections = [];
+        foreach ($rows as $r) {
+            $sectionName = trim(explode(',', (string) ($r['park_type'] ?? ''))[0]);
+            if (!isset($sections[$sectionName])) {
+                $sections[$sectionName] = [
+                    'id'         => md5($sectionName),
+                    'name'       => $sectionName,
+                    'total'      => 0,
+                    'tank_total' => 0,
                 ];
-            }, $rows),
-        ];
+            }
+            $cnt = (int) $r['total'];
+            $sections[$sectionName]['total'] += $cnt;
+            if (mb_stripos((string) ($r['wagon_type_code'] ?? ''), 'цистерн') !== false) {
+                $sections[$sectionName]['tank_total'] += $cnt;
+            }
+        }
 
-        return $this->json($response, $data);
+        try {
+            $d       = new \DateTime($dt);
+            $dtLabel = $d->format('d.m.Y H:i');
+        } catch (\Exception $e) {
+            $dtLabel = $dt;
+        }
+
+        return $this->json($response, [
+            'updated_at' => $dtLabel,
+            'sections'   => array_values($sections),
+        ]);
     }
 
-    /** GET /api/dislocation/summary?date=YYYY-MM-DD — Сводная таблица дислокации */
+    /** GET /api/dislocation/summary?report_dt=... — Сводная таблица */
     public function dislocationSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params = $request->getQueryParams();
-        $date   = $params['date'] ?? date('Y-m-d');
+        $params   = $request->getQueryParams();
+        $reportDt = $params['report_dt'] ?? null;
 
-        // Все строки за дату
+        if (!$reportDt) {
+            $latest   = $this->db->fetchOne('SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd');
+            $reportDt = $latest['dt'] ?? null;
+        }
+
+        if (!$reportDt) {
+            return $this->json($response, [
+                'date'            => null,
+                'report_dt_label' => 'Нет загруженных справок',
+                'cols'            => [],
+                'sections'        => [],
+            ]);
+        }
+
         $rows = $this->db->fetchAll(
-            'SELECT section_id, section_name, subsection, park,
-                    wagon_type, wagon_group, wagon_count
-             FROM wagon_dislocation
-             WHERE report_date = :date
-             ORDER BY section_id, subsection, wagon_type',
-            ['date' => $date]
+            'SELECT park_type, wagon_type_code, COUNT(*) AS wagon_count
+             FROM xx_dislocation_rjd
+             WHERE report_dt = :dt
+             GROUP BY park_type, wagon_type_code
+             ORDER BY park_type, wagon_type_code',
+            ['dt' => $reportDt]
         );
 
-        $data = $this->buildSummaryStructure($rows, $date);
+        try {
+            $d     = new \DateTime($reportDt);
+            $label = $d->format('d.m.Y H:i');
+        } catch (\Exception $e) {
+            $label = $reportDt;
+        }
+
+        $data = $this->buildSummaryStructure($rows, $label);
         return $this->json($response, $data);
     }
 
-    /** GET /api/dislocation/extended — Расширенная дислокация по вагонам */
+    /** GET /api/dislocation/extended — Расширенная дислокация */
     public function dislocationExtended(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        $params   = $request->getQueryParams();
+        $reportDt = $params['report_dt'] ?? null;
+        $dtParam  = $reportDt
+            ? ':dt'
+            : '(SELECT MAX(report_dt) FROM xx_dislocation_rjd)';
+
         $rows = $this->db->fetchAll(
-            'SELECT wagon_no, train, current_station, from_station, to_station,
-                    cargo, wagon_count, status, status_label, days_en_route,
-                    expected_arrival, park
-             FROM wagon_extended
-             ORDER BY current_station'
+            "SELECT wagon_no, train_no, oper_station, depart_station, dest_station,
+                    cargo_name, park_type, oper_mnemonic, idle_time_days, asoup_arrive_dt,
+                    owner, lessee
+             FROM xx_dislocation_rjd
+             WHERE report_dt = $dtParam
+             ORDER BY oper_station
+             LIMIT 500",
+            $reportDt ? ['dt' => $reportDt] : []
         );
 
         return $this->json($response, ['rows' => $rows]);
     }
 
-    /** GET /api/approach — Подход вагонов */
+    /** GET /api/approach — Подход вагонов (отправленные / прибывающие) */
     public function approach(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $rows = $this->db->fetchAll(
-            'SELECT road, direction, wagon_count, wagon_type, destination_station, expected_time
-             FROM wagon_approach
-             ORDER BY expected_time'
+            "SELECT depart_road, oper_mnemonic, wagon_type_code, dest_station,
+                    oper_dt, asoup_arrive_dt
+             FROM xx_dislocation_rjd
+             WHERE report_dt = (SELECT MAX(report_dt) FROM xx_dislocation_rjd)
+               AND oper_mnemonic IN ('ОТПР', 'ПРБТ')
+             ORDER BY oper_dt DESC
+             LIMIT 200"
         );
 
         return $this->json($response, ['rows' => $rows]);
     }
 
-    // ── Формирование структуры для таблицы дислокации ────────────
+    // ── Строитель сводной таблицы ────────────────────────────────
 
-    private function buildSummaryStructure(array $rows, string $date): array
+    private function buildSummaryStructure(array $rows, string $dateLabel): array
     {
-        // Собираем упорядоченный список типов вагонов (колонок)
+        // Собираем упорядоченный список типов вагонов (колонки)
         $colOrder = [];
         foreach ($rows as $r) {
-            $key = $r['wagon_type'] . '|' . $r['wagon_group'];
-            if (!isset($colOrder[$key])) {
-                $colOrder[$key] = ['label' => $r['wagon_type'], 'group' => $r['wagon_group']];
+            $t = (string) ($r['wagon_type_code'] ?? '');
+            if ($t !== '' && !isset($colOrder[$t])) {
+                $colOrder[$t] = true;
             }
         }
-        $cols = array_values($colOrder);
-        $colIndex = array_flip(array_column($cols, 'label')); // label => position
+        $cols     = array_map(fn($t) => ['label' => $t, 'group' => ''], array_keys($colOrder));
+        $colIndex = array_flip(array_column($cols, 'label'));
 
-        // Группируем строки по разделам
+        // Группируем по первому слову park_type → раздел, полная строка → подраздел
         $sections = [];
         foreach ($rows as $r) {
-            $sid = $r['section_id'];
-            if (!isset($sections[$sid])) {
-                $sections[$sid] = [
-                    'id'          => $sid,
-                    'name'        => $r['section_name'],
+            $parkType    = (string) ($r['park_type'] ?? '');
+            $sectionName = trim(explode(',', $parkType)[0]);
+            $cnt         = (int) ($r['wagon_count'] ?? 0);
+
+            if (!isset($sections[$sectionName])) {
+                $sections[$sectionName] = [
+                    'id'          => md5($sectionName),
+                    'name'        => $sectionName,
                     'rows'        => [],
                     'total'       => array_fill(0, count($cols), 0),
                     'grand_total' => 0,
                 ];
             }
 
-            // Ищем строку с тем же sub+park, добавляем значение в нужную колонку
-            $rowKey = ($r['subsection'] ?? '') . '|' . ($r['park'] ?? '');
-            if (!isset($sections[$sid]['rows'][$rowKey])) {
-                $sections[$sid]['rows'][$rowKey] = [
-                    'sub'  => $r['subsection'],
-                    'park' => $r['park'],
+            if (!isset($sections[$sectionName]['rows'][$parkType])) {
+                $sections[$sectionName]['rows'][$parkType] = [
+                    'sub'  => $parkType,
+                    'park' => '',
                     'v'    => array_fill(0, count($cols), 0),
                 ];
             }
 
-            $ci = $colIndex[$r['wagon_type']] ?? null;
+            $ci = $colIndex[$r['wagon_type_code'] ?? ''] ?? null;
             if ($ci !== null) {
-                $sections[$sid]['rows'][$rowKey]['v'][$ci] += (int) $r['wagon_count'];
-                $sections[$sid]['total'][$ci]             += (int) $r['wagon_count'];
-                $sections[$sid]['grand_total']            += (int) $r['wagon_count'];
+                $sections[$sectionName]['rows'][$parkType]['v'][$ci] += $cnt;
+                $sections[$sectionName]['total'][$ci]               += $cnt;
+                $sections[$sectionName]['grand_total']              += $cnt;
             }
         }
 
-        // Убираем ключи из rows (превращаем в индексный массив)
         foreach ($sections as &$sec) {
             $sec['rows'] = array_values($sec['rows']);
         }
 
         return [
-            'date'     => $date,
-            'cols'     => $cols,
-            'sections' => array_values($sections),
+            'date'            => $dateLabel,
+            'report_dt_label' => $dateLabel,
+            'cols'            => $cols,
+            'sections'        => array_values($sections),
         ];
     }
-
-    // ── Вспомогательный метод — вернуть JSON-ответ ───────────────
 
     private function json(ResponseInterface $response, mixed $data): ResponseInterface
     {

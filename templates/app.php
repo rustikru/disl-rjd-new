@@ -14,7 +14,6 @@
 </head>
 <body>
 
-<!-- ══ Шапка ══════════════════════════════════════════════ -->
 <header class="site-header">
   <div class="header-inner">
     <div class="brand">
@@ -50,12 +49,9 @@
   </div>
 </header>
 
-<!-- ══ Тело: сайдбар + контент ═════════════════════════════ -->
 <div class="app-body">
 
-  <aside class="sidebar" id="sidebar">
-    <!-- Заполняется через app.js → initSidebar() -->
-  </aside>
+  <aside class="sidebar" id="sidebar"></aside>
 
   <main class="main-content">
 
@@ -68,7 +64,7 @@
       <div class="kpi-grid" id="kpiGrid"></div>
       <section class="analytics-grid">
         <div class="chart-card">
-          <div class="chart-title">Распределение по разделам</div>
+          <div class="chart-title">Распределение по типам парка</div>
           <div id="sectionsChart"></div>
         </div>
         <div class="chart-card">
@@ -82,7 +78,7 @@
     <div id="panel-dislocation" class="tab-panel">
       <div class="inner-tabs">
         <button class="inner-tab active" data-inner="disl-summary">Сводная дислокация</button>
-        <button class="inner-tab" data-inner="disl-extended">Сводная расширенная</button>
+        <button class="inner-tab" data-inner="disl-extended">Расширенная</button>
       </div>
 
       <div id="disl-summary" class="inner-panel active">
@@ -99,8 +95,10 @@
           <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px">
             <div class="filters-inner">
               <div class="filter-item">
-                <label class="filter-label" for="fDate">Дата</label>
-                <input class="filter-input" type="date" id="fDate" value="<?= date('Y-m-d') ?>">
+                <label class="filter-label" for="fReportDt">Справка</label>
+                <select class="filter-input" id="fReportDt" style="min-width:200px">
+                  <option value="">— Последняя —</option>
+                </select>
               </div>
               <div class="filter-actions">
                 <button class="btn btn-primary btn-sm" id="btnApply">Применить</button>
@@ -117,9 +115,7 @@
       <div id="disl-extended" class="inner-panel">
         <section class="table-section">
           <div class="table-toolbar">
-            <div class="table-info">
-              <span class="table-title">Расширенная дислокация</span>
-            </div>
+            <div class="table-info"><span class="table-title">Расширенная дислокация</span></div>
           </div>
           <div class="table-scroll">
             <table class="data-table" id="dislExtTable"></table>
@@ -132,9 +128,7 @@
     <div id="panel-approach" class="tab-panel">
       <section class="table-section">
         <div class="table-toolbar">
-          <div class="table-info">
-            <span class="table-title">Подход вагонов</span>
-          </div>
+          <div class="table-info"><span class="table-title">Подход вагонов</span></div>
         </div>
         <div class="table-scroll">
           <table class="data-table" id="approachTable"></table>
@@ -142,7 +136,6 @@
       </section>
     </div>
 
-    <!-- Заглушки для разделов в разработке -->
     <?php
     $placeholders = [
       'arrived'      => 'Прибыло за сутки',

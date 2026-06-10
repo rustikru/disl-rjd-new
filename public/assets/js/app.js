@@ -1,6 +1,5 @@
 /* ================================================================
  * app.js — Основная логика приложения
- * Загружает данные из API, строит таблицы, графики и навигацию.
  * Добавить новый раздел:
  *   1. Добавить запись в TAB_GROUPS
  *   2. Добавить панель <div id="panel-xxx"> в templates/app.php
@@ -10,7 +9,7 @@
 
 'use strict';
 
-// ── Структура навигации (сайдбар) ────────────────────────────────
+// Структура навигации. Для ссылок (url) вместо вкладок страница открывается в том же окне.
 var TAB_GROUPS = [
   {
     label: '',
@@ -39,10 +38,16 @@ var TAB_GROUPS = [
       { id: 'downtime-sum', label: 'Простои (Сводный)' },
       { id: 'turnover',     label: 'Оборот' }
     ]
+  },
+  {
+    label: 'Управление',
+    tabs: [
+      { id: 'import', label: '↑ Загрузка справок', url: '/import' }
+    ]
   }
 ];
 
-// ── Сайдбар ──────────────────────────────────────────────────────
+// Сайдбар
 function initSidebar() {
   var sidebar = document.getElementById('sidebar');
   TAB_GROUPS.forEach(function (group) {
@@ -59,7 +64,11 @@ function initSidebar() {
       btn.className = 'nav-item' + (tab.id === 'dashboard' ? ' active' : '');
       btn.textContent = tab.label;
       btn.dataset.tab = tab.id;
-      btn.addEventListener('click', function () { switchTab(tab.id); });
+      if (tab.url) {
+        btn.addEventListener('click', function () { window.location.href = tab.url; });
+      } else {
+        btn.addEventListener('click', function () { switchTab(tab.id); });
+      }
       groupEl.appendChild(btn);
     });
 
@@ -67,7 +76,7 @@ function initSidebar() {
   });
 }
 
-// ── Переключение вкладок ──────────────────────────────────────────
+// Переключение вкладок
 function switchTab(tabId) {
   document.querySelectorAll('.nav-item').forEach(function (btn) {
     btn.classList.toggle('active', btn.dataset.tab === tabId);
@@ -75,13 +84,11 @@ function switchTab(tabId) {
   document.querySelectorAll('.tab-panel').forEach(function (panel) {
     panel.classList.toggle('active', panel.id === 'panel-' + tabId);
   });
-
-  // Загружаем данные при первом открытии вкладки
   if (tabId === 'dislocation' && !window._dislLoaded) { loadDislocation(); }
   if (tabId === 'approach'    && !window._approachLoaded) { loadApproach(); }
 }
 
-// ── Внутренние вкладки (pill) ─────────────────────────────────────
+// Внутренние вкладки (pill)
 function initInnerTabs() {
   document.querySelectorAll('.inner-tabs').forEach(function (tabsEl) {
     tabsEl.querySelectorAll('.inner-tab').forEach(function (btn) {
@@ -104,12 +111,25 @@ function initInnerTabs() {
   });
 }
 
-// ── Dashboard ─────────────────────────────────────────────────────
+// Загрузить список справок в дропдаун
+function loadReports() {
+  $.getJSON('/api/reports')
+    .done(function (data) {
+      var sel = $('#fReportDt');
+      sel.find('option:not(:first)').remove();
+      (data.reports || []).forEach(function (r) {
+        sel.append($('<option>').val(r.report_dt).text(r.label + ' (' + r.cnt + ' ваг.)'));
+      });
+    });
+}
+
+// Dashboard
 function loadDashboard() {
   $.getJSON('/api/dashboard')
     .done(function (data) {
-      $('#headerDate').text(data.updated_at || '—');
-      $('#dashboardSub').text('Обновлено: ' + (data.updated_at || '—') + ' · РЖД');
+      var label = data.updated_at || '—';
+      $('#headerDate').text(label);
+      $('#dashboardSub').text('Справка: ' + label + ' · РЖД');
       renderKPI(data.sections);
       renderBarChart(data.sections);
       renderDonutChart(data.sections);
@@ -119,20 +139,16 @@ function loadDashboard() {
     });
 }
 
-// ── KPI карточки ──────────────────────────────────────────────────
+// KPI карточки
 function renderKPI(sections) {
-  function get(id) {
-    var s = sections.find(function (x) { return x.id === id; });
-    return s ? s.total : 0;
-  }
   var grandTotal = sections.reduce(function (s, x) { return s + x.total; }, 0);
+  var tankTotal  = sections.reduce(function (s, x) { return s + (x.tank_total || 0); }, 0);
 
   var kpis = [
-    { label: 'Общий парк',            value: grandTotal,            accent: true },
-    { label: 'В пути к потребителям', value: get('transit'),        sub: 'в движении' },
-    { label: 'На подъездных путях',   value: get('siding'),         sub: 'груж. и пор.' },
-    { label: 'Подход порожних',       value: get('empty_approach'), sub: 'на подходе' },
-    { label: 'В ремонте',             value: get('repair'),         sub: 'деповской / план.' }
+    { label: 'Общий парк',         value: grandTotal, accent: true },
+    { label: 'Цистерны',            value: tankTotal },
+    { label: 'Прочие вагоны',      value: grandTotal - tankTotal },
+    { label: 'Типов парка',       value: sections.length, sub: 'разновидностей' },
   ];
 
   $('#kpiGrid').html(kpis.map(function (k) {
@@ -144,10 +160,11 @@ function renderKPI(sections) {
   }).join(''));
 }
 
-// ── SVG столбчатый график ─────────────────────────────────────────
-var BAR_COLORS = ['#4A7FCB', '#5B9E6B', '#8B62C4', '#3B9EAF', '#6B7EC4'];
+// SVG столбчатый график
+var BAR_COLORS = ['#4A7FCB', '#5B9E6B', '#8B62C4', '#3B9EAF', '#6B7EC4', '#D4622A', '#E8A530'];
 
 function renderBarChart(sections) {
+  if (!sections.length) { $('#sectionsChart').html('<p style="color:#9DA5B0;padding:20px">Нет данных</p>'); return; }
   var values = sections.map(function (s) { return s.total; });
   var labels = sections.map(function (s) { return s.name; });
   var max = Math.max.apply(null, values) || 1;
@@ -158,9 +175,9 @@ function renderBarChart(sections) {
     '" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible">';
 
   values.forEach(function (v, i) {
-    var y = i * (barH + gap);
-    var barPx = Math.max(4, Math.round((v / max) * bw));
-    var color = BAR_COLORS[i % BAR_COLORS.length];
+    var y      = i * (barH + gap);
+    var barPx  = Math.max(4, Math.round((v / max) * bw));
+    var color  = BAR_COLORS[i % BAR_COLORS.length];
     svg += '<text x="' + (lw - 8) + '" y="' + (y + barH / 2 + 4) + '" font-family="PT Sans,sans-serif" font-size="11" fill="#5C6370" text-anchor="end">' + esc(labels[i]) + '</text>';
     svg += '<rect x="' + lw + '" y="' + y + '" width="' + barPx + '" height="' + barH + '" rx="3" fill="' + color + '"/>';
     svg += '<text x="' + (lw + barPx + 6) + '" y="' + (y + barH / 2 + 4) + '" font-family="PT Sans,sans-serif" font-size="12" font-weight="700" fill="#1C2128">' + v.toLocaleString('ru-RU') + '</text>';
@@ -170,11 +187,11 @@ function renderBarChart(sections) {
   $('#sectionsChart').html(svg);
 }
 
-// ── SVG донат ─────────────────────────────────────────────────────
+// SVG донат
 function renderDonutChart(sections) {
   var grandTotal = sections.reduce(function (s, x) { return s + x.total; }, 0);
-  var cis  = sections.reduce(function (s, x) { return s + (x.tank_total || 0); }, 0);
-  var oth  = grandTotal - cis;
+  var cis        = sections.reduce(function (s, x) { return s + (x.tank_total || 0); }, 0);
+  var oth        = grandTotal - cis;
   var r = 60, sw = 22;
   var circ = 2 * Math.PI * r;
   var dash = grandTotal > 0 ? (cis / grandTotal) * circ : 0;
@@ -197,116 +214,110 @@ function renderDonutChart(sections) {
   );
 }
 
-// ── Сводная дислокация ────────────────────────────────────────────
+// Сводная дислокация
 function loadDislocation() {
   window._dislLoaded = true;
-  var date = $('#fDate').val();
+  var reportDt = $('#fReportDt').val();
   $('#mainTableSub').text('Загрузка...');
 
-  $.getJSON('/api/dislocation/summary', { date: date })
+  var params = reportDt ? { report_dt: reportDt } : {};
+  $.getJSON('/api/dislocation/summary', params)
     .done(function (data) {
+      if (!data.cols || !data.cols.length) {
+        $('#mainTable').html('<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">' +
+          (data.report_dt_label || 'Нет данных. Загрузите справку через «Управление → Загрузка справок»') +
+          '</td></tr></tbody>');
+        $('#mainTableSub').text(data.report_dt_label || '');
+        return;
+      }
       renderMainTable(data.sections, data.cols);
-      $('#mainTableSub').text(data.date + ' · РЖД');
+      $('#mainTableSub').text((data.report_dt_label || data.date || '') + ' · РЖД');
     })
     .fail(function () {
-      $('#mainTable').html('<tbody><tr><td colspan="20" style="text-align:center;padding:40px;color:#9DA5B0">Ошибка загрузки данных</td></tr></tbody>');
+      $('#mainTable').html('<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">Ошибка загрузки</td></tr></tbody>');
     });
 }
 
 function renderMainTable(sections, cols) {
-  // Группировка заголовков столбцов
-  var groups = [];
-  cols.forEach(function (c) {
-    if (!groups.length || groups[groups.length - 1].name !== c.group) {
-      groups.push({ name: c.group, count: 1 });
-    } else {
-      groups[groups.length - 1].count++;
-    }
-  });
-
-  function fmt(v) { return v ? v : ''; }
+  function fmt(v) { return v || ''; }
 
   var h = '<thead><tr>';
-  h += '<th class="col-meta" rowspan="2">Раздел</th>';
-  h += '<th class="col-meta" rowspan="2">Подраздел</th>';
-  h += '<th class="col-meta" rowspan="2">Парк</th>';
-  groups.forEach(function (g) { h += '<th class="th-group" colspan="' + g.count + '">' + esc(g.name) + '</th>'; });
-  h += '<th class="col-total-col" rowspan="2">Итого</th>';
-  h += '</tr><tr>';
+  h += '<th class="col-meta">Раздел</th>';
+  h += '<th class="col-meta">Тип парка</th>';
   cols.forEach(function (c) { h += '<th>' + esc(c.label) + '</th>'; });
+  h += '<th class="col-total-col">Итого</th>';
   h += '</tr></thead><tbody>';
 
   sections.forEach(function (section) {
-    var prevSub = null, firstRow = true;
+    var firstRow = true;
     section.rows.forEach(function (row) {
-      var newSub = row.sub !== prevSub;
       var rowSum = row.v.reduce(function (a, b) { return a + b; }, 0);
       h += '<tr class="row-data">';
       h += '<td class="col-meta' + (firstRow ? ' cell-section' : '') + '">' + (firstRow ? esc(section.name) : '') + '</td>';
-      h += '<td class="col-meta">' + (newSub ? esc(row.sub || '') : '') + '</td>';
-      h += '<td class="col-meta">' + esc(row.park || '') + '</td>';
+      h += '<td class="col-meta">' + esc(row.sub || '') + '</td>';
       row.v.forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
       h += '<td class="col-total-col">' + fmt(rowSum) + '</td></tr>';
-      if (newSub) prevSub = row.sub;
       firstRow = false;
     });
-    h += '<tr class="row-total"><td class="col-meta" colspan="3">' + esc(section.name) + ' — итого</td>';
+    h += '<tr class="row-total"><td class="col-meta" colspan="2">' + esc(section.name) + ' — итого</td>';
     section.total.forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
     h += '<td class="col-total-col">' + section.grand_total.toLocaleString('ru-RU') + '</td></tr>';
   });
 
-  // Общий итог
   var grandTotals = cols.map(function (_, ci) {
     return sections.reduce(function (s, sec) { return s + (sec.total[ci] || 0); }, 0);
   });
   var grandSum = grandTotals.reduce(function (a, b) { return a + b; }, 0);
-  h += '<tr class="row-total row-grand"><td class="col-meta" colspan="3">Общий итог</td>';
+  h += '<tr class="row-total row-grand"><td class="col-meta" colspan="2">Общий итог</td>';
   grandTotals.forEach(function (v) { h += '<td>' + (v || '') + '</td>'; });
   h += '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td></tr></tbody>';
 
   $('#mainTable').html(h);
 }
 
-// ── Расширенная дислокация ────────────────────────────────────────
+// Расширенная дислокация
 function loadDislocationExtended() {
   window._extLoaded = true;
   $.getJSON('/api/dislocation/extended')
     .done(function (data) { renderExtendedTable(data.rows); })
     .fail(function () {
-      $('#dislExtTable').html('<tbody><tr><td colspan="11" style="text-align:center;padding:40px;color:#9DA5B0">Ошибка загрузки</td></tr></tbody>');
+      $('#dislExtTable').html('<tbody><tr><td colspan="10" style="text-align:center;padding:40px;color:#9DA5B0">Ошибка загрузки</td></tr></tbody>');
     });
 }
 
 function renderExtendedTable(rows) {
   var h = '<thead><tr>' +
-    '<th class="col-meta">№ вагона</th><th class="col-meta">Поезд</th>' +
-    '<th class="col-meta">Тек. станция</th><th class="col-meta">Ст. отправл.</th>' +
-    '<th class="col-meta">Ст. назнач.</th><th class="col-meta">Груз</th>' +
-    '<th>Ваг.</th><th class="col-meta">Статус</th>' +
-    '<th>Дней в пути</th><th class="col-meta">Ожид. приб.</th>' +
-    '<th class="col-meta">Парк</th></tr></thead><tbody>';
+    '<th class="col-meta">№ вагона</th>' +
+    '<th class="col-meta">Поезд №</th>' +
+    '<th class="col-meta">Тек. станция</th>' +
+    '<th class="col-meta">Ст. отправл.</th>' +
+    '<th class="col-meta">Ст. назнач.</th>' +
+    '<th class="col-meta">Груз</th>' +
+    '<th class="col-meta">Тип парка</th>' +
+    '<th class="col-meta">Операция</th>' +
+    '<th>Простой (дн)</th>' +
+    '<th class="col-meta">Приб. (АСОУП)</th>' +
+    '</tr></thead><tbody>';
 
-  rows.forEach(function (r) {
-    var badge = r.status === 'loaded' ? 'badge-loaded' : 'badge-empty';
+  (rows || []).forEach(function (r) {
     h += '<tr class="row-data">' +
       '<td class="col-meta" style="font-family:monospace;font-size:11px">' + esc(r.wagon_no) + '</td>' +
-      '<td class="col-meta">' + esc(r.train) + '</td>' +
-      '<td class="col-meta">' + esc(r.current_station) + '</td>' +
-      '<td class="col-meta">' + esc(r.from_station) + '</td>' +
-      '<td class="col-meta">' + esc(r.to_station) + '</td>' +
-      '<td class="col-meta">' + esc(r.cargo) + '</td>' +
-      '<td>' + r.wagon_count + '</td>' +
-      '<td class="col-meta"><span class="badge ' + badge + '">' + esc(r.status_label) + '</span></td>' +
-      '<td>' + r.days_en_route + '</td>' +
-      '<td class="col-meta">' + esc(r.expected_arrival) + '</td>' +
-      '<td class="col-meta">' + esc(r.park) + '</td>' +
+      '<td class="col-meta">' + esc(r.train_no) + '</td>' +
+      '<td class="col-meta">' + esc(r.oper_station) + '</td>' +
+      '<td class="col-meta">' + esc(r.depart_station) + '</td>' +
+      '<td class="col-meta">' + esc(r.dest_station) + '</td>' +
+      '<td class="col-meta">' + esc(r.cargo_name) + '</td>' +
+      '<td class="col-meta">' + esc(r.park_type) + '</td>' +
+      '<td class="col-meta">' + esc(r.oper_mnemonic) + '</td>' +
+      '<td>' + esc(r.idle_time_days) + '</td>' +
+      '<td class="col-meta">' + esc(r.asoup_arrive_dt) + '</td>' +
       '</tr>';
   });
 
   $('#dislExtTable').html(h + '</tbody>');
 }
 
-// ── Подход вагонов ────────────────────────────────────────────────
+// Подход вагонов
 function loadApproach() {
   window._approachLoaded = true;
   $.getJSON('/api/approach')
@@ -317,30 +328,32 @@ function loadApproach() {
 }
 
 function renderApproachTable(rows) {
-  var dirLabel = { arrive: 'прибытие', depart: 'отправление' };
   var h = '<thead><tr>' +
-    '<th class="col-meta">Дорога</th><th class="col-meta">Направление</th>' +
-    '<th>Вагонов</th><th class="col-meta">Тип вагона</th>' +
-    '<th class="col-meta">Станция назн.</th><th class="col-meta">Ожид. время</th>' +
+    '<th class="col-meta">Дорога отправления</th>' +
+    '<th class="col-meta">Операция</th>' +
+    '<th class="col-meta">Тип вагона</th>' +
+    '<th class="col-meta">Станция назн.</th>' +
+    '<th class="col-meta">Дата операции</th>' +
+    '<th class="col-meta">Ожид. прибытие</th>' +
     '</tr></thead><tbody>';
 
-  rows.forEach(function (r) {
-    var dir   = r.direction || 'arrive';
-    var badge = dir === 'arrive' ? 'badge-arrive' : 'badge-depart';
+  (rows || []).forEach(function (r) {
+    var isSend = r.oper_mnemonic === 'ОТПР';
+    var badge  = isSend ? 'badge-depart' : 'badge-arrive';
     h += '<tr class="row-data">' +
-      '<td class="col-meta">' + esc(r.road) + '</td>' +
-      '<td class="col-meta"><span class="badge ' + badge + '">' + (dirLabel[dir] || dir) + '</span></td>' +
-      '<td>' + r.wagon_count + '</td>' +
-      '<td class="col-meta">' + esc(r.wagon_type) + '</td>' +
-      '<td class="col-meta">' + esc(r.destination_station) + '</td>' +
-      '<td class="col-meta">' + esc(r.expected_time) + '</td>' +
+      '<td class="col-meta">' + esc(r.depart_road) + '</td>' +
+      '<td class="col-meta"><span class="badge ' + badge + '">' + esc(r.oper_mnemonic) + '</span></td>' +
+      '<td class="col-meta">' + esc(r.wagon_type_code) + '</td>' +
+      '<td class="col-meta">' + esc(r.dest_station) + '</td>' +
+      '<td class="col-meta">' + esc(r.oper_dt) + '</td>' +
+      '<td class="col-meta">' + esc(r.asoup_arrive_dt) + '</td>' +
       '</tr>';
   });
 
   $('#approachTable').html(h + '</tbody>');
 }
 
-// ── CSV-экспорт из отрисованной таблицы ──────────────────────────
+// CSV-экспорт
 function exportToCSV() {
   var table = document.getElementById('mainTable');
   if (!table) return;
@@ -355,12 +368,12 @@ function exportToCSV() {
   var csv = '﻿' + rows.join('\n');
   var a   = document.createElement('a');
   a.href     = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = 'дислокация_' + ($('#fDate').val() || 'export') + '.csv';
+  a.download = 'дислокация_' + new Date().toISOString().slice(0, 10) + '.csv';
   a.click();
   URL.revokeObjectURL(a.href);
 }
 
-// ── Утилита: экранирование HTML ───────────────────────────────────
+// Экранирование HTML
 function esc(str) {
   if (!str && str !== 0) return '';
   return String(str)
@@ -368,11 +381,12 @@ function esc(str) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// ── Старт ─────────────────────────────────────────────────────────
+// Старт
 $(function () {
   initSidebar();
   initInnerTabs();
   loadDashboard();
+  loadReports();
 
   $('#btnApply').on('click', function () {
     window._dislLoaded = false;
@@ -380,7 +394,7 @@ $(function () {
   });
 
   $('#btnReset').on('click', function () {
-    $('#fDate').val(new Date().toISOString().slice(0, 10));
+    $('#fReportDt').val('');
     window._dislLoaded = false;
     loadDislocation();
   });
