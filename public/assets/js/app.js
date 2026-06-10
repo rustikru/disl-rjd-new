@@ -815,6 +815,39 @@ function esc(str) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// Свернуть / Отобразить все дороги в таблице
+function collapseAllRoads($table) {
+  $table.find('.row-road-parent').each(function () {
+    var ri = $(this).data('road-id');
+    $table.find('tr[data-parent-road="' + ri + '"]').addClass('row-hidden');
+    $(this).find('.toggle-icon').text('▶');
+  });
+}
+function expandAllRoads($table) {
+  $table.find('.row-road-parent').each(function () {
+    var ri = $(this).data('road-id');
+    $table.find('tr[data-parent-road="' + ri + '"]').removeClass('row-hidden');
+    $(this).find('.toggle-icon').text('▼');
+  });
+}
+
+$(document).on('click', '[data-collapse-table]', function () {
+  collapseAllRoads($('#' + $(this).data('collapse-table')));
+});
+$(document).on('click', '[data-expand-table]', function () {
+  expandAllRoads($('#' + $(this).data('expand-table')));
+});
+
+// Поиск по строкам детальных таблиц
+$(document).on('input', '.table-search', function () {
+  var q      = $(this).val().toLowerCase().trim();
+  var $table = $('#' + $(this).data('search-table'));
+  $table.find('tbody tr').each(function () {
+    var text = $(this).text().toLowerCase();
+    $(this).toggle(!q || text.indexOf(q) !== -1);
+  });
+});
+
 // Сворачивание/разворачивание строк дороги
 $(document).on('click', '.row-road-parent', function () {
   var ri     = $(this).data('road-id');

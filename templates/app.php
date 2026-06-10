@@ -89,6 +89,8 @@
               <span class="table-sub" id="mainTableSub"></span>
             </div>
             <div class="table-acts">
+              <button class="btn btn-ghost btn-sm" data-collapse-table="mainTable">Свернуть все</button>
+              <button class="btn btn-ghost btn-sm" data-expand-table="mainTable">Отобразить все</button>
               <button class="btn btn-ghost btn-sm" id="btnExportCSV">↓ CSV</button>
             </div>
           </div>
@@ -116,6 +118,9 @@
         <section class="table-section">
           <div class="table-toolbar">
             <div class="table-info"><span class="table-title">Расширенная дислокация</span></div>
+            <div class="table-acts">
+              <input class="filter-input table-search" data-search-table="dislExtTable" placeholder="Поиск..." style="min-width:200px">
+            </div>
           </div>
           <div class="table-scroll">
             <table class="data-table" id="dislExtTable"></table>
@@ -165,6 +170,10 @@
               <span class="table-title">Подход вагонов — сводная</span>
               <span class="table-sub" id="approachSumSub"></span>
             </div>
+            <div class="table-acts">
+              <button class="btn btn-ghost btn-sm" data-collapse-table="approachSumTable">Свернуть все</button>
+              <button class="btn btn-ghost btn-sm" data-expand-table="approachSumTable">Отобразить все</button>
+            </div>
           </div>
           <div class="table-scroll">
             <table class="data-table" id="approachSumTable"></table>
@@ -178,6 +187,9 @@
             <div class="table-info">
               <span class="table-title">Список вагонов в подходе</span>
               <span class="table-sub" id="approachDetSub"></span>
+            </div>
+            <div class="table-acts">
+              <input class="filter-input table-search" data-search-table="approachDetTable" placeholder="Поиск..." style="min-width:200px">
             </div>
           </div>
           <div class="table-scroll">
@@ -211,19 +223,30 @@
       </div>
       <div id="departure-summary" class="inner-panel active">
         <section class="table-section">
-          <div class="table-toolbar"><div class="table-info">
-            <span class="table-title">Отправление вагонов — сводная</span>
-            <span class="table-sub" id="departureSumSub"></span>
-          </div></div>
+          <div class="table-toolbar">
+            <div class="table-info">
+              <span class="table-title">Отправление вагонов — сводная</span>
+              <span class="table-sub" id="departureSumSub"></span>
+            </div>
+            <div class="table-acts">
+              <button class="btn btn-ghost btn-sm" data-collapse-table="departureSumTable">Свернуть все</button>
+              <button class="btn btn-ghost btn-sm" data-expand-table="departureSumTable">Отобразить все</button>
+            </div>
+          </div>
           <div class="table-scroll"><table class="data-table" id="departureSumTable"></table></div>
         </section>
       </div>
       <div id="departure-detail" class="inner-panel">
         <section class="table-section">
-          <div class="table-toolbar"><div class="table-info">
-            <span class="table-title">Список отправленных вагонов</span>
-            <span class="table-sub" id="departureDetSub"></span>
-          </div></div>
+          <div class="table-toolbar">
+            <div class="table-info">
+              <span class="table-title">Список отправленных вагонов</span>
+              <span class="table-sub" id="departureDetSub"></span>
+            </div>
+            <div class="table-acts">
+              <input class="filter-input table-search" data-search-table="departureDetTable" placeholder="Поиск..." style="min-width:200px">
+            </div>
+          </div>
           <div class="table-scroll"><table class="data-table" id="departureDetTable"></table></div>
         </section>
       </div>
@@ -252,19 +275,30 @@
       </div>
       <div id="loading-summary" class="inner-panel active">
         <section class="table-section">
-          <div class="table-toolbar"><div class="table-info">
-            <span class="table-title">Погруженные вагоны — сводная</span>
-            <span class="table-sub" id="loadingSumSub"></span>
-          </div></div>
+          <div class="table-toolbar">
+            <div class="table-info">
+              <span class="table-title">Погруженные вагоны — сводная</span>
+              <span class="table-sub" id="loadingSumSub"></span>
+            </div>
+            <div class="table-acts">
+              <button class="btn btn-ghost btn-sm" data-collapse-table="loadingSumTable">Свернуть все</button>
+              <button class="btn btn-ghost btn-sm" data-expand-table="loadingSumTable">Отобразить все</button>
+            </div>
+          </div>
           <div class="table-scroll"><table class="data-table" id="loadingSumTable"></table></div>
         </section>
       </div>
       <div id="loading-detail" class="inner-panel">
         <section class="table-section">
-          <div class="table-toolbar"><div class="table-info">
-            <span class="table-title">Список погруженных вагонов</span>
-            <span class="table-sub" id="loadingDetSub"></span>
-          </div></div>
+          <div class="table-toolbar">
+            <div class="table-info">
+              <span class="table-title">Список погруженных вагонов</span>
+              <span class="table-sub" id="loadingDetSub"></span>
+            </div>
+            <div class="table-acts">
+              <input class="filter-input table-search" data-search-table="loadingDetTable" placeholder="Поиск..." style="min-width:200px">
+            </div>
+          </div>
           <div class="table-scroll"><table class="data-table" id="loadingDetTable"></table></div>
         </section>
       </div>
@@ -304,10 +338,15 @@
       </div>
       <div id="downtime-detail" class="inner-panel">
         <section class="table-section">
-          <div class="table-toolbar"><div class="table-info">
-            <span class="table-title">Простаивающие вагоны</span>
-            <span class="table-sub" id="downtimeDetSub"></span>
-          </div></div>
+          <div class="table-toolbar">
+            <div class="table-info">
+              <span class="table-title">Простаивающие вагоны</span>
+              <span class="table-sub" id="downtimeDetSub"></span>
+            </div>
+            <div class="table-acts">
+              <input class="filter-input table-search" data-search-table="downtimeDetTable" placeholder="Поиск..." style="min-width:200px">
+            </div>
+          </div>
           <div class="table-scroll"><table class="data-table" id="downtimeDetTable"></table></div>
         </section>
       </div>
@@ -331,10 +370,15 @@
       </div>
       <div id="raw-detail" class="inner-panel">
         <section class="table-section">
-          <div class="table-toolbar"><div class="table-info">
-            <span class="table-title">Список вагонов с сырьём</span>
-            <span class="table-sub" id="rawDetSub"></span>
-          </div></div>
+          <div class="table-toolbar">
+            <div class="table-info">
+              <span class="table-title">Список вагонов с сырьём</span>
+              <span class="table-sub" id="rawDetSub"></span>
+            </div>
+            <div class="table-acts">
+              <input class="filter-input table-search" data-search-table="rawDetTable" placeholder="Поиск..." style="min-width:200px">
+            </div>
+          </div>
           <div class="table-scroll"><table class="data-table" id="rawDetTable"></table></div>
         </section>
       </div>
