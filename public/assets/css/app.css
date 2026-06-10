@@ -169,7 +169,7 @@ body {
 .table-title { font-size: 13px; font-weight: 700; }
 .table-sub   { font-size: 11px; color: var(--text-3); }
 .table-acts  { display: flex; gap: 6px; flex-shrink: 0; }
-.table-scroll{ overflow: auto; max-height: calc(100vh - 340px); }
+.table-scroll{ overflow-x: auto; }
 
 .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .data-table th, .data-table td {
@@ -237,7 +237,7 @@ body {
 /* ── Поиск по столбцам (строка под заголовком) ───────────────── */
 .search-row td {
   padding: 2px 3px; background: #F7F8FA;
-  border-bottom: 2px solid var(--border); position: sticky; top: 24px; z-index: 2;
+  border-bottom: 2px solid var(--border);
 }
 .col-search-input {
   width: 100%; box-sizing: border-box; display: block;
