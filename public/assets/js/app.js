@@ -259,13 +259,13 @@ function renderMainTable(sections, cols) {
 
   sections.forEach(function (section, si) {
     h += '<tr class="row-road-parent" data-road-id="' + si + '">';
-    h += '<td class="col-meta" colspan="2"><span class="toggle-icon">▼</span>' + esc(section.name) + '</td>';
+    h += '<td class="col-meta" colspan="2"><span class="toggle-icon">▶</span>' + esc(section.name) + '</td>';
     section.total.forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
     h += '<td class="col-total-col">' + section.grand_total.toLocaleString('ru-RU') + '</td></tr>';
 
     section.rows.forEach(function (row) {
       var rowSum = row.v.reduce(function (a, b) { return a + b; }, 0);
-      h += '<tr class="row-data row-child" data-parent-road="' + si + '">';
+      h += '<tr class="row-data row-child row-hidden" data-parent-road="' + si + '">';
       h += '<td class="col-meta"></td>';
       h += '<td class="col-meta">' + esc(row.sub || '') + '</td>';
       row.v.forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
@@ -324,6 +324,7 @@ function renderExtendedTable(rows) {
   });
 
   $('#dislExtTable').html(h + '</tbody>');
+  addColumnSearch($('#dislExtTable'));
 }
 
 // ── Подход вагонов ──────────────────────────────────────────────
@@ -410,7 +411,7 @@ function renderApproachSummaryTable(roads, cols) {
 
   (roads || []).forEach(function (road, ri) {
     h += '<tr class="row-road-parent" data-road-id="' + ri + '">';
-    h += '<td class="col-meta" colspan="2"><span class="toggle-icon">▼</span>' + esc(road.road) + '</td>';
+    h += '<td class="col-meta" colspan="2"><span class="toggle-icon">▶</span>' + esc(road.road) + '</td>';
     (road.total || []).forEach(function (v, i) {
       grandTotals[i] = (grandTotals[i] || 0) + (v || 0);
       h += '<td>' + fmt(v) + '</td>';
@@ -420,7 +421,7 @@ function renderApproachSummaryTable(roads, cols) {
 
     (road.stations || []).forEach(function (st) {
       var rowSum = (st.v || []).reduce(function (a, b) { return a + b; }, 0);
-      h += '<tr class="row-data row-child" data-parent-road="' + ri + '">';
+      h += '<tr class="row-data row-child row-hidden" data-parent-road="' + ri + '">';
       h += '<td class="col-meta"></td>';
       h += '<td class="col-meta">' + esc(st.station) + '</td>';
       (st.v || []).forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
@@ -466,6 +467,7 @@ function renderApproachDetailTable(rows) {
   });
 
   $('#approachDetTable').html(h + '</tbody>');
+  addColumnSearch($('#approachDetTable'));
 }
 
 // ── Отправление вагонов ─────────────────────────────────────────
@@ -528,6 +530,7 @@ function renderDepartureDetailTable(rows) {
       '</tr>';
   });
   $('#departureDetTable').html(h + '</tbody>');
+  addColumnSearch($('#departureDetTable'));
 }
 
 // ── Погрузка ────────────────────────────────────────────────────
@@ -582,6 +585,7 @@ function loadLoadingDetail() {
           '</tr>';
       });
       $('#loadingDetTable').html(h + '</tbody>');
+      addColumnSearch($('#loadingDetTable'));
       $('#loadingDetSub').text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'));
     });
 }
@@ -657,6 +661,7 @@ function renderDowntimeDetailTable(rows) {
       '</tr>';
   });
   $('#downtimeDetTable').html(h + '</tbody>');
+  addColumnSearch($('#downtimeDetTable'));
 }
 
 // ── Сырьё ────────────────────────────────────────────────────────
@@ -712,6 +717,7 @@ function loadRawDetail(cargo) {
           '</tr>';
       });
       $('#rawDetTable').html(h + '</tbody>');
+      addColumnSearch($('#rawDetTable'));
       $('#rawDetSub').text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'));
     });
 }
@@ -767,14 +773,14 @@ function renderRoadStationTable(selector, roads, cols) {
   var grandSum = 0;
   (roads || []).forEach(function (road, ri) {
     h += '<tr class="row-road-parent" data-road-id="' + ri + '">';
-    h += '<td class="col-meta" colspan="2"><span class="toggle-icon">▼</span>' + esc(road.road) + '</td>';
+    h += '<td class="col-meta" colspan="2"><span class="toggle-icon">▶</span>' + esc(road.road) + '</td>';
     (road.total || []).forEach(function (v, i) { grandTotals[i] += (v || 0); h += '<td>' + fmt(v) + '</td>'; });
     h += '<td class="col-total-col">' + (road.grand_total || 0).toLocaleString('ru-RU') + '</td></tr>';
     grandSum += (road.grand_total || 0);
 
     (road.stations || []).forEach(function (st) {
       var rowSum = (st.v || []).reduce(function (a, b) { return a + b; }, 0);
-      h += '<tr class="row-data row-child" data-parent-road="' + ri + '">';
+      h += '<tr class="row-data row-child row-hidden" data-parent-road="' + ri + '">';
       h += '<td class="col-meta"></td>';
       h += '<td class="col-meta">' + esc(st.station) + '</td>';
       (st.v || []).forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
@@ -838,13 +844,27 @@ $(document).on('click', '[data-expand-table]', function () {
   expandAllRoads($('#' + $(this).data('expand-table')));
 });
 
-// Поиск по строкам детальных таблиц
-$(document).on('input', '.table-search', function () {
-  var q      = $(this).val().toLowerCase().trim();
-  var $table = $('#' + $(this).data('search-table'));
-  $table.find('tbody tr').each(function () {
-    var text = $(this).text().toLowerCase();
-    $(this).toggle(!q || text.indexOf(q) !== -1);
+// Поиск по столбцам: добавляет строку-фильтр под заголовком таблицы
+function addColumnSearch($table) {
+  var cells = '';
+  $table.find('thead tr:first th').each(function () {
+    cells += '<td><input class="col-search-input" type="text" placeholder="⌕"></td>';
+  });
+  $table.find('tbody').prepend('<tr class="search-row">' + cells + '</tr>');
+}
+
+$(document).on('input', '.col-search-input', function () {
+  var $row    = $(this).closest('tr.search-row');
+  var $table  = $row.closest('table');
+  var filters = $row.find('.col-search-input').map(function () {
+    return $(this).val().toLowerCase().trim();
+  }).get();
+  $table.find('tbody tr:not(.search-row)').each(function () {
+    var $cells = $(this).find('td');
+    var show   = filters.every(function (q, ci) {
+      return !q || $cells.eq(ci).text().toLowerCase().indexOf(q) !== -1;
+    });
+    $(this).toggle(show);
   });
 });
 

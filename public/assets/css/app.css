@@ -234,6 +234,19 @@ body {
 .inner-panel        { display: none; }
 .inner-panel.active { display: block; }
 
+/* ── Поиск по столбцам (строка под заголовком) ───────────────── */
+.search-row td {
+  padding: 2px 3px; background: #F7F8FA;
+  border-bottom: 2px solid var(--border); position: sticky; top: 24px; z-index: 2;
+}
+.col-search-input {
+  width: 100%; box-sizing: border-box; display: block;
+  font-size: 11px; padding: 2px 5px;
+  border: 1px solid var(--border); border-radius: 3px;
+  background: var(--surface); font-family: inherit; color: var(--text-1);
+}
+.col-search-input:focus { border-color: var(--accent); outline: none; }
+
 /* ── Сворачиваемые строки дороги ─────────────────────────────── */
 .row-road-parent td {
   background: #F0F2F5; font-weight: 700;

@@ -118,9 +118,6 @@
         <section class="table-section">
           <div class="table-toolbar">
             <div class="table-info"><span class="table-title">Расширенная дислокация</span></div>
-            <div class="table-acts">
-              <input class="filter-input table-search" data-search-table="dislExtTable" placeholder="Поиск..." style="min-width:200px">
-            </div>
           </div>
           <div class="table-scroll">
             <table class="data-table" id="dislExtTable"></table>
@@ -188,9 +185,6 @@
               <span class="table-title">Список вагонов в подходе</span>
               <span class="table-sub" id="approachDetSub"></span>
             </div>
-            <div class="table-acts">
-              <input class="filter-input table-search" data-search-table="approachDetTable" placeholder="Поиск..." style="min-width:200px">
-            </div>
           </div>
           <div class="table-scroll">
             <table class="data-table" id="approachDetTable"></table>
@@ -243,9 +237,6 @@
               <span class="table-title">Список отправленных вагонов</span>
               <span class="table-sub" id="departureDetSub"></span>
             </div>
-            <div class="table-acts">
-              <input class="filter-input table-search" data-search-table="departureDetTable" placeholder="Поиск..." style="min-width:200px">
-            </div>
           </div>
           <div class="table-scroll"><table class="data-table" id="departureDetTable"></table></div>
         </section>
@@ -295,9 +286,6 @@
               <span class="table-title">Список погруженных вагонов</span>
               <span class="table-sub" id="loadingDetSub"></span>
             </div>
-            <div class="table-acts">
-              <input class="filter-input table-search" data-search-table="loadingDetTable" placeholder="Поиск..." style="min-width:200px">
-            </div>
           </div>
           <div class="table-scroll"><table class="data-table" id="loadingDetTable"></table></div>
         </section>
@@ -343,9 +331,6 @@
               <span class="table-title">Простаивающие вагоны</span>
               <span class="table-sub" id="downtimeDetSub"></span>
             </div>
-            <div class="table-acts">
-              <input class="filter-input table-search" data-search-table="downtimeDetTable" placeholder="Поиск..." style="min-width:200px">
-            </div>
           </div>
           <div class="table-scroll"><table class="data-table" id="downtimeDetTable"></table></div>
         </section>
@@ -374,9 +359,6 @@
             <div class="table-info">
               <span class="table-title">Список вагонов с сырьём</span>
               <span class="table-sub" id="rawDetSub"></span>
-            </div>
-            <div class="table-acts">
-              <input class="filter-input table-search" data-search-table="rawDetTable" placeholder="Поиск..." style="min-width:200px">
             </div>
           </div>
           <div class="table-scroll"><table class="data-table" id="rawDetTable"></table></div>
