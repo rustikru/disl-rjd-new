@@ -166,20 +166,189 @@ class ApiController
         return $this->json($response, ['rows' => $rows]);
     }
 
-    /** GET /api/approach — Подход вагонов (отправленные / прибывающие) */
-    public function approach(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    /** GET /api/approach/summary — Сводная подход: Дорога→Станция, колонки=тип вагона */
+    public function approachSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        $params    = $request->getQueryParams();
+        $reportDt  = $params['report_dt']  ?? null;
+        $cargo     = $params['cargo']      ?? null;
+        $prevCargo = $params['prev_cargo'] ?? null;
+
+        if (!$reportDt) {
+            $latest   = $this->db->fetchOne('SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd');
+            $reportDt = $latest['dt'] ?? null;
+        }
+
+        if (!$reportDt) {
+            return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
+        }
+
+        [$where, $bindings] = $this->buildApproachWhere($reportDt, $cargo, $prevCargo);
+
         $rows = $this->db->fetchAll(
-            "SELECT depart_road, oper_mnemonic, wagon_type_code, dest_station,
-                    oper_dt, asoup_arrive_dt
+            "SELECT dest_road, dest_station, wagon_type_code, COUNT(*) AS cnt
              FROM xx_dislocation_rjd
-             WHERE report_dt = (SELECT MAX(report_dt) FROM xx_dislocation_rjd)
-               AND oper_mnemonic IN ('ОТПР', 'ПРБТ')
-             ORDER BY oper_dt DESC
-             LIMIT 200"
+             WHERE {$where}
+             GROUP BY dest_road, dest_station, wagon_type_code
+             ORDER BY dest_road, dest_station, wagon_type_code",
+            $bindings
+        );
+
+        // Собираем упорядоченные колонки (типы вагонов)
+        $cols     = [];
+        $colIndex = [];
+        foreach ($rows as $r) {
+            $t = (string)($r['wagon_type_code'] ?? '');
+            if ($t !== '' && !isset($colIndex[$t])) {
+                $colIndex[$t] = count($cols);
+                $cols[]       = $t;
+            }
+        }
+        $nCols = count($cols);
+
+        // Строим иерархию: дорога → станция
+        $roads = [];
+        foreach ($rows as $r) {
+            $road    = (string)($r['dest_road']       ?? 'Не указана');
+            $station = (string)($r['dest_station']    ?? 'Не указана');
+            $wt      = (string)($r['wagon_type_code'] ?? '');
+            $cnt     = (int)$r['cnt'];
+
+            if (!isset($roads[$road])) {
+                $roads[$road] = ['road' => $road, 'stations' => [], 'total' => array_fill(0, $nCols, 0), 'grand_total' => 0];
+            }
+            if (!isset($roads[$road]['stations'][$station])) {
+                $roads[$road]['stations'][$station] = ['station' => $station, 'v' => array_fill(0, $nCols, 0)];
+            }
+            if ($wt !== '' && isset($colIndex[$wt])) {
+                $ci = $colIndex[$wt];
+                $roads[$road]['stations'][$station]['v'][$ci] += $cnt;
+                $roads[$road]['total'][$ci]                   += $cnt;
+                $roads[$road]['grand_total']                  += $cnt;
+            }
+        }
+
+        foreach ($roads as &$road) {
+            $road['stations'] = array_values($road['stations']);
+        }
+        unset($road);
+
+        $roadList = array_values($roads);
+        usort($roadList, fn($a, $b) => $b['grand_total'] - $a['grand_total']);
+
+        $metrics   = array_map(fn($r) => ['road' => $r['road'], 'total' => $r['grand_total']], $roadList);
+        $grandTotal = array_sum(array_column($metrics, 'total'));
+
+        return $this->json($response, [
+            'cols'    => $cols,
+            'roads'   => $roadList,
+            'metrics' => array_slice($metrics, 0, 8),
+            'total'   => $grandTotal,
+        ]);
+    }
+
+    /** GET /api/approach/detail — Список вагонов подхода */
+    public function approachDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params    = $request->getQueryParams();
+        $reportDt  = $params['report_dt']  ?? null;
+        $cargo     = $params['cargo']      ?? null;
+        $prevCargo = $params['prev_cargo'] ?? null;
+        $road      = $params['road']       ?? null;
+        $station   = $params['station']    ?? null;
+        $wagType   = $params['wagon_type'] ?? null;
+
+        if (!$reportDt) {
+            $latest   = $this->db->fetchOne('SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd');
+            $reportDt = $latest['dt'] ?? null;
+        }
+
+        if (!$reportDt) {
+            return $this->json($response, ['rows' => []]);
+        }
+
+        [$where, $bindings] = $this->buildApproachWhere($reportDt, $cargo, $prevCargo);
+
+        if ($road) {
+            $where .= ' AND dest_road = :dest_road';
+            $bindings['dest_road'] = $road;
+        }
+        if ($station) {
+            $where .= ' AND dest_station = :dest_station';
+            $bindings['dest_station'] = $station;
+        }
+        if ($wagType) {
+            $where .= ' AND wagon_type_code = :wagon_type_code';
+            $bindings['wagon_type_code'] = $wagType;
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT wagon_no, wagon_type_code, cargo_name, prev_cargo,
+                    dist_remain_km, depart_station, depart_road,
+                    dest_station, dest_road, oper_station,
+                    train_index, oper_dt, norm_delivery_dt, oper_mnemonic
+             FROM xx_dislocation_rjd
+             WHERE {$where}
+             ORDER BY dest_road, dest_station, dist_remain_km
+             LIMIT 1000",
+            $bindings
         );
 
         return $this->json($response, ['rows' => $rows]);
+    }
+
+    /** GET /api/approach/filters — Уникальные значения для фильтров */
+    public function approachFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params   = $request->getQueryParams();
+        $reportDt = $params['report_dt'] ?? null;
+
+        if (!$reportDt) {
+            $latest   = $this->db->fetchOne('SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd');
+            $reportDt = $latest['dt'] ?? null;
+        }
+
+        if (!$reportDt) {
+            return $this->json($response, ['cargo' => [], 'prev_cargo' => []]);
+        }
+
+        $bindings = ['report_dt' => $reportDt];
+
+        $cargo = $this->db->fetchAll(
+            "SELECT DISTINCT cargo_name FROM xx_dislocation_rjd
+             WHERE report_dt = :report_dt AND cargo_name IS NOT NULL AND cargo_name != ''
+             ORDER BY cargo_name LIMIT 150",
+            $bindings
+        );
+        $prevCargo = $this->db->fetchAll(
+            "SELECT DISTINCT prev_cargo FROM xx_dislocation_rjd
+             WHERE report_dt = :report_dt AND prev_cargo IS NOT NULL AND prev_cargo != ''
+             ORDER BY prev_cargo LIMIT 150",
+            $bindings
+        );
+
+        return $this->json($response, [
+            'cargo'      => array_column($cargo, 'cargo_name'),
+            'prev_cargo' => array_column($prevCargo, 'prev_cargo'),
+        ]);
+    }
+
+    /** WHERE-условие для запросов «Подход» (wagons in transit: dist_remain_km > 0) */
+    private function buildApproachWhere(string $reportDt, ?string $cargo, ?string $prevCargo): array
+    {
+        $where    = "report_dt = :report_dt AND dist_remain_km IS NOT NULL AND dist_remain_km != '' AND dist_remain_km != '0'";
+        $bindings = ['report_dt' => $reportDt];
+
+        if ($cargo) {
+            $where .= " AND UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е')) = UPPER(REPLACE(:cargo_f, 'Ё', 'Е'))";
+            $bindings['cargo_f'] = $cargo;
+        }
+        if ($prevCargo) {
+            $where .= " AND UPPER(REPLACE(COALESCE(prev_cargo,''), 'Ё', 'Е')) = UPPER(REPLACE(:prev_cargo_f, 'Ё', 'Е'))";
+            $bindings['prev_cargo_f'] = $prevCargo;
+        }
+
+        return [$where, $bindings];
     }
 
     // ── Строитель сводной таблицы ────────────────────────────────

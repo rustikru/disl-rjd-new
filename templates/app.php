@@ -126,14 +126,66 @@
 
     <!-- Подход -->
     <div id="panel-approach" class="tab-panel">
-      <section class="table-section">
-        <div class="table-toolbar">
-          <div class="table-info"><span class="table-title">Подход вагонов</span></div>
+
+      <!-- Метрики по дорогам -->
+      <div class="kpi-grid" id="approachMetrics" style="margin-bottom:16px"></div>
+
+      <!-- Фильтры -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 16px;margin-bottom:12px">
+        <div class="filters-inner">
+          <div class="filter-item">
+            <label class="filter-label" for="fApproachCargo">Груз</label>
+            <select class="filter-input" id="fApproachCargo" style="min-width:200px">
+              <option value="">— Все грузы —</option>
+            </select>
+          </div>
+          <div class="filter-item">
+            <label class="filter-label" for="fApproachPrevCargo">Ранее выгруженный</label>
+            <select class="filter-input" id="fApproachPrevCargo" style="min-width:200px">
+              <option value="">— Все —</option>
+            </select>
+          </div>
+          <div class="filter-actions">
+            <button class="btn btn-primary btn-sm" id="btnApproachApply">Применить</button>
+            <button class="btn btn-ghost btn-sm" id="btnApproachReset">Сбросить</button>
+          </div>
         </div>
-        <div class="table-scroll">
-          <table class="data-table" id="approachTable"></table>
-        </div>
-      </section>
+      </div>
+
+      <!-- Внутренние вкладки -->
+      <div class="inner-tabs">
+        <button class="inner-tab active" data-inner="approach-summary">Сводная (по дорогам)</button>
+        <button class="inner-tab" data-inner="approach-detail">Список вагонов</button>
+      </div>
+
+      <div id="approach-summary" class="inner-panel active">
+        <section class="table-section">
+          <div class="table-toolbar">
+            <div class="table-info">
+              <span class="table-title">Подход вагонов — сводная</span>
+              <span class="table-sub" id="approachSumSub"></span>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table" id="approachSumTable"></table>
+          </div>
+        </section>
+      </div>
+
+      <div id="approach-detail" class="inner-panel">
+        <section class="table-section">
+          <div class="table-toolbar">
+            <div class="table-info">
+              <span class="table-title">Список вагонов в подходе</span>
+              <span class="table-sub" id="approachDetSub"></span>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table" id="approachDetTable"></table>
+          </div>
+        </section>
+      </div>
+
     </div>
 
     <?php

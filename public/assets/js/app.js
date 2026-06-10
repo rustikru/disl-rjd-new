@@ -84,8 +84,8 @@ function switchTab(tabId) {
   document.querySelectorAll('.tab-panel').forEach(function (panel) {
     panel.classList.toggle('active', panel.id === 'panel-' + tabId);
   });
-  if (tabId === 'dislocation' && !window._dislLoaded) { loadDislocation(); }
-  if (tabId === 'approach'    && !window._approachLoaded) { loadApproach(); }
+  if (tabId === 'dislocation' && !window._dislLoaded)    { loadDislocation(); }
+  if (tabId === 'approach'    && !window._approachLoaded) { loadApproachInit(); }
 }
 
 // Внутренние вкладки (pill)
@@ -102,9 +102,8 @@ function initInnerTabs() {
           panel.parentElement.querySelectorAll('.inner-panel').forEach(function (p) {
             p.classList.toggle('active', p.id === innerId);
           });
-          if (innerId === 'disl-extended' && !window._extLoaded) {
-            loadDislocationExtended();
-          }
+          if (innerId === 'disl-extended'  && !window._extLoaded)       { loadDislocationExtended(); }
+          if (innerId === 'approach-detail' && !window._approachDetLoaded) { window._approachDetLoaded = true; loadApproachDetail(); }
         }
       });
     });
@@ -317,40 +316,148 @@ function renderExtendedTable(rows) {
   $('#dislExtTable').html(h + '</tbody>');
 }
 
-// Подход вагонов
-function loadApproach() {
+// ── Подход вагонов ──────────────────────────────────────────────
+
+function approachParams() {
+  return {
+    cargo:      $('#fApproachCargo').val()     || undefined,
+    prev_cargo: $('#fApproachPrevCargo').val() || undefined
+  };
+}
+
+function loadApproachInit() {
   window._approachLoaded = true;
-  $.getJSON('/api/approach')
-    .done(function (data) { renderApproachTable(data.rows); })
-    .fail(function () {
-      $('#approachTable').html('<tbody><tr><td colspan="6" style="text-align:center;padding:40px;color:#9DA5B0">Ошибка загрузки</td></tr></tbody>');
+  loadApproachFilters();
+  loadApproachSummary();
+}
+
+function loadApproachFilters() {
+  $.getJSON('/api/approach/filters')
+    .done(function (data) {
+      var cSel  = $('#fApproachCargo');
+      var pcSel = $('#fApproachPrevCargo');
+      cSel.find('option:not(:first)').remove();
+      pcSel.find('option:not(:first)').remove();
+      (data.cargo || []).forEach(function (v) { cSel.append($('<option>').val(v).text(v)); });
+      (data.prev_cargo || []).forEach(function (v) { pcSel.append($('<option>').val(v).text(v)); });
     });
 }
 
-function renderApproachTable(rows) {
+function loadApproachSummary() {
+  $('#approachSumSub').text('Загрузка...');
+  $('#approachSumTable').html('<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Загрузка...</td></tr></tbody>');
+  $.getJSON('/api/approach/summary', approachParams())
+    .done(function (data) {
+      renderApproachMetrics(data.metrics, data.total);
+      renderApproachSummaryTable(data.roads, data.cols);
+      $('#approachSumSub').text('Всего в подходе: ' + (data.total || 0).toLocaleString('ru-RU') + ' ваг.');
+    })
+    .fail(function () {
+      $('#approachSumTable').html('<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Ошибка загрузки</td></tr></tbody>');
+      $('#approachSumSub').text('');
+    });
+}
+
+function loadApproachDetail() {
+  $('#approachDetSub').text('Загрузка...');
+  $.getJSON('/api/approach/detail', approachParams())
+    .done(function (data) {
+      renderApproachDetailTable(data.rows);
+      $('#approachDetSub').text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'));
+    })
+    .fail(function () {
+      $('#approachDetTable').html('<tbody><tr><td colspan="10" style="text-align:center;padding:40px;color:#9DA5B0">Ошибка загрузки</td></tr></tbody>');
+    });
+}
+
+function renderApproachMetrics(metrics, total) {
+  var all = [{ road: 'Всего в подходе', total: total, accent: true }].concat(metrics || []);
+  $('#approachMetrics').html(all.map(function (m) {
+    return '<div class="kpi-card' + (m.accent ? ' accent' : '') + '">' +
+      '<div class="kpi-value">' + (m.total || 0).toLocaleString('ru-RU') + '</div>' +
+      '<div class="kpi-label">' + esc(m.road) + '</div>' +
+      '</div>';
+  }).join(''));
+}
+
+function renderApproachSummaryTable(roads, cols) {
+  if (!roads || !roads.length) {
+    $('#approachSumTable').html('<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных. Загрузите справку.</td></tr></tbody>');
+    return;
+  }
+
+  function fmt(v) { return v || ''; }
+
+  var h = '<thead><tr>';
+  h += '<th class="col-meta" style="min-width:160px">Дорога назначения</th>';
+  h += '<th class="col-meta" style="min-width:180px">Станция назначения</th>';
+  (cols || []).forEach(function (c) { h += '<th>' + esc(c) + '</th>'; });
+  h += '<th class="col-total-col">Итого</th>';
+  h += '</tr></thead><tbody>';
+
+  var grandTotals = (cols || []).map(function () { return 0; });
+  var grandSum    = 0;
+
+  (roads || []).forEach(function (road) {
+    var firstRow = true;
+    (road.stations || []).forEach(function (st) {
+      var rowSum = (st.v || []).reduce(function (a, b) { return a + b; }, 0);
+      h += '<tr class="row-data">';
+      h += '<td class="col-meta cell-section">' + (firstRow ? esc(road.road) : '') + '</td>';
+      h += '<td class="col-meta">' + esc(st.station) + '</td>';
+      (st.v || []).forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
+      h += '<td class="col-total-col">' + fmt(rowSum) + '</td></tr>';
+      firstRow = false;
+    });
+    // Итоговая строка дороги
+    h += '<tr class="row-total"><td class="col-meta" colspan="2">' + esc(road.road) + ' — итого</td>';
+    (road.total || []).forEach(function (v, i) {
+      grandTotals[i] = (grandTotals[i] || 0) + (v || 0);
+      h += '<td>' + fmt(v) + '</td>';
+    });
+    h += '<td class="col-total-col">' + (road.grand_total || 0).toLocaleString('ru-RU') + '</td></tr>';
+    grandSum += (road.grand_total || 0);
+  });
+
+  // Общий итог
+  h += '<tr class="row-total row-grand"><td class="col-meta" colspan="2">Общий итог</td>';
+  grandTotals.forEach(function (v) { h += '<td>' + (v || '') + '</td>'; });
+  h += '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td></tr></tbody>';
+
+  $('#approachSumTable').html(h);
+}
+
+function renderApproachDetailTable(rows) {
   var h = '<thead><tr>' +
-    '<th class="col-meta">Дорога отправления</th>' +
-    '<th class="col-meta">Операция</th>' +
-    '<th class="col-meta">Тип вагона</th>' +
-    '<th class="col-meta">Станция назн.</th>' +
-    '<th class="col-meta">Дата операции</th>' +
-    '<th class="col-meta">Ожид. прибытие</th>' +
+    '<th class="col-meta">№ вагона</th>' +
+    '<th class="col-meta">Род вагона</th>' +
+    '<th class="col-meta">Груз</th>' +
+    '<th class="col-meta">Ранее выгружен</th>' +
+    '<th>Ост. расстояние</th>' +
+    '<th class="col-meta">Ст. отправл.</th>' +
+    '<th class="col-meta">Тек. станция</th>' +
+    '<th class="col-meta">Ст. назнач.</th>' +
+    '<th class="col-meta">Дорога назнач.</th>' +
+    '<th class="col-meta">Норм. дата дост.</th>' +
     '</tr></thead><tbody>';
 
   (rows || []).forEach(function (r) {
-    var isSend = r.oper_mnemonic === 'ОТПР';
-    var badge  = isSend ? 'badge-depart' : 'badge-arrive';
+    var dist = parseInt(r.dist_remain_km) || '';
     h += '<tr class="row-data">' +
-      '<td class="col-meta">' + esc(r.depart_road) + '</td>' +
-      '<td class="col-meta"><span class="badge ' + badge + '">' + esc(r.oper_mnemonic) + '</span></td>' +
+      '<td class="col-meta" style="font-family:monospace;font-size:11px">' + esc(r.wagon_no) + '</td>' +
       '<td class="col-meta">' + esc(r.wagon_type_code) + '</td>' +
+      '<td class="col-meta">' + esc(r.cargo_name) + '</td>' +
+      '<td class="col-meta">' + esc(r.prev_cargo) + '</td>' +
+      '<td style="text-align:right">' + (dist ? dist.toLocaleString('ru-RU') + ' км' : '') + '</td>' +
+      '<td class="col-meta">' + esc(r.depart_station) + '</td>' +
+      '<td class="col-meta">' + esc(r.oper_station) + '</td>' +
       '<td class="col-meta">' + esc(r.dest_station) + '</td>' +
-      '<td class="col-meta">' + esc(r.oper_dt) + '</td>' +
-      '<td class="col-meta">' + esc(r.asoup_arrive_dt) + '</td>' +
+      '<td class="col-meta">' + esc(r.dest_road) + '</td>' +
+      '<td class="col-meta">' + esc(r.norm_delivery_dt) + '</td>' +
       '</tr>';
   });
 
-  $('#approachTable').html(h + '</tbody>');
+  $('#approachDetTable').html(h + '</tbody>');
 }
 
 // CSV-экспорт
@@ -400,4 +507,18 @@ $(function () {
   });
 
   $('#btnExportCSV').on('click', exportToCSV);
+
+  // Подход — фильтры
+  $('#btnApproachApply').on('click', function () {
+    window._approachDetLoaded = false;
+    loadApproachSummary();
+    if ($('#approach-detail').hasClass('active')) { window._approachDetLoaded = true; loadApproachDetail(); }
+  });
+
+  $('#btnApproachReset').on('click', function () {
+    $('#fApproachCargo').val('');
+    $('#fApproachPrevCargo').val('');
+    window._approachDetLoaded = false;
+    loadApproachSummary();
+  });
 });

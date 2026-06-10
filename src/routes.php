@@ -65,8 +65,16 @@ return function (App $app, array $config): void {
             return (new \App\Controllers\ApiController($getDb()))->dislocationExtended($req, $res);
         });
 
-        $group->get('/api/approach', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->approach($req, $res);
+        $group->get('/api/approach/summary', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->approachSummary($req, $res);
+        });
+
+        $group->get('/api/approach/detail', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->approachDetail($req, $res);
+        });
+
+        $group->get('/api/approach/filters', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->approachFilters($req, $res);
         });
 
     })->add(new \App\Middleware\AuthMiddleware());
