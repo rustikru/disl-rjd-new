@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Database\DbInterface;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -83,7 +84,11 @@ class ImportController
 
     private function importFile(string $path): array
     {
-        $spreadsheet = IOFactory::load($path);
+        ini_set('memory_limit', '512M');
+
+        $reader = IOFactory::createReaderForFile($path);
+        $reader->setReadDataOnly(true);
+        $spreadsheet = $reader->load($path);
         $sheet       = $spreadsheet->getActiveSheet();
 
         // Дата справки из ячейки A2 (формат: '10.06.2026 16:01')
@@ -112,7 +117,8 @@ class ImportController
             for ($row = 5; $row <= $highestRow; $row++) {
                 $vals = [];
                 for ($col = 1; $col <= 126; $col++) {
-                    $v      = $sheet->getCellByColumnAndRow($col, $row)->getValue();
+                    $coord  = Coordinate::stringFromColumnIndex($col) . $row;
+                    $v      = $sheet->getCell($coord)->getValue();
                     $vals[] = ($v === null) ? null : trim((string) $v);
                 }
 
@@ -131,6 +137,9 @@ class ImportController
         } catch (\Exception $e) {
             $this->db->rollback();
             throw $e;
+        } finally {
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
         }
 
         return ['skipped' => false, 'report_dt' => $rawDt, 'rows' => $inserted];
