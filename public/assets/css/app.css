@@ -234,6 +234,16 @@ body {
 .inner-panel        { display: none; }
 .inner-panel.active { display: block; }
 
+/* ── Сворачиваемые строки дороги ─────────────────────────────── */
+.row-road-parent td {
+  background: #F0F2F5; font-weight: 700;
+  cursor: pointer; user-select: none;
+  border-top: 1.5px solid var(--border);
+}
+.row-road-parent:hover td { background: #E6E9EF; }
+.toggle-icon { display: inline-block; margin-right: 5px; font-size: 10px; color: var(--text-3); }
+.row-child.row-hidden { display: none; }
+
 /* ── Заглушка ────────────────────────────────────────────────── */
 .placeholder-panel {
   display: flex; flex-direction: column;

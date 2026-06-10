@@ -251,26 +251,26 @@ function renderMainTable(sections, cols) {
   function fmt(v) { return v || ''; }
 
   var h = '<thead><tr>';
-  h += '<th class="col-meta">Раздел</th>';
-  h += '<th class="col-meta">Тип парка</th>';
+  h += '<th class="col-meta" style="min-width:160px">Раздел</th>';
+  h += '<th class="col-meta" style="min-width:130px">Тип парка</th>';
   cols.forEach(function (c) { h += '<th>' + esc(c.label) + '</th>'; });
   h += '<th class="col-total-col">Итого</th>';
   h += '</tr></thead><tbody>';
 
-  sections.forEach(function (section) {
-    var firstRow = true;
+  sections.forEach(function (section, si) {
+    h += '<tr class="row-road-parent" data-road-id="' + si + '">';
+    h += '<td class="col-meta" colspan="2"><span class="toggle-icon">▼</span>' + esc(section.name) + '</td>';
+    section.total.forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
+    h += '<td class="col-total-col">' + section.grand_total.toLocaleString('ru-RU') + '</td></tr>';
+
     section.rows.forEach(function (row) {
       var rowSum = row.v.reduce(function (a, b) { return a + b; }, 0);
-      h += '<tr class="row-data">';
-      h += '<td class="col-meta' + (firstRow ? ' cell-section' : '') + '">' + (firstRow ? esc(section.name) : '') + '</td>';
+      h += '<tr class="row-data row-child" data-parent-road="' + si + '">';
+      h += '<td class="col-meta"></td>';
       h += '<td class="col-meta">' + esc(row.sub || '') + '</td>';
       row.v.forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
       h += '<td class="col-total-col">' + fmt(rowSum) + '</td></tr>';
-      firstRow = false;
     });
-    h += '<tr class="row-total"><td class="col-meta" colspan="2">' + esc(section.name) + ' — итого</td>';
-    section.total.forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
-    h += '<td class="col-total-col">' + section.grand_total.toLocaleString('ru-RU') + '</td></tr>';
   });
 
   var grandTotals = cols.map(function (_, ci) {
@@ -408,28 +408,26 @@ function renderApproachSummaryTable(roads, cols) {
   var grandTotals = (cols || []).map(function () { return 0; });
   var grandSum    = 0;
 
-  (roads || []).forEach(function (road) {
-    var firstRow = true;
-    (road.stations || []).forEach(function (st) {
-      var rowSum = (st.v || []).reduce(function (a, b) { return a + b; }, 0);
-      h += '<tr class="row-data">';
-      h += '<td class="col-meta cell-section">' + (firstRow ? esc(road.road) : '') + '</td>';
-      h += '<td class="col-meta">' + esc(st.station) + '</td>';
-      (st.v || []).forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
-      h += '<td class="col-total-col">' + fmt(rowSum) + '</td></tr>';
-      firstRow = false;
-    });
-    // Итоговая строка дороги
-    h += '<tr class="row-total"><td class="col-meta" colspan="2">' + esc(road.road) + ' — итого</td>';
+  (roads || []).forEach(function (road, ri) {
+    h += '<tr class="row-road-parent" data-road-id="' + ri + '">';
+    h += '<td class="col-meta" colspan="2"><span class="toggle-icon">▼</span>' + esc(road.road) + '</td>';
     (road.total || []).forEach(function (v, i) {
       grandTotals[i] = (grandTotals[i] || 0) + (v || 0);
       h += '<td>' + fmt(v) + '</td>';
     });
     h += '<td class="col-total-col">' + (road.grand_total || 0).toLocaleString('ru-RU') + '</td></tr>';
     grandSum += (road.grand_total || 0);
+
+    (road.stations || []).forEach(function (st) {
+      var rowSum = (st.v || []).reduce(function (a, b) { return a + b; }, 0);
+      h += '<tr class="row-data row-child" data-parent-road="' + ri + '">';
+      h += '<td class="col-meta"></td>';
+      h += '<td class="col-meta">' + esc(st.station) + '</td>';
+      (st.v || []).forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
+      h += '<td class="col-total-col">' + fmt(rowSum) + '</td></tr>';
+    });
   });
 
-  // Общий итог
   h += '<tr class="row-total row-grand"><td class="col-meta" colspan="2">Общий итог</td>';
   grandTotals.forEach(function (v) { h += '<td>' + (v || '') + '</td>'; });
   h += '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td></tr></tbody>';
@@ -767,21 +765,21 @@ function renderRoadStationTable(selector, roads, cols) {
 
   var grandTotals = (cols || []).map(function () { return 0; });
   var grandSum = 0;
-  (roads || []).forEach(function (road) {
-    var firstRow = true;
-    (road.stations || []).forEach(function (st) {
-      var rowSum = (st.v || []).reduce(function (a, b) { return a + b; }, 0);
-      h += '<tr class="row-data">';
-      h += '<td class="col-meta cell-section">' + (firstRow ? esc(road.road) : '') + '</td>';
-      h += '<td class="col-meta">' + esc(st.station) + '</td>';
-      (st.v || []).forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
-      h += '<td class="col-total-col">' + fmt(rowSum) + '</td></tr>';
-      firstRow = false;
-    });
-    h += '<tr class="row-total"><td class="col-meta" colspan="2">' + esc(road.road) + ' — итого</td>';
+  (roads || []).forEach(function (road, ri) {
+    h += '<tr class="row-road-parent" data-road-id="' + ri + '">';
+    h += '<td class="col-meta" colspan="2"><span class="toggle-icon">▼</span>' + esc(road.road) + '</td>';
     (road.total || []).forEach(function (v, i) { grandTotals[i] += (v || 0); h += '<td>' + fmt(v) + '</td>'; });
     h += '<td class="col-total-col">' + (road.grand_total || 0).toLocaleString('ru-RU') + '</td></tr>';
     grandSum += (road.grand_total || 0);
+
+    (road.stations || []).forEach(function (st) {
+      var rowSum = (st.v || []).reduce(function (a, b) { return a + b; }, 0);
+      h += '<tr class="row-data row-child" data-parent-road="' + ri + '">';
+      h += '<td class="col-meta"></td>';
+      h += '<td class="col-meta">' + esc(st.station) + '</td>';
+      (st.v || []).forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
+      h += '<td class="col-total-col">' + fmt(rowSum) + '</td></tr>';
+    });
   });
   h += '<tr class="row-total row-grand"><td class="col-meta" colspan="2">Общий итог</td>';
   grandTotals.forEach(function (v) { h += '<td>' + (v || '') + '</td>'; });
@@ -816,6 +814,16 @@ function esc(str) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+
+// Сворачивание/разворачивание строк дороги
+$(document).on('click', '.row-road-parent', function () {
+  var ri     = $(this).data('road-id');
+  var $table = $(this).closest('table');
+  var $children = $table.find('tr[data-parent-road="' + ri + '"]');
+  var collapsed  = $children.first().hasClass('row-hidden');
+  $children.toggleClass('row-hidden', !collapsed);
+  $(this).find('.toggle-icon').text(collapsed ? '▼' : '▶');
+});
 
 // Старт
 $(function () {
