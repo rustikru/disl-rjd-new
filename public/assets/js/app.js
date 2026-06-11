@@ -469,6 +469,8 @@ var WAGON_TABS = {
     summaryUrl: BASE + '/api/approach/summary',
     detailUrl: BASE + '/api/approach/detail',
     metricsId: 'approachMetrics',
+    metricsLabel: 'Всего в подходе',
+    csvFilename: 'подход',
     sumTableId: 'approachSumTable',
     sumSubId: 'approachSumSub',
     detTableId: 'approachDetTable',
@@ -476,7 +478,6 @@ var WAGON_TABS = {
     detPanelId: 'approach-detail',
     loadedKey: '_approachLoaded',
     loadedDetKey: '_approachDetLoaded',
-    metricsLabel: 'Всего в подходе',
     sumSubLabel: 'Всего в подходе',
     groupCols: [
       { key: 'oper_road', label: 'Дорога операции' },
@@ -505,6 +506,8 @@ var WAGON_TABS = {
     summaryUrl: BASE + '/api/departure/summary',
     detailUrl: BASE + '/api/departure/detail',
     metricsId: 'departureMetrics',
+    metricsLabel: 'Всего отправлено',
+    csvFilename: 'отправление',
     sumTableId: 'departureSumTable',
     sumSubId: 'departureSumSub',
     detTableId: 'departureDetTable',
@@ -512,7 +515,6 @@ var WAGON_TABS = {
     detPanelId: 'departure-detail',
     loadedKey: '_departureLoaded',
     loadedDetKey: '_departureDetLoaded',
-    metricsLabel: 'Всего отправлено',
     sumSubLabel: 'Всего',
     groupCols: [
       { key: 'dest_road', label: 'Дорога назначения' },
@@ -541,6 +543,8 @@ var WAGON_TABS = {
     summaryUrl: BASE + '/api/loading/summary',
     detailUrl: BASE + '/api/loading/detail',
     metricsId: 'loadingMetrics',
+    metricsLabel: 'Всего погружено',
+    csvFilename: 'погрузка',
     sumTableId: 'loadingSumTable',
     sumSubId: 'loadingSumSub',
     detTableId: 'loadingDetTable',
@@ -548,7 +552,6 @@ var WAGON_TABS = {
     detPanelId: 'loading-detail',
     loadedKey: '_loadingLoaded',
     loadedDetKey: '_loadingDetLoaded',
-    metricsLabel: 'Всего погружено',
     sumSubLabel: 'Всего',
     groupCols: [
       { key: 'depart_road', label: 'Дорога' },
@@ -578,6 +581,14 @@ function fillSelect(selector, values) {
 
 function initTab(cfg) {
   window[cfg.loadedKey] = true
+  if (cfg.csvFilename) {
+    var $acts = $('#' + cfg.sumTableId).closest('.table-section').find('.table-acts')
+    if ($acts.length && !$acts.find('.btn-csv-tab').length) {
+      var $btn = $('<button class="btn btn-ghost btn-sm btn-csv-tab">↓ CSV</button>')
+      $btn.on('click', function () { exportTableToCSV(cfg.sumTableId, cfg.csvFilename) })
+      $acts.append($btn)
+    }
+  }
   loadFilters(cfg)
   loadSummary(cfg)
 }
@@ -604,7 +615,12 @@ function loadSummary(cfg) {
   })
   $.getJSON(cfg.summaryUrl, summaryParams)
     .done(function (data) {
-      showKpi('#' + cfg.metricsId, data.metrics, data.total, cfg.metricsLabel)
+      if (cfg.metricsId) {
+        var items = cfg.buildMetrics
+          ? cfg.buildMetrics(data)
+          : [{ label: cfg.metricsLabel, value: data.total, accent: true }].concat(data.metrics || [])
+        $('#' + cfg.metricsId).html(items.map(kpiCard).join(''))
+      }
       drawSummary(
         '#' + cfg.sumTableId,
         data.roads,
@@ -1028,9 +1044,9 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
   $(selector).html(h)
 }
 
-// CSV-экспорт
-function exportToCSV() {
-  var table = document.getElementById('mainTable')
+// CSV-экспорт таблицы по id и имени файла (без даты-суффикса в имени не нужна)
+function exportTableToCSV(tableId, filename) {
+  var table = document.getElementById(tableId)
   if (!table) return
   var rows = []
   table.querySelectorAll('tr').forEach(function (tr) {
@@ -1042,12 +1058,14 @@ function exportToCSV() {
   })
   var csv = '﻿' + rows.join('\n')
   var a = document.createElement('a')
-  a.href = URL.createObjectURL(
-    new Blob([csv], { type: 'text/csv;charset=utf-8' }),
-  )
-  a.download = 'дислокация_' + new Date().toISOString().slice(0, 10) + '.csv'
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  a.download = (filename || 'таблица') + '_' + new Date().toISOString().slice(0, 10) + '.csv'
   a.click()
   URL.revokeObjectURL(a.href)
+}
+
+function exportToCSV() {
+  exportTableToCSV('mainTable', 'дислокация')
 }
 
 // Текст ошибки из jQuery XHR — HTTP-статус + сообщение из JSON-ответа
@@ -1215,7 +1233,7 @@ $(function () {
     loadDislocation()
   })
 
-  $('#btnExportCSV, #btnAppExportCSV').on('click', exportToCSV)
+  $('#btnExportCSV').on('click', exportToCSV)
 
   // Подход / Отправление / Погрузка — фильтры
   ;['approach', 'departure', 'loading'].forEach(function (k) {

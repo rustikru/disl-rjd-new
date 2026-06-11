@@ -166,7 +166,6 @@ $basePath = $basePath ?? '';
               <div class="table-acts">
                 <button class="btn btn-ghost btn-sm" data-collapse-table="approachSumTable">Свернуть все</button>
                 <button class="btn btn-ghost btn-sm" data-expand-table="approachSumTable">Отобразить все</button>
-                <button class="btn btn-ghost btn-sm" id="btnAppExportCSV">↓ CSV</button>
               </div>
             </div>
             <div class="table-scroll">
