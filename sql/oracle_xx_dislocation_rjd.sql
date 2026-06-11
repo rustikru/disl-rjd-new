@@ -2,195 +2,196 @@
 -- Таблица дислокации вагонов РЖД — Oracle
 -- Типы основаны на анализе реальных данных из Excel-выгрузки
 -- ID управляется через XX_DISLOCATION_RJD_SEQ + триггер
+-- Номера столбцов (кол. N) — позиция в Excel-файле выгрузки РЖД
 -- ================================================================
 
 CREATE TABLE IF NOT EXISTS xx_dislocation_rjd (
     id                     NUMBER         NOT NULL PRIMARY KEY,
-    report_dt              TIMESTAMP      NOT NULL,
+    report_dt              TIMESTAMP      NOT NULL,  -- дата справки из ячейки A2
 
-    -- Кол 1-2: идентификаторы
-    wagon_no               VARCHAR2(10),   -- 8-значный номер: '50447762'
-    waybill_no             VARCHAR2(15),   -- Кирилл.+цифры: 'ЭФ038927'
+    -- ── Идентификаторы ───────────────────────────────────────────
+    wagon_no               VARCHAR2(10),   -- кол.  1  '50447762'
+    waybill_no             VARCHAR2(15),   -- кол.  2  'ЭФ038927'
 
-    -- Кол 3-4: тип и администрация
-    wagon_type_code        VARCHAR2(50),   -- 'Цистерны (70)'
-    owner_admin            VARCHAR2(30),   -- 'РЖД (20)'
+    -- ── Тип и администрация ──────────────────────────────────────
+    wagon_type_code        VARCHAR2(50),   -- кол.  3  'Цистерны (70)'
+    owner_admin            VARCHAR2(30),   -- кол.  4  'РЖД (20)'
 
-    -- Кол 5-8: отправление
-    trip_start_dt          DATE,           -- '01.06.2026 12:42'
-    depart_state           VARCHAR2(50),   -- 'Российская Федерация (643)'
-    depart_road            VARCHAR2(100),  -- 'МОСКОВСКАЯ (17)'
-    depart_station         VARCHAR2(100),  -- 'ПОТОЧИНО (237609)'
+    -- ── Отправление ──────────────────────────────────────────────
+    trip_start_dt          DATE,           -- кол.  5  '01.06.2026 12:42'
+    depart_state           VARCHAR2(50),   -- кол.  6  'Российская Федерация (643)'
+    depart_road            VARCHAR2(100),  -- кол.  7  'МОСКОВСКАЯ (17)'
+    depart_station         VARCHAR2(100),  -- кол.  8  'ПОТОЧИНО (237609)'
 
-    -- Кол 9-12: назначение
-    trip_end_dt            DATE,
-    dest_state             VARCHAR2(50),
-    dest_road              VARCHAR2(100),
-    dest_station           VARCHAR2(100),
+    -- ── Назначение ───────────────────────────────────────────────
+    trip_end_dt            DATE,           -- кол.  9
+    dest_state             VARCHAR2(50),   -- кол. 10
+    dest_road              VARCHAR2(100),  -- кол. 11
+    dest_station           VARCHAR2(100),  -- кол. 12
 
-    -- Кол 13-16: грузоотправитель
-    consignor_tgnl         VARCHAR2(10),   -- '3034'
-    consignor              VARCHAR2(200),  -- 'ООО "МЕТАДИНЕА" (72149825)'
-    consignor_okpo         VARCHAR2(10),   -- '72149825'
-    consignor_name         VARCHAR2(200),  -- 'ООО "МЕТАДИНЕА"'
+    -- ── Грузоотправитель ─────────────────────────────────────────
+    consignor_tgnl         VARCHAR2(10),   -- кол. 13  '3034'
+    consignor              VARCHAR2(200),  -- кол. 14  'ООО "МЕТАДИНЕА" (72149825)'
+    consignor_okpo         VARCHAR2(10),   -- кол. 15  '72149825'
+    consignor_name         VARCHAR2(200),  -- кол. 16  'ООО "МЕТАДИНЕА"'
 
-    -- Кол 17-20: грузополучатель
-    consignee_tgnl         VARCHAR2(10),
-    consignee              VARCHAR2(200),
-    consignee_okpo         VARCHAR2(10),
-    consignee_name         VARCHAR2(200),
+    -- ── Грузополучатель ──────────────────────────────────────────
+    consignee_tgnl         VARCHAR2(10),   -- кол. 17
+    consignee              VARCHAR2(200),  -- кол. 18
+    consignee_okpo         VARCHAR2(10),   -- кол. 19
+    consignee_name         VARCHAR2(200),  -- кол. 20
 
-    -- Кол 21-22: груз
-    cargo_name             VARCHAR2(500),  -- длинные описания с кодом
-    cargo_gng              VARCHAR2(10),   -- '0', '421034' (код ГНГ)
+    -- ── Груз ─────────────────────────────────────────────────────
+    cargo_name             VARCHAR2(500),  -- кол. 21  длинное описание с кодом
+    cargo_gng              VARCHAR2(10),   -- кол. 22  '0', '421034' (код ГНГ)
 
-    -- Кол 23-29: вес и пробег
-    cargo_weight_kg        NUMBER,
-    mileage_loaded_km      NUMBER,
-    mileage_empty_km       NUMBER,
-    mileage_total_km       NUMBER,
-    mileage_norm_km        NUMBER,
-    mileage_remain_km      NUMBER,
-    mileage_sign           VARCHAR2(10),   -- знак/направление
+    -- ── Вес и пробег ─────────────────────────────────────────────
+    cargo_weight_kg        NUMBER,         -- кол. 23
+    mileage_loaded_km      NUMBER,         -- кол. 24
+    mileage_empty_km       NUMBER,         -- кол. 25
+    mileage_total_km       NUMBER,         -- кол. 26
+    mileage_norm_km        NUMBER,         -- кол. 27
+    mileage_remain_km      NUMBER,         -- кол. 28
+    mileage_sign           VARCHAR2(10),   -- кол. 29  знак/направление
 
-    -- Кол 30-31: особые отметки
-    special_marks          VARCHAR2(50),   -- '3, 6, 7'
-    prev_cargo             VARCHAR2(200),  -- 'Спирт метиловый (метанол) (721484)'
+    -- ── Особые отметки ───────────────────────────────────────────
+    special_marks          VARCHAR2(50),   -- кол. 30  '3, 6, 7'
+    prev_cargo             VARCHAR2(200),  -- кол. 31  'Спирт метиловый (метанол) (721484)'
 
-    -- Кол 32-36: текущая операция
-    oper_station           VARCHAR2(100),
-    oper_road              VARCHAR2(100),
-    operation              VARCHAR2(200),  -- 'Корректировка сведений о вагоне в составе поезда (7)'
-    oper_mnemonic          VARCHAR2(10),   -- 'ОТПР', 'ПРИБ', 'КОРВ', 'ИСКП'
-    oper_dt                DATE,           -- '02.06.2026 14:47'
+    -- ── Текущая операция ─────────────────────────────────────────
+    oper_station           VARCHAR2(100),  -- кол. 32
+    oper_road              VARCHAR2(100),  -- кол. 33
+    operation              VARCHAR2(200),  -- кол. 34  'Корректировка сведений о вагоне в составе поезда (7)'
+    oper_mnemonic          VARCHAR2(10),   -- кол. 35  'ОТПР', 'ПРИБ', 'КОРВ', 'ИСКП'
+    oper_dt                DATE,           -- кол. 36  '02.06.2026 14:47'
 
-    -- Кол 37-39: парк и дороги сдачи/приёма
-    park_type              VARCHAR2(200),  -- 'Транзитный, Порожний, Вагон рабочего парка'
-    handover_road          VARCHAR2(100),
-    receive_road           VARCHAR2(100),
+    -- ── Парк и дороги сдачи/приёма ───────────────────────────────
+    park_type              VARCHAR2(200),  -- кол. 37  'Транзитный, Порожний, Вагон рабочего парка'
+    handover_road          VARCHAR2(100),  -- кол. 38
+    receive_road           VARCHAR2(100),  -- кол. 39
 
-    -- Кол 40-44: поезд и путь
-    train_index            VARCHAR2(100),  -- '237609052230008 (ПОТОЧИНО+052+ОРЕХОВО-ЗУЕВО)'
-    train_no               VARCHAR2(10),   -- '9999' (идентификатор поезда)
-    wagon_in_train         NUMBER(5),      -- 37 (позиция в составе)
-    park_no                VARCHAR2(10),   -- 'I (1)' (содержит текст)
-    track_no               VARCHAR2(10),   -- ' (5)' (содержит скобки)
+    -- ── Поезд и путь ─────────────────────────────────────────────
+    train_index            VARCHAR2(100),  -- кол. 40  '237609052230008 (ПОТОЧИНО+052+ОРЕХОВО-ЗУЕВО)'
+    train_no               VARCHAR2(10),   -- кол. 41  '9999' (идентификатор поезда)
+    wagon_in_train         NUMBER(5),      -- кол. 42  37 (позиция в составе)
+    park_no                VARCHAR2(10),   -- кол. 43  'I (1)' (содержит текст)
+    track_no               VARCHAR2(10),   -- кол. 44  ' (5)' (содержит скобки)
 
-    -- Кол 45-48: контейнеры
-    seals_count            NUMBER(3),
-    loaded_containers      NUMBER(3),
-    empty_containers       NUMBER(3),
-    container_nos          VARCHAR2(200),
+    -- ── Контейнеры ───────────────────────────────────────────────
+    seals_count            NUMBER(3),      -- кол. 45
+    loaded_containers      NUMBER(3),      -- кол. 46
+    empty_containers       NUMBER(3),      -- кол. 47
+    container_nos          VARCHAR2(200),  -- кол. 48
 
-    -- Кол 49-54: доставка и простой
-    norm_delivery_dt       DATE,           -- '09.06.2026'
-    dist_passed_km         NUMBER,
-    dist_remain_km         NUMBER,
-    dist_total_km          NUMBER,
-    idle_time_hhmmss       VARCHAR2(20),   -- '0: 15: 18' (строковый формат времени)
-    idle_time_days         NUMBER,
+    -- ── Доставка и простой ───────────────────────────────────────
+    norm_delivery_dt       DATE,           -- кол. 49  '09.06.2026'
+    dist_passed_km         NUMBER,         -- кол. 50
+    dist_remain_km         NUMBER,         -- кол. 51
+    dist_total_km          NUMBER,         -- кол. 52
+    idle_time_hhmmss       VARCHAR2(20),   -- кол. 53  '0: 15: 18' (строковый формат)
+    idle_time_days         NUMBER,         -- кол. 54
 
-    -- Кол 55-60: досылка и АСОУП
-    extra_waybill_no       VARCHAR2(20),
-    extra_send_id          VARCHAR2(30),
-    asoup_depart_dt        DATE,
-    asoup_arrive_dt        DATE,
-    send_id                VARCHAR2(30),   -- '2017ЭФ038927'
-    waybill_id             VARCHAR2(15),   -- '1751007050' (идентификатор)
+    -- ── Досылка и АСОУП ──────────────────────────────────────────
+    extra_waybill_no       VARCHAR2(20),   -- кол. 55
+    extra_send_id          VARCHAR2(30),   -- кол. 56
+    asoup_depart_dt        DATE,           -- кол. 57
+    asoup_arrive_dt        DATE,           -- кол. 58
+    send_id                VARCHAR2(30),   -- кол. 59  '2017ЭФ038927'
+    waybill_id             VARCHAR2(15),   -- кол. 60  '1751007050' (идентификатор)
 
-    -- Кол 61-66: состояние
-    wagon_no2              VARCHAR2(10),
-    quality_sign           VARCHAR2(100),  -- 'НАЛИЧИЕ ТЕХНИЧЕСКОГО ПАСПОРТА'
-    state_assign_dt        DATE,
-    wagon_state            VARCHAR2(10),   -- 'РП'
-    state_reason           VARCHAR2(100),
-    state_station          VARCHAR2(100),
+    -- ── Состояние ────────────────────────────────────────────────
+    wagon_no2              VARCHAR2(10),   -- кол. 61  дублирует wagon_no
+    quality_sign           VARCHAR2(100),  -- кол. 62  'НАЛИЧИЕ ТЕХНИЧЕСКОГО ПАСПОРТА'
+    state_assign_dt        DATE,           -- кол. 63
+    wagon_state            VARCHAR2(10),   -- кол. 64  'РП'
+    state_reason           VARCHAR2(100),  -- кол. 65  'Деповской ремонт (1)'
+    state_station          VARCHAR2(100),  -- кол. 66
 
-    -- Кол 67-70: даты ремонтов
-    reg_date               DATE,
-    build_date             DATE,
-    next_repair_dt         DATE,
-    next_repair_type       VARCHAR2(50),   -- 'Капитальный ремонт (2)'
+    -- ── Даты ремонтов ────────────────────────────────────────────
+    reg_date               DATE,           -- кол. 67
+    build_date             DATE,           -- кол. 68
+    next_repair_dt         DATE,           -- кол. 69
+    next_repair_type       VARCHAR2(50),   -- кол. 70  'Капитальный ремонт (2)'
 
-    -- Кол 71-77: завод и модель
-    factory_no             VARCHAR2(15),   -- '794230' (серийный номер)
-    manufacturer           VARCHAR2(100),
-    wagon_type_name        VARCHAR2(200),
-    wagon_model            VARCHAR2(20),   -- '15-1610-02'
-    tare_weight            NUMBER,         -- 275
-    load_capacity          NUMBER,         -- 650
-    length_mm              NUMBER,         -- 12020
+    -- ── Завод и модель ───────────────────────────────────────────
+    factory_no             VARCHAR2(15),   -- кол. 71  '794230' (серийный номер)
+    manufacturer           VARCHAR2(100),  -- кол. 72
+    wagon_type_name        VARCHAR2(200),  -- кол. 73
+    wagon_model            VARCHAR2(20),   -- кол. 74  '15-1610-02'
+    tare_weight            NUMBER,         -- кол. 75  275
+    load_capacity          NUMBER,         -- кол. 76  650
+    length_mm              NUMBER,         -- кол. 77  12020
 
-    -- Кол 78-83: депо ремонтов и приписки
-    last_cap_repair_depot  VARCHAR2(200),
-    last_cap_repair_dt     DATE,
-    last_dep_repair_depot  VARCHAR2(200),
-    last_dep_repair_dt     DATE,
-    home_road              VARCHAR2(100),
-    home_depot             VARCHAR2(100),
+    -- ── Депо ремонтов и приписки ─────────────────────────────────
+    last_cap_repair_depot  VARCHAR2(200),  -- кол. 78
+    last_cap_repair_dt     DATE,           -- кол. 79
+    last_dep_repair_depot  VARCHAR2(200),  -- кол. 80
+    last_dep_repair_dt     DATE,           -- кол. 81
+    home_road              VARCHAR2(100),  -- кол. 82
+    home_depot             VARCHAR2(100),  -- кол. 83
 
-    -- Кол 84-86: исключение и предыдущий номер
-    exclude_date           DATE,
-    no_transit_reason      VARCHAR2(200),
-    prev_wagon_no          VARCHAR2(15),
+    -- ── Исключение и предыдущий номер ────────────────────────────
+    exclude_date           DATE,           -- кол. 84
+    no_transit_reason      VARCHAR2(200),  -- кол. 85
+    prev_wagon_no          VARCHAR2(15),   -- кол. 86  '000000000000'
 
-    -- Кол 87-90: собственник
-    owner                  VARCHAR2(200),
-    owner_okpo             VARCHAR2(10),
-    owner_local_code       VARCHAR2(10),   -- '760643' (локальный код)
-    home_station           VARCHAR2(100),
+    -- ── Собственник ──────────────────────────────────────────────
+    owner                  VARCHAR2(200),  -- кол. 87
+    owner_okpo             VARCHAR2(10),   -- кол. 88
+    owner_local_code       VARCHAR2(10),   -- кол. 89  '760643'
+    home_station           VARCHAR2(100),  -- кол. 90
 
-    -- Кол 91-98: аренда
-    threshold_sign         VARCHAR2(100),  -- 'ВАГОН РЕМОНТИРУЕТСЯ ПО ПРОБЕГУ'
-    lease_sign             NUMBER(1),      -- 0 / 1
-    life_ext_date          DATE,
-    lessee                 VARCHAR2(200),
-    lessee_okpo            VARCHAR2(10),
-    lessee_local_code      VARCHAR2(10),
-    lease_home_station     VARCHAR2(100),
-    lease_end_date         DATE,
+    -- ── Аренда ───────────────────────────────────────────────────
+    threshold_sign         VARCHAR2(100),  -- кол. 91  'ВАГОН РЕМОНТИРУЕТСЯ ПО ПРОБЕГУ'
+    lease_sign             NUMBER(1),      -- кол. 92  0 / 1
+    life_ext_date          DATE,           -- кол. 93
+    lessee                 VARCHAR2(200),  -- кол. 94
+    lessee_okpo            VARCHAR2(10),   -- кол. 95
+    lessee_local_code      VARCHAR2(10),   -- кол. 96
+    lease_home_station     VARCHAR2(100),  -- кол. 97
+    lease_end_date         DATE,           -- кол. 98
 
-    -- Кол 99: срок службы — дата окончания
-    service_life           DATE,           -- '30.03.2031' — дата, не количество лет
+    -- ── Срок службы ──────────────────────────────────────────────
+    service_life           DATE,           -- кол. 99  дата окончания, не кол-во лет
 
-    -- Кол 100-103: материал и объём кузова
-    body_material_code     NUMBER(2),      -- 2
-    body_material_name     VARCHAR2(200),  -- '09Г2С, 09Г2Д, 09Г2...'
-    body_volume            NUMBER,         -- 86, 88 (м³)
-    clearance              VARCHAR2(20),   -- '1-Т (3)'
+    -- ── Материал и объём кузова ──────────────────────────────────
+    body_material_code     NUMBER(2),      -- кол.100  2
+    body_material_name     VARCHAR2(200),  -- кол.101  '09Г2С, 09Г2Д, 09Г2...'
+    body_volume            NUMBER,         -- кол.102  86, 88 (м³)
+    clearance              VARCHAR2(20),   -- кол.103  '1-Т (3)'
 
-    -- Кол 104-110: техническое оснащение
-    air_dist_type          VARCHAR2(30),   -- '483М-000 (4)'
-    automode               VARCHAR2(50),   -- 'Не оборудован (2)'
-    auto_lever             VARCHAR2(30),   -- '574-Б (2)', 'РТРП-300 (5)'
-    brake_type             VARCHAR2(30),
-    coupler_type           VARCHAR2(20),
-    bogie_model            VARCHAR2(1000), -- список из 20+ моделей через запятую
-    shock_absorber         VARCHAR2(50),
+    -- ── Техническое оснащение ────────────────────────────────────
+    air_dist_type          VARCHAR2(30),   -- кол.104  '483М-000 (4)'
+    automode               VARCHAR2(50),   -- кол.105  'Не оборудован (2)'
+    auto_lever             VARCHAR2(30),   -- кол.106  '574-Б (2)', 'РТРП-300 (5)'
+    brake_type             VARCHAR2(30),   -- кол.107
+    coupler_type           VARCHAR2(20),   -- кол.108
+    bogie_model            VARCHAR2(1000), -- кол.109  список из 20+ моделей через запятую
+    shock_absorber         VARCHAR2(50),   -- кол.110
 
-    -- Кол 111-116: признаки и коды
-    life_ext_sign          NUMBER(1),      -- 0 / 1
-    boiler_caliber         NUMBER,         -- 0
-    drain_device           VARCHAR2(10),
-    lever_gear             VARCHAR2(10),
-    wagon_model_code       VARCHAR2(10),   -- '903' (код модели)
-    repair_by_mileage      NUMBER(1),      -- 0 / 1
+    -- ── Признаки и коды ──────────────────────────────────────────
+    life_ext_sign          NUMBER(1),      -- кол.111  0 / 1
+    boiler_caliber         NUMBER,         -- кол.112  0
+    drain_device           VARCHAR2(10),   -- кол.113
+    lever_gear             VARCHAR2(10),   -- кол.114
+    wagon_model_code       VARCHAR2(10),   -- кол.115  '903'
+    repair_by_mileage      NUMBER(1),      -- кол.116  0 / 1
 
-    -- Кол 117-118: оператор по доверенности
-    proxy_operator         VARCHAR2(200),
-    proxy_operator_okpo    VARCHAR2(10),
+    -- ── Оператор по доверенности ─────────────────────────────────
+    proxy_operator         VARCHAR2(200),  -- кол.117
+    proxy_operator_okpo    VARCHAR2(10),   -- кол.118
 
-    -- Кол 119-123: прочие классификаторы
-    wagon_type_code2       VARCHAR2(50),
-    wagon_type_cond        VARCHAR2(20),
-    axles_count            NUMBER(2),      -- 4, 8
-    exclude_depot          VARCHAR2(100),
-    exclude_reason         VARCHAR2(100),
+    -- ── Прочие классификаторы ────────────────────────────────────
+    wagon_type_code2       VARCHAR2(50),   -- кол.119  дублирует wagon_type_code
+    wagon_type_cond        VARCHAR2(20),   -- кол.120
+    axles_count            NUMBER(2),      -- кол.121  4, 8
+    exclude_depot          VARCHAR2(100),  -- кол.122
+    exclude_reason         VARCHAR2(100),  -- кол.123
 
-    -- Кол 124-126: дни
-    days_to_repair         NUMBER,
-    days_no_oper           NUMBER,
-    days_no_move           NUMBER
+    -- ── Дни ──────────────────────────────────────────────────────
+    days_to_repair         NUMBER,         -- кол.124
+    days_no_oper           NUMBER,         -- кол.125
+    days_no_move           NUMBER          -- кол.126
 );
 /
 
@@ -226,7 +227,7 @@ CREATE INDEX IF NOT EXISTS idx_xx_rjd_wagon_type  ON xx_dislocation_rjd (report_
 /
 
 COMMENT ON TABLE  xx_dislocation_rjd IS 'Дислокация вагонов РЖД — 126 колонок из ЛК клиента РЖД';
-COMMENT ON COLUMN xx_dislocation_rjd.bogie_model  IS 'Список моделей тележек через запятую, VARCHAR2(1000)';
-COMMENT ON COLUMN xx_dislocation_rjd.service_life IS 'Дата окончания срока службы';
-COMMENT ON COLUMN xx_dislocation_rjd.threshold_sign IS 'Признак порога — может быть длинной строкой';
+COMMENT ON COLUMN xx_dislocation_rjd.bogie_model  IS 'Кол.109 — список моделей тележек через запятую, VARCHAR2(1000)';
+COMMENT ON COLUMN xx_dislocation_rjd.service_life IS 'Кол.99 — дата окончания срока службы (не количество лет)';
+COMMENT ON COLUMN xx_dislocation_rjd.threshold_sign IS 'Кол.91 — признак порога — может быть длинной строкой';
 /
