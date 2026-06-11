@@ -2,3 +2,4 @@
 .DS_Store
 \sql
 sql
+.docker-compose.yml
