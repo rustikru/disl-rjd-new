@@ -363,7 +363,9 @@ function loadDislocation() {
     .fail(function (jqXHR) {
       var msg = ajaxErr(jqXHR)
       $('#mainTable').html(
-        '<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">' + esc(msg) + '</td></tr></tbody>',
+        '<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">' +
+          esc(msg) +
+          '</td></tr></tbody>',
       )
       $('#mainTableSub').text(msg)
     })
@@ -444,7 +446,9 @@ function loadExtended() {
     })
     .fail(function (jqXHR) {
       $('#dislExtTable').html(
-        '<tbody><tr><td colspan="10" style="text-align:center;padding:40px;color:#9DA5B0">' + esc(ajaxErr(jqXHR)) + '</td></tr></tbody>',
+        '<tbody><tr><td colspan="10" style="text-align:center;padding:40px;color:#9DA5B0">' +
+          esc(ajaxErr(jqXHR)) +
+          '</td></tr></tbody>',
       )
     })
 }
@@ -641,12 +645,7 @@ function loadSummary(cfg) {
   })
   $.getJSON(cfg.summaryUrl, summaryParams)
     .done(function (data) {
-      showKpi(
-        '#' + cfg.metricsId,
-        data.metrics,
-        data.total,
-        cfg.metricsLabel,
-      )
+      showKpi('#' + cfg.metricsId, data.metrics, data.total, cfg.metricsLabel)
       drawSummary(
         '#' + cfg.sumTableId,
         data.roads,
@@ -664,7 +663,9 @@ function loadSummary(cfg) {
     .fail(function (jqXHR) {
       var msg = ajaxErr(jqXHR)
       $table.html(
-        '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">' + esc(msg) + '</td></tr></tbody>',
+        '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">' +
+          esc(msg) +
+          '</td></tr></tbody>',
       )
       $sub.text(msg)
     })
@@ -695,7 +696,9 @@ function loadDetail(cfg) {
       $table.html(
         '<tbody><tr><td colspan="' +
           cfg.detailCols.length +
-          '" style="text-align:center;padding:40px;color:#9DA5B0">' + esc(ajaxErr(jqXHR)) + '</td></tr></tbody>',
+          '" style="text-align:center;padding:40px;color:#9DA5B0">' +
+          esc(ajaxErr(jqXHR)) +
+          '</td></tr></tbody>',
       )
     })
 }
@@ -731,39 +734,39 @@ function showTable($table, rows, colDefs) {
 /******** cols config ********/
 
 var extCols = [
-  { key: 'wagon_no',        label: '№ вагона',       meta: true, mono: true },
-  { key: 'train_no',        label: 'Поезд №',        meta: true },
-  { key: 'oper_station',    label: 'Тек. станция',   meta: true },
-  { key: 'depart_station',  label: 'Ст. отправл.',   meta: true },
-  { key: 'dest_station',    label: 'Ст. назнач.',    meta: true },
-  { key: 'cargo_name',      label: 'Груз',           meta: true },
-  { key: 'park_type',       label: 'Тип парка',      meta: true },
-  { key: 'oper_mnemonic',   label: 'Операция',       meta: true },
-  { key: 'idle_time_days',  label: 'Простой (дн)' },
+  { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
+  { key: 'train_no', label: 'Поезд №', meta: true },
+  { key: 'oper_station', label: 'Тек. станция', meta: true },
+  { key: 'depart_station', label: 'Ст. отправл.', meta: true },
+  { key: 'dest_station', label: 'Ст. назнач.', meta: true },
+  { key: 'cargo_name', label: 'Груз', meta: true },
+  { key: 'park_type', label: 'Тип парка', meta: true },
+  { key: 'oper_mnemonic', label: 'Операция', meta: true },
+  { key: 'idle_time_days', label: 'Простой (дн)' },
   { key: 'asoup_arrive_dt', label: 'Приб. (АСОУП)', meta: true },
 ]
 
 var downtimeCols = [
-  { key: 'wagon_no',        label: '№ вагона',        meta: true, mono: true },
-  { key: 'wagon_type_code', label: 'Тип',             meta: true },
-  { key: 'cargo_name',      label: 'Груз',            meta: true },
-  { key: 'oper_station',    label: 'Текущая станция', meta: true },
-  { key: 'oper_road',       label: 'Дорога',          meta: true },
-  { key: 'idle_time_days',  label: 'Простой (сут.)',  danger: true },
-  { key: 'owner',           label: 'Владелец',        meta: true },
-  { key: 'lessee',          label: 'Арендатор',       meta: true },
+  { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
+  { key: 'wagon_type_code', label: 'Тип', meta: true },
+  { key: 'cargo_name', label: 'Груз', meta: true },
+  { key: 'oper_station', label: 'Текущая станция', meta: true },
+  { key: 'oper_road', label: 'Дорога', meta: true },
+  { key: 'idle_time_days', label: 'Простой (сут.)', danger: true },
+  { key: 'owner', label: 'Владелец', meta: true },
+  { key: 'lessee', label: 'Арендатор', meta: true },
 ]
 
 var rawCols = [
-  { key: 'wagon_no',        label: '№ вагона',        meta: true, mono: true },
-  { key: 'wagon_type_code', label: 'Тип',             meta: true },
-  { key: 'cargo_name',      label: 'Груз',            meta: true },
-  { key: 'cargo_weight_kg', label: 'Вес (кг)',        right: true },
-  { key: 'idle_time_days',  label: 'Простой (сут.)',  danger: true },
-  { key: 'oper_station',    label: 'Тек. станция',    meta: true },
-  { key: 'oper_road',       label: 'Дорога',          meta: true },
-  { key: 'depart_station',  label: 'Ст. отправл.',    meta: true },
-  { key: 'owner',           label: 'Владелец',        meta: true },
+  { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
+  { key: 'wagon_type_code', label: 'Тип', meta: true },
+  { key: 'cargo_name', label: 'Груз', meta: true },
+  { key: 'cargo_weight_kg', label: 'Вес (кг)', right: true },
+  { key: 'idle_time_days', label: 'Простой (сут.)', danger: true },
+  { key: 'oper_station', label: 'Тек. станция', meta: true },
+  { key: 'oper_road', label: 'Дорога', meta: true },
+  { key: 'depart_station', label: 'Ст. отправл.', meta: true },
+  { key: 'owner', label: 'Владелец', meta: true },
 ]
 
 /******** downtime ********/
@@ -860,9 +863,11 @@ function loadRaw() {
     .done(function (data) {
       $('#rawMetrics').html(
         [
-          { label: 'Гружёных вагонов',    value: data.total,    accent: true },
+          { label: 'Гружёных вагонов', value: data.total, accent: true },
           { label: 'Макс. простой (сут.)', value: data.max_idle },
-        ].map(kpiCard).join(''),
+        ]
+          .map(kpiCard)
+          .join(''),
       )
 
       drawRawTable(data.rows)
@@ -881,7 +886,9 @@ function loadRawDet(cargo) {
   var params = cargo ? { cargo: cargo } : {}
   $.getJSON(BASE + '/api/raw-material/detail', params).done(function (data) {
     showTable($('#rawDetTable'), data.rows, rawCols)
-    $('#rawDetSub').text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'))
+    $('#rawDetSub').text(
+      'Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'),
+    )
   })
 }
 
@@ -1126,11 +1133,17 @@ function idleStyle(days) {
 
 // HTML одной KPI-карточки. Поля: label, value (или total), accent, sub.
 function kpiCard(item) {
-  var val = item.value != null ? item.value : (item.total || 0)
+  var val = item.value != null ? item.value : item.total || 0
   return (
-    '<div class="kpi-card' + (item.accent ? ' accent' : '') + '">' +
-    '<div class="kpi-value">' + (typeof val === 'number' ? val.toLocaleString('ru-RU') : esc(String(val))) + '</div>' +
-    '<div class="kpi-label">' + esc(item.label) + '</div>' +
+    '<div class="kpi-card' +
+    (item.accent ? ' accent' : '') +
+    '">' +
+    '<div class="kpi-value">' +
+    (typeof val === 'number' ? val.toLocaleString('ru-RU') : esc(String(val))) +
+    '</div>' +
+    '<div class="kpi-label">' +
+    esc(item.label) +
+    '</div>' +
     (item.sub ? '<div class="kpi-delta">' + esc(item.sub) + '</div>' : '') +
     '</div>'
   )
@@ -1208,7 +1221,7 @@ $(document).on('click', '.cell-link', function (e) {
   if (ctx) openDetail(ctx, road, station, col, groupBy)
 })
 
-// Сворачивание/разворачивание строк дороги
+// Сворачивание/разворачивание
 $(document).on('click', '.row-road-parent', function () {
   var ri = $(this).data('road-id')
   var $table = $(this).closest('table')
@@ -1220,7 +1233,7 @@ $(document).on('click', '.row-road-parent', function () {
     .text(collapsed ? '▼' : '▶')
 })
 
-// Старт
+// Начало всего и конец тоже
 $(function () {
   initSidebar()
   initInnerTabs()
