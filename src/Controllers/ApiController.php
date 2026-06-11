@@ -237,7 +237,7 @@ class ApiController
             $bindings
         );
 
-        return $this->json($response, $this->buildRoadStationTable($rows, $gf));
+        return $this->json($response, $this->buildRoadStationTable($rows, $gf, 'cargo_w_type'));
     }
 
     /** GET /api/approach/detail — Список вагонов подхода */
@@ -268,6 +268,12 @@ class ApiController
         if ($wagType) {
             $where .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) = :wtype';
             $bindings['wtype'] = $wagType;
+        }
+        $cargoState = $params['cargo_state'] ?? null;
+        if ($cargoState === 'ГР') {
+            $where .= ' AND CARGO_WEIGHT_KG > 0';
+        } elseif ($cargoState === 'ПОР') {
+            $where .= ' AND (CARGO_WEIGHT_KG IS NULL OR CARGO_WEIGHT_KG = 0)';
         }
 
         $select = isset($params['fields']) && $params['fields'] !== ''
@@ -670,42 +676,64 @@ class ApiController
      * groupKeys[0] = верхний уровень (дорога), groupKeys[last] = нижний (станция).
      * Ключи в ответе совпадают с именами полей в БД → фронтенд читает через groupCols[i].key.
      */
-    private function buildRoadStationTable(array $rows, array $groupKeys): array
+    private function buildRoadStationTable(array $rows, array $groupKeys, ?string $subGroupField = null): array
     {
-        $roadKey = $groupKeys[0];
+        $roadKey    = $groupKeys[0];
         $stationKey = $groupKeys[count($groupKeys) - 1];
 
-        $cols = [];
-        $colIndex = [];
+        $typeIndex = [];
+        $types     = [];
+        $subIndex  = [];
+        $subs      = [];
+
         foreach ($rows as $r) {
-            $t = (string) ($r['wagon_type_code'] ?? '');
-            if ($t !== '' && !isset($colIndex[$t])) {
-                $colIndex[$t] = count($cols);
-                $cols[] = $t;
+            $t = (string)($r['wagon_type_code'] ?? '');
+            if ($t !== '' && !isset($typeIndex[$t])) {
+                $typeIndex[$t] = count($types);
+                $types[]       = $t;
+            }
+            if ($subGroupField !== null) {
+                $s = (string)($r[$subGroupField] ?? '');
+                if ($s !== '' && !isset($subIndex[$s])) {
+                    $subIndex[$s] = count($subs);
+                    $subs[]       = $s;
+                }
             }
         }
-        $nCols = count($cols);
+
+        $nTypes = count($types);
+        $nSubs  = $subGroupField !== null ? max(1, count($subs)) : 1;
+        $nFlat  = $nTypes * $nSubs;
 
         $roads = [];
         foreach ($rows as $r) {
-            $road = (string) ($r[$roadKey] ?? 'Не указана');
-            $station = (string) ($r[$stationKey] ?? 'Не указана');
-            $wt = (string) ($r['wagon_type_code'] ?? '');
-            $cnt = (int) $r['cnt'];
+            $road    = (string)($r[$roadKey]    ?? 'Не указана');
+            $station = (string)($r[$stationKey] ?? 'Не указана');
+            $t       = (string)($r['wagon_type_code'] ?? '');
+            $cnt     = (int)$r['cnt'];
 
             if (!isset($roads[$road])) {
-                $roads[$road] = [$roadKey => $road, 'stations' => [], 'total' => array_fill(0, $nCols, 0), 'grand_total' => 0];
+                $roads[$road] = [$roadKey => $road, 'stations' => [], 'total' => array_fill(0, $nFlat, 0), 'grand_total' => 0];
             }
             if (!isset($roads[$road]['stations'][$station])) {
-                $roads[$road]['stations'][$station] = [$stationKey => $station, 'v' => array_fill(0, $nCols, 0)];
+                $roads[$road]['stations'][$station] = [$stationKey => $station, 'v' => array_fill(0, $nFlat, 0)];
             }
-            if ($wt !== '' && isset($colIndex[$wt])) {
-                $ci = $colIndex[$wt];
-                $roads[$road]['stations'][$station]['v'][$ci] += $cnt;
-                $roads[$road]['total'][$ci] += $cnt;
-                $roads[$road]['grand_total'] += $cnt;
+            if ($t === '' || !isset($typeIndex[$t])) {
+                continue;
             }
+            $ti = $typeIndex[$t];
+            if ($subGroupField !== null) {
+                $s  = (string)($r[$subGroupField] ?? '');
+                $si = $subIndex[$s] ?? 0;
+                $fi = $ti * $nSubs + $si;
+            } else {
+                $fi = $ti;
+            }
+            $roads[$road]['stations'][$station]['v'][$fi] += $cnt;
+            $roads[$road]['total'][$fi]                   += $cnt;
+            $roads[$road]['grand_total']                  += $cnt;
         }
+
         foreach ($roads as &$road) {
             $road['stations'] = array_values($road['stations']);
         }
@@ -714,10 +742,15 @@ class ApiController
         $roadList = array_values($roads);
         usort($roadList, fn($a, $b) => $b['grand_total'] - $a['grand_total']);
 
-        $metrics = array_map(fn($r) => ['label' => $r[$roadKey], 'total' => $r['grand_total']], $roadList);
+        $metrics    = array_map(fn($r) => ['label' => $r[$roadKey], 'total' => $r['grand_total']], $roadList);
         $grandTotal = array_sum(array_column($metrics, 'total'));
 
-        return ['cols' => $cols, 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
+        if ($subGroupField !== null) {
+            $colGroups = array_map(fn($t) => ['label' => $t, 'subs' => $subs], $types);
+            return ['col_groups' => $colGroups, 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
+        }
+
+        return ['cols' => $types, 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
     }
 
     // ── Строитель сводной таблицы ────────────────────────────────
