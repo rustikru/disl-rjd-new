@@ -540,13 +540,18 @@ var WAGON_TABS = {
       { key: 'dest_station', label: 'Станция назначения' },
     ],
     getParams: function () {
-      return { cargo: $('#fDepartureCargo').val() || undefined }
+      return {
+        cargo: $('#fDepartureCargo').val() || undefined,
+        dest_station: $('#fDestStation').val() || undefined,
+      }
     },
     fillFilters: function (data) {
       fillSelect('#fDepartureCargo', data.cargo || [])
+      fillSelect('#fDestStation', data.dest_station || [])
     },
     resetFilters: function () {
       $('#fDepartureCargo').val('')
+      $('#fDestStation').val('')
     },
     // Тут деталиаций (шапка страницы)
     detailCols: [

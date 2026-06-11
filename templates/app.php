@@ -152,7 +152,7 @@ $basePath = $basePath ?? '';
 
         <!-- Внутренние вкладки -->
         <div class="inner-tabs">
-          <button class="inner-tab active" data-inner="approach-summary">Сводная (по дорогам)</button>
+          <button class="inner-tab active" data-inner="approach-summary">Сводная</button>
           <button class="inner-tab" data-inner="approach-detail">Список вагонов</button>
         </div>
 
@@ -201,6 +201,10 @@ $basePath = $basePath ?? '';
               <select class="filter-input" id="fDepartureCargo" style="min-width:200px">
                 <option value="">— Все грузы —</option>
               </select>
+              <label class="filter-label" for="fDestStation">Станция назначения</label>
+              <select class="filter-input" id="fDestStation" style="min-width:200px">
+                <option value="">— Все станции —</option>
+              </select>
             </div>
             <div class="filter-actions">
               <button class="btn btn-primary btn-sm" id="btnDepartureApply">Применить</button>
@@ -209,7 +213,7 @@ $basePath = $basePath ?? '';
           </div>
         </div>
         <div class="inner-tabs">
-          <button class="inner-tab active" data-inner="departure-summary">Сводная (по дорогам)</button>
+          <button class="inner-tab active" data-inner="departure-summary">Сводная</button>
           <button class="inner-tab" data-inner="departure-detail">Список вагонов</button>
         </div>
         <div id="departure-summary" class="inner-panel active">
@@ -263,7 +267,7 @@ $basePath = $basePath ?? '';
           </div>
         </div>
         <div class="inner-tabs">
-          <button class="inner-tab active" data-inner="loading-summary">Сводная (по станциям)</button>
+          <button class="inner-tab active" data-inner="loading-summary">Сводная</button>
           <button class="inner-tab" data-inner="loading-detail">Список вагонов</button>
         </div>
         <div id="loading-summary" class="inner-panel active">
