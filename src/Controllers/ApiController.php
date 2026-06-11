@@ -357,9 +357,9 @@ class ApiController
         }
 
         $rows = $this->db->fetchAll(
-            "SELECT $gfStr, wagon_type_code, COUNT(*) AS cnt
-             FROM xx_dislocation_rjd WHERE {$where}
-             GROUP BY $gfStr, wagon_type_code
+            "SELECT $gfStr, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(xdr.WAGON_TYPE_CODE) AS wagon_type_code, COUNT(*) AS cnt
+             FROM xx_dislocation_rjd xdr WHERE {$where}
+             GROUP BY $gfStr, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(xdr.WAGON_TYPE_CODE)
              ORDER BY $gfStr, wagon_type_code",
             $bindings
         );
@@ -397,7 +397,7 @@ class ApiController
             }
         }
         if ($wagType) {
-            $where .= ' AND wagon_type_code = :wtype';
+            $where .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) = :wtype';
             $bindings['wtype'] = $wagType;
         }
 
