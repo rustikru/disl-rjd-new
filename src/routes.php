@@ -5,10 +5,8 @@ use Slim\App;
 
 return function (App $app, array $config): void {
 
-    // PHP-сессия запускается на каждый запрос
     $app->add(new \App\Middleware\SessionMiddleware($config['session_name']));
 
-    // Ленивые синглтоны — DB и Auth создаются только при первом обращении
     $db   = null;
     $auth = null;
 
@@ -20,7 +18,7 @@ return function (App $app, array $config): void {
         return $auth ??= new \App\Auth\AuthService($getDb(), $config);
     };
 
-    // ── Публичные маршруты (без авторизации) ─────────────────────
+    // Публичные маршруты
     $app->get('/login', function ($req, $res) use ($getAuth, $config) {
         return (new \App\Controllers\AuthController($getAuth(), $config))->showLogin($req, $res);
     });
@@ -34,15 +32,29 @@ return function (App $app, array $config): void {
         return $res->withHeader('Location', '/login')->withStatus(302);
     });
 
-    // ── Защищённые маршруты (требуют авторизации) ────────────────
+    // Защищённые маршруты
     $app->group('', function ($group) use ($config, $getDb) {
 
         $group->get('/', function ($req, $res) use ($config) {
             return (new \App\Controllers\DashboardController($config))->index($req, $res);
         });
 
+        // Страница импорта XLSX
+        $group->get('/import', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ImportController($getDb()))->showForm($req, $res);
+        });
+
+        $group->post('/import', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ImportController($getDb()))->handleUpload($req, $res);
+        });
+
+        // API эндпоинты
         $group->get('/api/dashboard', function ($req, $res) use ($getDb) {
             return (new \App\Controllers\ApiController($getDb()))->dashboard($req, $res);
+        });
+
+        $group->get('/api/reports', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->reports($req, $res);
         });
 
         $group->get('/api/dislocation/summary', function ($req, $res) use ($getDb) {
@@ -53,8 +65,58 @@ return function (App $app, array $config): void {
             return (new \App\Controllers\ApiController($getDb()))->dislocationExtended($req, $res);
         });
 
-        $group->get('/api/approach', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->approach($req, $res);
+        $group->get('/api/approach/summary', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->approachSummary($req, $res);
+        });
+
+        $group->get('/api/approach/detail', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->approachDetail($req, $res);
+        });
+
+        $group->get('/api/approach/filters', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->approachFilters($req, $res);
+        });
+
+        // Отправление
+        $group->get('/api/departure/summary', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->departureSummary($req, $res);
+        });
+        $group->get('/api/departure/detail', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->departureDetail($req, $res);
+        });
+
+        // Погрузка
+        $group->get('/api/loading/summary', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->loadingSummary($req, $res);
+        });
+        $group->get('/api/loading/detail', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->loadingDetail($req, $res);
+        });
+
+        // Простои
+        $group->get('/api/downtime/summary', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->downtimeSummary($req, $res);
+        });
+        $group->get('/api/downtime/detail', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->downtimeDetail($req, $res);
+        });
+
+        // Сырьё
+        $group->get('/api/raw-material/summary', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->rawMaterialSummary($req, $res);
+        });
+        $group->get('/api/raw-material/detail', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->rawMaterialDetail($req, $res);
+        });
+
+        $group->get('/detail', function ($req, $res) use ($config) {
+            $appName = $config['app_name'] ?? 'Метафракс';
+            $user    = $_SESSION['user'] ?? ['display_name' => '', 'username' => '', 'auth_source' => ''];
+            ob_start();
+            require __DIR__ . '/../templates/detail.php';
+            $html = ob_get_clean();
+            $res->getBody()->write($html);
+            return $res->withHeader('Content-Type', 'text/html; charset=utf-8');
         });
 
     })->add(new \App\Middleware\AuthMiddleware());

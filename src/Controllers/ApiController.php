@@ -9,8 +9,7 @@ use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * JSON API для фронтенда.
- * Каждый метод — отдельный эндпоинт, возвращает JSON.
- * Чтобы добавить новый раздел — добавьте метод и маршрут в routes.php.
+ * Все запросы к таблице xx_dislocation_rjd.
  */
 class ApiController
 {
@@ -21,145 +20,718 @@ class ApiController
         $this->db = $db;
     }
 
-    /** GET /api/dashboard — KPI-сводка для Dashboard */
+    /** GET /api/reports — список загруженных справок */
+    public function reports(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $rows = $this->db->fetchAll(
+            'SELECT report_dt, COUNT(*) AS cnt
+             FROM xx_dislocation_rjd
+             GROUP BY report_dt
+             ORDER BY report_dt DESC
+             LIMIT 20'
+        );
+
+        $reports = array_map(function (array $r) {
+            $dt    = (string) ($r['report_dt'] ?? '');
+            $label = $dt;
+            try {
+                $d     = new \DateTime($dt);
+                $label = $d->format('d.m.Y H:i');
+            } catch (\Exception $e) {}
+            return [
+                'report_dt' => $dt,
+                'label'     => $label,
+                'cnt'       => (int) $r['cnt'],
+            ];
+        }, $rows);
+
+        return $this->json($response, ['reports' => $reports]);
+    }
+
+    /** GET /api/dashboard — KPI-сводка */
     public function dashboard(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        // Суммируем вагоны по разделам за последнюю имеющуюся дату
-        $rows = $this->db->fetchAll(
-            "SELECT section_id, section_name,
-                    SUM(wagon_count) AS total,
-                    SUM(CASE WHEN wagon_group = 'Цистерны' THEN wagon_count ELSE 0 END) AS tank_total
-             FROM wagon_dislocation
-             WHERE report_date = (SELECT MAX(report_date) FROM wagon_dislocation)
-             GROUP BY section_id, section_name
-             ORDER BY section_id"
+        $latestDt = $this->db->fetchOne(
+            'SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd'
         );
+        $dt = $latestDt['dt'] ?? null;
 
-        $updatedAt = $this->db->fetchOne(
-            'SELECT MAX(report_date) AS dt FROM wagon_dislocation'
-        );
-
-        $data = [
-            'updated_at' => $updatedAt['dt'] ?? date('d.m.Y'),
-            'sections'   => array_map(function (array $r) {
-                return [
-                    'id'         => $r['section_id'],
-                    'name'       => $r['section_name'],
-                    'total'      => (int) $r['total'],
-                    'tank_total' => (int) $r['tank_total'],
-                ];
-            }, $rows),
-        ];
-
-        return $this->json($response, $data);
-    }
-
-    /** GET /api/dislocation/summary?date=YYYY-MM-DD — Сводная таблица дислокации */
-    public function dislocationSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
-    {
-        $params = $request->getQueryParams();
-        $date   = $params['date'] ?? date('Y-m-d');
-
-        // Все строки за дату
-        $rows = $this->db->fetchAll(
-            'SELECT section_id, section_name, subsection, park,
-                    wagon_type, wagon_group, wagon_count
-             FROM wagon_dislocation
-             WHERE report_date = :date
-             ORDER BY section_id, subsection, wagon_type',
-            ['date' => $date]
-        );
-
-        $data = $this->buildSummaryStructure($rows, $date);
-        return $this->json($response, $data);
-    }
-
-    /** GET /api/dislocation/extended — Расширенная дислокация по вагонам */
-    public function dislocationExtended(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
-    {
-        $rows = $this->db->fetchAll(
-            'SELECT wagon_no, train, current_station, from_station, to_station,
-                    cargo, wagon_count, status, status_label, days_en_route,
-                    expected_arrival, park
-             FROM wagon_extended
-             ORDER BY current_station'
-        );
-
-        return $this->json($response, ['rows' => $rows]);
-    }
-
-    /** GET /api/approach — Подход вагонов */
-    public function approach(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
-    {
-        $rows = $this->db->fetchAll(
-            'SELECT road, direction, wagon_count, wagon_type, destination_station, expected_time
-             FROM wagon_approach
-             ORDER BY expected_time'
-        );
-
-        return $this->json($response, ['rows' => $rows]);
-    }
-
-    // ── Формирование структуры для таблицы дислокации ────────────
-
-    private function buildSummaryStructure(array $rows, string $date): array
-    {
-        // Собираем упорядоченный список типов вагонов (колонок)
-        $colOrder = [];
-        foreach ($rows as $r) {
-            $key = $r['wagon_type'] . '|' . $r['wagon_group'];
-            if (!isset($colOrder[$key])) {
-                $colOrder[$key] = ['label' => $r['wagon_type'], 'group' => $r['wagon_group']];
-            }
+        if (!$dt) {
+            return $this->json($response, [
+                'updated_at' => null,
+                'sections'   => [],
+            ]);
         }
-        $cols = array_values($colOrder);
-        $colIndex = array_flip(array_column($cols, 'label')); // label => position
 
-        // Группируем строки по разделам
+        // Группируем по park_type, в PHP берём первое слово как имя раздела
+        $rows = $this->db->fetchAll(
+            'SELECT park_type, COUNT(*) AS total, wagon_type_code
+             FROM xx_dislocation_rjd
+             WHERE report_dt = :dt
+             GROUP BY park_type, wagon_type_code',
+            ['dt' => $dt]
+        );
+
         $sections = [];
         foreach ($rows as $r) {
-            $sid = $r['section_id'];
-            if (!isset($sections[$sid])) {
-                $sections[$sid] = [
-                    'id'          => $sid,
-                    'name'        => $r['section_name'],
+            $sectionName = trim(explode(',', (string) ($r['park_type'] ?? ''))[0]);
+            if (!isset($sections[$sectionName])) {
+                $sections[$sectionName] = [
+                    'id'         => md5($sectionName),
+                    'name'       => $sectionName,
+                    'total'      => 0,
+                    'tank_total' => 0,
+                ];
+            }
+            $cnt = (int) $r['total'];
+            $sections[$sectionName]['total'] += $cnt;
+            if (mb_stripos((string) ($r['wagon_type_code'] ?? ''), 'цистерн') !== false) {
+                $sections[$sectionName]['tank_total'] += $cnt;
+            }
+        }
+
+        try {
+            $d       = new \DateTime($dt);
+            $dtLabel = $d->format('d.m.Y H:i');
+        } catch (\Exception $e) {
+            $dtLabel = $dt;
+        }
+
+        return $this->json($response, [
+            'updated_at' => $dtLabel,
+            'sections'   => array_values($sections),
+        ]);
+    }
+
+    /** GET /api/dislocation/summary?report_dt=... — Сводная таблица */
+    public function dislocationSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params   = $request->getQueryParams();
+        $reportDt = $params['report_dt'] ?? null;
+
+        if (!$reportDt) {
+            $latest   = $this->db->fetchOne('SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd');
+            $reportDt = $latest['dt'] ?? null;
+        }
+
+        if (!$reportDt) {
+            return $this->json($response, [
+                'date'            => null,
+                'report_dt_label' => 'Нет загруженных справок',
+                'cols'            => [],
+                'sections'        => [],
+            ]);
+        }
+
+        $rows = $this->db->fetchAll(
+            'SELECT park_type, wagon_type_code, COUNT(*) AS wagon_count
+             FROM xx_dislocation_rjd
+             WHERE report_dt = :dt
+             GROUP BY park_type, wagon_type_code
+             ORDER BY park_type, wagon_type_code',
+            ['dt' => $reportDt]
+        );
+
+        try {
+            $d     = new \DateTime($reportDt);
+            $label = $d->format('d.m.Y H:i');
+        } catch (\Exception $e) {
+            $label = $reportDt;
+        }
+
+        $data = $this->buildSummaryStructure($rows, $label);
+        return $this->json($response, $data);
+    }
+
+    /** GET /api/dislocation/extended — Расширенная дислокация */
+    public function dislocationExtended(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params   = $request->getQueryParams();
+        $reportDt = $params['report_dt'] ?? null;
+        $dtParam  = $reportDt
+            ? ':dt'
+            : '(SELECT MAX(report_dt) FROM xx_dislocation_rjd)';
+
+        $rows = $this->db->fetchAll(
+            "SELECT wagon_no, train_no, oper_station, depart_station, dest_station,
+                    cargo_name, park_type, oper_mnemonic, idle_time_days, asoup_arrive_dt,
+                    owner, lessee
+             FROM xx_dislocation_rjd
+             WHERE report_dt = $dtParam
+             ORDER BY oper_station
+             LIMIT 500",
+            $reportDt ? ['dt' => $reportDt] : []
+        );
+
+        return $this->json($response, ['rows' => $rows]);
+    }
+
+    /** GET /api/approach/summary — Сводная подход: Дорога→Станция, колонки=тип вагона */
+    public function approachSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params    = $request->getQueryParams();
+        $reportDt  = $params['report_dt']  ?? null;
+        $cargo     = $params['cargo']      ?? null;
+        $prevCargo = $params['prev_cargo'] ?? null;
+
+        if (!$reportDt) {
+            $latest   = $this->db->fetchOne('SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd');
+            $reportDt = $latest['dt'] ?? null;
+        }
+
+        if (!$reportDt) {
+            return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
+        }
+
+        [$where, $bindings] = $this->buildApproachWhere($reportDt, $cargo, $prevCargo);
+
+        $rows = $this->db->fetchAll(
+            "SELECT dest_road, dest_station, wagon_type_code, COUNT(*) AS cnt
+             FROM xx_dislocation_rjd
+             WHERE {$where}
+             GROUP BY dest_road, dest_station, wagon_type_code
+             ORDER BY dest_road, dest_station, wagon_type_code",
+            $bindings
+        );
+
+        // Собираем упорядоченные колонки (типы вагонов)
+        $cols     = [];
+        $colIndex = [];
+        foreach ($rows as $r) {
+            $t = (string)($r['wagon_type_code'] ?? '');
+            if ($t !== '' && !isset($colIndex[$t])) {
+                $colIndex[$t] = count($cols);
+                $cols[]       = $t;
+            }
+        }
+        $nCols = count($cols);
+
+        // Строим иерархию: дорога → станция
+        $roads = [];
+        foreach ($rows as $r) {
+            $road    = (string)($r['dest_road']       ?? 'Не указана');
+            $station = (string)($r['dest_station']    ?? 'Не указана');
+            $wt      = (string)($r['wagon_type_code'] ?? '');
+            $cnt     = (int)$r['cnt'];
+
+            if (!isset($roads[$road])) {
+                $roads[$road] = ['road' => $road, 'stations' => [], 'total' => array_fill(0, $nCols, 0), 'grand_total' => 0];
+            }
+            if (!isset($roads[$road]['stations'][$station])) {
+                $roads[$road]['stations'][$station] = ['station' => $station, 'v' => array_fill(0, $nCols, 0)];
+            }
+            if ($wt !== '' && isset($colIndex[$wt])) {
+                $ci = $colIndex[$wt];
+                $roads[$road]['stations'][$station]['v'][$ci] += $cnt;
+                $roads[$road]['total'][$ci]                   += $cnt;
+                $roads[$road]['grand_total']                  += $cnt;
+            }
+        }
+
+        foreach ($roads as &$road) {
+            $road['stations'] = array_values($road['stations']);
+        }
+        unset($road);
+
+        $roadList = array_values($roads);
+        usort($roadList, fn($a, $b) => $b['grand_total'] - $a['grand_total']);
+
+        $metrics   = array_map(fn($r) => ['road' => $r['road'], 'total' => $r['grand_total']], $roadList);
+        $grandTotal = array_sum(array_column($metrics, 'total'));
+
+        return $this->json($response, [
+            'cols'    => $cols,
+            'roads'   => $roadList,
+            'metrics' => array_slice($metrics, 0, 8),
+            'total'   => $grandTotal,
+        ]);
+    }
+
+    /** GET /api/approach/detail — Список вагонов подхода */
+    public function approachDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params    = $request->getQueryParams();
+        $reportDt  = $params['report_dt']  ?? null;
+        $cargo     = $params['cargo']      ?? null;
+        $prevCargo = $params['prev_cargo'] ?? null;
+        $road      = $params['road']       ?? null;
+        $station   = $params['station']    ?? null;
+        $wagType   = $params['wagon_type'] ?? null;
+
+        if (!$reportDt) {
+            $latest   = $this->db->fetchOne('SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd');
+            $reportDt = $latest['dt'] ?? null;
+        }
+
+        if (!$reportDt) {
+            return $this->json($response, ['rows' => []]);
+        }
+
+        [$where, $bindings] = $this->buildApproachWhere($reportDt, $cargo, $prevCargo);
+
+        if ($road) {
+            $where .= ' AND dest_road = :dest_road';
+            $bindings['dest_road'] = $road;
+        }
+        if ($station) {
+            $where .= ' AND dest_station = :dest_station';
+            $bindings['dest_station'] = $station;
+        }
+        if ($wagType) {
+            $where .= ' AND wagon_type_code = :wagon_type_code';
+            $bindings['wagon_type_code'] = $wagType;
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT wagon_no, wagon_type_code, cargo_name, prev_cargo,
+                    dist_remain_km, depart_station, depart_road,
+                    dest_station, dest_road, oper_station,
+                    train_index, oper_dt, norm_delivery_dt, oper_mnemonic
+             FROM xx_dislocation_rjd
+             WHERE {$where}
+             ORDER BY dest_road, dest_station, dist_remain_km
+             LIMIT 1000",
+            $bindings
+        );
+
+        return $this->json($response, ['rows' => $rows]);
+    }
+
+    /** GET /api/approach/filters — Уникальные значения для фильтров */
+    public function approachFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params   = $request->getQueryParams();
+        $reportDt = $params['report_dt'] ?? null;
+
+        if (!$reportDt) {
+            $latest   = $this->db->fetchOne('SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd');
+            $reportDt = $latest['dt'] ?? null;
+        }
+
+        if (!$reportDt) {
+            return $this->json($response, ['cargo' => [], 'prev_cargo' => []]);
+        }
+
+        $bindings = ['report_dt' => $reportDt];
+
+        $cargo = $this->db->fetchAll(
+            "SELECT DISTINCT cargo_name FROM xx_dislocation_rjd
+             WHERE report_dt = :report_dt AND cargo_name IS NOT NULL AND cargo_name != ''
+             ORDER BY cargo_name LIMIT 150",
+            $bindings
+        );
+        $prevCargo = $this->db->fetchAll(
+            "SELECT DISTINCT prev_cargo FROM xx_dislocation_rjd
+             WHERE report_dt = :report_dt AND prev_cargo IS NOT NULL AND prev_cargo != ''
+             ORDER BY prev_cargo LIMIT 150",
+            $bindings
+        );
+
+        return $this->json($response, [
+            'cargo'      => array_column($cargo, 'cargo_name'),
+            'prev_cargo' => array_column($prevCargo, 'prev_cargo'),
+        ]);
+    }
+
+    /** WHERE-условие для запросов «Подход» (wagons in transit: dist_remain_km > 0) */
+    private function buildApproachWhere(string $reportDt, ?string $cargo, ?string $prevCargo): array
+    {
+        $where    = "report_dt = :report_dt AND dist_remain_km IS NOT NULL AND dist_remain_km != '' AND dist_remain_km != '0'";
+        $bindings = ['report_dt' => $reportDt];
+
+        if ($cargo) {
+            $where .= " AND UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е')) = UPPER(REPLACE(:cargo_f, 'Ё', 'Е'))";
+            $bindings['cargo_f'] = $cargo;
+        }
+        if ($prevCargo) {
+            $where .= " AND UPPER(REPLACE(COALESCE(prev_cargo,''), 'Ё', 'Е')) = UPPER(REPLACE(:prev_cargo_f, 'Ё', 'Е'))";
+            $bindings['prev_cargo_f'] = $prevCargo;
+        }
+
+        return [$where, $bindings];
+    }
+
+    // ── Отправление вагонов ─────────────────────────────────────
+
+    /** GET /api/departure/summary — Сводная: Дорога→Станция отправления, кол-во по типам */
+    public function departureSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params   = $request->getQueryParams();
+        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null);
+        $cargo    = $params['cargo'] ?? null;
+
+        if (!$reportDt) {
+            return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
+        }
+
+        $where    = "report_dt = :report_dt AND oper_mnemonic = 'ОТПР'";
+        $bindings = ['report_dt' => $reportDt];
+        if ($cargo) {
+            $where .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
+            $bindings['cargo_f'] = $cargo;
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT depart_road, depart_station, wagon_type_code, COUNT(*) AS cnt
+             FROM xx_dislocation_rjd
+             WHERE {$where}
+             GROUP BY depart_road, depart_station, wagon_type_code
+             ORDER BY depart_road, depart_station, wagon_type_code",
+            $bindings
+        );
+
+        return $this->json($response, $this->buildRoadStationTable($rows, 'depart_road', 'depart_station'));
+    }
+
+    /** GET /api/departure/detail — Список отправленных вагонов */
+    public function departureDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params   = $request->getQueryParams();
+        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null);
+        $cargo    = $params['cargo']   ?? null;
+        $road     = $params['road']    ?? null;
+        $station  = $params['station'] ?? null;
+        $wagType  = $params['wagon_type'] ?? null;
+
+        if (!$reportDt) {
+            return $this->json($response, ['rows' => []]);
+        }
+
+        $where    = "report_dt = :report_dt AND oper_mnemonic = 'ОТПР'";
+        $bindings = ['report_dt' => $reportDt];
+        if ($cargo)   { $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';     $bindings['cargo_f']     = $cargo; }
+        if ($road)    { $where .= ' AND depart_road = :depart_road';                             $bindings['depart_road']  = $road; }
+        if ($station) { $where .= ' AND depart_station = :depart_station';                       $bindings['depart_station'] = $station; }
+        if ($wagType) { $where .= ' AND wagon_type_code = :wtype';                               $bindings['wtype'] = $wagType; }
+
+        $rows = $this->db->fetchAll(
+            "SELECT wagon_no, wagon_type_code, cargo_name, cargo_weight_kg,
+                    depart_station, depart_road, dest_station, dest_road,
+                    oper_station, oper_dt, dist_remain_km, norm_delivery_dt, waybill_no
+             FROM xx_dislocation_rjd
+             WHERE {$where}
+             ORDER BY depart_road, depart_station
+             LIMIT 1000",
+            $bindings
+        );
+
+        return $this->json($response, ['rows' => $rows]);
+    }
+
+    // ── Погрузка ─────────────────────────────────────────────────
+
+    /** GET /api/loading/summary — Погруженные вагоны по станциям отправления */
+    public function loadingSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params   = $request->getQueryParams();
+        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null);
+        $cargo    = $params['cargo'] ?? null;
+
+        if (!$reportDt) {
+            return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
+        }
+
+        $where    = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != '' AND cargo_weight_kg != '0'";
+        $bindings = ['report_dt' => $reportDt];
+        if ($cargo) {
+            $where .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
+            $bindings['cargo_f'] = $cargo;
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT depart_road, depart_station, wagon_type_code, COUNT(*) AS cnt
+             FROM xx_dislocation_rjd
+             WHERE {$where}
+             GROUP BY depart_road, depart_station, wagon_type_code
+             ORDER BY depart_road, depart_station, wagon_type_code",
+            $bindings
+        );
+
+        return $this->json($response, $this->buildRoadStationTable($rows, 'depart_road', 'depart_station'));
+    }
+
+    /** GET /api/loading/detail — Список погруженных вагонов */
+    public function loadingDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params   = $request->getQueryParams();
+        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null);
+        $cargo    = $params['cargo']   ?? null;
+        $road     = $params['road']    ?? null;
+        $station  = $params['station'] ?? null;
+        $wagType  = $params['wagon_type'] ?? null;
+
+        if (!$reportDt) {
+            return $this->json($response, ['rows' => []]);
+        }
+
+        $where    = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != '' AND cargo_weight_kg != '0'";
+        $bindings = ['report_dt' => $reportDt];
+        if ($cargo)   { $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';     $bindings['cargo_f']      = $cargo; }
+        if ($road)    { $where .= ' AND depart_road = :depart_road';                             $bindings['depart_road']   = $road; }
+        if ($station) { $where .= ' AND depart_station = :depart_station';                       $bindings['depart_station'] = $station; }
+        if ($wagType) { $where .= ' AND wagon_type_code = :wtype';                               $bindings['wtype'] = $wagType; }
+
+        $rows = $this->db->fetchAll(
+            "SELECT wagon_no, wagon_type_code, cargo_name, cargo_weight_kg,
+                    depart_station, depart_road, dest_station, dest_road,
+                    oper_station, oper_mnemonic, oper_dt, waybill_no
+             FROM xx_dislocation_rjd
+             WHERE {$where}
+             ORDER BY depart_road, depart_station
+             LIMIT 1000",
+            $bindings
+        );
+
+        return $this->json($response, ['rows' => $rows]);
+    }
+
+    // ── Простои ──────────────────────────────────────────────────
+
+    /** GET /api/downtime/summary — Сводная простоев по станциям */
+    public function downtimeSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params   = $request->getQueryParams();
+        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null);
+        $minDays  = max(0, (int)($params['min_days'] ?? 1));
+
+        if (!$reportDt) {
+            return $this->json($response, ['rows' => [], 'total' => 0]);
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT oper_road, oper_station, wagon_type_code,
+                    COUNT(*) AS cnt,
+                    MAX(idle_time_days) AS max_idle
+             FROM xx_dislocation_rjd
+             WHERE report_dt = :report_dt
+               AND idle_time_days IS NOT NULL
+               AND idle_time_days != ''
+               AND idle_time_days != '0'
+             GROUP BY oper_road, oper_station, wagon_type_code
+             ORDER BY cnt DESC
+             LIMIT 200",
+            ['report_dt' => $reportDt]
+        );
+
+        // Фильтруем по минимальному кол-ву суток в PHP (избегаем CAST для кроссплатформенности)
+        if ($minDays > 1) {
+            $rows = array_filter($rows, fn($r) => (float)($r['max_idle'] ?? 0) >= $minDays);
+        }
+
+        $total = array_sum(array_column($rows, 'cnt'));
+
+        return $this->json($response, ['rows' => array_values($rows), 'total' => (int)$total]);
+    }
+
+    /** GET /api/downtime/detail — Список простаивающих вагонов */
+    public function downtimeDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params     = $request->getQueryParams();
+        $reportDt   = $this->resolveReportDt($params['report_dt'] ?? null);
+        $station    = $params['station']   ?? null;
+        $road       = $params['road']      ?? null;
+        $wagType    = $params['wagon_type'] ?? null;
+        $minDays    = max(0, (int)($params['min_days'] ?? 1));
+
+        if (!$reportDt) {
+            return $this->json($response, ['rows' => []]);
+        }
+
+        $where    = "report_dt = :report_dt AND idle_time_days IS NOT NULL AND idle_time_days != '' AND idle_time_days != '0'";
+        $bindings = ['report_dt' => $reportDt];
+        if ($station) { $where .= ' AND oper_station = :oper_station'; $bindings['oper_station'] = $station; }
+        if ($road)    { $where .= ' AND oper_road = :oper_road';       $bindings['oper_road']    = $road; }
+        if ($wagType) { $where .= ' AND wagon_type_code = :wtype';     $bindings['wtype']        = $wagType; }
+
+        $rows = $this->db->fetchAll(
+            "SELECT wagon_no, wagon_type_code, cargo_name, park_type,
+                    oper_station, oper_road, idle_time_days, idle_time_hhmmss,
+                    depart_station, dest_station, owner, lessee
+             FROM xx_dislocation_rjd
+             WHERE {$where}
+             ORDER BY idle_time_days DESC
+             LIMIT 1000",
+            $bindings
+        );
+
+        return $this->json($response, ['rows' => $rows]);
+    }
+
+    // ── Сырьё ────────────────────────────────────────────────────
+
+    /** GET /api/raw-material/summary — Сводная сырья (простой гружёных вагонов) */
+    public function rawMaterialSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params   = $request->getQueryParams();
+        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null);
+
+        if (!$reportDt) {
+            return $this->json($response, ['rows' => [], 'total' => 0, 'max_idle' => 0]);
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT cargo_name, wagon_type_code,
+                    COUNT(*) AS cnt,
+                    MAX(idle_time_days) AS max_idle
+             FROM xx_dislocation_rjd
+             WHERE report_dt = :report_dt
+               AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != '' AND cargo_weight_kg != '0'
+               AND idle_time_days IS NOT NULL AND idle_time_days != ''
+             GROUP BY cargo_name, wagon_type_code
+             ORDER BY cnt DESC
+             LIMIT 100",
+            ['report_dt' => $reportDt]
+        );
+
+        $total   = array_sum(array_column($rows, 'cnt'));
+        $maxIdle = $rows ? max(array_column($rows, 'max_idle')) : 0;
+
+        return $this->json($response, ['rows' => $rows, 'total' => (int)$total, 'max_idle' => $maxIdle]);
+    }
+
+    /** GET /api/raw-material/detail — Список вагонов с сырьём */
+    public function rawMaterialDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params   = $request->getQueryParams();
+        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null);
+        $cargo    = $params['cargo'] ?? null;
+
+        if (!$reportDt) {
+            return $this->json($response, ['rows' => []]);
+        }
+
+        $where    = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != '' AND cargo_weight_kg != '0'";
+        $bindings = ['report_dt' => $reportDt];
+        if ($cargo) {
+            $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';
+            $bindings['cargo_f'] = $cargo;
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT wagon_no, wagon_type_code, cargo_name, cargo_weight_kg,
+                    idle_time_days, idle_time_hhmmss,
+                    oper_station, oper_road, depart_station, depart_road,
+                    dest_station, owner, waybill_no
+             FROM xx_dislocation_rjd
+             WHERE {$where}
+             ORDER BY idle_time_days DESC
+             LIMIT 1000",
+            $bindings
+        );
+
+        return $this->json($response, ['rows' => $rows]);
+    }
+
+    // ── Вспомогательные методы ────────────────────────────────────
+
+    private function resolveReportDt(?string $dt): ?string
+    {
+        if ($dt) return $dt;
+        $row = $this->db->fetchOne('SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd');
+        return $row['dt'] ?? null;
+    }
+
+    /** Строит структуру Дорога→Станция с колонками по типу вагона */
+    private function buildRoadStationTable(array $rows, string $roadKey, string $stationKey): array
+    {
+        $cols     = [];
+        $colIndex = [];
+        foreach ($rows as $r) {
+            $t = (string)($r['wagon_type_code'] ?? '');
+            if ($t !== '' && !isset($colIndex[$t])) { $colIndex[$t] = count($cols); $cols[] = $t; }
+        }
+        $nCols = count($cols);
+
+        $roads = [];
+        foreach ($rows as $r) {
+            $road    = (string)($r[$roadKey]    ?? 'Не указана');
+            $station = (string)($r[$stationKey] ?? 'Не указана');
+            $wt      = (string)($r['wagon_type_code'] ?? '');
+            $cnt     = (int)$r['cnt'];
+
+            if (!isset($roads[$road])) {
+                $roads[$road] = ['road' => $road, 'stations' => [], 'total' => array_fill(0, $nCols, 0), 'grand_total' => 0];
+            }
+            if (!isset($roads[$road]['stations'][$station])) {
+                $roads[$road]['stations'][$station] = ['station' => $station, 'v' => array_fill(0, $nCols, 0)];
+            }
+            if ($wt !== '' && isset($colIndex[$wt])) {
+                $ci = $colIndex[$wt];
+                $roads[$road]['stations'][$station]['v'][$ci] += $cnt;
+                $roads[$road]['total'][$ci]                   += $cnt;
+                $roads[$road]['grand_total']                  += $cnt;
+            }
+        }
+        foreach ($roads as &$road) { $road['stations'] = array_values($road['stations']); }
+        unset($road);
+
+        $roadList = array_values($roads);
+        usort($roadList, fn($a, $b) => $b['grand_total'] - $a['grand_total']);
+        $metrics   = array_map(fn($r) => ['road' => $r['road'], 'total' => $r['grand_total']], $roadList);
+        $grandTotal = array_sum(array_column($metrics, 'total'));
+
+        return ['cols' => $cols, 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 8), 'total' => $grandTotal];
+    }
+
+    // ── Строитель сводной таблицы ────────────────────────────────
+
+    private function buildSummaryStructure(array $rows, string $dateLabel): array
+    {
+        // Собираем упорядоченный список типов вагонов (колонки)
+        $colOrder = [];
+        foreach ($rows as $r) {
+            $t = (string) ($r['wagon_type_code'] ?? '');
+            if ($t !== '' && !isset($colOrder[$t])) {
+                $colOrder[$t] = true;
+            }
+        }
+        $cols     = array_map(fn($t) => ['label' => $t, 'group' => ''], array_keys($colOrder));
+        $colIndex = array_flip(array_column($cols, 'label'));
+
+        // Группируем по первому слову park_type → раздел, полная строка → подраздел
+        $sections = [];
+        foreach ($rows as $r) {
+            $parkType    = (string) ($r['park_type'] ?? '');
+            $sectionName = trim(explode(',', $parkType)[0]);
+            $cnt         = (int) ($r['wagon_count'] ?? 0);
+
+            if (!isset($sections[$sectionName])) {
+                $sections[$sectionName] = [
+                    'id'          => md5($sectionName),
+                    'name'        => $sectionName,
                     'rows'        => [],
                     'total'       => array_fill(0, count($cols), 0),
                     'grand_total' => 0,
                 ];
             }
 
-            // Ищем строку с тем же sub+park, добавляем значение в нужную колонку
-            $rowKey = ($r['subsection'] ?? '') . '|' . ($r['park'] ?? '');
-            if (!isset($sections[$sid]['rows'][$rowKey])) {
-                $sections[$sid]['rows'][$rowKey] = [
-                    'sub'  => $r['subsection'],
-                    'park' => $r['park'],
+            if (!isset($sections[$sectionName]['rows'][$parkType])) {
+                $sections[$sectionName]['rows'][$parkType] = [
+                    'sub'  => $parkType,
+                    'park' => '',
                     'v'    => array_fill(0, count($cols), 0),
                 ];
             }
 
-            $ci = $colIndex[$r['wagon_type']] ?? null;
+            $ci = $colIndex[$r['wagon_type_code'] ?? ''] ?? null;
             if ($ci !== null) {
-                $sections[$sid]['rows'][$rowKey]['v'][$ci] += (int) $r['wagon_count'];
-                $sections[$sid]['total'][$ci]             += (int) $r['wagon_count'];
-                $sections[$sid]['grand_total']            += (int) $r['wagon_count'];
+                $sections[$sectionName]['rows'][$parkType]['v'][$ci] += $cnt;
+                $sections[$sectionName]['total'][$ci]               += $cnt;
+                $sections[$sectionName]['grand_total']              += $cnt;
             }
         }
 
-        // Убираем ключи из rows (превращаем в индексный массив)
         foreach ($sections as &$sec) {
             $sec['rows'] = array_values($sec['rows']);
         }
 
         return [
-            'date'     => $date,
-            'cols'     => $cols,
-            'sections' => array_values($sections),
+            'date'            => $dateLabel,
+            'report_dt_label' => $dateLabel,
+            'cols'            => $cols,
+            'sections'        => array_values($sections),
         ];
     }
-
-    // ── Вспомогательный метод — вернуть JSON-ответ ───────────────
 
     private function json(ResponseInterface $response, mixed $data): ResponseInterface
     {

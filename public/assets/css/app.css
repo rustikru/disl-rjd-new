@@ -169,7 +169,7 @@ body {
 .table-title { font-size: 13px; font-weight: 700; }
 .table-sub   { font-size: 11px; color: var(--text-3); }
 .table-acts  { display: flex; gap: 6px; flex-shrink: 0; }
-.table-scroll{ overflow: auto; max-height: calc(100vh - 340px); }
+.table-scroll{ overflow-x: auto; }
 
 .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .data-table th, .data-table td {
@@ -233,6 +233,33 @@ body {
 }
 .inner-panel        { display: none; }
 .inner-panel.active { display: block; }
+
+/* ── Поиск по столбцам (строка под заголовком) ───────────────── */
+.search-row td {
+  padding: 2px 3px; background: #F7F8FA;
+  border-bottom: 2px solid var(--border);
+}
+.col-search-input {
+  width: 100%; box-sizing: border-box; display: block;
+  font-size: 11px; padding: 2px 5px;
+  border: 1px solid var(--border); border-radius: 3px;
+  background: var(--surface); font-family: inherit; color: var(--text-1);
+}
+.col-search-input:focus { border-color: var(--accent); outline: none; }
+
+/* ── Кликабельные ячейки (drill-down) ───────────────────────── */
+.cell-link { cursor: pointer; }
+.cell-link:hover { background: #D4F0E0 !important; color: var(--accent) !important; font-weight: 700; }
+
+/* ── Сворачиваемые строки дороги ─────────────────────────────── */
+.row-road-parent td {
+  background: #F0F2F5; font-weight: 700;
+  cursor: pointer; user-select: none;
+  border-top: 1.5px solid var(--border);
+}
+.row-road-parent:hover td { background: #E6E9EF; }
+.toggle-icon { display: inline-block; margin-right: 5px; font-size: 10px; color: var(--text-3); }
+.row-child.row-hidden { display: none; }
 
 /* ── Заглушка ────────────────────────────────────────────────── */
 .placeholder-panel {

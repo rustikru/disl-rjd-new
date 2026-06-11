@@ -49,4 +49,19 @@ class PostgresDb implements DbInterface
         $stmt->execute($params);
         return $stmt->rowCount();
     }
+
+    public function beginTransaction(): void
+    {
+        $this->pdo->beginTransaction();
+    }
+
+    public function commit(): void
+    {
+        $this->pdo->commit();
+    }
+
+    public function rollback(): void
+    {
+        $this->pdo->rollBack();
+    }
 }

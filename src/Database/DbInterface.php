@@ -9,26 +9,21 @@ namespace App\Database;
  */
 interface DbInterface
 {
-    /**
-     * Выполнить SELECT, вернуть все строки как массивы.
-     *
-     * @param  array<string, mixed> $params  именованные параметры (:name => value)
-     * @return array<int, array<string, mixed>>
-     */
+    /** Выполнить SELECT, вернуть все строки. */
     public function fetchAll(string $sql, array $params = []): array;
 
-    /**
-     * Выполнить SELECT, вернуть первую строку или null.
-     *
-     * @param  array<string, mixed> $params
-     * @return array<string, mixed>|null
-     */
+    /** Выполнить SELECT, вернуть первую строку или null. */
     public function fetchOne(string $sql, array $params = []): ?array;
 
-    /**
-     * Выполнить INSERT / UPDATE / DELETE, вернуть количество затронутых строк.
-     *
-     * @param  array<string, mixed> $params
-     */
+    /** Выполнить INSERT / UPDATE / DELETE, вернуть количество затронутых строк. */
     public function execute(string $sql, array $params = []): int;
+
+    /** Начать транзакцию. */
+    public function beginTransaction(): void;
+
+    /** Зафиксировать транзакцию. */
+    public function commit(): void;
+
+    /** Откатить транзакцию. */
+    public function rollback(): void;
 }
