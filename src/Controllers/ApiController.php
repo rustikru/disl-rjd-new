@@ -40,7 +40,7 @@ class ApiController
     private function parseSelectFields(string $raw): string
     {
         $allowed = $this->getTableColumns();
-        $fields  = array_values(array_filter(
+        $fields = array_values(array_filter(
             array_map('trim', explode(',', $raw)),
             fn($f) => $f !== '' && in_array($f, $allowed, true)
         ));
@@ -55,7 +55,7 @@ class ApiController
     private function parseGroupFields(string $raw, array $defaults): array
     {
         $allowed = $this->getTableColumns();
-        $fields  = array_values(array_filter(
+        $fields = array_values(array_filter(
             array_map('trim', explode(',', $raw)),
             fn($f) => $f !== '' && in_array($f, $allowed, true)
         ));
@@ -224,7 +224,7 @@ class ApiController
 
         [$where, $bindings] = $this->buildApproachWhere($reportDt, $cargo, $prevCargo);
 
-        $gf    = $this->parseGroupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
+        $gf = $this->parseGroupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
         $gfStr = implode(', ', $gf);
 
         $rows = $this->db->fetchAll(
@@ -253,14 +253,20 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
-        $gf    = $this->parseGroupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
+        $gf = $this->parseGroupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
         $gfStr = implode(', ', $gf);
         [$where, $bindings] = $this->buildApproachWhere($reportDt, $cargo, $prevCargo);
 
         foreach (array_filter([0 => $road, 1 => $station]) as $idx => $val) {
-            if (isset($gf[$idx])) { $where .= " AND {$gf[$idx]} = :gf_$idx"; $bindings["gf_$idx"] = $val; }
+            if (isset($gf[$idx])) {
+                $where .= " AND {$gf[$idx]} = :gf_$idx";
+                $bindings["gf_$idx"] = $val;
+            }
         }
-        if ($wagType) { $where .= ' AND wagon_type_code = :wtype'; $bindings['wtype'] = $wagType; }
+        if ($wagType) {
+            $where .= ' AND wagon_type_code = :wtype';
+            $bindings['wtype'] = $wagType;
+        }
 
         $select = isset($params['fields']) && $params['fields'] !== ''
             ? $this->parseSelectFields($params['fields'])
@@ -340,12 +346,15 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $gf    = $this->parseGroupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+        $gf = $this->parseGroupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $gfStr = implode(', ', $gf);
 
         $where = "report_dt = :report_dt AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
         $bindings = ['report_dt' => $reportDt];
-        if ($cargo) { $where .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)"; $bindings['cargo_f'] = $cargo; }
+        if ($cargo) {
+            $where .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
+            $bindings['cargo_f'] = $cargo;
+        }
 
         $rows = $this->db->fetchAll(
             "SELECT $gfStr, wagon_type_code, COUNT(*) AS cnt
@@ -372,16 +381,25 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
-        $gf    = $this->parseGroupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+        $gf = $this->parseGroupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $gfStr = implode(', ', $gf);
 
         $where = "report_dt = :report_dt AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
         $bindings = ['report_dt' => $reportDt];
-        if ($cargo) { $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)'; $bindings['cargo_f'] = $cargo; }
-        foreach (array_filter([0 => $road, 1 => $station]) as $idx => $val) {
-            if (isset($gf[$idx])) { $where .= " AND {$gf[$idx]} = :gf_$idx"; $bindings["gf_$idx"] = $val; }
+        if ($cargo) {
+            $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';
+            $bindings['cargo_f'] = $cargo;
         }
-        if ($wagType) { $where .= ' AND wagon_type_code = :wtype'; $bindings['wtype'] = $wagType; }
+        foreach (array_filter([0 => $road, 1 => $station]) as $idx => $val) {
+            if (isset($gf[$idx])) {
+                $where .= " AND {$gf[$idx]} = :gf_$idx";
+                $bindings["gf_$idx"] = $val;
+            }
+        }
+        if ($wagType) {
+            $where .= ' AND wagon_type_code = :wtype';
+            $bindings['wtype'] = $wagType;
+        }
 
         $select = isset($params['fields']) && $params['fields'] !== ''
             ? $this->parseSelectFields($params['fields'])
@@ -410,12 +428,15 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $gf    = $this->parseGroupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+        $gf = $this->parseGroupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $gfStr = implode(', ', $gf);
 
         $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $bindings = ['report_dt' => $reportDt];
-        if ($cargo) { $where .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)"; $bindings['cargo_f'] = $cargo; }
+        if ($cargo) {
+            $where .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
+            $bindings['cargo_f'] = $cargo;
+        }
 
         $rows = $this->db->fetchAll(
             "SELECT $gfStr, wagon_type_code, COUNT(*) AS cnt
@@ -442,16 +463,25 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
-        $gf    = $this->parseGroupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+        $gf = $this->parseGroupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $gfStr = implode(', ', $gf);
 
         $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $bindings = ['report_dt' => $reportDt];
-        if ($cargo) { $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)'; $bindings['cargo_f'] = $cargo; }
-        foreach (array_filter([0 => $road, 1 => $station]) as $idx => $val) {
-            if (isset($gf[$idx])) { $where .= " AND {$gf[$idx]} = :gf_$idx"; $bindings["gf_$idx"] = $val; }
+        if ($cargo) {
+            $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';
+            $bindings['cargo_f'] = $cargo;
         }
-        if ($wagType) { $where .= ' AND wagon_type_code = :wtype'; $bindings['wtype'] = $wagType; }
+        foreach (array_filter([0 => $road, 1 => $station]) as $idx => $val) {
+            if (isset($gf[$idx])) {
+                $where .= " AND {$gf[$idx]} = :gf_$idx";
+                $bindings["gf_$idx"] = $val;
+            }
+        }
+        if ($wagType) {
+            $where .= ' AND wagon_type_code = :wtype';
+            $bindings['wtype'] = $wagType;
+        }
 
         $select = isset($params['fields']) && $params['fields'] !== ''
             ? $this->parseSelectFields($params['fields'])
@@ -640,7 +670,7 @@ class ApiController
      */
     private function buildRoadStationTable(array $rows, array $groupKeys): array
     {
-        $roadKey    = $groupKeys[0];
+        $roadKey = $groupKeys[0];
         $stationKey = $groupKeys[count($groupKeys) - 1];
 
         $cols = [];
@@ -656,9 +686,9 @@ class ApiController
 
         $roads = [];
         foreach ($rows as $r) {
-            $road    = (string) ($r[$roadKey]    ?? 'Не указана');
+            $road = (string) ($r[$roadKey] ?? 'Не указана');
             $station = (string) ($r[$stationKey] ?? 'Не указана');
-            $wt  = (string) ($r['wagon_type_code'] ?? '');
+            $wt = (string) ($r['wagon_type_code'] ?? '');
             $cnt = (int) $r['cnt'];
 
             if (!isset($roads[$road])) {
@@ -670,8 +700,8 @@ class ApiController
             if ($wt !== '' && isset($colIndex[$wt])) {
                 $ci = $colIndex[$wt];
                 $roads[$road]['stations'][$station]['v'][$ci] += $cnt;
-                $roads[$road]['total'][$ci]                   += $cnt;
-                $roads[$road]['grand_total']                  += $cnt;
+                $roads[$road]['total'][$ci] += $cnt;
+                $roads[$road]['grand_total'] += $cnt;
             }
         }
         foreach ($roads as &$road) {
@@ -685,7 +715,7 @@ class ApiController
         $metrics = array_map(fn($r) => ['label' => $r[$roadKey], 'total' => $r['grand_total']], $roadList);
         $grandTotal = array_sum(array_column($metrics, 'total'));
 
-        return ['cols' => $cols, 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 8), 'total' => $grandTotal];
+        return ['cols' => $cols, 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
     }
 
     // ── Строитель сводной таблицы ────────────────────────────────
