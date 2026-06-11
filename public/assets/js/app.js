@@ -101,7 +101,7 @@ function switchTab(tabId) {
   ;['approach', 'departure', 'loading'].forEach(function (k) {
     var cfg = WAGON_TABS[k]
     if (tabId === k && !window[cfg.loadedKey]) {
-      loadWagonTabInit(cfg)
+      initTab(cfg)
     }
   })
   if (tabId === 'downtime' && !window._downtimeLoaded) {
@@ -129,22 +129,22 @@ function initInnerTabs() {
               p.classList.toggle('active', p.id === innerId)
             })
           if (innerId === 'disl-extended' && !window._extLoaded) {
-            loadDislocationExtended()
+            loadExtended()
           }
           ;['approach', 'departure', 'loading'].forEach(function (k) {
             var cfg = WAGON_TABS[k]
             if (innerId === cfg.detPanelId && !window[cfg.loadedDetKey]) {
               window[cfg.loadedDetKey] = true
-              loadWagonTabDetail(cfg)
+              loadDetail(cfg)
             }
           })
           if (innerId === 'downtime-detail' && !window._downtimeDetLoaded) {
             window._downtimeDetLoaded = true
-            loadDowntimeDetail()
+            loadDowntimeDet()
           }
           if (innerId === 'raw-detail' && !window._rawDetLoaded) {
             window._rawDetLoaded = true
-            loadRawDetail()
+            loadRawDet()
           }
         }
       })
@@ -174,9 +174,9 @@ function loadDashboard() {
       var label = data.updated_at || '—'
       $('#headerDate').text(label)
       $('#dashboardSub').text('Справка: ' + label + ' · РЖД')
-      renderKPI(data.sections)
-      renderBarChart(data.sections)
-      renderDonutChart(data.sections)
+      showDashKpi(data.sections)
+      drawBar(data.sections)
+      drawDonut(data.sections)
     })
     .fail(function (jqXHR) {
       $('#dashboardSub').text(ajaxErr(jqXHR))
@@ -184,7 +184,7 @@ function loadDashboard() {
 }
 
 // KPI карточки
-function renderKPI(sections) {
+function showDashKpi(sections) {
   var grandTotal = sections.reduce(function (s, x) {
     return s + x.total
   }, 0)
@@ -199,7 +199,7 @@ function renderKPI(sections) {
     { label: 'Типов парка', value: sections.length, sub: 'разновидностей' },
   ]
 
-  $('#kpiGrid').html(kpis.map(buildKpiCard).join(''))
+  $('#kpiGrid').html(kpis.map(kpiCard).join(''))
 }
 
 // SVG столбчатый график
@@ -213,7 +213,7 @@ var BAR_COLORS = [
   '#E8A530',
 ]
 
-function renderBarChart(sections) {
+function drawBar(sections) {
   if (!sections.length) {
     $('#sectionsChart').html(
       '<p style="color:#9DA5B0;padding:20px">Нет данных</p>',
@@ -282,7 +282,7 @@ function renderBarChart(sections) {
 }
 
 // SVG донат
-function renderDonutChart(sections) {
+function drawDonut(sections) {
   var grandTotal = sections.reduce(function (s, x) {
     return s + x.total
   }, 0)
@@ -354,7 +354,7 @@ function loadDislocation() {
         $('#mainTableSub').text(data.report_dt_label || '')
         return
       }
-      renderMainTable(data.sections, data.cols)
+      drawMain(data.sections, data.cols)
       $('#mainTableSub').text(
         (data.report_dt_label || data.date || '') + ' · РЖД',
       )
@@ -368,7 +368,7 @@ function loadDislocation() {
     })
 }
 
-function renderMainTable(sections, cols) {
+function drawMain(sections, cols) {
   function fmt(v) {
     return v || ''
   }
@@ -435,11 +435,11 @@ function renderMainTable(sections, cols) {
 }
 
 // Расширенная дислокация
-function loadDislocationExtended() {
+function loadExtended() {
   window._extLoaded = true
   $.getJSON(BASE + '/api/dislocation/extended')
     .done(function (data) {
-      renderExtendedTable(data.rows)
+      showExtended(data.rows)
     })
     .fail(function (jqXHR) {
       $('#dislExtTable').html(
@@ -448,8 +448,8 @@ function loadDislocationExtended() {
     })
 }
 
-function renderExtendedTable(rows) {
-  renderGenericDetailTable($('#dislExtTable'), rows, EXT_COLS)
+function showExtended(rows) {
+  showTable($('#dislExtTable'), rows, extCols)
 }
 
 // Конфиг для общео построения сводных вкладок и детализаций
@@ -602,7 +602,7 @@ var WAGON_TABS = {
   },
 }
 
-// ── Универсальные функции для WAGON_TABS ─────────────────────────
+/******** wagon tabs ********/
 
 function fillSelect(selector, values) {
   var $sel = $(selector)
@@ -612,19 +612,19 @@ function fillSelect(selector, values) {
   })
 }
 
-function loadWagonTabInit(cfg) {
+function initTab(cfg) {
   window[cfg.loadedKey] = true
-  loadWagonTabFilters(cfg)
-  loadWagonTabSummary(cfg)
+  loadFilters(cfg)
+  loadSummary(cfg)
 }
 
-function loadWagonTabFilters(cfg) {
+function loadFilters(cfg) {
   $.getJSON(cfg.filtersUrl).done(function (data) {
     cfg.fillFilters(data)
   })
 }
 
-function loadWagonTabSummary(cfg) {
+function loadSummary(cfg) {
   var $sub = $('#' + cfg.sumSubId)
   var $table = $('#' + cfg.sumTableId)
   $sub.text('Загрузка...')
@@ -640,13 +640,13 @@ function loadWagonTabSummary(cfg) {
   })
   $.getJSON(cfg.summaryUrl, summaryParams)
     .done(function (data) {
-      renderRoadStationMetrics(
+      showKpi(
         '#' + cfg.metricsId,
         data.metrics,
         data.total,
         cfg.metricsLabel,
       )
-      renderRoadStationTable(
+      drawSummary(
         '#' + cfg.sumTableId,
         data.roads,
         data.cols,
@@ -669,7 +669,7 @@ function loadWagonTabSummary(cfg) {
     })
 }
 
-function loadWagonTabDetail(cfg) {
+function loadDetail(cfg) {
   var $sub = $('#' + cfg.detSubId)
   var $table = $('#' + cfg.detTableId)
   $sub.text('Загрузка...')
@@ -687,7 +687,7 @@ function loadWagonTabDetail(cfg) {
   })
   $.getJSON(cfg.detailUrl, detailParams)
     .done(function (data) {
-      renderGenericDetailTable($table, data.rows, cfg.detailCols)
+      showTable($table, data.rows, cfg.detailCols)
       $sub.text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'))
     })
     .fail(function (jqXHR) {
@@ -699,7 +699,7 @@ function loadWagonTabDetail(cfg) {
     })
 }
 
-function renderGenericDetailTable($table, rows, colDefs) {
+function showTable($table, rows, colDefs) {
   var h = '<thead><tr>'
   colDefs.forEach(function (c) {
     h +=
@@ -715,7 +715,7 @@ function renderGenericDetailTable($table, rows, colDefs) {
         attrs = ' class="col-meta"'
         if (c.mono) attrs += ' style="font-family:monospace;font-size:11px"'
       } else if (c.danger) {
-        attrs = getDangerStyle(parseFloat(r[c.key]) || 0)
+        attrs = idleStyle(parseFloat(r[c.key]) || 0)
       } else if (c.right) {
         attrs = ' style="text-align:right"'
       }
@@ -724,12 +724,12 @@ function renderGenericDetailTable($table, rows, colDefs) {
     h += '</tr>'
   })
   $table.html(h + '</tbody>')
-  addColumnSearch($table)
+  addSearch($table)
 }
 
-// ── Конфиги колонок для таблиц детализации ───────────────────────
+/******** cols config ********/
 
-var EXT_COLS = [
+var extCols = [
   { key: 'wagon_no',        label: '№ вагона',       meta: true, mono: true },
   { key: 'train_no',        label: 'Поезд №',        meta: true },
   { key: 'oper_station',    label: 'Тек. станция',   meta: true },
@@ -742,7 +742,7 @@ var EXT_COLS = [
   { key: 'asoup_arrive_dt', label: 'Приб. (АСОУП)', meta: true },
 ]
 
-var DOWNTIME_DET_COLS = [
+var downtimeCols = [
   { key: 'wagon_no',        label: '№ вагона',        meta: true, mono: true },
   { key: 'wagon_type_code', label: 'Тип',             meta: true },
   { key: 'cargo_name',      label: 'Груз',            meta: true },
@@ -753,7 +753,7 @@ var DOWNTIME_DET_COLS = [
   { key: 'lessee',          label: 'Арендатор',       meta: true },
 ]
 
-var RAW_DET_COLS = [
+var rawCols = [
   { key: 'wagon_no',        label: '№ вагона',        meta: true, mono: true },
   { key: 'wagon_type_code', label: 'Тип',             meta: true },
   { key: 'cargo_name',      label: 'Груз',            meta: true },
@@ -765,19 +765,19 @@ var RAW_DET_COLS = [
   { key: 'owner',           label: 'Владелец',        meta: true },
 ]
 
-// ── Простои ──────────────────────────────────────────────────────
+/******** downtime ********/
 
 function loadDowntimeInit() {
   window._downtimeLoaded = true
-  loadDowntimeSummary()
+  loadDowntime()
 }
 
-function loadDowntimeSummary() {
+function loadDowntime() {
   var params = { min_days: $('#fDowntimeMinDays').val() || 1 }
   $('#downtimeSumSub').text('Загрузка...')
   $.getJSON(BASE + '/api/downtime/summary', params)
     .done(function (data) {
-      renderDowntimeSummaryTable(data.rows)
+      drawDowntime(data.rows)
       $('#downtimeSumSub').text(
         'Вагонов с простоем: ' + (data.total || 0).toLocaleString('ru-RU'),
       )
@@ -787,17 +787,17 @@ function loadDowntimeSummary() {
     })
 }
 
-function loadDowntimeDetail() {
+function loadDowntimeDet() {
   var params = { min_days: $('#fDowntimeMinDays').val() || 1 }
   $.getJSON(BASE + '/api/downtime/detail', params).done(function (data) {
-    renderDowntimeDetailTable(data.rows)
+    showDowntimeDet(data.rows)
     $('#downtimeDetSub').text(
       'Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'),
     )
   })
 }
 
-function renderDowntimeSummaryTable(rows) {
+function drawDowntime(rows) {
   if (!rows || !rows.length) {
     $('#downtimeSumTable').html(
       '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных</td></tr></tbody>',
@@ -811,7 +811,7 @@ function renderDowntimeSummaryTable(rows) {
     '</tr></thead><tbody>'
   rows.forEach(function (r) {
     var maxIdle = parseFloat(r.max_idle) || 0
-    var danger = getDangerStyle(maxIdle)
+    var danger = idleStyle(maxIdle)
     h +=
       '<tr class="row-data">' +
       '<td class="col-meta">' +
@@ -842,18 +842,18 @@ function renderDowntimeSummaryTable(rows) {
   $('#downtimeSumTable').html(h + '</tbody>')
 }
 
-function renderDowntimeDetailTable(rows) {
-  renderGenericDetailTable($('#downtimeDetTable'), rows, DOWNTIME_DET_COLS)
+function showDowntimeDet(rows) {
+  showTable($('#downtimeDetTable'), rows, downtimeCols)
 }
 
-// ── Сырьё ────────────────────────────────────────────────────────
+/******** raw material ********/
 
 function loadRawInit() {
   window._rawLoaded = true
-  loadRawSummary()
+  loadRaw()
 }
 
-function loadRawSummary() {
+function loadRaw() {
   $('#rawSumSub').text('Загрузка...')
   $.getJSON(BASE + '/api/raw-material/summary')
     .done(function (data) {
@@ -861,10 +861,10 @@ function loadRawSummary() {
         [
           { label: 'Гружёных вагонов',    value: data.total,    accent: true },
           { label: 'Макс. простой (сут.)', value: data.max_idle },
-        ].map(buildKpiCard).join(''),
+        ].map(kpiCard).join(''),
       )
 
-      renderRawSummaryTable(data.rows)
+      drawRawTable(data.rows)
       $('#rawSumSub').text(
         'Всего гружёных: ' +
           (data.total || 0).toLocaleString('ru-RU') +
@@ -876,15 +876,15 @@ function loadRawSummary() {
     })
 }
 
-function loadRawDetail(cargo) {
+function loadRawDet(cargo) {
   var params = cargo ? { cargo: cargo } : {}
   $.getJSON(BASE + '/api/raw-material/detail', params).done(function (data) {
-    renderGenericDetailTable($('#rawDetTable'), data.rows, RAW_DET_COLS)
+    showTable($('#rawDetTable'), data.rows, rawCols)
     $('#rawDetSub').text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'))
   })
 }
 
-function renderRawSummaryTable(rows) {
+function drawRawTable(rows) {
   if (!rows || !rows.length) {
     $('#rawSumTable').html(
       '<tbody><tr><td colspan="4" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных</td></tr></tbody>',
@@ -896,7 +896,7 @@ function renderRawSummaryTable(rows) {
     '<th>Кол-во</th><th>Макс. простой (сут.)</th></tr></thead><tbody>'
   rows.forEach(function (r) {
     h +=
-      '<tr class="row-data" style="cursor:pointer" onclick="switchRawToDetail(\'' +
+      '<tr class="row-data" style="cursor:pointer" onclick="rawToDetail(\'' +
       esc(r.cargo_name).replace(/'/g, "\\'") +
       '\')">' +
       '<td class="col-meta">' +
@@ -916,25 +916,25 @@ function renderRawSummaryTable(rows) {
   $('#rawSumTable').html(h + '</tbody>')
 }
 
-function switchRawToDetail(cargo) {
+function rawToDetail(cargo) {
   document
     .querySelector('#panel-raw-material .inner-tab[data-inner="raw-detail"]')
     .click()
-  loadRawDetail(cargo)
+  loadRawDet(cargo)
   window._rawDetLoaded = true
 }
 
-// ── Общие рендеры (подход/отправление/погрузка) ──────────────────
+/******** summary / kpi renders ********/
 
-function renderRoadStationMetrics(selector, metrics, total, label) {
+function showKpi(selector, metrics, total, label) {
   var all = [{ label: label, value: total, accent: true }].concat(metrics || [])
-  $(selector).html(all.map(buildKpiCard).join(''))
+  $(selector).html(all.map(kpiCard).join(''))
 }
 
 // groupCols: [{key: 'dest_road', label: 'Дорога назначения'}, {key: 'dest_station', label: 'Станция назначения'}, ...]
 // road[groupCols[0].key] — значение первого уровня группировки
 // st[groupCols[last].key] — значение последнего уровня группировки
-function renderRoadStationTable(selector, roads, cols, ctx, groupCols) {
+function drawSummary(selector, roads, cols, ctx, groupCols) {
   if (!roads || !roads.length) {
     $(selector).html(
       '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных. Загрузите справку.</td></tr></tbody>',
@@ -1117,14 +1117,14 @@ function esc(str) {
 }
 
 // Цветовой стиль для простоя: красный ≥7 сут., оранжевый ≥3 сут.
-function getDangerStyle(days) {
+function idleStyle(days) {
   if (days >= 7) return ' style="color:#E8392A;font-weight:700"'
   if (days >= 3) return ' style="color:#E8A530;font-weight:600"'
   return ''
 }
 
 // HTML одной KPI-карточки. Поля: label, value (или total), accent, sub.
-function buildKpiCard(item) {
+function kpiCard(item) {
   var val = item.value != null ? item.value : (item.total || 0)
   return (
     '<div class="kpi-card' + (item.accent ? ' accent' : '') + '">' +
@@ -1136,14 +1136,14 @@ function buildKpiCard(item) {
 }
 
 // Свернуть / Отобразить все дороги в таблице
-function collapseAllRoads($table) {
+function collapseAll($table) {
   $table.find('.row-road-parent').each(function () {
     var ri = $(this).data('road-id')
     $table.find('tr[data-parent-road="' + ri + '"]').addClass('row-hidden')
     $(this).find('.toggle-icon').text('▶')
   })
 }
-function expandAllRoads($table) {
+function expandAll($table) {
   $table.find('.row-road-parent').each(function () {
     var ri = $(this).data('road-id')
     $table.find('tr[data-parent-road="' + ri + '"]').removeClass('row-hidden')
@@ -1152,14 +1152,14 @@ function expandAllRoads($table) {
 }
 
 $(document).on('click', '[data-collapse-table]', function () {
-  collapseAllRoads($('#' + $(this).data('collapse-table')))
+  collapseAll($('#' + $(this).data('collapse-table')))
 })
 $(document).on('click', '[data-expand-table]', function () {
-  expandAllRoads($('#' + $(this).data('expand-table')))
+  expandAll($('#' + $(this).data('expand-table')))
 })
 
 // Поиск по столбцам: добавляет строку-фильтр под заголовком таблицы
-function addColumnSearch($table) {
+function addSearch($table) {
   var cells = ''
   $table.find('thead tr:first th').each(function () {
     cells +=
@@ -1245,26 +1245,26 @@ $(function () {
     var capKey = k.charAt(0).toUpperCase() + k.slice(1)
     $('#btn' + capKey + 'Apply').on('click', function () {
       window[cfg.loadedDetKey] = false
-      loadWagonTabSummary(cfg)
+      loadSummary(cfg)
       if ($('#' + cfg.detPanelId).hasClass('active')) {
         window[cfg.loadedDetKey] = true
-        loadWagonTabDetail(cfg)
+        loadDetail(cfg)
       }
     })
     $('#btn' + capKey + 'Reset').on('click', function () {
       cfg.resetFilters()
       window[cfg.loadedDetKey] = false
-      loadWagonTabSummary(cfg)
+      loadSummary(cfg)
     })
   })
 
   // Простои — фильтры
   $('#btnDowntimeApply').on('click', function () {
     window._downtimeDetLoaded = false
-    loadDowntimeSummary()
+    loadDowntime()
     if ($('#downtime-detail').hasClass('active')) {
       window._downtimeDetLoaded = true
-      loadDowntimeDetail()
+      loadDowntimeDet()
     }
   })
 })
