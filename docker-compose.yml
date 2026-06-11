@@ -1,0 +1,47 @@
+services:
+
+  # ── PostgreSQL ────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: disl_postgres
+    environment:
+      POSTGRES_DB:       disl_rzd
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./sql/postgres_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d disl_rzd"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Oracle Database 23c Free (native ARM64) ───────────────────────
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    container_name: disl_oracle
+    platform: linux/arm64
+    environment:
+      ORACLE_PASSWORD:    Oracle123!
+      APP_USER:           disl
+      APP_USER_PASSWORD:  disl123
+    ports:
+      - "1521:1521"
+    volumes:
+      - oradata:/opt/oracle/oradata
+      - ./sql/oracle_schema.sql:/container-entrypoint-initdb.d/01_schema.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+volumes:
+  pgdata:
+  oradata:
