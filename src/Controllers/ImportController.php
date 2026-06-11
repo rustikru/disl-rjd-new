@@ -27,7 +27,7 @@ class ImportController
              FROM xx_dislocation_rjd
              GROUP BY report_dt
              ORDER BY report_dt DESC
-             LIMIT 10'
+             ' . $this->db->limit(10)
         );
 
         ob_start();

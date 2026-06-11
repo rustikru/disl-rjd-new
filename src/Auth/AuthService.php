@@ -97,7 +97,7 @@ class AuthService
 
         $this->db->execute(
             'INSERT INTO users (username, display_name, email, password_hash, is_active)
-             VALUES (:username, :display_name, :email, :hash, true)',
+             VALUES (:username, :display_name, :email, :hash, 1)',
             [
                 'username'     => $username,
                 'display_name' => $displayName,

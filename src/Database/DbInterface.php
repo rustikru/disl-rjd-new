@@ -26,4 +26,7 @@ interface DbInterface
 
     /** Откатить транзакцию. */
     public function rollback(): void;
+
+    /** Вернуть SQL-фрагмент ограничения количества строк (LIMIT/FETCH FIRST). */
+    public function limit(int $n): string;
 }

@@ -64,4 +64,9 @@ class PostgresDb implements DbInterface
     {
         $this->pdo->rollBack();
     }
+
+    public function limit(int $n): string
+    {
+        return "LIMIT $n";
+    }
 }

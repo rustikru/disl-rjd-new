@@ -92,6 +92,11 @@ class OracleDb implements DbInterface
         $this->inTransaction = false;
     }
 
+    public function limit(int $n): string
+    {
+        return "FETCH FIRST $n ROWS ONLY";
+    }
+
     public function __destruct()
     {
         if ($this->connection) {

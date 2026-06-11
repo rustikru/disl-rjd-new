@@ -28,7 +28,7 @@ class ApiController
              FROM xx_dislocation_rjd
              GROUP BY report_dt
              ORDER BY report_dt DESC
-             LIMIT 20'
+             ' . $this->db->limit(20)
         );
 
         $reports = array_map(function (array $r) {
@@ -159,7 +159,7 @@ class ApiController
              FROM xx_dislocation_rjd
              WHERE report_dt = $dtParam
              ORDER BY oper_station
-             LIMIT 500",
+             " . $this->db->limit(500),
             $reportDt ? ['dt' => $reportDt] : []
         );
 
@@ -290,7 +290,7 @@ class ApiController
              FROM xx_dislocation_rjd
              WHERE {$where}
              ORDER BY dest_road, dest_station, dist_remain_km
-             LIMIT 1000",
+             " . $this->db->limit(1000),
             $bindings
         );
 
@@ -317,13 +317,13 @@ class ApiController
         $cargo = $this->db->fetchAll(
             "SELECT DISTINCT cargo_name FROM xx_dislocation_rjd
              WHERE report_dt = :report_dt AND cargo_name IS NOT NULL AND cargo_name != ''
-             ORDER BY cargo_name LIMIT 150",
+             ORDER BY cargo_name " . $this->db->limit(150),
             $bindings
         );
         $prevCargo = $this->db->fetchAll(
             "SELECT DISTINCT prev_cargo FROM xx_dislocation_rjd
              WHERE report_dt = :report_dt AND prev_cargo IS NOT NULL AND prev_cargo != ''
-             ORDER BY prev_cargo LIMIT 150",
+             ORDER BY prev_cargo " . $this->db->limit(150),
             $bindings
         );
 
@@ -411,7 +411,7 @@ class ApiController
              FROM xx_dislocation_rjd
              WHERE {$where}
              ORDER BY depart_road, depart_station
-             LIMIT 1000",
+             " . $this->db->limit(1000),
             $bindings
         );
 
@@ -478,7 +478,7 @@ class ApiController
              FROM xx_dislocation_rjd
              WHERE {$where}
              ORDER BY depart_road, depart_station
-             LIMIT 1000",
+             " . $this->db->limit(1000),
             $bindings
         );
 
@@ -509,7 +509,7 @@ class ApiController
                AND idle_time_days != '0'
              GROUP BY oper_road, oper_station, wagon_type_code
              ORDER BY cnt DESC
-             LIMIT 200",
+             " . $this->db->limit(200),
             ['report_dt' => $reportDt]
         );
 
@@ -550,7 +550,7 @@ class ApiController
              FROM xx_dislocation_rjd
              WHERE {$where}
              ORDER BY idle_time_days DESC
-             LIMIT 1000",
+             " . $this->db->limit(1000),
             $bindings
         );
 
@@ -579,7 +579,7 @@ class ApiController
                AND idle_time_days IS NOT NULL AND idle_time_days != ''
              GROUP BY cargo_name, wagon_type_code
              ORDER BY cnt DESC
-             LIMIT 100",
+             " . $this->db->limit(100),
             ['report_dt' => $reportDt]
         );
 
@@ -615,7 +615,7 @@ class ApiController
              FROM xx_dislocation_rjd
              WHERE {$where}
              ORDER BY idle_time_days DESC
-             LIMIT 1000",
+             " . $this->db->limit(1000),
             $bindings
         );
 
