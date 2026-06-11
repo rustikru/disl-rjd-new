@@ -12,7 +12,7 @@
 
 var BASE = window.APP_BASE || ''
 
-// Структура навигации. Для ссылок (url) вместо вкладок страница открывается в том же окне.
+// наивигация
 var TAB_GROUPS = [
   {
     label: '',
@@ -48,9 +48,9 @@ var TAB_GROUPS = [
     ],
   },
   {
-    label: 'Управление',
+    label: 'Импорт',
     tabs: [
-      { id: 'import', label: '↑ Загрузка справок', url: BASE + '/import' },
+      { id: 'import', label: ' Загрузка справок ', url: BASE + '/import' },
     ],
   },
 ]
@@ -636,8 +636,16 @@ function loadDetail(cfg) {
   var cols = DETAIL_CONTEXTS[cfg.ctx] ? DETAIL_CONTEXTS[cfg.ctx].cols : []
   $sub.text('Загрузка...')
   var detailParams = Object.assign({}, cfg.getParams(), {
-    fields: cols.map(function (c) { return c.key }).join(','),
-    group_by: (cfg.groupCols || []).map(function (g) { return g.key }).join(','),
+    fields: cols
+      .map(function (c) {
+        return c.key
+      })
+      .join(','),
+    group_by: (cfg.groupCols || [])
+      .map(function (g) {
+        return g.key
+      })
+      .join(','),
   })
   $.getJSON(cfg.detailUrl, detailParams)
     .done(function (data) {
@@ -646,9 +654,11 @@ function loadDetail(cfg) {
     })
     .fail(function (jqXHR) {
       $table.html(
-        '<tbody><tr><td colspan="' + cols.length +
+        '<tbody><tr><td colspan="' +
+          cols.length +
           '" style="text-align:center;padding:40px;color:#9DA5B0">' +
-          esc(ajaxErr(jqXHR)) + '</td></tr></tbody>',
+          esc(ajaxErr(jqXHR)) +
+          '</td></tr></tbody>',
       )
     })
 }
@@ -812,7 +822,11 @@ function loadRaw() {
 function loadRawDet(cargo) {
   var params = cargo ? { cargo: cargo } : {}
   $.getJSON(BASE + '/api/raw-material/detail', params).done(function (data) {
-    showTable($('#rawDetTable'), data.rows, DETAIL_CONTEXTS['raw-material'].cols)
+    showTable(
+      $('#rawDetTable'),
+      data.rows,
+      DETAIL_CONTEXTS['raw-material'].cols,
+    )
     $('#rawDetSub').text(
       'Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'),
     )
@@ -1131,9 +1145,9 @@ $(document).on('input', '.col-search-input', function () {
 function openDetail(ctx, road, station, col, groupBy) {
   var p = new URLSearchParams()
   p.set('ctx', ctx)
-  if (road)    p.set('road', road)
+  if (road) p.set('road', road)
   if (station) p.set('station', station)
-  if (col)     p.set('col', col)
+  if (col) p.set('col', col)
   if (groupBy) p.set('group_by', groupBy)
   window.open(BASE + '/detail?' + p.toString(), '_blank')
 }
@@ -1178,7 +1192,7 @@ $(function () {
     loadDislocation()
   })
 
-  $('#btnExportCSV').on('click', exportToCSV)
+  $('#btnExportCSV, #btnAppExportCSV').on('click', exportToCSV)
 
   // Подход / Отправление / Погрузка — фильтры
   ;['approach', 'departure', 'loading'].forEach(function (k) {
