@@ -558,6 +558,7 @@ var WAGON_TABS = {
       $('#fApproachCargo').val('')
       $('#fApproachPrevCargo').val('')
     },
+    // Тут деталиаций (шапка страницы)
     detailCols: [
       { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
       { key: 'wagon_type_code', label: 'Род вагона', meta: true },
@@ -609,6 +610,7 @@ var WAGON_TABS = {
     resetFilters: function () {
       $('#fDepartureCargo').val('')
     },
+    // Тут деталиаций (шапка страницы)
     detailCols: [
       { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
       { key: 'wagon_type_code', label: 'Тип', meta: true },
@@ -652,6 +654,7 @@ var WAGON_TABS = {
     resetFilters: function () {
       $('#fLoadingCargo').val('')
     },
+    // Тут деталиаций (шапка страницы)
     detailCols: [
       { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
       { key: 'wagon_type_code', label: 'Тип', meta: true },
