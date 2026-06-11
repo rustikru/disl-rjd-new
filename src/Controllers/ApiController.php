@@ -183,15 +183,15 @@ class ApiController
         [$where, $bindings] = $this->buildApproachWhere($reportDt, $cargo, $prevCargo);
 
         $rows = $this->db->fetchAll(
-            "SELECT dest_road, dest_station, wagon_type_code, COUNT(*) AS cnt
+            "SELECT oper_road, oper_station, wagon_type_code, COUNT(*) AS cnt
              FROM xx_dislocation_rjd
              WHERE {$where}
-             GROUP BY dest_road, dest_station, wagon_type_code
-             ORDER BY dest_road, dest_station, wagon_type_code",
+             GROUP BY oper_road, oper_station, wagon_type_code
+             ORDER BY oper_road, oper_station, wagon_type_code",
             $bindings
         );
 
-        return $this->json($response, $this->buildRoadStationTable($rows, 'dest_road', 'dest_station'));
+        return $this->json($response, $this->buildRoadStationTable($rows, 'oper_road', 'oper_station'));
     }
 
     /** GET /api/approach/detail — Список вагонов подхода */
@@ -232,7 +232,7 @@ class ApiController
              FROM xx_dislocation_rjd
              WHERE {$where}
              ORDER BY dest_road, dest_station, dist_remain_km
-             " . $this->db->limit(1000),
+             ",
             $bindings
         );
 
@@ -275,7 +275,7 @@ class ApiController
     /** WHERE-условие для запросов «Подход» (wagons in transit: dist_remain_km > 0) */
     private function buildApproachWhere(string $reportDt, ?string $cargo, ?string $prevCargo): array
     {
-        $where = "report_dt = :report_dt AND type_reference = 'Подход' AND dist_remain_km IS NOT NULL and dist_remain_km != 0";
+        $where = "report_dt = :report_dt AND type_reference = 'Подход' ";
         $bindings = ['report_dt' => $reportDt];
 
         if ($cargo) {
@@ -362,7 +362,7 @@ class ApiController
              FROM xx_dislocation_rjd
              WHERE {$where}
              ORDER BY depart_road, depart_station
-             " . $this->db->limit(1000),
+             ",
             $bindings
         );
 
@@ -441,7 +441,7 @@ class ApiController
              FROM xx_dislocation_rjd
              WHERE {$where}
              ORDER BY depart_road, depart_station
-             " . $this->db->limit(1000),
+             ",
             $bindings
         );
 
@@ -521,7 +521,7 @@ class ApiController
              FROM xx_dislocation_rjd
              WHERE {$where}
              ORDER BY idle_time_days DESC
-             " . $this->db->limit(1000),
+             ",
             $bindings
         );
 
@@ -572,6 +572,7 @@ class ApiController
         }
 
         $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
+        $where = $where . ' AND idle_time_days IS NOT NULL AND idle_time_days != 0';
         $bindings = ['report_dt' => $reportDt];
         if ($cargo) {
             $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';
@@ -586,7 +587,7 @@ class ApiController
              FROM xx_dislocation_rjd
              WHERE {$where}
              ORDER BY idle_time_days DESC
-             " . $this->db->limit(1000),
+             ",
             $bindings
         );
 
@@ -633,9 +634,9 @@ class ApiController
 
         $roads = [];
         foreach ($rows as $r) {
-            $road    = (string) ($r[$roadKey]    ?? 'Не указана');
+            $road = (string) ($r[$roadKey] ?? 'Не указана');
             $station = (string) ($r[$stationKey] ?? 'Не указана');
-            $wt  = (string) ($r['wagon_type_code'] ?? '');
+            $wt = (string) ($r['wagon_type_code'] ?? '');
             $cnt = (int) $r['cnt'];
 
             if (!isset($roads[$road])) {
@@ -647,8 +648,8 @@ class ApiController
             if ($wt !== '' && isset($colIndex[$wt])) {
                 $ci = $colIndex[$wt];
                 $roads[$road]['stations'][$station]['v'][$ci] += $cnt;
-                $roads[$road]['total'][$ci]                   += $cnt;
-                $roads[$road]['grand_total']                  += $cnt;
+                $roads[$road]['total'][$ci] += $cnt;
+                $roads[$road]['grand_total'] += $cnt;
             }
         }
         foreach ($roads as &$road) {

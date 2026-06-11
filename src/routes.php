@@ -7,7 +7,7 @@ return function (App $app, array $config): void {
 
     $app->add(new \App\Middleware\SessionMiddleware($config['session_name']));
 
-    $db   = null;
+    $db = null;
     $auth = null;
 
     $getDb = function () use ($config, &$db) {
@@ -36,7 +36,7 @@ return function (App $app, array $config): void {
         return $res->withHeader('Location', ($config['base_path'] ?? '') . '/login')->withStatus(302);
     });
 
-    // Защищённые маршруты
+    // маршруты
     $app->group('', function ($group) use ($config, $getDb) {
 
         $group->get('/', function ($req, $res) use ($config) {
@@ -68,7 +68,7 @@ return function (App $app, array $config): void {
         $group->get('/api/dislocation/extended', function ($req, $res) use ($getDb) {
             return (new \App\Controllers\ApiController($getDb()))->dislocationExtended($req, $res);
         });
-
+        // Подход сводная 
         $group->get('/api/approach/summary', function ($req, $res) use ($getDb) {
             return (new \App\Controllers\ApiController($getDb()))->approachSummary($req, $res);
         });
@@ -114,9 +114,9 @@ return function (App $app, array $config): void {
         });
 
         $group->get('/detail', function ($req, $res) use ($config) {
-            $appName  = $config['app_name'] ?? 'Метафракс';
+            $appName = $config['app_name'] ?? 'Метафракс';
             $basePath = $config['base_path'] ?? '';
-            $user     = $_SESSION['user'] ?? ['display_name' => '', 'username' => '', 'auth_source' => ''];
+            $user = $_SESSION['user'] ?? ['display_name' => '', 'username' => '', 'auth_source' => ''];
             ob_start();
             require __DIR__ . '/../templates/detail.php';
             $html = ob_get_clean();

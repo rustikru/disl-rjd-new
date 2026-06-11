@@ -519,8 +519,9 @@ function renderExtendedTable(rows) {
   addColumnSearch($('#dislExtTable'))
 }
 
-// ── Подход / Отправление / Погрузка — конфиг ────────────────────
+// ── Подход / Отправление / Погрузка — конфиг
 
+// Подход вагонов
 var WAGON_TABS = {
   approach: {
     ctx: 'approach',
@@ -538,8 +539,8 @@ var WAGON_TABS = {
     metricsLabel: 'Всего в подходе',
     sumSubLabel: 'Всего в подходе',
     groupCols: [
-      { key: 'dest_road',    label: 'Дорога назначения' },
-      { key: 'dest_station', label: 'Станция назначения' },
+      { key: 'oper_road', label: 'Дорога операции' },
+      { key: 'oper_station', label: 'Станция совершения операции' },
     ],
     getParams: function () {
       return {
@@ -577,9 +578,10 @@ var WAGON_TABS = {
     ],
   },
 
+  // Отправление вагонов
   departure: {
     ctx: 'departure',
-    filtersUrl: BASE + '/api/approach/filters',
+    filtersUrl: BASE + '/api/departure/filters',
     summaryUrl: BASE + '/api/departure/summary',
     detailUrl: BASE + '/api/departure/detail',
     metricsId: 'departureMetrics',
@@ -593,7 +595,7 @@ var WAGON_TABS = {
     metricsLabel: 'Всего отправлено',
     sumSubLabel: 'Всего',
     groupCols: [
-      { key: 'depart_road',    label: 'Дорога' },
+      { key: 'depart_road', label: 'Дорога' },
       { key: 'depart_station', label: 'Станция' },
     ],
     getParams: function () {
@@ -618,7 +620,7 @@ var WAGON_TABS = {
       { key: 'norm_delivery_dt', label: 'Норм. дата дост.', meta: true },
     ],
   },
-
+  // Погрузка вагонов
   loading: {
     ctx: 'loading',
     filtersUrl: BASE + '/api/approach/filters',
@@ -635,7 +637,7 @@ var WAGON_TABS = {
     metricsLabel: 'Всего погружено',
     sumSubLabel: 'Всего',
     groupCols: [
-      { key: 'depart_road',    label: 'Дорога' },
+      { key: 'depart_road', label: 'Дорога' },
       { key: 'depart_station', label: 'Станция' },
     ],
     getParams: function () {
@@ -1068,25 +1070,40 @@ function renderRoadStationTable(selector, roads, cols, ctx, groupCols) {
     return
   }
   var nGroup = groupCols.length
-  function fmt(v) { return v || '' }
+  function fmt(v) {
+    return v || ''
+  }
   function cellLink(v, dataCtx, dataRoad, dataSt, dataCol) {
     if (!v || !dataCtx) return '<td>' + fmt(v) + '</td>'
     return (
-      '<td class="cell-link" data-ctx="' + esc(dataCtx) +
-      '" data-road="' + esc(dataRoad) +
-      '" data-station="' + esc(dataSt) +
-      '" data-col="' + esc(dataCol) + '">' + v + '</td>'
+      '<td class="cell-link" data-ctx="' +
+      esc(dataCtx) +
+      '" data-road="' +
+      esc(dataRoad) +
+      '" data-station="' +
+      esc(dataSt) +
+      '" data-col="' +
+      esc(dataCol) +
+      '">' +
+      v +
+      '</td>'
     )
   }
   function totalLink(v, dataCtx, dataRoad, dataSt) {
     var cls = 'col-total-col'
     if (!v || !dataCtx) return '<td class="' + cls + '">' + fmt(v) + '</td>'
     return (
-      '<td class="' + cls + ' cell-link" data-ctx="' + esc(dataCtx) +
-      '" data-road="' + esc(dataRoad) +
-      '" data-station="' + esc(dataSt) +
+      '<td class="' +
+      cls +
+      ' cell-link" data-ctx="' +
+      esc(dataCtx) +
+      '" data-road="' +
+      esc(dataRoad) +
+      '" data-station="' +
+      esc(dataSt) +
       '" data-col="">' +
-      (typeof v === 'number' ? v.toLocaleString('ru-RU') : v) + '</td>'
+      (typeof v === 'number' ? v.toLocaleString('ru-RU') : v) +
+      '</td>'
     )
   }
 
@@ -1095,15 +1112,24 @@ function renderRoadStationTable(selector, roads, cols, ctx, groupCols) {
     var w = i === 0 ? ' style="min-width:160px"' : ' style="min-width:180px"'
     h += '<th class="col-meta"' + w + '>' + esc(gc.label) + '</th>'
   })
-  ;(cols || []).forEach(function (c) { h += '<th>' + esc(c) + '</th>' })
+  ;(cols || []).forEach(function (c) {
+    h += '<th>' + esc(c) + '</th>'
+  })
   h += '<th class="col-total-col">Итого</th></tr></thead><tbody>'
 
-  var grandTotals = (cols || []).map(function () { return 0 })
+  var grandTotals = (cols || []).map(function () {
+    return 0
+  })
   var grandSum = 0
   ;(roads || []).forEach(function (road, ri) {
     var roadVal = road[groupCols[0].key] || ''
     h += '<tr class="row-road-parent" data-road-id="' + ri + '">'
-    h += '<td class="col-meta" colspan="' + nGroup + '"><span class="toggle-icon">▶</span>' + esc(roadVal) + '</td>'
+    h +=
+      '<td class="col-meta" colspan="' +
+      nGroup +
+      '"><span class="toggle-icon">▶</span>' +
+      esc(roadVal) +
+      '</td>'
     ;(road.total || []).forEach(function (v, i) {
       grandTotals[i] += v || 0
       h += cellLink(v, ctx, roadVal, '', cols[i])
@@ -1113,9 +1139,16 @@ function renderRoadStationTable(selector, roads, cols, ctx, groupCols) {
     grandSum += road.grand_total || 0
     ;(road.stations || []).forEach(function (st) {
       var stVal = st[groupCols[nGroup - 1].key] || ''
-      var rowSum = (st.v || []).reduce(function (a, b) { return a + b }, 0)
-      h += '<tr class="row-data row-child row-hidden" data-parent-road="' + ri + '">'
-      for (var j = 0; j < nGroup - 1; j++) { h += '<td class="col-meta"></td>' }
+      var rowSum = (st.v || []).reduce(function (a, b) {
+        return a + b
+      }, 0)
+      h +=
+        '<tr class="row-data row-child row-hidden" data-parent-road="' +
+        ri +
+        '">'
+      for (var j = 0; j < nGroup - 1; j++) {
+        h += '<td class="col-meta"></td>'
+      }
       h += '<td class="col-meta">' + esc(stVal) + '</td>'
       ;(st.v || []).forEach(function (v, i) {
         h += cellLink(v, ctx, roadVal, stVal, cols[i])
@@ -1124,18 +1157,34 @@ function renderRoadStationTable(selector, roads, cols, ctx, groupCols) {
       h += '</tr>'
     })
   })
-  h += '<tr class="row-total row-grand"><td class="col-meta" colspan="' + nGroup + '">Общий итог</td>'
+  h +=
+    '<tr class="row-total row-grand"><td class="col-meta" colspan="' +
+    nGroup +
+    '">Общий итог</td>'
   grandTotals.forEach(function (v, i) {
     if (v && ctx) {
-      h += '<td class="cell-link" data-ctx="' + esc(ctx) + '" data-road="" data-station="" data-col="' + esc(cols[i]) + '">' + v + '</td>'
+      h +=
+        '<td class="cell-link" data-ctx="' +
+        esc(ctx) +
+        '" data-road="" data-station="" data-col="' +
+        esc(cols[i]) +
+        '">' +
+        v +
+        '</td>'
     } else {
       h += '<td>' + (v || '') + '</td>'
     }
   })
   if (grandSum && ctx) {
-    h += '<td class="col-total-col cell-link" data-ctx="' + esc(ctx) + '" data-road="" data-station="" data-col="">' + grandSum.toLocaleString('ru-RU') + '</td>'
+    h +=
+      '<td class="col-total-col cell-link" data-ctx="' +
+      esc(ctx) +
+      '" data-road="" data-station="" data-col="">' +
+      grandSum.toLocaleString('ru-RU') +
+      '</td>'
   } else {
-    h += '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>'
+    h +=
+      '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>'
   }
   h += '</tr></tbody>'
   $(selector).html(h)
