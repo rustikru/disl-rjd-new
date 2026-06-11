@@ -25,7 +25,10 @@ disl-rjd-new/
 │   ├── .htaccess            # mod_rewrite → index.php
 │   └── assets/
 │       ├── css/app.css      # Основные стили
-│       └── js/app.js        # Вся клиентская логика (SPA)
+│       └── js/
+│           ├── jquery/jquery-3.7.1.min.js  # jQuery (локальная копия)
+│           ├── detail-contexts.js           # Конфиг колонок детализации (DETAIL_CONTEXTS)
+│           └── app.js                       # Вся клиентская логика (SPA)
 ├── src/
 │   ├── routes.php           # Все маршруты Slim
 │   ├── Config.php           # Чтение .env
@@ -240,19 +243,20 @@ public function arrivedSummary(Request $req, Response $res): Response
 ```js
 arrived: {
   ctx: 'arrived',
-  filtersUrl:  BASE + '/api/approach/filters',
-  summaryUrl:  BASE + '/api/arrived/summary',
-  detailUrl:   BASE + '/api/arrived/detail',
-  metricsId:   'arrivedMetrics',
-  sumTableId:  'arrivedSumTable',
-  sumSubId:    'arrivedSumSub',
-  detTableId:  'arrivedDetTable',
-  detSubId:    'arrivedDetSub',
-  detPanelId:  'arrived-detail',
-  loadedKey:   '_arrivedLoaded',
-  loadedDetKey:'_arrivedDetLoaded',
-  metricsLabel:'Всего прибыло',
-  sumSubLabel: 'Всего',
+  filtersUrl:   BASE + '/api/approach/filters',
+  summaryUrl:   BASE + '/api/arrived/summary',
+  detailUrl:    BASE + '/api/arrived/detail',
+  metricsId:    'arrivedMetrics',    // опционально — без него KPI не рендерится
+  metricsLabel: 'Всего прибыло',
+  csvFilename:  'прибытие',          // опционально — без него кнопки CSV нет
+  sumTableId:   'arrivedSumTable',
+  sumSubId:     'arrivedSumSub',
+  detTableId:   'arrivedDetTable',
+  detSubId:     'arrivedDetSub',
+  detPanelId:   'arrived-detail',
+  loadedKey:    '_arrivedLoaded',
+  loadedDetKey: '_arrivedDetLoaded',
+  sumSubLabel:  'Всего',
   groupCols: [
     { key: 'oper_road',    label: 'Дорога операции' },
     { key: 'oper_station', label: 'Станция операции' },
@@ -260,18 +264,12 @@ arrived: {
   getParams:    function () { return { cargo: $('#fArrivedCargo').val() || undefined } },
   fillFilters:  function (data) { fillSelect('#fArrivedCargo', data.cargo || []) },
   resetFilters: function () { $('#fArrivedCargo').val('') },
-  detailCols: [
-    { key: 'wagon_no',        label: '№ вагона',       meta: true, mono: true },
-    { key: 'wagon_type_code', label: 'Тип',            meta: true },
-    { key: 'cargo_name',      label: 'Груз',           meta: true },
-    { key: 'oper_station',    label: 'Тек. станция',   meta: true },
-    { key: 'oper_road',       label: 'Дорога',         meta: true },
-    { key: 'idle_time_days',  label: 'Простой (сут.)', danger: true },
-  ],
 },
 ```
 
-Добавление в `WAGON_TABS` + регистрация в `switchTab` и `initInnerTabs` — и раздел автоматически подхватывается всеми generic-функциями (`loadWagonTabInit`, `loadWagonTabSummary`, `loadWagonTabDetail`, `renderRoadStationTable`).
+Колонки детализации добавляются в `detail-contexts.js` (не в `WAGON_TABS`) — см. раздел ниже.
+
+Добавление в `WAGON_TABS` — и раздел автоматически подхватывается всеми generic-функциями.
 
 ### 6. HTML-панель (`templates/app.php`)
 
@@ -302,34 +300,90 @@ arrived: {
 </div>
 ```
 
-### 7. Страница детализации (`templates/detail.php`)
+### 7. Колонки детализации (`public/assets/js/detail-contexts.js`)
 
-Добавить контекст в объект `CONTEXTS`:
+Единственное место для описания колонок детализации — используется и в `app.js`, и в `templates/detail.php`.
 
 ```js
 arrived: {
-  label: 'Прибытие вагонов', endpoint: BASE + '/api/arrived/detail',
+  label: 'Прибытие вагонов',
+  endpoint: '/api/arrived/detail',   // без BASE — он добавляется автоматически
   cols: [
     { key: 'wagon_no',        label: '№ вагона',     meta: true, mono: true },
     { key: 'wagon_type_code', label: 'Тип',          meta: true },
     { key: 'cargo_name',      label: 'Груз',         meta: true },
     { key: 'oper_station',    label: 'Тек. станция', meta: true },
     { key: 'idle_time_days',  label: 'Простой',      right: true, danger: true },
-  ]
+  ],
 },
 ```
 
 ---
 
+## Справочник полей WAGON_TABS
+
+Каждая вкладка (подход / отправление / погрузка) описывается объектом в `WAGON_TABS` (`app.js`).
+
+### Обязательные поля
+
+| Поле | Тип | Описание |
+|---|---|---|
+| `ctx` | string | Идентификатор контекста. Должен совпадать с ключом в `DETAIL_CONTEXTS` (`detail-contexts.js`) |
+| `summaryUrl` | string | URL сводного API (`/api/xxx/summary`) |
+| `detailUrl` | string | URL детального API (`/api/xxx/detail`) |
+| `filtersUrl` | string | URL API фильтров (`/api/xxx/filters`) |
+| `sumTableId` | string | `id` элемента `<table>` сводной таблицы в `app.php` |
+| `sumSubId` | string | `id` элемента с подписью под заголовком сводной таблицы |
+| `detTableId` | string | `id` элемента `<table>` детализации |
+| `detSubId` | string | `id` элемента с подписью под заголовком детализации |
+| `detPanelId` | string | `id` inner-панели детализации (определяет активность вкладки) |
+| `loadedKey` | string | Имя глобальной переменной-флага первой загрузки сводной (напр. `'_approachLoaded'`) |
+| `loadedDetKey` | string | Имя глобальной переменной-флага первой загрузки детализации |
+| `sumSubLabel` | string | Префикс подписи итогов: `'Всего в подходе'` → `'Всего в подходе: 142 ваг.'` |
+| `groupCols` | array | Колонки группировки строк таблицы. Элемент: `{ key, label }` — `key` = поле БД, `label` = заголовок. Порядок = иерархия: первый — верхний уровень (дорога), последний — нижний (станция) |
+| `getParams()` | function | Возвращает объект параметров фильтров для API (значения из `<select>` / `<input>`) |
+| `fillFilters(data)` | function | Заполняет `<select>` фильтров значениями из ответа `filtersUrl` |
+| `resetFilters()` | function | Сбрасывает `<select>` фильтров в пустое значение |
+
+### Опциональные поля
+
+| Поле | Тип | Описание |
+|---|---|---|
+| `metricsId` | string | `id` контейнера KPI-карточек. Если не задан — карточки не рендерятся |
+| `metricsLabel` | string | Подпись главной KPI-карточки. Используется когда `buildMetrics` не задан |
+| `buildMetrics(data)` | function | Переопределяет набор KPI-карточек. Получает полный ответ API, возвращает `[{label, value, accent?}]`. По умолчанию — одна общая карточка + карточки по дорогам из `data.metrics` |
+| `csvFilename` | string | Префикс имени CSV-файла (`'подход'` → `подход_2026-06-11.csv`). Если не задан — кнопка «↓ CSV» не появляется |
+
+### Поля элемента groupCols
+
+| Поле | Описание |
+|---|---|
+| `key` | Имя поля в БД (lowercase). Передаётся в `group_by` параметр API |
+| `label` | Заголовок колонки в таблице |
+
+### Колонки детализации — не в WAGON_TABS
+
+Вынесены в `public/assets/js/detail-contexts.js` (объект `DETAIL_CONTEXTS`). Один файл используется и на главной странице (drill-down), и на странице `/detail`.
+
+| Поле колонки | Описание |
+|---|---|
+| `key` | Имя поля в БД |
+| `label` | Заголовок |
+| `meta` | `true` → серая «мета» стилизация ячейки |
+| `mono` | `true` → моноширинный шрифт (для номеров вагонов) |
+| `right` | `true` → выравнивание по правому краю |
+| `danger` | `true` → красный цвет ≥7 сут., оранжевый ≥3 сут. (для простоев) |
+| `fmt(v)` | Функция форматирования значения (только в JS-файле, не в JSON) |
+
+---
+
 ## Принцип «один источник правды»
 
-Список отображаемых полей определяется **только** в `groupCols` / `detailCols` конфига вкладки в `app.js`.
+- `groupCols[].key` → `group_by` param → SQL `GROUP BY / ORDER BY / WHERE`
+- `DETAIL_CONTEXTS[ctx].cols[].key` → `fields` param → SQL `SELECT`
+- Валидация полей — через `user_tab_columns` (схема Oracle), не хардкод в PHP
 
-- `groupCols` → `group_by` param → SQL `GROUP BY / ORDER BY / WHERE`
-- `detailCols` → `fields` param → SQL `SELECT`
-- Валидация полей — через `user_tab_columns` (схема Oracle), а не хардкод в PHP
-
-При добавлении/удалении колонок достаточно обновить конфиг в `app.js`. PHP трогать не нужно.
+При добавлении/удалении колонок достаточно обновить `detail-contexts.js`. PHP трогать не нужно.
 
 ---
 
@@ -339,10 +393,11 @@ arrived: {
 |---|---|
 | `esc(str)` | HTML-экранирование |
 | `ajaxErr(jqXHR)` | Читаемое сообщение об ошибке (HTTP статус + JSON detail) |
-| `getDangerStyle(days)` | Стиль для простоя: красный ≥7 сут., оранжевый ≥3 сут. |
-| `buildKpiCard(item)` | HTML одной KPI-карточки |
-| `renderGenericDetailTable($table, rows, colDefs)` | Универсальный рендер таблицы по конфигу колонок; поддерживает `meta`, `mono`, `right`, `danger`, `fmt` |
-| `renderRoadStationTable(...)` | Двухуровневая таблица дорога → станция с раскрытием |
-| `renderRoadStationMetrics(...)` | KPI-карточки для сводных вкладок |
+| `idleStyle(days)` | Inline-стиль для простоя: красный ≥7 сут., оранжевый ≥3 сут. |
+| `kpiCard(item)` | HTML одной KPI-карточки (`{label, value, accent?}`) |
+| `showKpi(selector, metrics, total, label)` | Рендер блока KPI-карточек |
+| `showTable($table, rows, cols)` | Универсальный рендер таблицы по конфигу колонок (`detail-contexts.js`) |
+| `drawSummary(selector, roads, data, ctx, groupCols)` | Сводная таблица дорога→станция; автоматически рендерит 1- или N-уровневую шапку по `data.cols` / `data.col_groups` |
+| `exportTableToCSV(tableId, filename)` | Скачать таблицу как CSV (UTF-8 BOM) |
 | `addColumnSearch($table)` | Строка быстрого поиска под заголовком таблицы |
-| `openDetail(ctx, road, station, col, groupBy)` | Открыть детализацию в новой вкладке |
+| `openDetail(ctx, road, station, col, groupBy, subs)` | Открыть страницу детализации в новой вкладке. `subs` — массив значений под-уровней шапки (ГР/ПОР и т.д.), передаются как `cargo_state`, … через `SUB_PARAM_NAMES` |
