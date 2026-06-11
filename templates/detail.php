@@ -223,6 +223,12 @@ $(function () {
   if (road)    { apiParams.set('road',       road); }
   if (station) { apiParams.set('station',    station); }
   if (col)     { apiParams.set('wagon_type', col); }
+  // Поля из detailCols конфига — backend делает SELECT только их
+  var fields = ctxDef.cols.map(function (c) { return c.key; }).join(',');
+  apiParams.set('fields', fields);
+  // Поля группировки из summary — backend фильтрует по ним road/station
+  var groupBy = params.get('group_by') || '';
+  if (groupBy) { apiParams.set('group_by', groupBy); }
 
   $('#detailSub').text('Загрузка...');
 

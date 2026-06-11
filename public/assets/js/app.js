@@ -690,7 +690,10 @@ function loadWagonTabSummary(cfg) {
   $table.html(
     '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Загрузка...</td></tr></tbody>',
   )
-  $.getJSON(cfg.summaryUrl, cfg.getParams())
+  var summaryParams = Object.assign({}, cfg.getParams(), {
+    group_by: (cfg.groupCols || []).map(function (g) { return g.key }).join(','),
+  })
+  $.getJSON(cfg.summaryUrl, summaryParams)
     .done(function (data) {
       renderRoadStationMetrics(
         '#' + cfg.metricsId,
@@ -724,7 +727,11 @@ function loadWagonTabDetail(cfg) {
   var $sub = $('#' + cfg.detSubId)
   var $table = $('#' + cfg.detTableId)
   $sub.text('Загрузка...')
-  $.getJSON(cfg.detailUrl, cfg.getParams())
+  var detailParams = Object.assign({}, cfg.getParams(), {
+    fields:   (cfg.detailCols || []).map(function (c) { return c.key }).join(','),
+    group_by: (cfg.groupCols  || []).map(function (g) { return g.key }).join(','),
+  })
+  $.getJSON(cfg.detailUrl, detailParams)
     .done(function (data) {
       renderGenericDetailTable($table, data.rows, cfg.detailCols)
       $sub.text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'))
@@ -1067,7 +1074,8 @@ function renderRoadStationTable(selector, roads, cols, ctx, groupCols) {
     )
     return
   }
-  var nGroup = groupCols.length
+  var nGroup  = groupCols.length
+  var groupBy = groupCols.map(function (g) { return g.key }).join(',')
   function fmt(v) { return v || '' }
   function cellLink(v, dataCtx, dataRoad, dataSt, dataCol) {
     if (!v || !dataCtx) return '<td>' + fmt(v) + '</td>'
@@ -1075,7 +1083,8 @@ function renderRoadStationTable(selector, roads, cols, ctx, groupCols) {
       '<td class="cell-link" data-ctx="' + esc(dataCtx) +
       '" data-road="' + esc(dataRoad) +
       '" data-station="' + esc(dataSt) +
-      '" data-col="' + esc(dataCol) + '">' + v + '</td>'
+      '" data-col="' + esc(dataCol) +
+      '" data-group-by="' + esc(groupBy) + '">' + v + '</td>'
     )
   }
   function totalLink(v, dataCtx, dataRoad, dataSt) {
@@ -1085,7 +1094,7 @@ function renderRoadStationTable(selector, roads, cols, ctx, groupCols) {
       '<td class="' + cls + ' cell-link" data-ctx="' + esc(dataCtx) +
       '" data-road="' + esc(dataRoad) +
       '" data-station="' + esc(dataSt) +
-      '" data-col="">' +
+      '" data-col="" data-group-by="' + esc(groupBy) + '">' +
       (typeof v === 'number' ? v.toLocaleString('ru-RU') : v) + '</td>'
     )
   }
@@ -1225,22 +1234,24 @@ $(document).on('input', '.col-search-input', function () {
 })
 
 // Drill-down: открыть страницу детализации в новой вкладке
-function openDetail(ctx, road, station, col) {
+function openDetail(ctx, road, station, col, groupBy) {
   var p = new URLSearchParams()
   p.set('context', ctx)
-  if (road) p.set('road', road)
-  if (station) p.set('station', station)
-  if (col) p.set('col', col)
+  if (road)    p.set('road',     road)
+  if (station) p.set('station',  station)
+  if (col)     p.set('col',      col)
+  if (groupBy) p.set('group_by', groupBy)
   window.open(BASE + '/detail?' + p.toString(), '_blank')
 }
 
 $(document).on('click', '.cell-link', function (e) {
   e.stopPropagation()
-  var ctx = $(this).data('ctx') || ''
-  var road = $(this).data('road') || ''
-  var station = $(this).data('station') || ''
-  var col = $(this).data('col') || ''
-  if (ctx) openDetail(ctx, road, station, col)
+  var ctx     = $(this).data('ctx')      || ''
+  var road    = $(this).data('road')     || ''
+  var station = $(this).data('station')  || ''
+  var col     = $(this).data('col')      || ''
+  var groupBy = $(this).data('group-by') || ''
+  if (ctx) openDetail(ctx, road, station, col, groupBy)
 })
 
 // Сворачивание/разворачивание строк дороги

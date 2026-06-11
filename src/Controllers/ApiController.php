@@ -14,10 +14,51 @@ use Psr\Http\Message\ServerRequestInterface;
 class ApiController
 {
     private DbInterface $db;
+    private ?array $cachedTableColumns = null;
 
     public function __construct(DbInterface $db)
     {
         $this->db = $db;
+    }
+
+    /** Возвращает список колонок таблицы xx_dislocation_rjd (кеш на запрос). */
+    private function getTableColumns(): array
+    {
+        if ($this->cachedTableColumns === null) {
+            $rows = $this->db->fetchAll(
+                "SELECT LOWER(column_name) AS col FROM user_tab_columns WHERE table_name = 'XX_DISLOCATION_RJD'"
+            );
+            $this->cachedTableColumns = array_column($rows, 'col');
+        }
+        return $this->cachedTableColumns;
+    }
+
+    /**
+     * Строит безопасную строку для SELECT из списка полей, переданных клиентом.
+     * Каждое поле проверяется по реальным колонкам таблицы (user_tab_columns).
+     */
+    private function parseSelectFields(string $raw): string
+    {
+        $allowed = $this->getTableColumns();
+        $fields  = array_values(array_filter(
+            array_map('trim', explode(',', $raw)),
+            fn($f) => $f !== '' && in_array($f, $allowed, true)
+        ));
+        return $fields ? implode(', ', $fields) : 'wagon_no';
+    }
+
+    /**
+     * Парсит group_by=field1,field2 и возвращает ровно 2 проверенных поля.
+     * При невалидных/отсутствующих — fallback на $defaults.
+     */
+    private function parseGroupFields(string $raw, array $defaults): array
+    {
+        $allowed = $this->getTableColumns();
+        $fields  = array_values(array_filter(
+            array_map('trim', explode(',', $raw)),
+            fn($f) => $f !== '' && in_array($f, $allowed, true)
+        ));
+        return count($fields) >= 2 ? [$fields[0], $fields[1]] : $defaults;
     }
 
     /** GET /api/reports — список загруженных справок */
@@ -182,16 +223,18 @@ class ApiController
 
         [$where, $bindings] = $this->buildApproachWhere($reportDt, $cargo, $prevCargo);
 
+        [$g1, $g2] = $this->parseGroupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
+
         $rows = $this->db->fetchAll(
-            "SELECT dest_road, dest_station, wagon_type_code, COUNT(*) AS cnt
+            "SELECT $g1, $g2, wagon_type_code, COUNT(*) AS cnt
              FROM xx_dislocation_rjd
              WHERE {$where}
-             GROUP BY dest_road, dest_station, wagon_type_code
-             ORDER BY dest_road, dest_station, wagon_type_code",
+             GROUP BY $g1, $g2, wagon_type_code
+             ORDER BY $g1, $g2, wagon_type_code",
             $bindings
         );
 
-        return $this->json($response, $this->buildRoadStationTable($rows, 'dest_road', 'dest_station'));
+        return $this->json($response, $this->buildRoadStationTable($rows, $g1, $g2));
     }
 
     /** GET /api/approach/detail — Список вагонов подхода */
@@ -209,30 +252,21 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
+        [$g1, $g2] = $this->parseGroupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
         [$where, $bindings] = $this->buildApproachWhere($reportDt, $cargo, $prevCargo);
 
-        if ($road) {
-            $where .= ' AND dest_road = :dest_road';
-            $bindings['dest_road'] = $road;
-        }
-        if ($station) {
-            $where .= ' AND dest_station = :dest_station';
-            $bindings['dest_station'] = $station;
-        }
-        if ($wagType) {
-            $where .= ' AND wagon_type_code = :wagon_type_code';
-            $bindings['wagon_type_code'] = $wagType;
-        }
+        if ($road)    { $where .= " AND $g1 = :g1_val"; $bindings['g1_val'] = $road; }
+        if ($station) { $where .= " AND $g2 = :g2_val"; $bindings['g2_val'] = $station; }
+        if ($wagType) { $where .= ' AND wagon_type_code = :wtype'; $bindings['wtype'] = $wagType; }
+
+        $select = isset($params['fields']) && $params['fields'] !== ''
+            ? $this->parseSelectFields($params['fields'])
+            : 'wagon_no, wagon_type_code, cargo_name, prev_cargo, dist_remain_km,
+               depart_station, depart_road, dest_station, dest_road, oper_station,
+               train_index, oper_dt, norm_delivery_dt, oper_mnemonic';
 
         $rows = $this->db->fetchAll(
-            "SELECT wagon_no, wagon_type_code, cargo_name, prev_cargo,
-                    dist_remain_km, depart_station, depart_road,
-                    dest_station, dest_road, oper_station,
-                    train_index, oper_dt, norm_delivery_dt, oper_mnemonic
-             FROM xx_dislocation_rjd
-             WHERE {$where}
-             ORDER BY dest_road, dest_station, dist_remain_km
-             " . $this->db->limit(1000),
+            "SELECT $select FROM xx_dislocation_rjd WHERE {$where} ORDER BY $g1, $g2 " . $this->db->limit(1000),
             $bindings
         );
 
@@ -303,6 +337,8 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
+        [$g1, $g2] = $this->parseGroupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+
         $where = "report_dt = :report_dt AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
         $bindings = ['report_dt' => $reportDt];
         if ($cargo) {
@@ -311,15 +347,15 @@ class ApiController
         }
 
         $rows = $this->db->fetchAll(
-            "SELECT depart_road, depart_station, wagon_type_code, COUNT(*) AS cnt
+            "SELECT $g1, $g2, wagon_type_code, COUNT(*) AS cnt
              FROM xx_dislocation_rjd
              WHERE {$where}
-             GROUP BY depart_road, depart_station, wagon_type_code
-             ORDER BY depart_road, depart_station, wagon_type_code",
+             GROUP BY $g1, $g2, wagon_type_code
+             ORDER BY $g1, $g2, wagon_type_code",
             $bindings
         );
 
-        return $this->json($response, $this->buildRoadStationTable($rows, 'depart_road', 'depart_station'));
+        return $this->json($response, $this->buildRoadStationTable($rows, $g1, $g2));
     }
 
     /** GET /api/departure/detail — Список отправленных вагонов */
@@ -336,33 +372,23 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
+        [$g1, $g2] = $this->parseGroupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+
         $where = "report_dt = :report_dt AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
         $bindings = ['report_dt' => $reportDt];
-        if ($cargo) {
-            $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';
-            $bindings['cargo_f'] = $cargo;
-        }
-        if ($road) {
-            $where .= ' AND depart_road = :depart_road';
-            $bindings['depart_road'] = $road;
-        }
-        if ($station) {
-            $where .= ' AND depart_station = :depart_station';
-            $bindings['depart_station'] = $station;
-        }
-        if ($wagType) {
-            $where .= ' AND wagon_type_code = :wtype';
-            $bindings['wtype'] = $wagType;
-        }
+        if ($cargo)   { $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)'; $bindings['cargo_f'] = $cargo; }
+        if ($road)    { $where .= " AND $g1 = :g1_val"; $bindings['g1_val'] = $road; }
+        if ($station) { $where .= " AND $g2 = :g2_val"; $bindings['g2_val'] = $station; }
+        if ($wagType) { $where .= ' AND wagon_type_code = :wtype'; $bindings['wtype'] = $wagType; }
+
+        $select = isset($params['fields']) && $params['fields'] !== ''
+            ? $this->parseSelectFields($params['fields'])
+            : 'wagon_no, wagon_type_code, cargo_name, cargo_weight_kg,
+               depart_station, depart_road, dest_station, dest_road,
+               oper_station, oper_dt, dist_remain_km, norm_delivery_dt, waybill_no';
 
         $rows = $this->db->fetchAll(
-            "SELECT wagon_no, wagon_type_code, cargo_name, cargo_weight_kg,
-                    depart_station, depart_road, dest_station, dest_road,
-                    oper_station, oper_dt, dist_remain_km, norm_delivery_dt, waybill_no
-             FROM xx_dislocation_rjd
-             WHERE {$where}
-             ORDER BY depart_road, depart_station
-             " . $this->db->limit(1000),
+            "SELECT $select FROM xx_dislocation_rjd WHERE {$where} ORDER BY $g1, $g2 " . $this->db->limit(1000),
             $bindings
         );
 
@@ -382,6 +408,8 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
+        [$g1, $g2] = $this->parseGroupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+
         $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $bindings = ['report_dt' => $reportDt];
         if ($cargo) {
@@ -390,15 +418,15 @@ class ApiController
         }
 
         $rows = $this->db->fetchAll(
-            "SELECT depart_road, depart_station, wagon_type_code, COUNT(*) AS cnt
+            "SELECT $g1, $g2, wagon_type_code, COUNT(*) AS cnt
              FROM xx_dislocation_rjd
              WHERE {$where}
-             GROUP BY depart_road, depart_station, wagon_type_code
-             ORDER BY depart_road, depart_station, wagon_type_code",
+             GROUP BY $g1, $g2, wagon_type_code
+             ORDER BY $g1, $g2, wagon_type_code",
             $bindings
         );
 
-        return $this->json($response, $this->buildRoadStationTable($rows, 'depart_road', 'depart_station'));
+        return $this->json($response, $this->buildRoadStationTable($rows, $g1, $g2));
     }
 
     /** GET /api/loading/detail — Список погруженных вагонов */
@@ -415,33 +443,23 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
+        [$g1, $g2] = $this->parseGroupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+
         $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $bindings = ['report_dt' => $reportDt];
-        if ($cargo) {
-            $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';
-            $bindings['cargo_f'] = $cargo;
-        }
-        if ($road) {
-            $where .= ' AND depart_road = :depart_road';
-            $bindings['depart_road'] = $road;
-        }
-        if ($station) {
-            $where .= ' AND depart_station = :depart_station';
-            $bindings['depart_station'] = $station;
-        }
-        if ($wagType) {
-            $where .= ' AND wagon_type_code = :wtype';
-            $bindings['wtype'] = $wagType;
-        }
+        if ($cargo)   { $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)'; $bindings['cargo_f'] = $cargo; }
+        if ($road)    { $where .= " AND $g1 = :g1_val"; $bindings['g1_val'] = $road; }
+        if ($station) { $where .= " AND $g2 = :g2_val"; $bindings['g2_val'] = $station; }
+        if ($wagType) { $where .= ' AND wagon_type_code = :wtype'; $bindings['wtype'] = $wagType; }
+
+        $select = isset($params['fields']) && $params['fields'] !== ''
+            ? $this->parseSelectFields($params['fields'])
+            : 'wagon_no, wagon_type_code, cargo_name, cargo_weight_kg,
+               depart_station, depart_road, dest_station, dest_road,
+               oper_station, oper_mnemonic, oper_dt, waybill_no';
 
         $rows = $this->db->fetchAll(
-            "SELECT wagon_no, wagon_type_code, cargo_name, cargo_weight_kg,
-                    depart_station, depart_road, dest_station, dest_road,
-                    oper_station, oper_mnemonic, oper_dt, waybill_no
-             FROM xx_dislocation_rjd
-             WHERE {$where}
-             ORDER BY depart_road, depart_station
-             " . $this->db->limit(1000),
+            "SELECT $select FROM xx_dislocation_rjd WHERE {$where} ORDER BY $g1, $g2 " . $this->db->limit(1000),
             $bindings
         );
 
