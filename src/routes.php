@@ -109,5 +109,15 @@ return function (App $app, array $config): void {
             return (new \App\Controllers\ApiController($getDb()))->rawMaterialDetail($req, $res);
         });
 
+        $group->get('/detail', function ($req, $res) use ($config) {
+            $appName = $config['app_name'] ?? 'Метафракс';
+            $user    = $_SESSION['user'] ?? ['display_name' => '', 'username' => '', 'auth_source' => ''];
+            ob_start();
+            require __DIR__ . '/../templates/detail.php';
+            $html = ob_get_clean();
+            $res->getBody()->write($html);
+            return $res->withHeader('Content-Type', 'text/html; charset=utf-8');
+        });
+
     })->add(new \App\Middleware\AuthMiddleware());
 };

@@ -398,6 +398,17 @@ function renderApproachSummaryTable(roads, cols) {
   }
 
   function fmt(v) { return v || ''; }
+  var CTX = 'approach';
+  function cellLink(v, dataRoad, dataSt, dataCol) {
+    if (!v) return '<td>' + fmt(v) + '</td>';
+    return '<td class="cell-link" data-ctx="' + CTX + '" data-road="' + esc(dataRoad) +
+           '" data-station="' + esc(dataSt) + '" data-col="' + esc(dataCol) + '">' + v + '</td>';
+  }
+  function totalLink(v, dataRoad, dataSt) {
+    if (!v) return '<td class="col-total-col">' + fmt(v) + '</td>';
+    return '<td class="col-total-col cell-link" data-ctx="' + CTX + '" data-road="' + esc(dataRoad) +
+           '" data-station="' + esc(dataSt) + '" data-col="">' + (v || 0).toLocaleString('ru-RU') + '</td>';
+  }
 
   var h = '<thead><tr>';
   h += '<th class="col-meta" style="min-width:160px">Дорога назначения</th>';
@@ -414,9 +425,10 @@ function renderApproachSummaryTable(roads, cols) {
     h += '<td class="col-meta" colspan="2"><span class="toggle-icon">▶</span>' + esc(road.road) + '</td>';
     (road.total || []).forEach(function (v, i) {
       grandTotals[i] = (grandTotals[i] || 0) + (v || 0);
-      h += '<td>' + fmt(v) + '</td>';
+      h += cellLink(v, road.road, '', cols[i]);
     });
-    h += '<td class="col-total-col">' + (road.grand_total || 0).toLocaleString('ru-RU') + '</td></tr>';
+    h += totalLink(road.grand_total || 0, road.road, '');
+    h += '</tr>';
     grandSum += (road.grand_total || 0);
 
     (road.stations || []).forEach(function (st) {
@@ -424,8 +436,9 @@ function renderApproachSummaryTable(roads, cols) {
       h += '<tr class="row-data row-child row-hidden" data-parent-road="' + ri + '">';
       h += '<td class="col-meta"></td>';
       h += '<td class="col-meta">' + esc(st.station) + '</td>';
-      (st.v || []).forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
-      h += '<td class="col-total-col">' + fmt(rowSum) + '</td></tr>';
+      (st.v || []).forEach(function (v, i) { h += cellLink(v, road.road, st.station, cols[i]); });
+      h += totalLink(rowSum, road.road, st.station);
+      h += '</tr>';
     });
   });
 
@@ -493,7 +506,7 @@ function loadDepartureSummary() {
   $.getJSON('/api/departure/summary', params)
     .done(function (data) {
       renderRoadStationMetrics('#departureMetrics', data.metrics, data.total, 'Всего отправлено');
-      renderRoadStationTable('#departureSumTable', data.roads, data.cols);
+      renderRoadStationTable('#departureSumTable', data.roads, data.cols, 'departure');
       $('#departureSumSub').text('Всего: ' + (data.total || 0).toLocaleString('ru-RU') + ' ваг.');
     })
     .fail(function () { $('#departureSumSub').text('Ошибка загрузки'); });
@@ -556,7 +569,7 @@ function loadLoadingSummary() {
   $.getJSON('/api/loading/summary', params)
     .done(function (data) {
       renderRoadStationMetrics('#loadingMetrics', data.metrics, data.total, 'Всего погружено');
-      renderRoadStationTable('#loadingSumTable', data.roads, data.cols);
+      renderRoadStationTable('#loadingSumTable', data.roads, data.cols, 'loading');
       $('#loadingSumSub').text('Всего: ' + (data.total || 0).toLocaleString('ru-RU') + ' ваг.');
     })
     .fail(function () { $('#loadingSumSub').text('Ошибка загрузки'); });
@@ -633,7 +646,7 @@ function renderDowntimeSummaryTable(rows) {
       '<td class="col-meta">' + esc(r.oper_road) + '</td>' +
       '<td class="col-meta">' + esc(r.oper_station) + '</td>' +
       '<td class="col-meta">' + esc(r.wagon_type_code) + '</td>' +
-      '<td>' + esc(r.cnt) + '</td>' +
+      '<td class="cell-link" data-ctx="downtime" data-road="' + esc(r.oper_road) + '" data-station="' + esc(r.oper_station) + '" data-col="' + esc(r.wagon_type_code) + '">' + esc(r.cnt) + '</td>' +
       '<td' + danger + '>' + (maxIdle || '') + '</td>' +
       '</tr>';
   });
@@ -757,12 +770,24 @@ function renderRoadStationMetrics(selector, metrics, total, label) {
   }).join(''));
 }
 
-function renderRoadStationTable(selector, roads, cols) {
+function renderRoadStationTable(selector, roads, cols, ctx) {
   if (!roads || !roads.length) {
     $(selector).html('<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных. Загрузите справку.</td></tr></tbody>');
     return;
   }
   function fmt(v) { return v || ''; }
+  function cellLink(v, dataCtx, dataRoad, dataSt, dataCol) {
+    if (!v || !dataCtx) return '<td>' + fmt(v) + '</td>';
+    return '<td class="cell-link" data-ctx="' + esc(dataCtx) + '" data-road="' + esc(dataRoad) +
+           '" data-station="' + esc(dataSt) + '" data-col="' + esc(dataCol) + '">' + v + '</td>';
+  }
+  function totalLink(v, dataCtx, dataRoad, dataSt) {
+    var cls = 'col-total-col';
+    if (!v || !dataCtx) return '<td class="' + cls + '">' + fmt(v) + '</td>';
+    return '<td class="' + cls + ' cell-link" data-ctx="' + esc(dataCtx) + '" data-road="' + esc(dataRoad) +
+           '" data-station="' + esc(dataSt) + '" data-col="">' + (typeof v === 'number' ? v.toLocaleString('ru-RU') : v) + '</td>';
+  }
+
   var h = '<thead><tr>';
   h += '<th class="col-meta" style="min-width:160px">Дорога</th>';
   h += '<th class="col-meta" style="min-width:180px">Станция</th>';
@@ -774,8 +799,12 @@ function renderRoadStationTable(selector, roads, cols) {
   (roads || []).forEach(function (road, ri) {
     h += '<tr class="row-road-parent" data-road-id="' + ri + '">';
     h += '<td class="col-meta" colspan="2"><span class="toggle-icon">▶</span>' + esc(road.road) + '</td>';
-    (road.total || []).forEach(function (v, i) { grandTotals[i] += (v || 0); h += '<td>' + fmt(v) + '</td>'; });
-    h += '<td class="col-total-col">' + (road.grand_total || 0).toLocaleString('ru-RU') + '</td></tr>';
+    (road.total || []).forEach(function (v, i) {
+      grandTotals[i] += (v || 0);
+      h += cellLink(v, ctx, road.road, '', cols[i]);
+    });
+    h += totalLink(road.grand_total || 0, ctx, road.road, '');
+    h += '</tr>';
     grandSum += (road.grand_total || 0);
 
     (road.stations || []).forEach(function (st) {
@@ -783,8 +812,11 @@ function renderRoadStationTable(selector, roads, cols) {
       h += '<tr class="row-data row-child row-hidden" data-parent-road="' + ri + '">';
       h += '<td class="col-meta"></td>';
       h += '<td class="col-meta">' + esc(st.station) + '</td>';
-      (st.v || []).forEach(function (v) { h += '<td>' + fmt(v) + '</td>'; });
-      h += '<td class="col-total-col">' + fmt(rowSum) + '</td></tr>';
+      (st.v || []).forEach(function (v, i) {
+        h += cellLink(v, ctx, road.road, st.station, cols[i]);
+      });
+      h += totalLink(rowSum, ctx, road.road, st.station);
+      h += '</tr>';
     });
   });
   h += '<tr class="row-total row-grand"><td class="col-meta" colspan="2">Общий итог</td>';
@@ -866,6 +898,25 @@ $(document).on('input', '.col-search-input', function () {
     });
     $(this).toggle(show);
   });
+});
+
+// Drill-down: открыть страницу детализации в новой вкладке
+function openDetail(ctx, road, station, col) {
+  var p = new URLSearchParams();
+  p.set('context', ctx);
+  if (road)    p.set('road',    road);
+  if (station) p.set('station', station);
+  if (col)     p.set('col',     col);
+  window.open('/detail?' + p.toString(), '_blank');
+}
+
+$(document).on('click', '.cell-link', function (e) {
+  e.stopPropagation();
+  var ctx     = $(this).data('ctx')     || '';
+  var road    = $(this).data('road')    || '';
+  var station = $(this).data('station') || '';
+  var col     = $(this).data('col')     || '';
+  if (ctx) openDetail(ctx, road, station, col);
 });
 
 // Сворачивание/разворачивание строк дороги

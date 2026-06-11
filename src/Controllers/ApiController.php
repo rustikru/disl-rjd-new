@@ -391,6 +391,7 @@ class ApiController
         $cargo    = $params['cargo']   ?? null;
         $road     = $params['road']    ?? null;
         $station  = $params['station'] ?? null;
+        $wagType  = $params['wagon_type'] ?? null;
 
         if (!$reportDt) {
             return $this->json($response, ['rows' => []]);
@@ -401,6 +402,7 @@ class ApiController
         if ($cargo)   { $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';     $bindings['cargo_f']     = $cargo; }
         if ($road)    { $where .= ' AND depart_road = :depart_road';                             $bindings['depart_road']  = $road; }
         if ($station) { $where .= ' AND depart_station = :depart_station';                       $bindings['depart_station'] = $station; }
+        if ($wagType) { $where .= ' AND wagon_type_code = :wtype';                               $bindings['wtype'] = $wagType; }
 
         $rows = $this->db->fetchAll(
             "SELECT wagon_no, wagon_type_code, cargo_name, cargo_weight_kg,
@@ -456,6 +458,7 @@ class ApiController
         $cargo    = $params['cargo']   ?? null;
         $road     = $params['road']    ?? null;
         $station  = $params['station'] ?? null;
+        $wagType  = $params['wagon_type'] ?? null;
 
         if (!$reportDt) {
             return $this->json($response, ['rows' => []]);
@@ -466,6 +469,7 @@ class ApiController
         if ($cargo)   { $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';     $bindings['cargo_f']      = $cargo; }
         if ($road)    { $where .= ' AND depart_road = :depart_road';                             $bindings['depart_road']   = $road; }
         if ($station) { $where .= ' AND depart_station = :depart_station';                       $bindings['depart_station'] = $station; }
+        if ($wagType) { $where .= ' AND wagon_type_code = :wtype';                               $bindings['wtype'] = $wagType; }
 
         $rows = $this->db->fetchAll(
             "SELECT wagon_no, wagon_type_code, cargo_name, cargo_weight_kg,

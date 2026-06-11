@@ -247,6 +247,10 @@ body {
 }
 .col-search-input:focus { border-color: var(--accent); outline: none; }
 
+/* ── Кликабельные ячейки (drill-down) ───────────────────────── */
+.cell-link { cursor: pointer; }
+.cell-link:hover { background: #D4F0E0 !important; color: var(--accent) !important; font-weight: 700; }
+
 /* ── Сворачиваемые строки дороги ─────────────────────────────── */
 .row-road-parent td {
   background: #F0F2F5; font-weight: 700;
