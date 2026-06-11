@@ -9,8 +9,10 @@
 :root {
   --bg: #f4f5f7;
   --surface: #ffffff;
-  --accent: #d4622a;
-  --accent-h: #b8511f;
+
+  --accent: #2c5282;
+  --accent-h: #1a365d;
+
   --text-1: #1c2128;
   --text-2: #5c6370;
   --text-3: #9da5b0;
@@ -18,7 +20,9 @@
   --border-lt: #eceef1;
   --row-total: #f0f2f5;
   --row-head: #f7f8fa;
-  --hover-green: #edfaf3;
+
+  --hover-green: #e6f4ea;
+
   --header-h: 56px;
   --sidebar-w: 178px;
   --radius: 6px;
