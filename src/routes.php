@@ -27,9 +27,9 @@ return function (App $app, array $config): void {
         return (new \App\Controllers\AuthController($getAuth(), $config))->handleLogin($req, $res);
     });
 
-    $app->post('/logout', function ($req, $res) {
+    $app->post('/logout', function ($req, $res) use ($config) {
         session_destroy();
-        return $res->withHeader('Location', '/login')->withStatus(302);
+        return $res->withHeader('Location', ($config['base_path'] ?? '') . '/login')->withStatus(302);
     });
 
     // Защищённые маршруты
@@ -110,8 +110,9 @@ return function (App $app, array $config): void {
         });
 
         $group->get('/detail', function ($req, $res) use ($config) {
-            $appName = $config['app_name'] ?? 'Метафракс';
-            $user    = $_SESSION['user'] ?? ['display_name' => '', 'username' => '', 'auth_source' => ''];
+            $appName  = $config['app_name'] ?? 'Метафракс';
+            $basePath = $config['base_path'] ?? '';
+            $user     = $_SESSION['user'] ?? ['display_name' => '', 'username' => '', 'auth_source' => ''];
             ob_start();
             require __DIR__ . '/../templates/detail.php';
             $html = ob_get_clean();
@@ -119,5 +120,5 @@ return function (App $app, array $config): void {
             return $res->withHeader('Content-Type', 'text/html; charset=utf-8');
         });
 
-    })->add(new \App\Middleware\AuthMiddleware());
+    })->add(new \App\Middleware\AuthMiddleware($config['base_path'] ?? ''));
 };

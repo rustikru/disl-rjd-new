@@ -1,6 +1,8 @@
 <?php
 /** @var string $appName */
+/** @var string $basePath */
 /** @var array  $user  ['username', 'display_name', 'email', 'auth_source'] */
+$basePath = $basePath ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -10,7 +12,8 @@
   <title><?= htmlspecialchars($appName) ?> — Дислокация</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/app.css">
+  <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
+  <script>window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';</script>
 </head>
 <body>
 
@@ -41,7 +44,7 @@
         <span class="user-name" title="<?= htmlspecialchars($user['auth_source'] ?? '') ?>">
           <?= htmlspecialchars($user['display_name'] ?? $user['username']) ?>
         </span>
-        <form method="POST" action="/logout" style="display:inline">
+        <form method="POST" action="<?= htmlspecialchars($basePath) ?>/logout" style="display:inline">
           <button type="submit" class="btn btn-ghost btn-sm">Выйти</button>
         </form>
       </div>
@@ -391,6 +394,6 @@
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"
   integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-<script src="/assets/js/app.js"></script>
+<script src="<?= htmlspecialchars($basePath) ?>/assets/js/app.js"></script>
 </body>
 </html>

@@ -22,7 +22,7 @@ class AuthController
     public function showLogin(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         if (!empty($_SESSION['user'])) {
-            return $response->withHeader('Location', '/')->withStatus(302);
+            return $response->withHeader('Location', ($this->config['base_path'] ?? '') . '/')->withStatus(302);
         }
 
         $appName = $this->config['app_name'];
@@ -43,19 +43,21 @@ class AuthController
         $username = trim($body['username'] ?? '');
         $password = $body['password'] ?? '';
 
+        $base = $this->config['base_path'] ?? '';
+
         if ($username === '' || $password === '') {
             $_SESSION['login_error'] = 'Введите логин и пароль';
-            return $response->withHeader('Location', '/login')->withStatus(302);
+            return $response->withHeader('Location', $base . '/login')->withStatus(302);
         }
 
         $user = $this->auth->login($username, $password);
 
         if ($user === null) {
             $_SESSION['login_error'] = 'Неверный логин или пароль';
-            return $response->withHeader('Location', '/login')->withStatus(302);
+            return $response->withHeader('Location', $base . '/login')->withStatus(302);
         }
 
         $_SESSION['user'] = $user;
-        return $response->withHeader('Location', '/')->withStatus(302);
+        return $response->withHeader('Location', $base . '/')->withStatus(302);
     }
 }

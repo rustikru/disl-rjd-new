@@ -12,12 +12,10 @@ class DbFactory
 {
     public static function create(array $config): DbInterface
     {
-        return match ($config['db_driver']) {
-            'postgres' => new PostgresDb($config),
-            'oracle'   => new OracleDb($config),
-            default    => throw new \InvalidArgumentException(
-                "Неизвестный драйвер БД: '{$config['db_driver']}'. Используйте 'postgres' или 'oracle'."
-            ),
-        };
+        if ($config['db_driver'] === 'postgres') { return new PostgresDb($config); }
+        if ($config['db_driver'] === 'oracle')   { return new OracleDb($config); }
+        throw new \InvalidArgumentException(
+            "Неизвестный драйвер БД: '{$config['db_driver']}'. Используйте 'postgres' или 'oracle'."
+        );
     }
 }
