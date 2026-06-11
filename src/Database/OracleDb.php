@@ -28,6 +28,14 @@ class OracleDb implements DbInterface
             $err = oci_error();
             throw new \RuntimeException('Oracle: ошибка подключения — ' . $err['message']);
         }
+
+        // Устанавливаем формат дат чтобы строки 'YYYY-MM-DD HH24:MI:SS' корректно парсились
+        $stmt = oci_parse($this->connection,
+            "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD HH24:MI:SS' " .
+            "NLS_TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF'"
+        );
+        oci_execute($stmt);
+        oci_free_statement($stmt);
     }
 
     public function fetchAll(string $sql, array $params = []): array
