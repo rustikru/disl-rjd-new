@@ -11,9 +11,6 @@ $basePath = $basePath ?? '';
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= htmlspecialchars($appName) ?> — Дислокация</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400&display=swap"
-    rel="stylesheet">
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
   <script>window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';</script>
 </head>
