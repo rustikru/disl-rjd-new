@@ -66,16 +66,11 @@ $success = $_GET['success'] ?? '';
     <div class="header-inner">
       <div class="brand">
         <div class="brand-icon">
-          <!-- <svg width="28" height="28" viewBox="0 0 30 30" fill="none">
-          <rect x="1" y="10" width="28" height="12" rx="2" fill="currentColor" opacity=".9"/>
-          <circle cx="7.5"  cy="24" r="3" fill="currentColor"/>
-          <circle cx="22.5" cy="24" r="3" fill="currentColor"/>
-          <rect x="6"  y="7" width="7" height="5" rx="1" fill="currentColor" opacity=".5"/>
-          <rect x="17" y="7" width="7" height="5" rx="1" fill="currentColor" opacity=".5"/>
-        </svg> -->
         </div>
         <div class="brand-text">
-          <div class="brand-name">Метафракс</div>
+          <div class="brand-name">
+            <?= htmlspecialchars($appName) ?>
+          </div>
           <div class="brand-sub">Загрузка справки РЖД</div>
         </div>
       </div>
