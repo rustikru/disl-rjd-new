@@ -13,6 +13,7 @@ use Psr\Http\Message\UploadedFileInterface;
 class ImportController
 {
     private DbInterface $db;
+    private array $config;
 
     /** Поля, которые хранятся как DATE в БД (Excel: 'DD.MM.YYYY' или 'DD.MM.YYYY HH:MI') */
     private const DATE_FIELDS = [
@@ -65,9 +66,10 @@ class ImportController
         'boiler_caliber',
     ];
 
-    public function __construct(DbInterface $db)
+    public function __construct(DbInterface $db, array $config = [])
     {
-        $this->db = $db;
+        $this->db     = $db;
+        $this->config = $config;
     }
 
     /** GET /import */
@@ -80,6 +82,9 @@ class ImportController
              ORDER BY (report_dt) DESC, type_reference
              " . $this->db->limit(20)
         );
+
+        $appName  = $this->config['app_name']  ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
 
         ob_start();
         include __DIR__ . '/../../templates/import.php';

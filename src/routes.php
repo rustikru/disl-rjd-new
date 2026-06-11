@@ -44,12 +44,12 @@ return function (App $app, array $config): void {
         });
 
         // Страница импорта XLSX
-        $group->get('/import', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ImportController($getDb()))->showForm($req, $res);
+        $group->get('/import', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\ImportController($getDb(), $config))->showForm($req, $res);
         });
 
-        $group->post('/import', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ImportController($getDb()))->handleUpload($req, $res);
+        $group->post('/import', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\ImportController($getDb(), $config))->handleUpload($req, $res);
         });
 
         // API эндпоинты

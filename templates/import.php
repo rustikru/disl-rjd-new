@@ -1,8 +1,12 @@
 <?php
-/** @var array $reports  [['report_dt' => ..., 'cnt' => ...], ...] */
-$error = $_GET['error'] ?? '';
-$warn = $_GET['warn'] ?? '';
-$success = $_GET['success'] ?? '';
+/** @var string $appName */
+/** @var string $basePath */
+/** @var array  $reports  [['report_dt' => ..., 'cnt' => ...], ...] */
+$appName  = $appName  ?? 'Дислокация РЖД';
+$basePath = $basePath ?? '';
+$error    = $_GET['error']   ?? '';
+$warn     = $_GET['warn']    ?? '';
+$success  = $_GET['success'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -86,11 +90,11 @@ $success = $_GET['success'] ?? '';
   <div class="import-wrap">
 
     <?php if ($error): ?>
-      <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
+      <div class="alert alert-error"><?= htmlspecialchars($error ?? '') ?></div>
     <?php elseif ($warn): ?>
-      <div class="alert alert-warn"><?= htmlspecialchars($warn) ?></div>
+      <div class="alert alert-warn"><?= htmlspecialchars($warn ?? '') ?></div>
     <?php elseif ($success): ?>
-      <div class="alert alert-ok"><?= htmlspecialchars($success) ?></div>
+      <div class="alert alert-ok"><?= htmlspecialchars($success ?? '') ?></div>
     <?php endif; ?>
 
     <section class="table-section" style="margin-bottom:28px">
