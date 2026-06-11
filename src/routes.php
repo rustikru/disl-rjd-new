@@ -32,6 +32,10 @@ return function (App $app, array $config): void {
         return $res->withHeader('Location', ($config['base_path'] ?? '') . '/login')->withStatus(302);
     });
 
+    $app->get('/logout', function ($req, $res) use ($config) {
+        return $res->withHeader('Location', ($config['base_path'] ?? '') . '/login')->withStatus(302);
+    });
+
     // Защищённые маршруты
     $app->group('', function ($group) use ($config, $getDb) {
 
