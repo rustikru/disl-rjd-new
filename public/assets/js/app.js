@@ -55,15 +55,6 @@ var TAB_GROUPS = [
   },
 ]
 
-// Плоский словарь id → label, строится из TAB_GROUPS один раз
-var TAB_LABELS = (function () {
-  var m = {}
-  TAB_GROUPS.forEach(function (g) {
-    ;(g.tabs || []).forEach(function (t) { m[t.id] = t.label })
-  })
-  return m
-})()
-
 // Сайдбар
 function initSidebar() {
   var sidebar = document.getElementById('sidebar')
@@ -505,27 +496,6 @@ var WAGON_TABS = {
       $('#fApproachCargo').val('')
       $('#fApproachPrevCargo').val('')
     },
-    // Тут деталиаций (шапка страницы)
-    detailCols: [
-      { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
-      { key: 'wagon_type_code', label: 'Род вагона', meta: true },
-      { key: 'cargo_name', label: 'Груз', meta: true },
-      { key: 'prev_cargo', label: 'Ранее выгружен', meta: true },
-      {
-        key: 'dist_remain_km',
-        label: 'Ост. расстояние',
-        right: true,
-        fmt: function (v) {
-          var d = parseInt(v) || 0
-          return d ? d.toLocaleString('ru-RU') + ' км' : ''
-        },
-      },
-      { key: 'depart_station', label: 'Ст. отправл.', meta: true },
-      { key: 'oper_station', label: 'Тек. станция', meta: true },
-      { key: 'dest_station', label: 'Ст. назнач.', meta: true },
-      { key: 'dest_road', label: 'Дорога назнач.', meta: true },
-      { key: 'norm_delivery_dt', label: 'Норм. дата дост.', meta: true },
-    ],
   },
 
   // Отправление
@@ -562,19 +532,6 @@ var WAGON_TABS = {
       $('#fDepartureCargo').val('')
       $('#fDestStation').val('')
     },
-    // Тут деталиаций (шапка страницы)
-    detailCols: [
-      { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
-      { key: 'wagon_type_code', label: 'Тип', meta: true },
-      { key: 'cargo_name', label: 'Груз', meta: true },
-      { key: 'cargo_weight_kg', label: 'Вес (кг)', right: true },
-      { key: 'depart_station', label: 'Ст. отправл.', meta: true },
-      { key: 'depart_road', label: 'Дорога отпр.', meta: true },
-      { key: 'dest_station', label: 'Ст. назнач.', meta: true },
-      { key: 'dest_road', label: 'Дорога назнач.', meta: true },
-      { key: 'dist_remain_km', label: 'Ост. км', right: true },
-      { key: 'norm_delivery_dt', label: 'Норм. дата дост.', meta: true },
-    ],
   },
 
   // Погрузка
@@ -606,18 +563,6 @@ var WAGON_TABS = {
     resetFilters: function () {
       $('#fLoadingCargo').val('')
     },
-    // Тут деталиаций (шапка страницы)
-    detailCols: [
-      { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
-      { key: 'wagon_type_code', label: 'Тип', meta: true },
-      { key: 'cargo_name', label: 'Груз', meta: true },
-      { key: 'cargo_weight_kg', label: 'Вес (кг)', right: true },
-      { key: 'depart_station', label: 'Ст. отправл.', meta: true },
-      { key: 'depart_road', label: 'Дорога', meta: true },
-      { key: 'dest_station', label: 'Ст. назнач.', meta: true },
-      { key: 'oper_mnemonic', label: 'Операция', meta: true },
-      { key: 'oper_dt', label: 'Дата опер.', meta: true },
-    ],
   },
 }
 
@@ -688,31 +633,22 @@ function loadSummary(cfg) {
 function loadDetail(cfg) {
   var $sub = $('#' + cfg.detSubId)
   var $table = $('#' + cfg.detTableId)
+  var cols = DETAIL_CONTEXTS[cfg.ctx] ? DETAIL_CONTEXTS[cfg.ctx].cols : []
   $sub.text('Загрузка...')
   var detailParams = Object.assign({}, cfg.getParams(), {
-    fields: (cfg.detailCols || [])
-      .map(function (c) {
-        return c.key
-      })
-      .join(','),
-    group_by: (cfg.groupCols || [])
-      .map(function (g) {
-        return g.key
-      })
-      .join(','),
+    fields: cols.map(function (c) { return c.key }).join(','),
+    group_by: (cfg.groupCols || []).map(function (g) { return g.key }).join(','),
   })
   $.getJSON(cfg.detailUrl, detailParams)
     .done(function (data) {
-      showTable($table, data.rows, cfg.detailCols)
+      showTable($table, data.rows, cols)
       $sub.text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'))
     })
     .fail(function (jqXHR) {
       $table.html(
-        '<tbody><tr><td colspan="' +
-          cfg.detailCols.length +
+        '<tbody><tr><td colspan="' + cols.length +
           '" style="text-align:center;padding:40px;color:#9DA5B0">' +
-          esc(ajaxErr(jqXHR)) +
-          '</td></tr></tbody>',
+          esc(ajaxErr(jqXHR)) + '</td></tr></tbody>',
       )
     })
 }
@@ -759,35 +695,6 @@ var extCols = [
   { key: 'idle_time_days', label: 'Простой (дн)' },
   { key: 'asoup_arrive_dt', label: 'Приб. (АСОУП)', meta: true },
 ]
-
-var downtimeCols = [
-  { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
-  { key: 'wagon_type_code', label: 'Тип', meta: true },
-  { key: 'cargo_name', label: 'Груз', meta: true },
-  { key: 'oper_station', label: 'Текущая станция', meta: true },
-  { key: 'oper_road', label: 'Дорога', meta: true },
-  { key: 'idle_time_days', label: 'Простой (сут.)', danger: true },
-  { key: 'owner', label: 'Владелец', meta: true },
-  { key: 'lessee', label: 'Арендатор', meta: true },
-]
-
-var rawCols = [
-  { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
-  { key: 'wagon_type_code', label: 'Тип', meta: true },
-  { key: 'cargo_name', label: 'Груз', meta: true },
-  { key: 'cargo_weight_kg', label: 'Вес (кг)', right: true },
-  { key: 'idle_time_days', label: 'Простой (сут.)', danger: true },
-  { key: 'oper_station', label: 'Тек. станция', meta: true },
-  { key: 'oper_road', label: 'Дорога', meta: true },
-  { key: 'depart_station', label: 'Ст. отправл.', meta: true },
-  { key: 'owner', label: 'Владелец', meta: true },
-]
-
-// Конфиги для drill-down вкладок, которых нет в WAGON_TABS (простои, сырьё)
-var CTX_EXTRA = {
-  downtime: { endpoint: BASE + '/api/downtime/detail',     cols: downtimeCols },
-  'raw-material': { endpoint: BASE + '/api/raw-material/detail', cols: rawCols },
-}
 
 /******** downtime ********/
 
@@ -867,7 +774,7 @@ function drawDowntime(rows) {
 }
 
 function showDowntimeDet(rows) {
-  showTable($('#downtimeDetTable'), rows, downtimeCols)
+  showTable($('#downtimeDetTable'), rows, DETAIL_CONTEXTS.downtime.cols)
 }
 
 /******** raw material ********/
@@ -905,7 +812,7 @@ function loadRaw() {
 function loadRawDet(cargo) {
   var params = cargo ? { cargo: cargo } : {}
   $.getJSON(BASE + '/api/raw-material/detail', params).done(function (data) {
-    showTable($('#rawDetTable'), data.rows, rawCols)
+    showTable($('#rawDetTable'), data.rows, DETAIL_CONTEXTS['raw-material'].cols)
     $('#rawDetSub').text(
       'Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'),
     )
@@ -1223,24 +1130,7 @@ $(document).on('input', '.col-search-input', function () {
 // Drill-down: открыть страницу детализации в новой вкладке
 function openDetail(ctx, road, station, col, groupBy) {
   var p = new URLSearchParams()
-  var wt  = WAGON_TABS[ctx]
-  var ex  = CTX_EXTRA[ctx]
-  var def = wt || ex
-  if (def) {
-    p.set('label',    TAB_LABELS[ctx] || ctx)
-    p.set('endpoint', wt ? wt.detailUrl : ex.endpoint)
-    // Сериализуем колонки без fmt-функций (JSON не поддерживает функции)
-    var srcCols = wt ? wt.detailCols : ex.cols
-    var cols = (srcCols || []).map(function (c) {
-      var o = { key: c.key, label: c.label }
-      if (c.meta)   o.meta   = true
-      if (c.mono)   o.mono   = true
-      if (c.right)  o.right  = true
-      if (c.danger) o.danger = true
-      return o
-    })
-    p.set('cols', JSON.stringify(cols))
-  }
+  p.set('ctx', ctx)
   if (road)    p.set('road', road)
   if (station) p.set('station', station)
   if (col)     p.set('col', col)

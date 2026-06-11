@@ -102,6 +102,7 @@ $basePath = $basePath ?? '';
   </div>
 
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jquery/jquery-3.7.1.min.js"></script>
+  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js"></script>
   <script>
     'use strict';
 
@@ -138,20 +139,17 @@ $basePath = $basePath ?? '';
     });
 
     $(function () {
-      var params   = new URLSearchParams(window.location.search);
-      var road     = params.get('road')     || '';
-      var station  = params.get('station')  || '';
-      var col      = params.get('col')      || '';
+      var params  = new URLSearchParams(window.location.search);
+      var ctx     = params.get('ctx')     || '';
+      var road    = params.get('road')    || '';
+      var station = params.get('station') || '';
+      var col     = params.get('col')     || '';
 
-      // Конфиг контекста приходит из URL (сериализован в openDetail из app.js)
+      // Конфиг берём из DETAIL_CONTEXTS (detail-contexts.js)
       var ctxDef = null;
-      var endpointParam = params.get('endpoint') || '';
-      var colsParam     = params.get('cols')     || '';
-      var labelParam    = params.get('label')    || '';
-      if (endpointParam && colsParam) {
-        try {
-          ctxDef = { label: labelParam, endpoint: endpointParam, cols: JSON.parse(colsParam) };
-        } catch (e) {}
+      var def = DETAIL_CONTEXTS[ctx];
+      if (def) {
+        ctxDef = { label: def.label, endpoint: BASE + def.endpoint, cols: def.cols };
       }
 
       // Breadcrumb
@@ -193,7 +191,7 @@ $basePath = $basePath ?? '';
       if (road) { apiParams.set('road', road); }
       if (station) { apiParams.set('station', station); }
       if (col) { apiParams.set('wagon_type', col); }
-      // Поля из detailCols конфига — backend делает SELECT только их
+      // Поля из cols конфига — backend делает SELECT только их
       var fields = ctxDef.cols.map(function (c) { return c.key; }).join(',');
       apiParams.set('fields', fields);
       // Поля группировки из summary — backend фильтрует по ним road/station
