@@ -15,7 +15,10 @@ var BASE = window.APP_BASE || ''
 var TAB_GROUPS = [
   {
     label: '',
-    tabs: [{ id: 'dashboard', label: 'Dashboard' }],
+    tabs: [
+      //{ id: 'main', label: 'Главная' },
+      //{ id: 'dashboard', label: 'Dashboard' }
+    ],
   },
   {
     label: 'Движение вагонов',

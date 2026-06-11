@@ -31,10 +31,10 @@ $basePath = $basePath ?? '';
         </div>
       </div>
       <div class="header-meta">
-        <span class="meta-update">
+        <!-- <span class="meta-update">
           <span class="meta-label">Обновлено: </span>
           <span id="headerDate">—</span>
-        </span>
+        </span> -->
         <div class="user-info">
           <span class="user-name" title="<?= htmlspecialchars($user['auth_source'] ?? '') ?>">
             <?= htmlspecialchars($user['display_name'] ?? $user['username']) ?>
