@@ -210,15 +210,16 @@ END;
 /
 
 -- Индексы для всех полей используемых в WHERE / JOIN / ORDER
-CREATE INDEX IF NOT EXISTS idx_xx_rjd_report_dt   ON xx_dislocation_rjd (report_dt);
-CREATE INDEX IF NOT EXISTS idx_xx_rjd_wagon_no    ON xx_dislocation_rjd (wagon_no);
-CREATE INDEX IF NOT EXISTS idx_xx_rjd_dest        ON xx_dislocation_rjd (report_dt, dest_road, dest_station);
-CREATE INDEX IF NOT EXISTS idx_xx_rjd_depart      ON xx_dislocation_rjd (report_dt, depart_road, depart_station);
-CREATE INDEX IF NOT EXISTS idx_xx_rjd_oper        ON xx_dislocation_rjd (report_dt, oper_road, oper_station);
-CREATE INDEX IF NOT EXISTS idx_xx_rjd_mnemonic    ON xx_dislocation_rjd (report_dt, oper_mnemonic);
-CREATE INDEX IF NOT EXISTS idx_xx_rjd_cargo       ON xx_dislocation_rjd (report_dt, cargo_name);
-CREATE INDEX IF NOT EXISTS idx_xx_rjd_park_type   ON xx_dislocation_rjd (report_dt, park_type);
-CREATE INDEX IF NOT EXISTS idx_xx_rjd_wagon_type  ON xx_dislocation_rjd (report_dt, wagon_type_code);
+-- Примечание: Oracle не поддерживает IF NOT EXISTS для CREATE INDEX
+CREATE INDEX idx_xx_rjd_report_dt   ON xx_dislocation_rjd (report_dt);
+CREATE INDEX idx_xx_rjd_wagon_no    ON xx_dislocation_rjd (wagon_no);
+CREATE INDEX idx_xx_rjd_dest        ON xx_dislocation_rjd (report_dt, dest_road, dest_station);
+CREATE INDEX idx_xx_rjd_depart      ON xx_dislocation_rjd (report_dt, depart_road, depart_station);
+CREATE INDEX idx_xx_rjd_oper        ON xx_dislocation_rjd (report_dt, oper_road, oper_station);
+CREATE INDEX idx_xx_rjd_mnemonic    ON xx_dislocation_rjd (report_dt, oper_mnemonic);
+CREATE INDEX idx_xx_rjd_cargo       ON xx_dislocation_rjd (report_dt, cargo_name);
+CREATE INDEX idx_xx_rjd_park_type   ON xx_dislocation_rjd (report_dt, park_type);
+CREATE INDEX idx_xx_rjd_wagon_type  ON xx_dislocation_rjd (report_dt, wagon_type_code);
 
 COMMENT ON TABLE  xx_dislocation_rjd IS 'Дислокация вагонов РЖД — 126 колонок из ЛК клиента РЖД';
 COMMENT ON COLUMN xx_dislocation_rjd.bogie_model    IS 'Кол.109 — список моделей тележек через запятую';

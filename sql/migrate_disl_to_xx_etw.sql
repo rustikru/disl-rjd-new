@@ -3,6 +3,8 @@
 -- Выполнить:
 --   docker cp migrate_disl_to_xx_etw.sql disl_oracle:/tmp/
 --   docker exec -it disl_oracle sqlplus 'system/Oracle123!@FREEPDB1' '@/tmp/migrate_disl_to_xx_etw.sql'
+--
+-- PL/SQL-блоки (BEGIN...END) завершаются "/", обычные DDL только ";"
 -- ================================================================
 
 -- ── 1. Создаём пользователя (если уже есть — пропускаем ошибку) ──
@@ -31,25 +33,16 @@ BEGIN EXECUTE IMMEDIATE 'DROP TABLE xx_etw.users';               EXCEPTION WHEN 
 
 -- ── 3. Копируем таблицы с данными через CTAS ─────────────────────
 CREATE TABLE xx_etw.users             AS SELECT * FROM disl.users;
-/
 CREATE TABLE xx_etw.wagon_dislocation AS SELECT * FROM disl.wagon_dislocation;
-/
 CREATE TABLE xx_etw.wagon_extended    AS SELECT * FROM disl.wagon_extended;
-/
 CREATE TABLE xx_etw.wagon_approach    AS SELECT * FROM disl.wagon_approach;
-/
 CREATE TABLE xx_etw.xx_dislocation_rjd AS SELECT * FROM disl.xx_dislocation_rjd;
-/
 
 -- ── 4. Воссоздаём индексы ─────────────────────────────────────────
-CREATE INDEX xx_etw.idx_disloc_date         ON xx_etw.wagon_dislocation(report_date);
-/
-CREATE INDEX xx_etw.idx_disloc_section      ON xx_etw.wagon_dislocation(report_date, section_id);
-/
+CREATE INDEX xx_etw.idx_disloc_date          ON xx_etw.wagon_dislocation(report_date);
+CREATE INDEX xx_etw.idx_disloc_section       ON xx_etw.wagon_dislocation(report_date, section_id);
 CREATE INDEX xx_etw.idx_xx_dislocn_report_dt ON xx_etw.xx_dislocation_rjd(report_dt);
-/
 CREATE INDEX xx_etw.idx_xx_dislocn_wagon_no  ON xx_etw.xx_dislocation_rjd(wagon_no);
-/
 
 -- ── 5. Проверка ───────────────────────────────────────────────────
 SELECT 'users' AS tbl,
@@ -71,9 +64,6 @@ UNION ALL
 SELECT 'xx_dislocation_rjd',
        (SELECT COUNT(*) FROM disl.xx_dislocation_rjd),
        (SELECT COUNT(*) FROM xx_etw.xx_dislocation_rjd) FROM dual;
-/
 
 -- ── 6. Удалить старую схему (ТОЛЬКО после проверки old_cnt = new_cnt!) ──
 -- DROP USER disl CASCADE;
--- COMMIT;
-/
