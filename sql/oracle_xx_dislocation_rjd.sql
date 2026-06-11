@@ -11,6 +11,7 @@
 CREATE TABLE IF NOT EXISTS xx_dislocation_rjd (
     id                     NUMBER         NOT NULL PRIMARY KEY,
     report_dt              TIMESTAMP      NOT NULL,  -- дата справки из ячейки A2
+    type_reference         VARCHAR2(50),   -- тип справки: 'Подход' / 'Отправка' (вычисляется при импорте по dest_station)
 
     -- ── Идентификаторы ───────────────────────────────────────────
     wagon_no               VARCHAR2(500),  -- кол.  1  '50447762'
@@ -212,6 +213,7 @@ END;
 -- Индексы для всех полей используемых в WHERE / JOIN / ORDER
 -- Примечание: Oracle не поддерживает IF NOT EXISTS для CREATE INDEX
 CREATE INDEX idx_xx_rjd_report_dt   ON xx_dislocation_rjd (report_dt);
+CREATE INDEX idx_xx_rjd_type_ref    ON xx_dislocation_rjd (report_dt, type_reference);
 CREATE INDEX idx_xx_rjd_wagon_no    ON xx_dislocation_rjd (wagon_no);
 CREATE INDEX idx_xx_rjd_dest        ON xx_dislocation_rjd (report_dt, dest_road, dest_station);
 CREATE INDEX idx_xx_rjd_depart      ON xx_dislocation_rjd (report_dt, depart_road, depart_station);

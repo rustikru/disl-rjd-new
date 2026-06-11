@@ -46,11 +46,11 @@ class ImportController
     public function showForm(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $reports = $this->db->fetchAll(
-            'SELECT report_dt, COUNT(*) AS cnt
+            'SELECT TRUNC(report_dt) AS report_date, type_reference, COUNT(*) AS cnt
              FROM xx_dislocation_rjd
-             GROUP BY report_dt
-             ORDER BY report_dt DESC
-             ' . $this->db->limit(10)
+             GROUP BY TRUNC(report_dt), type_reference
+             ORDER BY TRUNC(report_dt) DESC, type_reference
+             ' . $this->db->limit(20)
         );
 
         ob_start();
@@ -96,12 +96,12 @@ class ImportController
 
         if ($result['skipped']) {
             return $this->redirect($response, '/import?warn=' . urlencode(
-                'Справка на ' . $result['report_dt'] . ' уже была загружена ранее — импорт пропущен'
+                'Справка «' . $result['type'] . '» на ' . $result['report_dt'] . ' уже была загружена ранее — импорт пропущен'
             ));
         }
 
         return $this->redirect($response, '/import?success=' . urlencode(
-            'Загружено ' . $result['rows'] . ' строк. Справка: ' . $result['report_dt']
+            'Загружено ' . $result['rows'] . ' строк. Справка «' . $result['type'] . '»: ' . $result['report_dt']
         ));
     }
 
@@ -118,22 +118,29 @@ class ImportController
         $rawDt    = trim((string) $sheet->getCell('A2')->getValue());
         $reportDt = $this->parseReportDate($rawDt);
 
-        // Дедупликация
+        $highestRow = $sheet->getHighestRow();
+
+        // Определяем тип справки по dest_station (кол. 12) первой непустой строки
+        $fileType = $this->detectFileType($sheet, $highestRow);
+
+        // Дедупликация: одна дата (без времени) + тип справки = одна загрузка
+        // Это позволяет загрузить «Подход» и «Отправка» за одну дату как отдельные справки
+        $reportDate = substr($reportDt, 0, 10); // 'YYYY-MM-DD'
         $exists = $this->db->fetchOne(
-            'SELECT COUNT(*) AS cnt FROM xx_dislocation_rjd WHERE report_dt = :dt',
-            ['dt' => $reportDt]
+            "SELECT COUNT(*) AS cnt FROM xx_dislocation_rjd
+             WHERE TRUNC(report_dt) = TO_DATE(:dt, 'YYYY-MM-DD') AND type_reference = :type",
+            ['dt' => $reportDate, 'type' => $fileType]
         );
         if ((int) ($exists['cnt'] ?? 0) > 0) {
-            return ['skipped' => true, 'report_dt' => $rawDt, 'rows' => 0];
+            return ['skipped' => true, 'report_dt' => $rawDt, 'type' => $fileType, 'rows' => 0];
         }
 
         $fields       = $this->columnFieldNames();
         $placeholders = array_map(fn($f) => ':' . $f, $fields);
-        $insertSql    = 'INSERT INTO xx_dislocation_rjd (report_dt, ' . implode(', ', $fields) . ')'
-                      . ' VALUES (:report_dt, ' . implode(', ', $placeholders) . ')';
+        $insertSql    = 'INSERT INTO xx_dislocation_rjd (report_dt, type_reference, ' . implode(', ', $fields) . ')'
+                      . ' VALUES (:report_dt, :type_reference, ' . implode(', ', $placeholders) . ')';
 
-        $highestRow = $sheet->getHighestRow();
-        $inserted   = 0;
+        $inserted = 0;
 
         $this->db->beginTransaction();
         try {
@@ -149,7 +156,11 @@ class ImportController
                     continue;
                 }
 
-                $params = ['report_dt' => $reportDt];
+                // type_reference: per-row по dest_station (индекс 11 = кол. 12)
+                $destStation = $vals[11] ?? '';
+                $typeRef     = ($destStation === 'УГЛЕУРАЛЬСКАЯ (768207)') ? 'Подход' : 'Отправка';
+
+                $params = ['report_dt' => $reportDt, 'type_reference' => $typeRef];
                 foreach ($fields as $i => $field) {
                     $params[$field] = $this->castValue($field, $vals[$i] ?? null);
                 }
@@ -165,7 +176,7 @@ class ImportController
             unset($spreadsheet);
         }
 
-        return ['skipped' => false, 'report_dt' => $rawDt, 'rows' => $inserted];
+        return ['skipped' => false, 'report_dt' => $rawDt, 'type' => $fileType, 'rows' => $inserted];
     }
 
     private function parseReportDate(string $raw): string
@@ -217,6 +228,21 @@ class ImportController
             'exclude_depot', 'exclude_reason',
             'days_to_repair', 'days_no_oper', 'days_no_move',
         ];
+    }
+
+    /**
+     * Определяет тип справки по первой непустой dest_station (кол. 12 = столбец L).
+     * 'УГЛЕУРАЛЬСКАЯ (768207)' → 'Подход', всё остальное → 'Отправка'.
+     */
+    private function detectFileType(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $highestRow): string
+    {
+        for ($row = 5; $row <= min(35, $highestRow); $row++) {
+            $val = trim((string) ($sheet->getCell('L' . $row)->getValue() ?? ''));
+            if ($val !== '') {
+                return ($val === 'УГЛЕУРАЛЬСКАЯ (768207)') ? 'Подход' : 'Отправка';
+            }
+        }
+        return 'Отправка';
     }
 
     /** Приводит строку из Excel к нужному типу для вставки в БД. */
