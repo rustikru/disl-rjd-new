@@ -55,6 +55,15 @@ var TAB_GROUPS = [
   },
 ]
 
+// Плоский словарь id → label, строится из TAB_GROUPS один раз
+var TAB_LABELS = (function () {
+  var m = {}
+  TAB_GROUPS.forEach(function (g) {
+    ;(g.tabs || []).forEach(function (t) { m[t.id] = t.label })
+  })
+  return m
+})()
+
 // Сайдбар
 function initSidebar() {
   var sidebar = document.getElementById('sidebar')
@@ -774,6 +783,12 @@ var rawCols = [
   { key: 'owner', label: 'Владелец', meta: true },
 ]
 
+// Конфиги для drill-down вкладок, которых нет в WAGON_TABS (простои, сырьё)
+var CTX_EXTRA = {
+  downtime: { endpoint: BASE + '/api/downtime/detail',     cols: downtimeCols },
+  'raw-material': { endpoint: BASE + '/api/raw-material/detail', cols: rawCols },
+}
+
 /******** downtime ********/
 
 function loadDowntimeInit() {
@@ -1208,10 +1223,27 @@ $(document).on('input', '.col-search-input', function () {
 // Drill-down: открыть страницу детализации в новой вкладке
 function openDetail(ctx, road, station, col, groupBy) {
   var p = new URLSearchParams()
-  p.set('context', ctx)
-  if (road) p.set('road', road)
+  var wt  = WAGON_TABS[ctx]
+  var ex  = CTX_EXTRA[ctx]
+  var def = wt || ex
+  if (def) {
+    p.set('label',    TAB_LABELS[ctx] || ctx)
+    p.set('endpoint', wt ? wt.detailUrl : ex.endpoint)
+    // Сериализуем колонки без fmt-функций (JSON не поддерживает функции)
+    var srcCols = wt ? wt.detailCols : ex.cols
+    var cols = (srcCols || []).map(function (c) {
+      var o = { key: c.key, label: c.label }
+      if (c.meta)   o.meta   = true
+      if (c.mono)   o.mono   = true
+      if (c.right)  o.right  = true
+      if (c.danger) o.danger = true
+      return o
+    })
+    p.set('cols', JSON.stringify(cols))
+  }
+  if (road)    p.set('road', road)
   if (station) p.set('station', station)
-  if (col) p.set('col', col)
+  if (col)     p.set('col', col)
   if (groupBy) p.set('group_by', groupBy)
   window.open(BASE + '/detail?' + p.toString(), '_blank')
 }
