@@ -24,25 +24,26 @@ class ApiController
     public function reports(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $rows = $this->db->fetchAll(
-            'SELECT report_dt, COUNT(*) AS cnt
+            'SELECT TRUNC(report_dt) AS report_date, type_reference, COUNT(*) AS cnt
              FROM xx_dislocation_rjd
-             GROUP BY report_dt
-             ORDER BY report_dt DESC
+             GROUP BY TRUNC(report_dt), type_reference
+             ORDER BY TRUNC(report_dt) DESC, type_reference
              ' . $this->db->limit(20)
         );
 
         $reports = array_map(function (array $r) {
-            $dt = (string) ($r['report_dt'] ?? '');
+            $dt = (string) ($r['report_date'] ?? '');
             $label = $dt;
             try {
                 $d = new \DateTime($dt);
-                $label = $d->format('d.m.Y H:i');
+                $label = $d->format('d.m.Y');
             } catch (\Exception $e) {
             }
             return [
-                'report_dt' => $dt,
-                'label' => $label,
-                'cnt' => (int) $r['cnt'],
+                'report_dt'      => $dt,
+                'type_reference' => (string) ($r['type_reference'] ?? ''),
+                'label'          => $label . ($r['type_reference'] ? ' (' . $r['type_reference'] . ')' : ''),
+                'cnt'            => (int) $r['cnt'],
             ];
         }, $rows);
 
@@ -171,14 +172,9 @@ class ApiController
     public function approachSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $reportDt = $params['report_dt'] ?? null;
+        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null, 'Подход');
         $cargo = $params['cargo'] ?? null;
         $prevCargo = $params['prev_cargo'] ?? null;
-
-        if (!$reportDt) {
-            $latest = $this->db->fetchOne('SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd');
-            $reportDt = $latest['dt'] ?? null;
-        }
 
         if (!$reportDt) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
@@ -252,17 +248,12 @@ class ApiController
     public function approachDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $reportDt = $params['report_dt'] ?? null;
+        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null, 'Подход');
         $cargo = $params['cargo'] ?? null;
         $prevCargo = $params['prev_cargo'] ?? null;
         $road = $params['road'] ?? null;
         $station = $params['station'] ?? null;
         $wagType = $params['wagon_type'] ?? null;
-
-        if (!$reportDt) {
-            $latest = $this->db->fetchOne('SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd');
-            $reportDt = $latest['dt'] ?? null;
-        }
 
         if (!$reportDt) {
             return $this->json($response, ['rows' => []]);
@@ -302,12 +293,7 @@ class ApiController
     public function approachFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $reportDt = $params['report_dt'] ?? null;
-
-        if (!$reportDt) {
-            $latest = $this->db->fetchOne('SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd');
-            $reportDt = $latest['dt'] ?? null;
-        }
+        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null, 'Подход');
 
         if (!$reportDt) {
             return $this->json($response, ['cargo' => [], 'prev_cargo' => []]);
@@ -317,13 +303,15 @@ class ApiController
 
         $cargo = $this->db->fetchAll(
             "SELECT DISTINCT cargo_name FROM xx_dislocation_rjd
-             WHERE report_dt = :report_dt AND cargo_name IS NOT NULL AND nvl(prev_cargo,'*') != '*'
+             WHERE report_dt = :report_dt AND type_reference = 'Подход'
+               AND cargo_name IS NOT NULL AND nvl(prev_cargo,'*') != '*'
              ORDER BY cargo_name " . $this->db->limit(150),
             $bindings
         );
         $prevCargo = $this->db->fetchAll(
             "SELECT DISTINCT prev_cargo FROM xx_dislocation_rjd
-             WHERE report_dt = :report_dt AND prev_cargo IS NOT NULL AND nvl(prev_cargo,'*') != '*'
+             WHERE report_dt = :report_dt AND type_reference = 'Подход'
+               AND prev_cargo IS NOT NULL AND nvl(prev_cargo,'*') != '*'
              ORDER BY prev_cargo " . $this->db->limit(150),
             $bindings
         );
@@ -337,7 +325,7 @@ class ApiController
     /** WHERE-условие для запросов «Подход» (wagons in transit: dist_remain_km > 0) */
     private function buildApproachWhere(string $reportDt, ?string $cargo, ?string $prevCargo): array
     {
-        $where = "report_dt = :report_dt AND dist_remain_km IS NOT NULL AND dist_remain_km != '' AND dist_remain_km != '0'";
+        $where = "report_dt = :report_dt AND type_reference = 'Подход' AND dist_remain_km IS NOT NULL AND dist_remain_km != '' AND dist_remain_km != '0'";
         $bindings = ['report_dt' => $reportDt];
 
         if ($cargo) {
@@ -358,14 +346,14 @@ class ApiController
     public function departureSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null);
+        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null, 'Отправка');
         $cargo = $params['cargo'] ?? null;
 
         if (!$reportDt) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $where = "report_dt = :report_dt AND oper_mnemonic = 'ОТПР'";
+        $where = "report_dt = :report_dt AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
         $bindings = ['report_dt' => $reportDt];
         if ($cargo) {
             $where .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
@@ -388,7 +376,7 @@ class ApiController
     public function departureDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null);
+        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null, 'Отправка');
         $cargo = $params['cargo'] ?? null;
         $road = $params['road'] ?? null;
         $station = $params['station'] ?? null;
@@ -398,7 +386,7 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
-        $where = "report_dt = :report_dt AND oper_mnemonic = 'ОТПР'";
+        $where = "report_dt = :report_dt AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
         $bindings = ['report_dt' => $reportDt];
         if ($cargo) {
             $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';
@@ -658,11 +646,20 @@ class ApiController
 
     // ── Вспомогательные методы ────────────────────────────────────
 
-    private function resolveReportDt(?string $dt): ?string
+    /**
+     * Возвращает переданный report_dt или последний MAX(report_dt) для указанного типа справки.
+     * $typeRef = 'Подход' | 'Отправка' | null (любой тип)
+     */
+    private function resolveReportDt(?string $dt, ?string $typeRef = null): ?string
     {
-        if ($dt)
-            return $dt;
-        $row = $this->db->fetchOne('SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd');
+        if ($dt) return $dt;
+        $sql = 'SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd';
+        $params = [];
+        if ($typeRef !== null) {
+            $sql .= ' WHERE type_reference = :type_ref';
+            $params['type_ref'] = $typeRef;
+        }
+        $row = $this->db->fetchOne($sql, $params);
         return $row['dt'] ?? null;
     }
 
