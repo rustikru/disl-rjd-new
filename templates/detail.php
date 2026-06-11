@@ -238,9 +238,14 @@ $(function () {
       $('#detailSub').text('Строк: ' + rows.length.toLocaleString('ru-RU'));
       renderDetailTable(rows, ctxDef.cols);
     })
-    .fail(function () {
-      $('#detailTable').html('<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">Ошибка загрузки данных</td></tr></tbody>');
-      $('#detailSub').text('');
+    .fail(function (jqXHR) {
+      var status = jqXHR.status ? ' (' + jqXHR.status + ')' : '';
+      var detail = '';
+      try { var j = JSON.parse(jqXHR.responseText); detail = j.error || j.message || ''; }
+      catch (e) { detail = jqXHR.responseText || ''; }
+      var msg = 'Ошибка загрузки' + status + (detail ? ': ' + detail : '');
+      $('#detailTable').html('<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">' + esc(msg) + '</td></tr></tbody>');
+      $('#detailSub').text(msg);
     });
 });
 

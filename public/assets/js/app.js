@@ -178,8 +178,8 @@ function loadDashboard() {
       renderBarChart(data.sections)
       renderDonutChart(data.sections)
     })
-    .fail(function () {
-      $('#dashboardSub').text('Ошибка загрузки данных')
+    .fail(function (jqXHR) {
+      $('#dashboardSub').text(ajaxErr(jqXHR))
     })
 }
 
@@ -377,10 +377,12 @@ function loadDislocation() {
         (data.report_dt_label || data.date || '') + ' · РЖД',
       )
     })
-    .fail(function () {
+    .fail(function (jqXHR) {
+      var msg = ajaxErr(jqXHR)
       $('#mainTable').html(
-        '<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">Ошибка загрузки</td></tr></tbody>',
+        '<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">' + esc(msg) + '</td></tr></tbody>',
       )
+      $('#mainTableSub').text(msg)
     })
 }
 
@@ -457,9 +459,9 @@ function loadDislocationExtended() {
     .done(function (data) {
       renderExtendedTable(data.rows)
     })
-    .fail(function () {
+    .fail(function (jqXHR) {
       $('#dislExtTable').html(
-        '<tbody><tr><td colspan="10" style="text-align:center;padding:40px;color:#9DA5B0">Ошибка загрузки</td></tr></tbody>',
+        '<tbody><tr><td colspan="10" style="text-align:center;padding:40px;color:#9DA5B0">' + esc(ajaxErr(jqXHR)) + '</td></tr></tbody>',
       )
     })
 }
@@ -727,11 +729,12 @@ function loadWagonTabSummary(cfg) {
           ' ваг.',
       )
     })
-    .fail(function () {
+    .fail(function (jqXHR) {
+      var msg = ajaxErr(jqXHR)
       $table.html(
-        '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Ошибка загрузки</td></tr></tbody>',
+        '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">' + esc(msg) + '</td></tr></tbody>',
       )
-      $sub.text('')
+      $sub.text(msg)
     })
 }
 
@@ -756,11 +759,11 @@ function loadWagonTabDetail(cfg) {
       renderGenericDetailTable($table, data.rows, cfg.detailCols)
       $sub.text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'))
     })
-    .fail(function () {
+    .fail(function (jqXHR) {
       $table.html(
         '<tbody><tr><td colspan="' +
           cfg.detailCols.length +
-          '" style="text-align:center;padding:40px;color:#9DA5B0">Ошибка загрузки</td></tr></tbody>',
+          '" style="text-align:center;padding:40px;color:#9DA5B0">' + esc(ajaxErr(jqXHR)) + '</td></tr></tbody>',
       )
     })
 }
@@ -808,8 +811,8 @@ function loadDowntimeSummary() {
         'Вагонов с простоем: ' + (data.total || 0).toLocaleString('ru-RU'),
       )
     })
-    .fail(function () {
-      $('#downtimeSumSub').text('Ошибка загрузки')
+    .fail(function (jqXHR) {
+      $('#downtimeSumSub').text(ajaxErr(jqXHR))
     })
 }
 
@@ -962,8 +965,8 @@ function loadRawSummary() {
           ' ваг.',
       )
     })
-    .fail(function () {
-      $('#rawSumSub').text('Ошибка загрузки')
+    .fail(function (jqXHR) {
+      $('#rawSumSub').text(ajaxErr(jqXHR))
     })
 }
 
@@ -1244,6 +1247,19 @@ function exportToCSV() {
   a.download = 'дислокация_' + new Date().toISOString().slice(0, 10) + '.csv'
   a.click()
   URL.revokeObjectURL(a.href)
+}
+
+// Текст ошибки из jQuery XHR — HTTP-статус + сообщение из JSON-ответа
+function ajaxErr(jqXHR) {
+  var status = jqXHR.status ? ' (' + jqXHR.status + ')' : ''
+  var detail = ''
+  try {
+    var json = JSON.parse(jqXHR.responseText)
+    detail = json.error || json.message || ''
+  } catch (e) {
+    detail = jqXHR.responseText || ''
+  }
+  return 'Ошибка загрузки' + status + (detail ? ': ' + detail : '')
 }
 
 // Экранирование HTML
