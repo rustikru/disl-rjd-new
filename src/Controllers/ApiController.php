@@ -40,10 +40,10 @@ class ApiController
             } catch (\Exception $e) {
             }
             return [
-                'report_dt'      => $dt,
+                'report_dt' => $dt,
                 'type_reference' => (string) ($r['type_reference'] ?? ''),
-                'label'          => $label . ($r['type_reference'] ? ' (' . $r['type_reference'] . ')' : ''),
-                'cnt'            => (int) $r['cnt'],
+                'label' => $label . ($r['type_reference'] ? ' (' . $r['type_reference'] . ')' : ''),
+                'cnt' => (int) $r['cnt'],
             ];
         }, $rows);
 
@@ -325,7 +325,7 @@ class ApiController
     /** WHERE-условие для запросов «Подход» (wagons in transit: dist_remain_km > 0) */
     private function buildApproachWhere(string $reportDt, ?string $cargo, ?string $prevCargo): array
     {
-        $where = "report_dt = :report_dt AND type_reference = 'Подход' AND dist_remain_km IS NOT NULL AND dist_remain_km != '' AND dist_remain_km != '0'";
+        $where = "report_dt = :report_dt AND type_reference = 'Подход' AND dist_remain_km IS NOT NULL and dist_remain_km != 0";
         $bindings = ['report_dt' => $reportDt];
 
         if ($cargo) {
@@ -432,7 +432,7 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != '' AND cargo_weight_kg != '0'";
+        $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $bindings = ['report_dt' => $reportDt];
         if ($cargo) {
             $where .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
@@ -465,7 +465,7 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
-        $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != '' AND cargo_weight_kg != '0'";
+        $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $bindings = ['report_dt' => $reportDt];
         if ($cargo) {
             $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';
@@ -518,8 +518,7 @@ class ApiController
              FROM xx_dislocation_rjd
              WHERE report_dt = :report_dt
                AND idle_time_days IS NOT NULL
-               AND idle_time_days != ''
-               AND idle_time_days != '0'
+               AND nvl(idle_time_days,0) != 0
              GROUP BY oper_road, oper_station, wagon_type_code
              ORDER BY cnt DESC
              " . $this->db->limit(200),
@@ -550,7 +549,7 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
-        $where = "report_dt = :report_dt AND idle_time_days IS NOT NULL AND idle_time_days != '' AND idle_time_days != '0'";
+        $where = "report_dt = :report_dt AND idle_time_days IS NOT NULL AND idle_time_days != 0 ";
         $bindings = ['report_dt' => $reportDt];
         if ($station) {
             $where .= ' AND oper_station = :oper_station';
@@ -597,8 +596,8 @@ class ApiController
                     MAX(idle_time_days) AS max_idle
              FROM xx_dislocation_rjd
              WHERE report_dt = :report_dt
-               AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != '' AND cargo_weight_kg != '0'
-               AND idle_time_days IS NOT NULL AND idle_time_days != ''
+               AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0
+               AND idle_time_days IS NOT NULL AND idle_time_days != 0
              GROUP BY cargo_name, wagon_type_code
              ORDER BY cnt DESC
              " . $this->db->limit(100),
@@ -622,7 +621,7 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
-        $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != '' AND cargo_weight_kg != '0'";
+        $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $bindings = ['report_dt' => $reportDt];
         if ($cargo) {
             $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';
@@ -652,7 +651,8 @@ class ApiController
      */
     private function resolveReportDt(?string $dt, ?string $typeRef = null): ?string
     {
-        if ($dt) return $dt;
+        if ($dt)
+            return $dt;
         $sql = 'SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd';
         $params = [];
         if ($typeRef !== null) {
