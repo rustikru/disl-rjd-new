@@ -18,8 +18,9 @@ class DashboardController
     /** GET / */
     public function index(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $appName = $this->config['app_name'];
-        $user    = $_SESSION['user'];
+        $appName  = $this->config['app_name'];
+        $basePath = $this->config['base_path'] ?? '';
+        $user     = $_SESSION['user'];
 
         ob_start();
         require __DIR__ . '/../../templates/app.php';

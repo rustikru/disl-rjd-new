@@ -5,7 +5,7 @@ declare(strict_types=1);
 $envFile = __DIR__ . '/../.env';
 if (file_exists($envFile)) {
     foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-        if (str_starts_with(trim($line), '#')) {
+        if (strncmp(trim($line), '#', 1) === 0) {
             continue;
         }
         [$key, $value] = array_pad(explode('=', $line, 2), 2, '');
@@ -42,4 +42,8 @@ return [
     'ad_base_dn' => env('AD_BASE_DN', ''),
 
     'session_name' => env('SESSION_NAME', 'disl_session'),
+
+    // Базовый путь если приложение запущено в подпапке (например /rjd/public).
+    // Оставьте пустым при использовании виртуального хоста.
+    'base_path'    => env('APP_BASE_PATH', ''),
 ];

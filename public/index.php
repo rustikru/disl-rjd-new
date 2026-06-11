@@ -9,10 +9,14 @@ $app = \Slim\Factory\AppFactory::create();
 
 // Подробные ошибки только в development-режиме
 $app->addErrorMiddleware(
-    displayErrorDetails: $config['app_env'] === 'development',
-    logErrors: true,
-    logErrorDetails: true
+    $config['app_env'] === 'development',
+    true,
+    true
 );
+
+if ($config['base_path'] !== '') {
+    $app->setBasePath($config['base_path']);
+}
 
 (require __DIR__ . '/../src/routes.php')($app, $config);
 

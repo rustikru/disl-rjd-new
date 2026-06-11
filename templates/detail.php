@@ -1,6 +1,8 @@
 <?php
 /** @var string $appName */
+/** @var string $basePath */
 /** @var array  $user  ['username', 'display_name', 'auth_source'] */
+$basePath = $basePath ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -10,7 +12,8 @@
   <title><?= htmlspecialchars($appName) ?> — Детализация</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/app.css">
+  <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
+  <script>window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';</script>
   <style>
     .detail-breadcrumb {
       font-size: 12px; color: var(--text-3);
@@ -81,9 +84,10 @@
 <script>
 'use strict';
 
+var BASE = window.APP_BASE || '';
 var CONTEXTS = {
   approach: {
-    label: 'Подход вагонов', endpoint: '/api/approach/detail',
+    label: 'Подход вагонов', endpoint: BASE + '/api/approach/detail',
     cols: [
       {key:'wagon_no',         label:'№ вагона',        meta:true, mono:true},
       {key:'wagon_type_code',  label:'Тип',             meta:true},
@@ -98,7 +102,7 @@ var CONTEXTS = {
     ]
   },
   departure: {
-    label: 'Отправление вагонов', endpoint: '/api/departure/detail',
+    label: 'Отправление вагонов', endpoint: BASE + '/api/departure/detail',
     cols: [
       {key:'wagon_no',         label:'№ вагона',        meta:true, mono:true},
       {key:'wagon_type_code',  label:'Тип',             meta:true},
@@ -113,7 +117,7 @@ var CONTEXTS = {
     ]
   },
   loading: {
-    label: 'Погрузка', endpoint: '/api/loading/detail',
+    label: 'Погрузка', endpoint: BASE + '/api/loading/detail',
     cols: [
       {key:'wagon_no',         label:'№ вагона',    meta:true, mono:true},
       {key:'wagon_type_code',  label:'Тип',         meta:true},
@@ -127,7 +131,7 @@ var CONTEXTS = {
     ]
   },
   downtime: {
-    label: 'Простои', endpoint: '/api/downtime/detail',
+    label: 'Простои', endpoint: BASE + '/api/downtime/detail',
     cols: [
       {key:'wagon_no',        label:'№ вагона',       meta:true, mono:true},
       {key:'wagon_type_code', label:'Тип',            meta:true},
@@ -182,7 +186,7 @@ $(function () {
 
   // Breadcrumb
   var bcParts = [];
-  bcParts.push('<span class="bc-item"><a href="/" style="color:inherit;text-decoration:none">← Вернуться</a></span>');
+  bcParts.push('<span class="bc-item"><a href="' + (window.APP_BASE || '') + '/" style="color:inherit;text-decoration:none">← Вернуться</a></span>');
   if (ctxDef) {
     bcParts.push('<span class="bc-sep">›</span>');
     bcParts.push('<span class="bc-item">' + esc(ctxDef.label) + '</span>');

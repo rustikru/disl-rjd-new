@@ -9,6 +9,8 @@
 
 'use strict';
 
+var BASE = window.APP_BASE || '';
+
 // Структура навигации. Для ссылок (url) вместо вкладок страница открывается в том же окне.
 var TAB_GROUPS = [
   {
@@ -44,7 +46,7 @@ var TAB_GROUPS = [
   {
     label: 'Управление',
     tabs: [
-      { id: 'import', label: '↑ Загрузка справок', url: '/import' }
+      { id: 'import', label: '↑ Загрузка справок', url: BASE + '/import' }
     ]
   }
 ];
@@ -127,7 +129,7 @@ function initInnerTabs() {
 
 // Загрузить список справок в дропдаун
 function loadReports() {
-  $.getJSON('/api/reports')
+  $.getJSON(BASE + '/api/reports')
     .done(function (data) {
       var sel = $('#fReportDt');
       sel.find('option:not(:first)').remove();
@@ -139,7 +141,7 @@ function loadReports() {
 
 // Dashboard
 function loadDashboard() {
-  $.getJSON('/api/dashboard')
+  $.getJSON(BASE + '/api/dashboard')
     .done(function (data) {
       var label = data.updated_at || '—';
       $('#headerDate').text(label);
@@ -235,7 +237,7 @@ function loadDislocation() {
   $('#mainTableSub').text('Загрузка...');
 
   var params = reportDt ? { report_dt: reportDt } : {};
-  $.getJSON('/api/dislocation/summary', params)
+  $.getJSON(BASE + '/api/dislocation/summary', params)
     .done(function (data) {
       if (!data.cols || !data.cols.length) {
         $('#mainTable').html('<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">' +
@@ -292,7 +294,7 @@ function renderMainTable(sections, cols) {
 // Расширенная дислокация
 function loadDislocationExtended() {
   window._extLoaded = true;
-  $.getJSON('/api/dislocation/extended')
+  $.getJSON(BASE + '/api/dislocation/extended')
     .done(function (data) { renderExtendedTable(data.rows); })
     .fail(function () {
       $('#dislExtTable').html('<tbody><tr><td colspan="10" style="text-align:center;padding:40px;color:#9DA5B0">Ошибка загрузки</td></tr></tbody>');
@@ -337,9 +339,9 @@ function renderExtendedTable(rows) {
 var WAGON_TABS = {
   approach: {
     ctx:          'approach',
-    filtersUrl:   '/api/approach/filters',
-    summaryUrl:   '/api/approach/summary',
-    detailUrl:    '/api/approach/detail',
+    filtersUrl:   BASE + '/api/approach/filters',
+    summaryUrl:   BASE + '/api/approach/summary',
+    detailUrl:    BASE + '/api/approach/detail',
     metricsId:    'approachMetrics',
     sumTableId:   'approachSumTable',
     sumSubId:     'approachSumSub',
@@ -383,9 +385,9 @@ var WAGON_TABS = {
 
   departure: {
     ctx:          'departure',
-    filtersUrl:   '/api/approach/filters',
-    summaryUrl:   '/api/departure/summary',
-    detailUrl:    '/api/departure/detail',
+    filtersUrl:   BASE + '/api/approach/filters',
+    summaryUrl:   BASE + '/api/departure/summary',
+    detailUrl:    BASE + '/api/departure/detail',
     metricsId:    'departureMetrics',
     sumTableId:   'departureSumTable',
     sumSubId:     'departureSumSub',
@@ -421,9 +423,9 @@ var WAGON_TABS = {
 
   loading: {
     ctx:          'loading',
-    filtersUrl:   '/api/approach/filters',
-    summaryUrl:   '/api/loading/summary',
-    detailUrl:    '/api/loading/detail',
+    filtersUrl:   BASE + '/api/approach/filters',
+    summaryUrl:   BASE + '/api/loading/summary',
+    detailUrl:    BASE + '/api/loading/detail',
     metricsId:    'loadingMetrics',
     sumTableId:   'loadingSumTable',
     sumSubId:     'loadingSumSub',
@@ -541,7 +543,7 @@ function loadDowntimeInit() {
 function loadDowntimeSummary() {
   var params = { min_days: $('#fDowntimeMinDays').val() || 1 };
   $('#downtimeSumSub').text('Загрузка...');
-  $.getJSON('/api/downtime/summary', params)
+  $.getJSON(BASE + '/api/downtime/summary', params)
     .done(function (data) {
       renderDowntimeSummaryTable(data.rows);
       $('#downtimeSumSub').text('Вагонов с простоем: ' + (data.total || 0).toLocaleString('ru-RU'));
@@ -551,7 +553,7 @@ function loadDowntimeSummary() {
 
 function loadDowntimeDetail() {
   var params = { min_days: $('#fDowntimeMinDays').val() || 1 };
-  $.getJSON('/api/downtime/detail', params)
+  $.getJSON(BASE + '/api/downtime/detail', params)
     .done(function (data) {
       renderDowntimeDetailTable(data.rows);
       $('#downtimeDetSub').text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'));
@@ -614,7 +616,7 @@ function loadRawInit() {
 
 function loadRawSummary() {
   $('#rawSumSub').text('Загрузка...');
-  $.getJSON('/api/raw-material/summary')
+  $.getJSON(BASE + '/api/raw-material/summary')
     .done(function (data) {
       // KPI карточки
       $('#rawMetrics').html([
@@ -634,7 +636,7 @@ function loadRawSummary() {
 
 function loadRawDetail(cargo) {
   var params = cargo ? { cargo: cargo } : {};
-  $.getJSON('/api/raw-material/detail', params)
+  $.getJSON(BASE + '/api/raw-material/detail', params)
     .done(function (data) {
       var h = '<thead><tr>' +
         '<th class="col-meta">№ вагона</th><th class="col-meta">Тип</th><th class="col-meta">Груз</th>' +
@@ -846,7 +848,7 @@ function openDetail(ctx, road, station, col) {
   if (road)    p.set('road',    road);
   if (station) p.set('station', station);
   if (col)     p.set('col',     col);
-  window.open('/detail?' + p.toString(), '_blank');
+  window.open(BASE + '/detail?' + p.toString(), '_blank');
 }
 
 $(document).on('click', '.cell-link', function (e) {

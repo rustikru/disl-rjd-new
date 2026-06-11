@@ -733,7 +733,7 @@ class ApiController
         ];
     }
 
-    private function json(ResponseInterface $response, mixed $data): ResponseInterface
+    private function json(ResponseInterface $response, $data): ResponseInterface
     {
         $response->getBody()->write(json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
         return $response->withHeader('Content-Type', 'application/json; charset=utf-8');

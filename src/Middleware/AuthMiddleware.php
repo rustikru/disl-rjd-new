@@ -15,10 +15,17 @@ use Slim\Psr7\Response;
  */
 class AuthMiddleware implements MiddlewareInterface
 {
+    private string $basePath;
+
+    public function __construct(string $basePath = '')
+    {
+        $this->basePath = $basePath;
+    }
+
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         if (empty($_SESSION['user'])) {
-            return (new Response())->withHeader('Location', '/login')->withStatus(302);
+            return (new Response())->withHeader('Location', $this->basePath . '/login')->withStatus(302);
         }
         return $handler->handle($request);
     }
