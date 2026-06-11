@@ -144,6 +144,7 @@ $basePath = $basePath ?? '';
       var road    = params.get('road')    || '';
       var station = params.get('station') || '';
       var col     = params.get('col')     || '';
+      var cargoState = params.get('cargo_state') || '';
 
       // Конфиг берём из DETAIL_CONTEXTS (detail-contexts.js)
       var ctxDef = null;
@@ -171,6 +172,10 @@ $basePath = $basePath ?? '';
         bcParts.push('<span class="bc-sep">›</span>');
         bcParts.push('<span class="bc-item bc-active">' + esc(col) + '</span>');
       }
+      if (cargoState) {
+        bcParts.push('<span class="bc-sep">›</span>');
+        bcParts.push('<span class="bc-item bc-active">' + esc(cargoState) + '</span>');
+      }
       $('#breadcrumb').html(bcParts.join(''));
 
       // Title
@@ -179,6 +184,7 @@ $basePath = $basePath ?? '';
       if (road) { titleParts.push(road); }
       if (station) { titleParts.push(station); }
       if (col) { titleParts.push(col); }
+      if (cargoState) { titleParts.push(cargoState); }
       $('#detailTitle').text(titleParts.join(' › ') || 'Детализация');
 
       if (!ctxDef) {
@@ -191,6 +197,7 @@ $basePath = $basePath ?? '';
       if (road) { apiParams.set('road', road); }
       if (station) { apiParams.set('station', station); }
       if (col) { apiParams.set('wagon_type', col); }
+      if (cargoState) { apiParams.set('cargo_state', cargoState); }
       // Поля из cols конфига — backend делает SELECT только их
       var fields = ctxDef.cols.map(function (c) { return c.key; }).join(',');
       apiParams.set('fields', fields);
