@@ -411,7 +411,7 @@ $basePath = $basePath ?? '';
     </main>
   </div>
 
-  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jQuery/jquery-3.7.1.min.js"></script>
+  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jquery/jquery-3.7.1.min.js"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/app.js"></script>
 </body>
 
