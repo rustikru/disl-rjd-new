@@ -17,7 +17,7 @@ var TAB_GROUPS = [
     label: '',
     tabs: [
       //{ id: 'main', label: 'Главная' },
-      //{ id: 'dashboard', label: 'Dashboard' }
+      { id: 'dashboard', label: 'Дашборд' },
     ],
   },
   {
