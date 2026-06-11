@@ -199,25 +199,7 @@ function renderKPI(sections) {
     { label: 'Типов парка', value: sections.length, sub: 'разновидностей' },
   ]
 
-  $('#kpiGrid').html(
-    kpis
-      .map(function (k) {
-        return (
-          '<div class="kpi-card' +
-          (k.accent ? ' accent' : '') +
-          '">' +
-          '<div class="kpi-value">' +
-          k.value.toLocaleString('ru-RU') +
-          '</div>' +
-          '<div class="kpi-label">' +
-          esc(k.label) +
-          '</div>' +
-          (k.sub ? '<div class="kpi-delta">' + esc(k.sub) + '</div>' : '') +
-          '</div>'
-        )
-      })
-      .join(''),
-  )
+  $('#kpiGrid').html(kpis.map(buildKpiCard).join(''))
 }
 
 // SVG столбчатый график
@@ -467,58 +449,7 @@ function loadDislocationExtended() {
 }
 
 function renderExtendedTable(rows) {
-  var h =
-    '<thead><tr>' +
-    '<th class="col-meta">№ вагона</th>' +
-    '<th class="col-meta">Поезд №</th>' +
-    '<th class="col-meta">Тек. станция</th>' +
-    '<th class="col-meta">Ст. отправл.</th>' +
-    '<th class="col-meta">Ст. назнач.</th>' +
-    '<th class="col-meta">Груз</th>' +
-    '<th class="col-meta">Тип парка</th>' +
-    '<th class="col-meta">Операция</th>' +
-    '<th>Простой (дн)</th>' +
-    '<th class="col-meta">Приб. (АСОУП)</th>' +
-    '</tr></thead><tbody>'
-
-  ;(rows || []).forEach(function (r) {
-    h +=
-      '<tr class="row-data">' +
-      '<td class="col-meta" style="font-family:monospace;font-size:11px">' +
-      esc(r.wagon_no) +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.train_no) +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.oper_station) +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.depart_station) +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.dest_station) +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.cargo_name) +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.park_type) +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.oper_mnemonic) +
-      '</td>' +
-      '<td>' +
-      esc(r.idle_time_days) +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.asoup_arrive_dt) +
-      '</td>' +
-      '</tr>'
-  })
-
-  $('#dislExtTable').html(h + '</tbody>')
-  addColumnSearch($('#dislExtTable'))
+  renderGenericDetailTable($('#dislExtTable'), rows, EXT_COLS)
 }
 
 // Конфиг для общео построения сводных вкладок и детализаций
@@ -783,6 +714,8 @@ function renderGenericDetailTable($table, rows, colDefs) {
       if (c.meta) {
         attrs = ' class="col-meta"'
         if (c.mono) attrs += ' style="font-family:monospace;font-size:11px"'
+      } else if (c.danger) {
+        attrs = getDangerStyle(parseFloat(r[c.key]) || 0)
       } else if (c.right) {
         attrs = ' style="text-align:right"'
       }
@@ -793,6 +726,44 @@ function renderGenericDetailTable($table, rows, colDefs) {
   $table.html(h + '</tbody>')
   addColumnSearch($table)
 }
+
+// ── Конфиги колонок для таблиц детализации ───────────────────────
+
+var EXT_COLS = [
+  { key: 'wagon_no',        label: '№ вагона',       meta: true, mono: true },
+  { key: 'train_no',        label: 'Поезд №',        meta: true },
+  { key: 'oper_station',    label: 'Тек. станция',   meta: true },
+  { key: 'depart_station',  label: 'Ст. отправл.',   meta: true },
+  { key: 'dest_station',    label: 'Ст. назнач.',    meta: true },
+  { key: 'cargo_name',      label: 'Груз',           meta: true },
+  { key: 'park_type',       label: 'Тип парка',      meta: true },
+  { key: 'oper_mnemonic',   label: 'Операция',       meta: true },
+  { key: 'idle_time_days',  label: 'Простой (дн)' },
+  { key: 'asoup_arrive_dt', label: 'Приб. (АСОУП)', meta: true },
+]
+
+var DOWNTIME_DET_COLS = [
+  { key: 'wagon_no',        label: '№ вагона',        meta: true, mono: true },
+  { key: 'wagon_type_code', label: 'Тип',             meta: true },
+  { key: 'cargo_name',      label: 'Груз',            meta: true },
+  { key: 'oper_station',    label: 'Текущая станция', meta: true },
+  { key: 'oper_road',       label: 'Дорога',          meta: true },
+  { key: 'idle_time_days',  label: 'Простой (сут.)',  danger: true },
+  { key: 'owner',           label: 'Владелец',        meta: true },
+  { key: 'lessee',          label: 'Арендатор',       meta: true },
+]
+
+var RAW_DET_COLS = [
+  { key: 'wagon_no',        label: '№ вагона',        meta: true, mono: true },
+  { key: 'wagon_type_code', label: 'Тип',             meta: true },
+  { key: 'cargo_name',      label: 'Груз',            meta: true },
+  { key: 'cargo_weight_kg', label: 'Вес (кг)',        right: true },
+  { key: 'idle_time_days',  label: 'Простой (сут.)',  danger: true },
+  { key: 'oper_station',    label: 'Тек. станция',    meta: true },
+  { key: 'oper_road',       label: 'Дорога',          meta: true },
+  { key: 'depart_station',  label: 'Ст. отправл.',    meta: true },
+  { key: 'owner',           label: 'Владелец',        meta: true },
+]
 
 // ── Простои ──────────────────────────────────────────────────────
 
@@ -840,12 +811,7 @@ function renderDowntimeSummaryTable(rows) {
     '</tr></thead><tbody>'
   rows.forEach(function (r) {
     var maxIdle = parseFloat(r.max_idle) || 0
-    var danger =
-      maxIdle >= 7
-        ? ' style="color:#E8392A;font-weight:700"'
-        : maxIdle >= 3
-          ? ' style="color:#E8A530;font-weight:600"'
-          : ''
+    var danger = getDangerStyle(maxIdle)
     h +=
       '<tr class="row-data">' +
       '<td class="col-meta">' +
@@ -877,52 +843,7 @@ function renderDowntimeSummaryTable(rows) {
 }
 
 function renderDowntimeDetailTable(rows) {
-  var h =
-    '<thead><tr>' +
-    '<th class="col-meta">№ вагона</th><th class="col-meta">Тип</th><th class="col-meta">Груз</th>' +
-    '<th class="col-meta">Текущая станция</th><th class="col-meta">Дорога</th>' +
-    '<th>Простой (сут.)</th><th class="col-meta">Владелец</th><th class="col-meta">Арендатор</th>' +
-    '</tr></thead><tbody>'
-  ;(rows || []).forEach(function (r) {
-    var days = parseFloat(r.idle_time_days) || 0
-    var danger =
-      days >= 7
-        ? ' style="color:#E8392A;font-weight:700"'
-        : days >= 3
-          ? ' style="color:#E8A530;font-weight:600"'
-          : ''
-    h +=
-      '<tr class="row-data">' +
-      '<td class="col-meta" style="font-family:monospace;font-size:11px">' +
-      esc(r.wagon_no) +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.wagon_type_code) +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.cargo_name) +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.oper_station) +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.oper_road) +
-      '</td>' +
-      '<td' +
-      danger +
-      '>' +
-      (days || '') +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.owner) +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.lessee) +
-      '</td>' +
-      '</tr>'
-  })
-  $('#downtimeDetTable').html(h + '</tbody>')
-  addColumnSearch($('#downtimeDetTable'))
+  renderGenericDetailTable($('#downtimeDetTable'), rows, DOWNTIME_DET_COLS)
 }
 
 // ── Сырьё ────────────────────────────────────────────────────────
@@ -936,26 +857,11 @@ function loadRawSummary() {
   $('#rawSumSub').text('Загрузка...')
   $.getJSON(BASE + '/api/raw-material/summary')
     .done(function (data) {
-      // KPI карточки
       $('#rawMetrics').html(
         [
-          { label: 'Гружёных вагонов', value: data.total, accent: true },
+          { label: 'Гружёных вагонов',    value: data.total,    accent: true },
           { label: 'Макс. простой (сут.)', value: data.max_idle },
-        ]
-          .map(function (k) {
-            return (
-              '<div class="kpi-card' +
-              (k.accent ? ' accent' : '') +
-              '">' +
-              '<div class="kpi-value">' +
-              (k.value || 0) +
-              '</div>' +
-              '<div class="kpi-label">' +
-              esc(k.label) +
-              '</div></div>'
-            )
-          })
-          .join(''),
+        ].map(buildKpiCard).join(''),
       )
 
       renderRawSummaryTable(data.rows)
@@ -973,54 +879,8 @@ function loadRawSummary() {
 function loadRawDetail(cargo) {
   var params = cargo ? { cargo: cargo } : {}
   $.getJSON(BASE + '/api/raw-material/detail', params).done(function (data) {
-    var h =
-      '<thead><tr>' +
-      '<th class="col-meta">№ вагона</th><th class="col-meta">Тип</th><th class="col-meta">Груз</th>' +
-      '<th>Вес (кг)</th><th>Простой (сут.)</th>' +
-      '<th class="col-meta">Тек. станция</th><th class="col-meta">Дорога</th>' +
-      '<th class="col-meta">Ст. отправл.</th><th class="col-meta">Владелец</th>' +
-      '</tr></thead><tbody>'
-    ;(data.rows || []).forEach(function (r) {
-      var days = parseFloat(r.idle_time_days) || 0
-      var danger = days >= 7 ? ' style="color:#E8392A;font-weight:700"' : ''
-      h +=
-        '<tr class="row-data">' +
-        '<td class="col-meta" style="font-family:monospace;font-size:11px">' +
-        esc(r.wagon_no) +
-        '</td>' +
-        '<td class="col-meta">' +
-        esc(r.wagon_type_code) +
-        '</td>' +
-        '<td class="col-meta">' +
-        esc(r.cargo_name) +
-        '</td>' +
-        '<td style="text-align:right">' +
-        esc(r.cargo_weight_kg) +
-        '</td>' +
-        '<td' +
-        danger +
-        '>' +
-        (days || '') +
-        '</td>' +
-        '<td class="col-meta">' +
-        esc(r.oper_station) +
-        '</td>' +
-        '<td class="col-meta">' +
-        esc(r.oper_road) +
-        '</td>' +
-        '<td class="col-meta">' +
-        esc(r.depart_station) +
-        '</td>' +
-        '<td class="col-meta">' +
-        esc(r.owner) +
-        '</td>' +
-        '</tr>'
-    })
-    $('#rawDetTable').html(h + '</tbody>')
-    addColumnSearch($('#rawDetTable'))
-    $('#rawDetSub').text(
-      'Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'),
-    )
+    renderGenericDetailTable($('#rawDetTable'), data.rows, RAW_DET_COLS)
+    $('#rawDetSub').text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'))
   })
 }
 
@@ -1067,24 +927,8 @@ function switchRawToDetail(cargo) {
 // ── Общие рендеры (подход/отправление/погрузка) ──────────────────
 
 function renderRoadStationMetrics(selector, metrics, total, label) {
-  var all = [{ label: label, total: total, accent: true }].concat(metrics || [])
-  $(selector).html(
-    all
-      .map(function (m) {
-        return (
-          '<div class="kpi-card' +
-          (m.accent ? ' accent' : '') +
-          '">' +
-          '<div class="kpi-value">' +
-          (m.total || 0).toLocaleString('ru-RU') +
-          '</div>' +
-          '<div class="kpi-label">' +
-          esc(m.label) +
-          '</div></div>'
-        )
-      })
-      .join(''),
-  )
+  var all = [{ label: label, value: total, accent: true }].concat(metrics || [])
+  $(selector).html(all.map(buildKpiCard).join(''))
 }
 
 // groupCols: [{key: 'dest_road', label: 'Дорога назначения'}, {key: 'dest_station', label: 'Станция назначения'}, ...]
@@ -1270,6 +1114,25 @@ function esc(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
+}
+
+// Цветовой стиль для простоя: красный ≥7 сут., оранжевый ≥3 сут.
+function getDangerStyle(days) {
+  if (days >= 7) return ' style="color:#E8392A;font-weight:700"'
+  if (days >= 3) return ' style="color:#E8A530;font-weight:600"'
+  return ''
+}
+
+// HTML одной KPI-карточки. Поля: label, value (или total), accent, sub.
+function buildKpiCard(item) {
+  var val = item.value != null ? item.value : (item.total || 0)
+  return (
+    '<div class="kpi-card' + (item.accent ? ' accent' : '') + '">' +
+    '<div class="kpi-value">' + (typeof val === 'number' ? val.toLocaleString('ru-RU') : esc(String(val))) + '</div>' +
+    '<div class="kpi-label">' + esc(item.label) + '</div>' +
+    (item.sub ? '<div class="kpi-delta">' + esc(item.sub) + '</div>' : '') +
+    '</div>'
+  )
 }
 
 // Свернуть / Отобразить все дороги в таблице
