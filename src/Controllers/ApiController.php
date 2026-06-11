@@ -191,57 +191,7 @@ class ApiController
             $bindings
         );
 
-        // Собираем упорядоченные колонки (типы вагонов)
-        $cols = [];
-        $colIndex = [];
-        foreach ($rows as $r) {
-            $t = (string) ($r['wagon_type_code'] ?? '');
-            if ($t !== '' && !isset($colIndex[$t])) {
-                $colIndex[$t] = count($cols);
-                $cols[] = $t;
-            }
-        }
-        $nCols = count($cols);
-
-        // Строим иерархию: дорога → станция
-        $roads = [];
-        foreach ($rows as $r) {
-            $road = (string) ($r['dest_road'] ?? 'Не указана');
-            $station = (string) ($r['dest_station'] ?? 'Не указана');
-            $wt = (string) ($r['wagon_type_code'] ?? '');
-            $cnt = (int) $r['cnt'];
-
-            if (!isset($roads[$road])) {
-                $roads[$road] = ['road' => $road, 'stations' => [], 'total' => array_fill(0, $nCols, 0), 'grand_total' => 0];
-            }
-            if (!isset($roads[$road]['stations'][$station])) {
-                $roads[$road]['stations'][$station] = ['station' => $station, 'v' => array_fill(0, $nCols, 0)];
-            }
-            if ($wt !== '' && isset($colIndex[$wt])) {
-                $ci = $colIndex[$wt];
-                $roads[$road]['stations'][$station]['v'][$ci] += $cnt;
-                $roads[$road]['total'][$ci] += $cnt;
-                $roads[$road]['grand_total'] += $cnt;
-            }
-        }
-
-        foreach ($roads as &$road) {
-            $road['stations'] = array_values($road['stations']);
-        }
-        unset($road);
-
-        $roadList = array_values($roads);
-        usort($roadList, fn($a, $b) => $b['grand_total'] - $a['grand_total']);
-
-        $metrics = array_map(fn($r) => ['road' => $r['road'], 'total' => $r['grand_total']], $roadList);
-        $grandTotal = array_sum(array_column($metrics, 'total'));
-
-        return $this->json($response, [
-            'cols' => $cols,
-            'roads' => $roadList,
-            'metrics' => array_slice($metrics, 0, 8),
-            'total' => $grandTotal,
-        ]);
+        return $this->json($response, $this->buildRoadStationTable($rows, 'dest_road', 'dest_station'));
     }
 
     /** GET /api/approach/detail — Список вагонов подхода */
@@ -663,7 +613,11 @@ class ApiController
         return $row['dt'] ?? null;
     }
 
-    /** Строит структуру Дорога→Станция с колонками по типу вагона */
+    /**
+     * Строит структуру groupKey1→groupKey2 с колонками по типу вагона.
+     * Ключи в ответе совпадают с именами полей в БД ($roadKey, $stationKey),
+     * что позволяет фронтенду ссылаться на них через groupCols[i].key.
+     */
     private function buildRoadStationTable(array $rows, string $roadKey, string $stationKey): array
     {
         $cols = [];
@@ -679,22 +633,22 @@ class ApiController
 
         $roads = [];
         foreach ($rows as $r) {
-            $road = (string) ($r[$roadKey] ?? 'Не указана');
+            $road    = (string) ($r[$roadKey]    ?? 'Не указана');
             $station = (string) ($r[$stationKey] ?? 'Не указана');
-            $wt = (string) ($r['wagon_type_code'] ?? '');
+            $wt  = (string) ($r['wagon_type_code'] ?? '');
             $cnt = (int) $r['cnt'];
 
             if (!isset($roads[$road])) {
-                $roads[$road] = ['road' => $road, 'stations' => [], 'total' => array_fill(0, $nCols, 0), 'grand_total' => 0];
+                $roads[$road] = [$roadKey => $road, 'stations' => [], 'total' => array_fill(0, $nCols, 0), 'grand_total' => 0];
             }
             if (!isset($roads[$road]['stations'][$station])) {
-                $roads[$road]['stations'][$station] = ['station' => $station, 'v' => array_fill(0, $nCols, 0)];
+                $roads[$road]['stations'][$station] = [$stationKey => $station, 'v' => array_fill(0, $nCols, 0)];
             }
             if ($wt !== '' && isset($colIndex[$wt])) {
                 $ci = $colIndex[$wt];
                 $roads[$road]['stations'][$station]['v'][$ci] += $cnt;
-                $roads[$road]['total'][$ci] += $cnt;
-                $roads[$road]['grand_total'] += $cnt;
+                $roads[$road]['total'][$ci]                   += $cnt;
+                $roads[$road]['grand_total']                  += $cnt;
             }
         }
         foreach ($roads as &$road) {
@@ -704,7 +658,9 @@ class ApiController
 
         $roadList = array_values($roads);
         usort($roadList, fn($a, $b) => $b['grand_total'] - $a['grand_total']);
-        $metrics = array_map(fn($r) => ['road' => $r['road'], 'total' => $r['grand_total']], $roadList);
+
+        // label — нейтральное поле для KPI-карточек (не зависит от имени ключа)
+        $metrics = array_map(fn($r) => ['label' => $r[$roadKey], 'total' => $r['grand_total']], $roadList);
         $grandTotal = array_sum(array_column($metrics, 'total'));
 
         return ['cols' => $cols, 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 8), 'total' => $grandTotal];

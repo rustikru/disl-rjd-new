@@ -537,8 +537,10 @@ var WAGON_TABS = {
     loadedDetKey: '_approachDetLoaded',
     metricsLabel: 'Всего в подходе',
     sumSubLabel: 'Всего в подходе',
-    col1Label: 'Дорога назначения',
-    col2Label: 'Станция назначения',
+    groupCols: [
+      { key: 'dest_road',    label: 'Дорога назначения' },
+      { key: 'dest_station', label: 'Станция назначения' },
+    ],
     getParams: function () {
       return {
         cargo: $('#fApproachCargo').val() || undefined,
@@ -590,8 +592,10 @@ var WAGON_TABS = {
     loadedDetKey: '_departureDetLoaded',
     metricsLabel: 'Всего отправлено',
     sumSubLabel: 'Всего',
-    col1Label: 'Дорога',
-    col2Label: 'Станция',
+    groupCols: [
+      { key: 'depart_road',    label: 'Дорога' },
+      { key: 'depart_station', label: 'Станция' },
+    ],
     getParams: function () {
       return { cargo: $('#fDepartureCargo').val() || undefined }
     },
@@ -630,8 +634,10 @@ var WAGON_TABS = {
     loadedDetKey: '_loadingDetLoaded',
     metricsLabel: 'Всего погружено',
     sumSubLabel: 'Всего',
-    col1Label: 'Дорога',
-    col2Label: 'Станция',
+    groupCols: [
+      { key: 'depart_road',    label: 'Дорога' },
+      { key: 'depart_station', label: 'Станция' },
+    ],
     getParams: function () {
       return { cargo: $('#fLoadingCargo').val() || undefined }
     },
@@ -697,8 +703,7 @@ function loadWagonTabSummary(cfg) {
         data.roads,
         data.cols,
         cfg.ctx,
-        cfg.col1Label,
-        cfg.col2Label,
+        cfg.groupCols,
       )
       $sub.text(
         cfg.sumSubLabel +
@@ -1032,7 +1037,7 @@ function switchRawToDetail(cargo) {
 // ── Общие рендеры (подход/отправление/погрузка) ──────────────────
 
 function renderRoadStationMetrics(selector, metrics, total, label) {
-  var all = [{ road: label, total: total, accent: true }].concat(metrics || [])
+  var all = [{ label: label, total: total, accent: true }].concat(metrics || [])
   $(selector).html(
     all
       .map(function (m) {
@@ -1044,7 +1049,7 @@ function renderRoadStationMetrics(selector, metrics, total, label) {
           (m.total || 0).toLocaleString('ru-RU') +
           '</div>' +
           '<div class="kpi-label">' +
-          esc(m.road) +
+          esc(m.label) +
           '</div></div>'
         )
       })
@@ -1052,131 +1057,85 @@ function renderRoadStationMetrics(selector, metrics, total, label) {
   )
 }
 
-function renderRoadStationTable(
-  selector,
-  roads,
-  cols,
-  ctx,
-  col1Label,
-  col2Label,
-) {
+// groupCols: [{key: 'dest_road', label: 'Дорога назначения'}, {key: 'dest_station', label: 'Станция назначения'}, ...]
+// road[groupCols[0].key] — значение первого уровня группировки
+// st[groupCols[last].key] — значение последнего уровня группировки
+function renderRoadStationTable(selector, roads, cols, ctx, groupCols) {
   if (!roads || !roads.length) {
     $(selector).html(
       '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных. Загрузите справку.</td></tr></tbody>',
     )
     return
   }
-  function fmt(v) {
-    return v || ''
-  }
+  var nGroup = groupCols.length
+  function fmt(v) { return v || '' }
   function cellLink(v, dataCtx, dataRoad, dataSt, dataCol) {
     if (!v || !dataCtx) return '<td>' + fmt(v) + '</td>'
     return (
-      '<td class="cell-link" data-ctx="' +
-      esc(dataCtx) +
-      '" data-road="' +
-      esc(dataRoad) +
-      '" data-station="' +
-      esc(dataSt) +
-      '" data-col="' +
-      esc(dataCol) +
-      '">' +
-      v +
-      '</td>'
+      '<td class="cell-link" data-ctx="' + esc(dataCtx) +
+      '" data-road="' + esc(dataRoad) +
+      '" data-station="' + esc(dataSt) +
+      '" data-col="' + esc(dataCol) + '">' + v + '</td>'
     )
   }
   function totalLink(v, dataCtx, dataRoad, dataSt) {
     var cls = 'col-total-col'
     if (!v || !dataCtx) return '<td class="' + cls + '">' + fmt(v) + '</td>'
     return (
-      '<td class="' +
-      cls +
-      ' cell-link" data-ctx="' +
-      esc(dataCtx) +
-      '" data-road="' +
-      esc(dataRoad) +
-      '" data-station="' +
-      esc(dataSt) +
+      '<td class="' + cls + ' cell-link" data-ctx="' + esc(dataCtx) +
+      '" data-road="' + esc(dataRoad) +
+      '" data-station="' + esc(dataSt) +
       '" data-col="">' +
-      (typeof v === 'number' ? v.toLocaleString('ru-RU') : v) +
-      '</td>'
+      (typeof v === 'number' ? v.toLocaleString('ru-RU') : v) + '</td>'
     )
   }
 
   var h = '<thead><tr>'
-  h +=
-    '<th class="col-meta" style="min-width:160px">' +
-    esc(col1Label || 'Дорога') +
-    '</th>'
-  h +=
-    '<th class="col-meta" style="min-width:180px">' +
-    esc(col2Label || 'Станция') +
-    '</th>'
-  ;(cols || []).forEach(function (c) {
-    h += '<th>' + esc(c) + '</th>'
+  groupCols.forEach(function (gc, i) {
+    var w = i === 0 ? ' style="min-width:160px"' : ' style="min-width:180px"'
+    h += '<th class="col-meta"' + w + '>' + esc(gc.label) + '</th>'
   })
+  ;(cols || []).forEach(function (c) { h += '<th>' + esc(c) + '</th>' })
   h += '<th class="col-total-col">Итого</th></tr></thead><tbody>'
 
-  var grandTotals = (cols || []).map(function () {
-    return 0
-  })
+  var grandTotals = (cols || []).map(function () { return 0 })
   var grandSum = 0
   ;(roads || []).forEach(function (road, ri) {
+    var roadVal = road[groupCols[0].key] || ''
     h += '<tr class="row-road-parent" data-road-id="' + ri + '">'
-    h +=
-      '<td class="col-meta" colspan="2"><span class="toggle-icon">▶</span>' +
-      esc(road.road) +
-      '</td>'
+    h += '<td class="col-meta" colspan="' + nGroup + '"><span class="toggle-icon">▶</span>' + esc(roadVal) + '</td>'
     ;(road.total || []).forEach(function (v, i) {
       grandTotals[i] += v || 0
-      h += cellLink(v, ctx, road.road, '', cols[i])
+      h += cellLink(v, ctx, roadVal, '', cols[i])
     })
-    h += totalLink(road.grand_total || 0, ctx, road.road, '')
+    h += totalLink(road.grand_total || 0, ctx, roadVal, '')
     h += '</tr>'
     grandSum += road.grand_total || 0
     ;(road.stations || []).forEach(function (st) {
-      var rowSum = (st.v || []).reduce(function (a, b) {
-        return a + b
-      }, 0)
-      h +=
-        '<tr class="row-data row-child row-hidden" data-parent-road="' +
-        ri +
-        '">'
-      h += '<td class="col-meta"></td>'
-      h += '<td class="col-meta">' + esc(st.station) + '</td>'
+      var stVal = st[groupCols[nGroup - 1].key] || ''
+      var rowSum = (st.v || []).reduce(function (a, b) { return a + b }, 0)
+      h += '<tr class="row-data row-child row-hidden" data-parent-road="' + ri + '">'
+      for (var j = 0; j < nGroup - 1; j++) { h += '<td class="col-meta"></td>' }
+      h += '<td class="col-meta">' + esc(stVal) + '</td>'
       ;(st.v || []).forEach(function (v, i) {
-        h += cellLink(v, ctx, road.road, st.station, cols[i])
+        h += cellLink(v, ctx, roadVal, stVal, cols[i])
       })
-      h += totalLink(rowSum, ctx, road.road, st.station)
+      h += totalLink(rowSum, ctx, roadVal, stVal)
       h += '</tr>'
     })
   })
-  h +=
-    '<tr class="row-total row-grand"><td class="col-meta" colspan="2">Общий итог</td>'
+  h += '<tr class="row-total row-grand"><td class="col-meta" colspan="' + nGroup + '">Общий итог</td>'
   grandTotals.forEach(function (v, i) {
     if (v && ctx) {
-      h +=
-        '<td class="cell-link" data-ctx="' +
-        esc(ctx) +
-        '" data-road="" data-station="" data-col="' +
-        esc(cols[i]) +
-        '">' +
-        v +
-        '</td>'
+      h += '<td class="cell-link" data-ctx="' + esc(ctx) + '" data-road="" data-station="" data-col="' + esc(cols[i]) + '">' + v + '</td>'
     } else {
       h += '<td>' + (v || '') + '</td>'
     }
   })
   if (grandSum && ctx) {
-    h +=
-      '<td class="col-total-col cell-link" data-ctx="' +
-      esc(ctx) +
-      '" data-road="" data-station="" data-col="">' +
-      grandSum.toLocaleString('ru-RU') +
-      '</td>'
+    h += '<td class="col-total-col cell-link" data-ctx="' + esc(ctx) + '" data-road="" data-station="" data-col="">' + grandSum.toLocaleString('ru-RU') + '</td>'
   } else {
-    h +=
-      '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>'
+    h += '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>'
   }
   h += '</tr></tbody>'
   $(selector).html(h)
