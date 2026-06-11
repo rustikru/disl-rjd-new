@@ -212,12 +212,12 @@ class ApiController
         [$where, $bindings] = $this->buildApproachWhere($reportDt, $cargo, $prevCargo);
 
         if ($road) {
-            $where .= ' AND dest_road = :dest_road';
-            $bindings['dest_road'] = $road;
+            $where .= ' AND oper_road = :oper_road';
+            $bindings['oper_road'] = $road;
         }
         if ($station) {
-            $where .= ' AND dest_station = :dest_station';
-            $bindings['dest_station'] = $station;
+            $where .= ' AND oper_station = :oper_station';
+            $bindings['oper_station'] = $station;
         }
         if ($wagType) {
             $where .= ' AND wagon_type_code = :wagon_type_code';
