@@ -198,6 +198,7 @@ CREATE TABLE IF NOT EXISTS xx_dislocation_rjd (
 );
 
 -- Триггер для автоматического заполнения ID через XX_DISLOCATION_RJD_SEQ
+-- PL/SQL-блок: нужен "/" в конце (в отличие от обычных DDL-операторов)
 CREATE OR REPLACE TRIGGER xx_dislocation_rjd_bi
 BEFORE INSERT ON xx_dislocation_rjd
 FOR EACH ROW
@@ -206,6 +207,7 @@ BEGIN
     :NEW.id := xx_dislocation_rjd_seq.NEXTVAL;
   END IF;
 END;
+/
 
 -- Индексы для всех полей используемых в WHERE / JOIN / ORDER
 CREATE INDEX IF NOT EXISTS idx_xx_rjd_report_dt   ON xx_dislocation_rjd (report_dt);
