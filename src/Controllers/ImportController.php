@@ -14,6 +14,29 @@ class ImportController
 {
     private DbInterface $db;
 
+    /** Поля, которые хранятся как DATE в БД (Excel: 'DD.MM.YYYY' или 'DD.MM.YYYY HH:MI') */
+    private const DATE_FIELDS = [
+        'trip_start_dt', 'trip_end_dt', 'oper_dt',
+        'asoup_depart_dt', 'asoup_arrive_dt', 'state_assign_dt',
+        'norm_delivery_dt', 'reg_date', 'build_date', 'next_repair_dt',
+        'last_cap_repair_dt', 'last_dep_repair_dt', 'exclude_date',
+        'life_ext_date', 'lease_end_date', 'service_life',
+    ];
+
+    /** Поля, которые хранятся как NUMBER в БД */
+    private const NUMBER_FIELDS = [
+        'cargo_weight_kg',
+        'mileage_loaded_km', 'mileage_empty_km', 'mileage_total_km',
+        'mileage_norm_km', 'mileage_remain_km',
+        'dist_passed_km', 'dist_remain_km', 'dist_total_km',
+        'idle_time_days',
+        'days_to_repair', 'days_no_oper', 'days_no_move',
+        'tare_weight', 'load_capacity', 'length_mm', 'body_volume',
+        'axles_count', 'seals_count', 'loaded_containers', 'empty_containers',
+        'wagon_in_train', 'body_material_code',
+        'life_ext_sign', 'repair_by_mileage', 'lease_sign', 'boiler_caliber',
+    ];
+
     public function __construct(DbInterface $db)
     {
         $this->db = $db;
@@ -128,7 +151,7 @@ class ImportController
 
                 $params = ['report_dt' => $reportDt];
                 foreach ($fields as $i => $field) {
-                    $params[$field] = $vals[$i] ?? null;
+                    $params[$field] = $this->castValue($field, $vals[$i] ?? null);
                 }
                 $this->db->execute($insertSql, $params);
                 $inserted++;
@@ -194,6 +217,53 @@ class ImportController
             'exclude_depot', 'exclude_reason',
             'days_to_repair', 'days_no_oper', 'days_no_move',
         ];
+    }
+
+    /** Приводит строку из Excel к нужному типу для вставки в БД. */
+    private function castValue(string $field, ?string $raw): string|int|float|null
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        if (in_array($field, self::DATE_FIELDS, true)) {
+            return $this->parseExcelDate($raw);
+        }
+
+        if (in_array($field, self::NUMBER_FIELDS, true)) {
+            // Убираем пробелы (обычные и неразрывные) — разделители тысяч из Excel
+            $clean = str_replace([' ', "\u{00A0}", "\xc2\xa0"], '', $raw);
+            return is_numeric($clean) ? $clean + 0 : null;
+        }
+
+        return $raw;
+    }
+
+    /**
+     * Парсит дату Excel в формат 'YYYY-MM-DD HH:MI:SS' (NLS_DATE_FORMAT сессии Oracle).
+     * Входные форматы: 'DD.MM.YYYY HH:MI[:SS]' или 'DD.MM.YYYY'.
+     * Если передана числовая строка — трактует как серийный номер даты Excel.
+     */
+    private function parseExcelDate(string $raw): ?string
+    {
+        // 'DD.MM.YYYY HH:MI' или 'DD.MM.YYYY HH:MI:SS'
+        if (preg_match('/^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?/', $raw, $m)) {
+            $sec = isset($m[6]) && $m[6] !== '' ? $m[6] : '00';
+            return "{$m[3]}-{$m[2]}-{$m[1]} {$m[4]}:{$m[5]}:{$sec}";
+        }
+
+        // 'DD.MM.YYYY'
+        if (preg_match('/^(\d{2})\.(\d{2})\.(\d{4})$/', $raw, $m)) {
+            return "{$m[3]}-{$m[2]}-{$m[1]} 00:00:00";
+        }
+
+        // Excel serial date (число дней с 01.01.1900)
+        if (is_numeric($raw)) {
+            $ts = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToTimestamp((float) $raw);
+            return date('Y-m-d H:i:s', $ts);
+        }
+
+        return null;
     }
 
     private function redirect(ResponseInterface $response, string $url): ResponseInterface
