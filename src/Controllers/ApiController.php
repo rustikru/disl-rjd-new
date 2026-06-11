@@ -228,9 +228,9 @@ class ApiController
         $gfStr = implode(', ', $gf);
 
         $rows = $this->db->fetchAll(
-            "SELECT $gfStr, wagon_type_code, COUNT(*) AS cnt
+            "SELECT $gfStr, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) as wagon_type_code, COUNT(*) AS cnt
              FROM xx_dislocation_rjd WHERE {$where}
-             GROUP BY $gfStr, wagon_type_code
+             GROUP BY $gfStr, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE)
              ORDER BY $gfStr, wagon_type_code",
             $bindings
         );
@@ -264,7 +264,7 @@ class ApiController
             }
         }
         if ($wagType) {
-            $where .= ' AND wagon_type_code = :wtype';
+            $where .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) = :wtype';
             $bindings['wtype'] = $wagType;
         }
 
@@ -439,9 +439,9 @@ class ApiController
         }
 
         $rows = $this->db->fetchAll(
-            "SELECT $gfStr, wagon_type_code, COUNT(*) AS cnt
+            "SELECT $gfStr, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) as wagon_type_code, COUNT(*) AS cnt
              FROM xx_dislocation_rjd WHERE {$where}
-             GROUP BY $gfStr, wagon_type_code
+             GROUP BY $gfStr, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE)
              ORDER BY $gfStr, wagon_type_code",
             $bindings
         );
@@ -479,7 +479,7 @@ class ApiController
             }
         }
         if ($wagType) {
-            $where .= ' AND wagon_type_code = :wtype';
+            $where .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) = :wtype';
             $bindings['wtype'] = $wagType;
         }
 
@@ -590,14 +590,14 @@ class ApiController
         }
 
         $rows = $this->db->fetchAll(
-            "SELECT cargo_name, wagon_type_code,
+            "SELECT cargo_name, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) as wagon_type_code,
                     COUNT(*) AS cnt,
                     MAX(idle_time_days) AS max_idle
              FROM xx_dislocation_rjd
              WHERE report_dt = :report_dt
                AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0
                AND idle_time_days IS NOT NULL AND idle_time_days != 0
-             GROUP BY cargo_name, wagon_type_code
+             GROUP BY cargo_name, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE)
              ORDER BY cnt DESC
              " . $this->db->limit(100),
             ['report_dt' => $reportDt]
