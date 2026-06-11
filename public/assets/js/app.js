@@ -1182,7 +1182,7 @@ function addSearch($table) {
   var cells = ''
   $table.find('thead tr:first th').each(function () {
     cells +=
-      '<td><input class="col-search-input" type="text" placeholder="⌕"></td>'
+      '<td><input class="col-search-input" type="text" placeholder=""></td>'
   })
   $table.find('tbody').prepend('<tr class="search-row">' + cells + '</tr>')
 }

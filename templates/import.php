@@ -109,11 +109,6 @@ $success = $_GET['success'] ?? '';
           <div style="margin-bottom:18px">
             <label class="filter-label" for="xlsx_file">Файл справки</label>
             <input type="file" id="xlsx_file" name="xlsx_file" accept=".xlsx,.xls">
-            <div class="upload-hint">
-              Файл отчёта «Личный кабинет клиента» РЖД — 126 колонок, дата справки считывается автоматически из ячейки
-              A2.
-              Если справка с такой датой уже есть — загрузка будет пропущена.
-            </div>
           </div>
           <button type="submit" class="btn btn-primary">Загрузить</button>
         </form>
@@ -140,7 +135,9 @@ $success = $_GET['success'] ?? '';
               <?php foreach ($reports as $i => $r): ?>
                 <tr class="row-data">
                   <td><?= $i + 1 ?></td>
-                  <td><?= htmlspecialchars((string) ($r['report_dt'] ?? '')) ?></td>
+                  <td>
+                    <?= htmlspecialchars((string) ($r['type_reference'] ?? '') . ' [' . ($r['report_date'] ?? '') . ']') ?>
+                  </td>
                   <td><?= htmlspecialchars((string) ($r['cnt'] ?? '0')) ?></td>
                 </tr>
               <?php endforeach; ?>
