@@ -443,8 +443,19 @@ function renderApproachSummaryTable(roads, cols) {
   });
 
   h += '<tr class="row-total row-grand"><td class="col-meta" colspan="2">Общий итог</td>';
-  grandTotals.forEach(function (v) { h += '<td>' + (v || '') + '</td>'; });
-  h += '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td></tr></tbody>';
+  grandTotals.forEach(function (v, i) {
+    if (v) {
+      h += '<td class="cell-link" data-ctx="' + CTX + '" data-road="" data-station="" data-col="' + esc(cols[i]) + '">' + v + '</td>';
+    } else {
+      h += '<td>' + (v || '') + '</td>';
+    }
+  });
+  if (grandSum) {
+    h += '<td class="col-total-col cell-link" data-ctx="' + CTX + '" data-road="" data-station="" data-col="">' + grandSum.toLocaleString('ru-RU') + '</td>';
+  } else {
+    h += '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>';
+  }
+  h += '</tr></tbody>';
 
   $('#approachSumTable').html(h);
 }
@@ -820,8 +831,19 @@ function renderRoadStationTable(selector, roads, cols, ctx) {
     });
   });
   h += '<tr class="row-total row-grand"><td class="col-meta" colspan="2">Общий итог</td>';
-  grandTotals.forEach(function (v) { h += '<td>' + (v || '') + '</td>'; });
-  h += '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td></tr></tbody>';
+  grandTotals.forEach(function (v, i) {
+    if (v && ctx) {
+      h += '<td class="cell-link" data-ctx="' + esc(ctx) + '" data-road="" data-station="" data-col="' + esc(cols[i]) + '">' + v + '</td>';
+    } else {
+      h += '<td>' + (v || '') + '</td>';
+    }
+  });
+  if (grandSum && ctx) {
+    h += '<td class="col-total-col cell-link" data-ctx="' + esc(ctx) + '" data-road="" data-station="" data-col="">' + grandSum.toLocaleString('ru-RU') + '</td>';
+  } else {
+    h += '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>';
+  }
+  h += '</tr></tbody>';
   $(selector).html(h);
 }
 
