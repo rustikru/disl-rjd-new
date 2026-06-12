@@ -84,12 +84,6 @@ function switchTab(tabId) {
       initTab(cfg)
     }
   })
-  if (tabId === 'downtime' && !window._downtimeLoaded) {
-    loadDowntimeInit()
-  }
-  if (tabId === 'raw-material' && !window._rawLoaded) {
-    loadRawInit()
-  }
 }
 
 // Внутренние вкладки (pill)
@@ -115,14 +109,6 @@ function initInnerTabs() {
               loadDetail(cfg)
             }
           })
-          if (innerId === 'downtime-detail' && !window._downtimeDetLoaded) {
-            window._downtimeDetLoaded = true
-            loadDowntimeDet()
-          }
-          if (innerId === 'raw-detail' && !window._rawDetLoaded) {
-            window._rawDetLoaded = true
-            loadRawDet()
-          }
         }
       })
     })
@@ -540,6 +526,69 @@ var WAGON_TABS = {
       $('#fLoadingCargo').val('')
     },
   },
+
+  downtime: {
+    ctx: 'downtime',
+    summaryUrl: BASE + '/api/downtime/summary',
+    detailUrl: BASE + '/api/downtime/detail',
+    sumTableId: 'downtimeSumTable',
+    sumSubId: 'downtimeSumSub',
+    detTableId: 'downtimeDetTable',
+    detSubId: 'downtimeDetSub',
+    detPanelId: 'downtime-detail',
+    loadedKey: '_downtimeLoaded',
+    loadedDetKey: '_downtimeDetLoaded',
+    groupCols: [],
+    applyBtnId: 'btnDowntimeApply',
+    getParams: function () {
+      return { min_days: $('#fDowntimeMinDays').val() || 1 }
+    },
+    fillFilters: function () {},
+    resetFilters: function () {},
+    draw: function (data, cfg) {
+      drawDowntime(data.rows)
+      $('#' + cfg.sumSubId).text('Вагонов с простоем: ' + (data.total || 0).toLocaleString('ru-RU'))
+    },
+    showList: function (data, cfg) {
+      showTable($('#' + cfg.detTableId), data.rows, DETAIL_CONTEXTS.downtime.cols)
+    },
+  },
+
+  'raw-material': {
+    ctx: 'raw-material',
+    summaryUrl: BASE + '/api/raw-material/summary',
+    detailUrl: BASE + '/api/raw-material/detail',
+    metricsId: 'rawMetrics',
+    kpi: function (data) {
+      return [
+        { label: 'Гружёных вагонов', value: data.total, accent: true },
+        { label: 'Макс. простой (сут.)', value: data.max_idle },
+      ]
+    },
+    sumTableId: 'rawSumTable',
+    sumSubId: 'rawSumSub',
+    detTableId: 'rawDetTable',
+    detSubId: 'rawDetSub',
+    detPanelId: 'raw-detail',
+    loadedKey: '_rawLoaded',
+    loadedDetKey: '_rawDetLoaded',
+    groupCols: [],
+    getParams: function () { return {} },
+    fillFilters: function () {},
+    resetFilters: function () {},
+    listParams: function () {
+      var cargo = window._rawCargo
+      window._rawCargo = undefined
+      return cargo ? { cargo: cargo } : {}
+    },
+    draw: function (data, cfg) {
+      drawRawTable(data.rows)
+      $('#' + cfg.sumSubId).text('Всего гружёных: ' + (data.total || 0).toLocaleString('ru-RU') + ' ваг.')
+    },
+    showList: function (data, cfg) {
+      showTable($('#' + cfg.detTableId), data.rows, DETAIL_CONTEXTS['raw-material'].cols)
+    },
+  },
 }
 
 /******** Вагон конфиг конец ********/
@@ -573,6 +622,7 @@ function initTab(cfg) {
 }
 
 function loadFilters(cfg) {
+  if (!cfg.filtersUrl) return
   $.getJSON(cfg.filtersUrl).done(function (data) {
     cfg.fillFilters(data)
   })
@@ -594,10 +644,6 @@ function loadSummary(cfg) {
   if (gby) summaryParams.group_by = gby
   $.getJSON(cfg.summaryUrl, summaryParams)
     .done(function (data) {
-      if (cfg.draw) {
-        cfg.draw(data, cfg)
-        return
-      }
       if (cfg.metricsId) {
         var items = cfg.kpi
           ? cfg.kpi(data)
@@ -605,6 +651,10 @@ function loadSummary(cfg) {
               { label: cfg.metricsLabel, value: data.total, accent: true },
             ].concat(data.metrics || [])
         $('#' + cfg.metricsId).html(items.map(kpiCard).join(''))
+      }
+      if (cfg.draw) {
+        cfg.draw(data, cfg)
+        return
       }
       drawSummary(
         '#' + cfg.sumTableId,
@@ -702,35 +752,6 @@ function showTable($table, rows, colDefs) {
 
 /******** downtime ********/
 
-function loadDowntimeInit() {
-  window._downtimeLoaded = true
-  loadDowntime()
-}
-
-function loadDowntime() {
-  var params = { min_days: $('#fDowntimeMinDays').val() || 1 }
-  $('#downtimeSumSub').text('Загрузка...')
-  $.getJSON(BASE + '/api/downtime/summary', params)
-    .done(function (data) {
-      drawDowntime(data.rows)
-      $('#downtimeSumSub').text(
-        'Вагонов с простоем: ' + (data.total || 0).toLocaleString('ru-RU'),
-      )
-    })
-    .fail(function (jqXHR) {
-      $('#downtimeSumSub').text(ajaxErr(jqXHR))
-    })
-}
-
-function loadDowntimeDet() {
-  var params = { min_days: $('#fDowntimeMinDays').val() || 1 }
-  $.getJSON(BASE + '/api/downtime/detail', params).done(function (data) {
-    showDowntimeDet(data.rows)
-    $('#downtimeDetSub').text(
-      'Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'),
-    )
-  })
-}
 
 function drawDowntime(rows) {
   if (!rows || !rows.length) {
@@ -777,55 +798,7 @@ function drawDowntime(rows) {
   $('#downtimeSumTable').html(h + '</tbody>')
 }
 
-function showDowntimeDet(rows) {
-  showTable($('#downtimeDetTable'), rows, DETAIL_CONTEXTS.downtime.cols)
-}
-
 /******** raw material ********/
-
-function loadRawInit() {
-  window._rawLoaded = true
-  loadRaw()
-}
-
-function loadRaw() {
-  $('#rawSumSub').text('Загрузка...')
-  $.getJSON(BASE + '/api/raw-material/summary')
-    .done(function (data) {
-      $('#rawMetrics').html(
-        [
-          { label: 'Гружёных вагонов', value: data.total, accent: true },
-          { label: 'Макс. простой (сут.)', value: data.max_idle },
-        ]
-          .map(kpiCard)
-          .join(''),
-      )
-
-      drawRawTable(data.rows)
-      $('#rawSumSub').text(
-        'Всего гружёных: ' +
-          (data.total || 0).toLocaleString('ru-RU') +
-          ' ваг.',
-      )
-    })
-    .fail(function (jqXHR) {
-      $('#rawSumSub').text(ajaxErr(jqXHR))
-    })
-}
-
-function loadRawDet(cargo) {
-  var params = cargo ? { cargo: cargo } : {}
-  $.getJSON(BASE + '/api/raw-material/detail', params).done(function (data) {
-    showTable(
-      $('#rawDetTable'),
-      data.rows,
-      DETAIL_CONTEXTS['raw-material'].cols,
-    )
-    $('#rawDetSub').text(
-      'Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'),
-    )
-  })
-}
 
 function drawRawTable(rows) {
   if (!rows || !rows.length) {
@@ -860,11 +833,10 @@ function drawRawTable(rows) {
 }
 
 function rawToDetail(cargo) {
-  document
-    .querySelector('#panel-raw-material .inner-tab[data-inner="raw-detail"]')
-    .click()
-  loadRawDet(cargo)
-  window._rawDetLoaded = true
+  var cfg = WAGON_TABS['raw-material']
+  window._rawCargo = cargo
+  window[cfg.loadedDetKey] = false
+  document.querySelector('#panel-raw-material .inner-tab[data-inner="raw-detail"]').click()
 }
 
 /******** summary / kpi renders ********/
@@ -1304,13 +1276,4 @@ $(function () {
     })
   })
 
-  // Простои — фильтры
-  $('#btnDowntimeApply').on('click', function () {
-    window._downtimeDetLoaded = false
-    loadDowntime()
-    if ($('#downtime-detail').hasClass('active')) {
-      window._downtimeDetLoaded = true
-      loadDowntimeDet()
-    }
-  })
 })

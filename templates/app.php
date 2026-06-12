@@ -308,14 +308,8 @@ $basePath = $basePath ?? '';
           style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 16px;margin-bottom:12px">
           <div class="filters-inner">
             <div class="filter-item">
-              <label class="filter-label" for="fDowntimeMinDays">Минимум суток</label>
-              <select class="filter-input" id="fDowntimeMinDays">
-                <option value="1">≥ 1 сут.</option>
-                <option value="2">≥ 2 сут.</option>
-                <option value="3">≥ 3 сут.</option>
-                <option value="5">≥ 5 сут.</option>
-                <option value="7">≥ 7 сут.</option>
-              </select>
+              <label class="filter-label" for="fDowntimeMinDays">Простой, дн</label>
+              <input class="filter-input" type="number" id="fDowntimeMinDays" value="1" min="1" style="width:80px">
             </div>
             <div class="filter-actions">
               <button class="btn btn-primary btn-sm" id="btnDowntimeApply">Применить</button>
