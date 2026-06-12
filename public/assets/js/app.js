@@ -920,7 +920,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
   ;(roads || []).forEach(function (road, ri) {
     var roadVal = road[groupCols[0].key] || ''
     var stations = road.stations || []
-    var hasChildren = stations.length > 1
+    var hasChildren = nGroup > 1 && stations.length > 0
     h += '<tr class="row-road-parent" data-road-id="' + ri + '">'
     h +=
       '<td class="col-meta" colspan="' +
