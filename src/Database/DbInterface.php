@@ -3,10 +3,6 @@ declare(strict_types=1);
 
 namespace App\Database;
 
-/**
- * Единый контракт для работы с базой данных.
- * Реализуется PostgresDb и OracleDb.
- */
 interface DbInterface
 {
     /** Выполнить SELECT, вернуть все строки. */

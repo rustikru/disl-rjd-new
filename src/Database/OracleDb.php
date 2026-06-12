@@ -3,10 +3,7 @@ declare(strict_types=1);
 
 namespace App\Database;
 
-/**
- * Реализация DbInterface для Oracle через расширение OCI8.
- * Требуется PHP-расширение oci8 (php-oci8).
- */
+
 class OracleDb implements DbInterface
 {
     /** @var resource */
@@ -30,7 +27,8 @@ class OracleDb implements DbInterface
         }
 
         // Устанавливаем формат дат чтобы строки 'YYYY-MM-DD HH24:MI:SS' корректно парсились
-        $stmt = oci_parse($this->connection,
+        $stmt = oci_parse(
+            $this->connection,
             "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD HH24:MI:SS' " .
             "NLS_TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF'"
         );
@@ -40,7 +38,7 @@ class OracleDb implements DbInterface
 
     public function fetchAll(string $sql, array $params = []): array
     {
-        $stmt  = oci_parse($this->connection, $sql);
+        $stmt = oci_parse($this->connection, $sql);
         $binds = $params;
 
         foreach (array_keys($binds) as $key) {
@@ -67,7 +65,7 @@ class OracleDb implements DbInterface
 
     public function execute(string $sql, array $params = []): int
     {
-        $stmt  = oci_parse($this->connection, $sql);
+        $stmt = oci_parse($this->connection, $sql);
         $binds = $params;
 
         foreach (array_keys($binds) as $key) {
