@@ -120,6 +120,7 @@ function loadDashboard() {
   $.getJSON(BASE + '/api/dashboard')
     .done(function (data) {
       var label = data.updated_at || '—'
+      $('#brandDateSub').text('Дислокация РЖД · ' + label)
       $('#headerDate').text(label)
       $('#dashboardSub').text('Справка: ' + label + ' · РЖД')
       showDashKpi(data.sections)
