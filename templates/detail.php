@@ -56,21 +56,12 @@ $basePath = $basePath ?? '';
     <div class="header-inner">
       <div class="brand">
         <div class="brand-icon">
-          <svg width="28" height="28" viewBox="0 0 30 30" fill="none">
-            <rect x="1" y="10" width="28" height="12" rx="2" fill="currentColor" opacity=".9" />
-            <circle cx="7.5" cy="24" r="3" fill="currentColor" />
-            <circle cx="22.5" cy="24" r="3" fill="currentColor" />
-            <rect x="6" y="7" width="7" height="5" rx="1" fill="currentColor" opacity=".5" />
-            <rect x="17" y="7" width="7" height="5" rx="1" fill="currentColor" opacity=".5" />
-          </svg>
         </div>
         <div class="brand-text">
           <div class="brand-name"><?= htmlspecialchars($appName) ?></div>
-          <div class="brand-sub">Дислокация парка вагонов</div>
         </div>
       </div>
       <div class="header-meta">
-        <span class="meta-badge">РЖД</span>
         <div class="user-info">
           <span class="user-name" title="<?= htmlspecialchars($user['auth_source'] ?? '') ?>">
             <?= htmlspecialchars($user['display_name'] ?? $user['username'] ?? '') ?>
@@ -114,7 +105,7 @@ $basePath = $basePath ?? '';
         .replace(/&/g, '&amp;').replace(/</g, '&lt;')
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
-
+    // Добавляем строку для поиска по столбцам
     function addColumnSearch($table) {
       var cells = '';
       $table.find('thead tr:first th').each(function () {
@@ -139,46 +130,27 @@ $basePath = $basePath ?? '';
     });
 
     $(function () {
-      var params  = new URLSearchParams(window.location.search);
-      var ctx     = params.get('ctx')     || '';
-      var road    = params.get('road')    || '';
+      var params = new URLSearchParams(window.location.search);
+      var ctx = params.get('ctx') || '';
+      var road = params.get('road') || '';
       var station = params.get('station') || '';
-      var col     = params.get('col')     || '';
+      var col = params.get('col') || '';
       var cargoState = params.get('cargo_state') || '';
 
-      // Конфиг берём из DETAIL_CONTEXTS (detail-contexts.js)
+      // Конфиг DETAIL_CONTEXTS (detail-contexts.js)
       var ctxDef = null;
       var def = DETAIL_CONTEXTS[ctx];
       if (def) {
         ctxDef = { label: def.label, endpoint: BASE + def.endpoint, cols: def.cols };
       }
 
-      // Breadcrumb
+      // Вверзняя навигация
       var bcParts = [];
       bcParts.push('<span class="bc-item"><a href="' + (window.APP_BASE || '') + '/" style="color:inherit;text-decoration:none">← Вернуться</a></span>');
-      if (ctxDef) {
-        bcParts.push('<span class="bc-sep">›</span>');
-        bcParts.push('<span class="bc-item">' + esc(ctxDef.label) + '</span>');
-      }
-      if (road) {
-        bcParts.push('<span class="bc-sep">›</span>');
-        bcParts.push('<span class="bc-item">' + esc(road) + '</span>');
-      }
-      if (station) {
-        bcParts.push('<span class="bc-sep">›</span>');
-        bcParts.push('<span class="bc-item">' + esc(station) + '</span>');
-      }
-      if (col) {
-        bcParts.push('<span class="bc-sep">›</span>');
-        bcParts.push('<span class="bc-item bc-active">' + esc(col) + '</span>');
-      }
-      if (cargoState) {
-        bcParts.push('<span class="bc-sep">›</span>');
-        bcParts.push('<span class="bc-item bc-active">' + esc(cargoState) + '</span>');
-      }
+
       $('#breadcrumb').html(bcParts.join(''));
 
-      // Title
+      // Заголовок
       var titleParts = [];
       if (ctxDef) { titleParts.push(ctxDef.label); }
       if (road) { titleParts.push(road); }
@@ -192,18 +164,18 @@ $basePath = $basePath ?? '';
         return;
       }
 
-      // Build API URL
+      // API URL
       var apiParams = new URLSearchParams();
       if (road) { apiParams.set('road', road); }
       if (station) { apiParams.set('station', station); }
       if (col) { apiParams.set('wagon_type', col); }
       // Остальные параметры URL (cargo_state, cargo, prev_cargo, group_by...)
-      // пробрасываем в API как есть — это активные фильтры со сводной
+      // передаем в API (активные фильтры)
       var handled = { ctx: 1, road: 1, station: 1, col: 1 };
       params.forEach(function (v, k) {
         if (!handled[k] && v) { apiParams.set(k, v); }
       });
-      // Поля из cols конфига — backend делает SELECT только их
+      // Поля из cols конфига 
       var fields = ctxDef.cols.map(function (c) { return c.key; }).join(',');
       apiParams.set('fields', fields);
 
@@ -220,7 +192,7 @@ $basePath = $basePath ?? '';
           var detail = '';
           try { var j = JSON.parse(jqXHR.responseText); detail = j.error || j.message || ''; }
           catch (e) { detail = jqXHR.responseText || ''; }
-          var msg = 'Ошибка загрузки' + status + (detail ? ': ' + detail : '');
+          var msg = 'Ошибка загрузки данных: ' + status + (detail ? ': ' + detail : '');
           $('#detailTable').html('<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">' + esc(msg) + '</td></tr></tbody>');
           $('#detailSub').text(msg);
         });
