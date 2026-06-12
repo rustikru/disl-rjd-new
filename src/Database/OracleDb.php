@@ -57,7 +57,7 @@ class OracleDb implements DbInterface
         if (($_ENV['APP_DEBUG'] ?? '') === 'true') {
             $interpolated = self::interpolate($sql, $params);
             $ts = date('Y-m-d H:i:s');
-            file_put_contents(__DIR__ . '/../../sql_debug.log', "[$ts]\n$interpolated\n\n", FILE_APPEND | LOCK_EX);
+            file_put_contents(__DIR__ . '/../../tmp/log/sql_debug.log', "[$ts]\n$interpolated\n\n", FILE_APPEND | LOCK_EX);
         }
 
         $stmt = oci_parse($this->connection, $sql);
