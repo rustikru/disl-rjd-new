@@ -586,10 +586,7 @@ var WAGON_TABS = {
     detailUrl: BASE + '/api/raw-material/detail',
     metricsId: 'rawMetrics',
     kpi: function (data) {
-      return [
-        { label: 'Гружёных вагонов', value: data.total, accent: true },
-        { label: 'Макс. простой (сут.)', value: data.max_idle },
-      ]
+      return [{ label: 'Гружёных вагонов', value: data.total, accent: true }]
     },
     sumTableId: 'rawSumTable',
     sumSubId: 'rawSumSub',
@@ -598,7 +595,10 @@ var WAGON_TABS = {
     detPanelId: 'raw-detail',
     loadedKey: '_rawLoaded',
     loadedDetKey: '_rawDetLoaded',
-    groupCols: [],
+    groupCols: [
+      { key: 'cargo_name', label: 'Груз-' },
+      { key: 'wagon_type_code', label: 'Тип вагона' },
+    ],
     getParams: function () {
       return {}
     },

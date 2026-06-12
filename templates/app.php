@@ -289,9 +289,11 @@ $basePath = $basePath ?? '';
             <div class="filter-item">
               <label class="filter-label">Простой, дн</label>
               <div style="display:flex;align-items:center;gap:6px">
-                <input class="filter-input" type="number" id="fDowntimeMinDays" value="1" min="0" placeholder="от" style="width:72px">
+                <input class="filter-input" type="number" id="fDowntimeMinDays" value="1" min="0" placeholder="от"
+                  style="width:72px">
                 <span style="color:var(--text-3);font-size:12px">—</span>
-                <input class="filter-input" type="number" id="fDowntimeMaxDays" min="0" placeholder="до" style="width:72px">
+                <input class="filter-input" type="number" id="fDowntimeMaxDays" min="0" placeholder="до"
+                  style="width:72px">
               </div>
             </div>
             <div class="filter-actions">

@@ -381,7 +381,7 @@ class ApiController
     /** GET /api/departure/filters — значения для фильтров вкладки «Отправление» */
     public function departureFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params   = $request->getQueryParams();
+        $params = $request->getQueryParams();
         $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Отправка');
 
         if (!$reportDt) {
@@ -406,12 +406,12 @@ class ApiController
         );
 
         return $this->json($response, [
-            'cargo'        => array_column($cargo, 'cargo_name'),
+            'cargo' => array_column($cargo, 'cargo_name'),
             'dest_station' => array_column($destStation, 'dest_station'),
         ]);
     }
 
-
+    /** GET /api/departure/summary — Сводная отправление: Дорога→Станция, колонки=тип вагона */
     public function departureSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
@@ -683,7 +683,8 @@ class ApiController
         }
 
         $rows = $this->db->fetchAll(
-            "SELECT cargo_name, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) as wagon_type_code,
+            "SELECT cargo_name, 
+                    XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) as wagon_type_code,
                     COUNT(*) AS cnt,
                     MAX(idle_time_days) AS max_idle
              FROM xx_dislocation_rjd
