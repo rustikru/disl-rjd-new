@@ -53,7 +53,7 @@ $basePath = $basePath ?? '';
       <!-- Dashboard -->
       <div id="panel-dashboard" class="tab-panel active">
         <div style="margin-bottom:16px">
-          <div style="font-size:20px;font-weight:700;letter-spacing:-.02em">Dashboard</div>
+          <div style="font-size:20px;font-weight:700;letter-spacing:-.02em">Дашборд</div>
           <div style="font-size:12px;color:#9DA5B0;margin-top:3px" id="dashboardSub">Загрузка...</div>
         </div>
         <div class="kpi-grid" id="kpiGrid"></div>
@@ -86,7 +86,7 @@ $basePath = $basePath ?? '';
               <div class="table-acts">
                 <button class="btn btn-ghost btn-sm" data-collapse-table="mainTable">Свернуть все</button>
                 <button class="btn btn-ghost btn-sm" data-expand-table="mainTable">Отобразить все</button>
-                <button class="btn btn-ghost btn-sm" id="btnExportCSV">Excel</button>
+                <button class="btn btn-ghost btn-sm" id="btnExportCSV">CSV</button>
               </div>
             </div>
 
