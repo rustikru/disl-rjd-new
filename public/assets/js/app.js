@@ -403,8 +403,8 @@ var WAGON_TABS = {
     resetFilters: function () {
       $('#fReportDt').val('')
     },
-    detailParams: function () { return {} },
-    renderSummary: function (data, cfg) {
+    listParams: function () { return {} },
+    draw: function (data, cfg) {
       var $sub = $('#' + cfg.sumSubId)
       var $table = $('#' + cfg.sumTableId)
       if (!data.cols || !data.cols.length) {
@@ -419,8 +419,8 @@ var WAGON_TABS = {
       drawMain(data.sections, data.cols)
       $sub.text((data.report_dt_label || data.date || '') + ' · РЖД')
     },
-    renderDetail: function (data, cfg) {
-      showTable($('#' + cfg.detTableId), data.rows, extCols)
+    showList: function (data, cfg) {
+      showTable($('#' + cfg.detTableId), data.rows, DETAIL_CONTEXTS.dislocation.cols)
     },
   },
 
@@ -552,7 +552,7 @@ function initTab(cfg) {
         '<button class="btn btn-ghost btn-sm btn-csv-tab">↓ CSV</button>',
       )
       $btn.on('click', function () {
-        exportTableToCSV(cfg.sumTableId, cfg.csvFilename)
+        saveCSV(cfg.sumTableId, cfg.csvFilename)
       })
       $acts.append($btn)
     }
@@ -579,13 +579,13 @@ function loadSummary(cfg) {
   if (gby) summaryParams.group_by = gby
   $.getJSON(cfg.summaryUrl, summaryParams)
     .done(function (data) {
-      if (cfg.renderSummary) {
-        cfg.renderSummary(data, cfg)
+      if (cfg.draw) {
+        cfg.draw(data, cfg)
         return
       }
       if (cfg.metricsId) {
-        var items = cfg.buildMetrics
-          ? cfg.buildMetrics(data)
+        var items = cfg.kpi
+          ? cfg.kpi(data)
           : [
               { label: cfg.metricsLabel, value: data.total, accent: true },
             ].concat(data.metrics || [])
@@ -621,16 +621,16 @@ function loadDetail(cfg) {
   var $table = $('#' + cfg.detTableId)
   var cols = DETAIL_CONTEXTS[cfg.ctx] ? DETAIL_CONTEXTS[cfg.ctx].cols : []
   $sub.text('Загрузка...')
-  var detailParams = cfg.detailParams
-    ? cfg.detailParams()
+  var listParams = cfg.listParams
+    ? cfg.listParams()
     : Object.assign({}, cfg.getParams(), {
         fields: cols.map(function (c) { return c.key }).join(','),
         group_by: (cfg.groupCols || []).map(function (g) { return g.key }).join(','),
       })
-  $.getJSON(cfg.detailUrl, detailParams)
+  $.getJSON(cfg.detailUrl, listParams)
     .done(function (data) {
-      if (cfg.renderDetail) {
-        cfg.renderDetail(data, cfg)
+      if (cfg.showList) {
+        cfg.showList(data, cfg)
       } else {
         showTable($table, data.rows, cols)
       }
@@ -677,18 +677,6 @@ function showTable($table, rows, colDefs) {
 
 /******** cols config ********/
 
-var extCols = [
-  { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
-  { key: 'train_no', label: 'Поезд №', meta: true },
-  { key: 'oper_station', label: 'Тек. станция', meta: true },
-  { key: 'depart_station', label: 'Ст. отправл.', meta: true },
-  { key: 'dest_station', label: 'Ст. назнач.', meta: true },
-  { key: 'cargo_name', label: 'Груз', meta: true },
-  { key: 'park_type', label: 'Тип парка', meta: true },
-  { key: 'oper_mnemonic', label: 'Операция', meta: true },
-  { key: 'idle_time_days', label: 'Простой (дн)' },
-  { key: 'asoup_arrive_dt', label: 'Приб. (АСОУП)', meta: true },
-]
 
 /******** downtime ********/
 
@@ -1080,7 +1068,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
 }
 
 // CSV-экспорт таблицы по id и имени файла (без даты-суффикса в имени не нужна)
-function exportTableToCSV(tableId, filename) {
+function saveCSV(tableId, filename) {
   var table = document.getElementById(tableId)
   if (!table) return
   var rows = []
@@ -1106,7 +1094,7 @@ function exportTableToCSV(tableId, filename) {
 }
 // Простоая выгрузка в Excel активной таблицы (указаывается ID таблицы в настроках при построении сводной таблицы)
 function exportToCSV() {
-  exportTableToCSV('mainTable', 'дислокация')
+  saveCSV('mainTable', 'дислокация')
 }
 
 // Текст ошибки из jQuery

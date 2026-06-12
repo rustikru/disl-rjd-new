@@ -62,11 +62,11 @@ return function (App $app, array $config): void {
         });
 
         $group->get('/api/dislocation/summary', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->dislocationSummary($req, $res);
+            return (new \App\Controllers\ApiController($getDb()))->dislSummary($req, $res);
         });
 
         $group->get('/api/dislocation/extended', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->dislocationExtended($req, $res);
+            return (new \App\Controllers\ApiController($getDb()))->dislExtended($req, $res);
         });
         // Подход сводная 
         $group->get('/api/approach/summary', function ($req, $res) use ($getDb) {
@@ -107,10 +107,10 @@ return function (App $app, array $config): void {
 
         // Сырьё
         $group->get('/api/raw-material/summary', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->rawMaterialSummary($req, $res);
+            return (new \App\Controllers\ApiController($getDb()))->rawSummary($req, $res);
         });
         $group->get('/api/raw-material/detail', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->rawMaterialDetail($req, $res);
+            return (new \App\Controllers\ApiController($getDb()))->rawDetail($req, $res);
         });
 
         $group->get('/detail', function ($req, $res) use ($config) {

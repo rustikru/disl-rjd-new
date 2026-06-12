@@ -22,7 +22,7 @@ class ApiController
     }
 
     /** Возвращает список колонок таблицы xx_dislocation_rjd (кеш на запрос). */
-    private function getTableColumns(): array
+    private function getColumns(): array
     {
         if ($this->cachedTableColumns === null) {
             $rows = $this->db->fetchAll(
@@ -39,7 +39,7 @@ class ApiController
      */
     private function selectFields(string $raw): string
     {
-        $allowed = $this->getTableColumns();
+        $allowed = $this->getColumns();
         $fields = array_values(array_filter(
             array_map('trim', explode(',', $raw)),
             fn($f) => $f !== '' && in_array($f, $allowed, true)
@@ -54,7 +54,7 @@ class ApiController
      */
     private function groupFields(string $raw, array $defaults): array
     {
-        $allowed = $this->getTableColumns();
+        $allowed = $this->getColumns();
         $fields = array_values(array_filter(
             array_map('trim', explode(',', $raw)),
             fn($f) => $f !== '' && in_array($f, $allowed, true)
@@ -148,7 +148,7 @@ class ApiController
     }
 
     /** GET /api/dislocation/summary?report_dt=... — Сводная таблица */
-    public function dislocationSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    public function dislSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
         $reportDt = $params['report_dt'] ?? null;
@@ -188,7 +188,7 @@ class ApiController
     }
 
     /** GET /api/dislocation/extended — Расширенная дислокация */
-    public function dislocationExtended(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    public function dislExtended(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
         $reportDt = $params['report_dt'] ?? null;
@@ -584,7 +584,7 @@ class ApiController
 
 
     /** GET /api/raw-material/summary — Сводная сырья (простой гружёных вагонов) */
-    public function rawMaterialSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    public function rawSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
         $reportDt = $this->getReportDt($params['report_dt'] ?? null);
@@ -614,7 +614,7 @@ class ApiController
     }
 
     /** GET /api/raw-material/detail — Список вагонов с сырьём */
-    public function rawMaterialDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    public function rawDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
         $reportDt = $this->getReportDt($params['report_dt'] ?? null);

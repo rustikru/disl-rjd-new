@@ -1,7 +1,24 @@
 // Настройки для построения таблицы детализации
 // Указываем поля из окончательного SELECT
 var DETAIL_CONTEXTS = {
-  /**** ПОдход вагонов */
+  /**** Дислокация — расширенная */
+  dislocation: {
+    label: 'Расширенная дислокация',
+    endpoint: '/api/dislocation/extended',
+    cols: [
+      { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
+      { key: 'train_no', label: 'Поезд №', meta: true },
+      { key: 'oper_station', label: 'Тек. станция', meta: true },
+      { key: 'depart_station', label: 'Ст. отправл.', meta: true },
+      { key: 'dest_station', label: 'Ст. назнач.', meta: true },
+      { key: 'cargo_name', label: 'Груз', meta: true },
+      { key: 'park_type', label: 'Тип парка', meta: true },
+      { key: 'oper_mnemonic', label: 'Операция', meta: true },
+      { key: 'idle_time_days', label: 'Простой (дн)' },
+      { key: 'asoup_arrive_dt', label: 'Приб. (АСОУП)', meta: true },
+    ],
+  },
+  /**** Подход вагонов */
   approach: {
     label: 'Подход вагонов',
     endpoint: '/api/approach/detail',
