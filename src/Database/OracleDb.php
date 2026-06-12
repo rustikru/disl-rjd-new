@@ -46,11 +46,7 @@ class OracleDb implements DbInterface
             $v = $params[$k];
             $key = ltrim((string)$k, ':');
             $quoted = $v === null ? 'NULL'
-                : (is_numeric($v)
-                    ? (string)$v
-                    : (preg_match('/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/', (string)$v)
-                        ? "TO_TIMESTAMP('" . str_replace("'", "''", (string)$v) . "', 'YYYY-MM-DD HH24:MI:SS.FF')"
-                        : "'" . str_replace("'", "''", (string)$v) . "'"));
+                : (is_numeric($v) ? (string)$v : "'" . str_replace("'", "''", (string)$v) . "'");
             $sql = preg_replace('/:' . preg_quote($key, '/') . '\b/', $quoted, $sql);
         }
         return $sql;
