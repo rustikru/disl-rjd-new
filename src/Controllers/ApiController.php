@@ -148,7 +148,7 @@ class ApiController
     /** GET /api/dislocation/summary?report_dt=... — Сводная таблица */
     public function dislSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params    = $request->getQueryParams();
+        $params = $request->getQueryParams();
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
 
         if (empty($dtsByType)) {
@@ -187,9 +187,9 @@ class ApiController
         $section = $params['section'] ?? null;
 
         $dtsByType = $this->getLatestDtsByType($reportDt, ['Подход', 'Отправка']);
-        $cond      = $this->latestDtCondition($dtsByType, 'xdr');
-        $where     = '';
-        $bindings  = $cond['params'];
+        $cond = $this->latestDtCondition($dtsByType, 'xdr');
+        $where = '';
+        $bindings = $cond['params'];
 
         if ($wagType) {
             $where .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) = :wtype';
@@ -201,7 +201,7 @@ class ApiController
         }
         if ($section) {
             $where .= ' AND (park_type = :section OR park_type LIKE :section_like)';
-            $bindings['section']      = $section;
+            $bindings['section'] = $section;
             $bindings['section_like'] = $section . ',%';
         }
 
@@ -558,18 +558,18 @@ class ApiController
     /** GET /api/downtime/summary — Сводная простоев × тип вагона */
     public function downtimeSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params   = $request->getQueryParams();
+        $params = $request->getQueryParams();
         $reportDt = $this->getReportDt($params['report_dt'] ?? null);
-        $gf       = $this->groupFields($params['group_by'] ?? '', ['oper_road', 'oper_station']);
-        $gfStr    = implode(', ', $gf);
-        $minDays  = max(0, (int) ($params['min_days'] ?? 1));
-        $maxDays  = isset($params['max_days']) && $params['max_days'] !== '' ? (int) $params['max_days'] : null;
+        $gf = $this->groupFields($params['group_by'] ?? '', ['oper_road', 'oper_station']);
+        $gfStr = implode(', ', $gf);
+        $minDays = max(0, (int) ($params['min_days'] ?? 1));
+        $maxDays = isset($params['max_days']) && $params['max_days'] !== '' ? (int) $params['max_days'] : null;
 
         if (!$reportDt) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $where    = "report_dt = :report_dt AND idle_time_days IS NOT NULL AND nvl(idle_time_days,0) != 0";
+        $where = "report_dt = :report_dt AND idle_time_days IS NOT NULL AND nvl(idle_time_days,0) != 0";
         $bindings = ['report_dt' => $reportDt];
         if ($minDays > 0) {
             $where .= ' AND idle_time_days >= :min_days';
@@ -648,10 +648,10 @@ class ApiController
     /** GET /api/raw-material/summary — Сводная сырья */
     public function rawSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params   = $request->getQueryParams();
+        $params = $request->getQueryParams();
         $reportDt = $this->getReportDt($params['report_dt'] ?? null);
-        $gf       = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
-        $gfStr    = implode(', ', $gf);
+        $gf = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
+        $gfStr = implode(', ', $gf);
 
         if (!$reportDt) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0, 'max_idle' => 0]);
@@ -680,6 +680,7 @@ class ApiController
         $result = $this->roadTable($rows, $gf);
         $result['max_idle'] = (float) ($maxIdleRow['max_idle'] ?? 0);
         return $this->json($response, $result);
+
     }
 
     /** GET /api/raw-material/detail — Список вагонов с сырьём */
@@ -695,10 +696,10 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
-        $gf    = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
+        $gf = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
         $gfStr = implode(', ', $gf);
 
-        $where    = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
+        $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $bindings = ['report_dt' => $reportDt];
 
         foreach (array_filter([0 => $road, 1 => $station]) as $idx => $val) {
@@ -790,7 +791,7 @@ class ApiController
         foreach ($dtsByType as $type => $dt) {
             $parts[] = "({$col('type_reference')} = :ldt_type_{$i} AND {$col('report_dt')} = :ldt_dt_{$i})";
             $params["ldt_type_{$i}"] = $type;
-            $params["ldt_dt_{$i}"]   = $dt;
+            $params["ldt_dt_{$i}"] = $dt;
             $i++;
         }
         return ['sql' => '(' . implode(' OR ', $parts) . ')', 'params' => $params];
