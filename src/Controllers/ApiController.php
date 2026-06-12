@@ -307,14 +307,14 @@ class ApiController
 
         $cargo = $this->db->fetchAll(
             "SELECT DISTINCT cargo_name FROM xx_dislocation_rjd
-             WHERE report_dt = :report_dt AND type_reference = 'Подход'
+             WHERE report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND type_reference = 'Подход'
                AND cargo_name IS NOT NULL AND nvl(prev_cargo,'*') != '*'
              ORDER BY cargo_name ",
             $bindings
         );
         $prevCargo = $this->db->fetchAll(
             "SELECT DISTINCT prev_cargo FROM xx_dislocation_rjd
-             WHERE report_dt = :report_dt AND type_reference = 'Подход'
+             WHERE report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND type_reference = 'Подход'
                AND prev_cargo IS NOT NULL AND nvl(prev_cargo,'*') != '*'
              ORDER BY prev_cargo ",
             $bindings
@@ -329,7 +329,7 @@ class ApiController
     /** WHERE-условие для запросов «Подход» (wagons in transit: dist_remain_km > 0) */
     private function approachWhere(string $reportDt, ?string $cargo, ?string $prevCargo): array
     {
-        $where = "report_dt = :report_dt AND type_reference = 'Подход' AND dist_remain_km IS NOT NULL and dist_remain_km != 0";
+        $where = "report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND type_reference = 'Подход' AND dist_remain_km IS NOT NULL and dist_remain_km != 0";
         $bindings = ['report_dt' => $reportDt];
 
         if ($cargo) {
@@ -359,14 +359,14 @@ class ApiController
 
         $cargo = $this->db->fetchAll(
             "SELECT DISTINCT cargo_name FROM xx_dislocation_rjd
-             WHERE report_dt = :report_dt AND type_reference = 'Отправка'
+             WHERE report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND type_reference = 'Отправка'
                AND oper_mnemonic = 'ОТПР' AND cargo_name IS NOT NULL
              ORDER BY cargo_name " . $this->db->limit(150),
             $bindings
         );
         $destStation = $this->db->fetchAll(
             "SELECT DISTINCT dest_station FROM xx_dislocation_rjd
-             WHERE report_dt = :report_dt AND type_reference = 'Отправка'
+             WHERE report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND type_reference = 'Отправка'
                AND oper_mnemonic = 'ОТПР' AND dest_station IS NOT NULL
              ORDER BY dest_station " . $this->db->limit(300),
             $bindings
@@ -393,7 +393,7 @@ class ApiController
         $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $gfStr = implode(', ', $gf);
 
-        $where = "report_dt = :report_dt AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
+        $where = "report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
         $bindings = ['report_dt' => $reportDt];
         if ($cargo) {
             $where .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
@@ -433,7 +433,7 @@ class ApiController
         $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $gfStr = implode(', ', $gf);
 
-        $where = "report_dt = :report_dt AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
+        $where = "report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
         $bindings = ['report_dt' => $reportDt];
         if ($cargo) {
             $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';
@@ -490,7 +490,7 @@ class ApiController
         $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $gfStr = implode(', ', $gf);
 
-        $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
+        $where = "report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $bindings = ['report_dt' => $reportDt];
         if ($cargo) {
             $where .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
@@ -525,7 +525,7 @@ class ApiController
         $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $gfStr = implode(', ', $gf);
 
-        $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
+        $where = "report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $bindings = ['report_dt' => $reportDt];
         if ($cargo) {
             $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';
@@ -578,7 +578,7 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $where = "report_dt = :report_dt AND idle_time_days IS NOT NULL AND nvl(idle_time_days,0) != 0";
+        $where = "report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND idle_time_days IS NOT NULL AND nvl(idle_time_days,0) != 0";
         $bindings = ['report_dt' => $reportDt];
         if ($minDays > 0) {
             $where .= ' AND idle_time_days >= :min_days';
@@ -622,7 +622,7 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
-        $where = "report_dt = :report_dt AND idle_time_days IS NOT NULL AND idle_time_days != 0 ";
+        $where = "report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND idle_time_days IS NOT NULL AND idle_time_days != 0 ";
         $bindings = ['report_dt' => $reportDt];
         if ($minDays > 0) {
             $where .= ' AND idle_time_days >= :min_days';
@@ -677,7 +677,7 @@ class ApiController
                     XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) AS wagon_type_code,
                     COUNT(*) AS cnt
              FROM xx_dislocation_rjd
-             WHERE report_dt = :report_dt
+             WHERE report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF')
                AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0
                AND idle_time_days IS NOT NULL AND idle_time_days != 0
              GROUP BY $gfStr,
@@ -688,7 +688,7 @@ class ApiController
 
         $maxIdleRow = $this->db->fetchOne(
             "SELECT MAX(idle_time_days) AS max_idle FROM xx_dislocation_rjd
-             WHERE report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0",
+             WHERE report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0",
             ['report_dt' => $reportDt]
         );
 
@@ -714,7 +714,7 @@ class ApiController
         $gf = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
         $gfStr = implode(', ', $gf);
 
-        $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
+        $where = "report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $bindings = ['report_dt' => $reportDt];
 
         foreach (array_filter([0 => $road, count($gf) - 1 => $station]) as $idx => $val) {
@@ -811,7 +811,7 @@ class ApiController
         $params = [];
         $i = 0;
         foreach ($dtsByType as $type => $dt) {
-            $parts[] = "({$col('type_reference')} = :ldt_type_{$i} AND {$col('report_dt')} = :ldt_dt_{$i})";
+            $parts[] = "({$col('type_reference')} = :ldt_type_{$i} AND {$col('report_dt')} = TO_TIMESTAMP(:ldt_dt_{$i}, 'YYYY-MM-DD HH24:MI:SS.FF'))";
             $params["ldt_type_{$i}"] = $type;
             $params["ldt_dt_{$i}"] = $dt;
             $i++;
