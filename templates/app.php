@@ -375,27 +375,6 @@ $basePath = $basePath ?? '';
           </section>
         </div>
       </div>
-
-      <?php
-      $placeholders = [
-        'arrived' => 'Прибыло за сутки',
-        'trains' => 'Бросание поездов',
-        'analysis' => 'Анализ за период',
-        'recipients' => 'Вагоны у получателя',
-        'downtime-sum' => 'Простои (Сводный)',
-        'turnover' => 'Оборот',
-      ];
-      foreach ($placeholders as $id => $title):
-        ?>
-        <div id="panel-<?= htmlspecialchars($id) ?>" class="tab-panel">
-          <div class="placeholder-panel">
-            <div class="placeholder-icon">&#9881;</div>
-            <div class="placeholder-title"><?= htmlspecialchars($title) ?></div>
-            <div class="placeholder-sub">Раздел в разработке</div>
-          </div>
-        </div>
-      <?php endforeach; ?>
-
     </main>
   </div>
 
