@@ -789,7 +789,7 @@ class ApiController
             $params["ldt_dt_{$i}"]   = $dt;
             $i++;
         }
-        return ['sql' => implode(' OR ', $parts), 'params' => $params];
+        return ['sql' => '(' . implode(' OR ', $parts) . ')', 'params' => $params];
     }
 
     /**
