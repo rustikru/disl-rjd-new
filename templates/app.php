@@ -134,7 +134,7 @@ $basePath = $basePath ?? '';
         <!-- Внутренние вкладки -->
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="approach-summary">Сводная</button>
-          <button class="inner-tab" data-inner="approach-detail">Список вагонов</button>
+          <button class="inner-tab" data-inner="approach-detail">Расширенная</button>
         </div>
 
         <div id="approach-summary" class="inner-panel active">
@@ -159,7 +159,7 @@ $basePath = $basePath ?? '';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title">Список вагонов в подходе</span>
+                <span class="table-title">Расширенная в подходе</span>
                 <span class="table-sub" id="approachDetSub"></span>
               </div>
             </div>
@@ -195,7 +195,7 @@ $basePath = $basePath ?? '';
         </div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="departure-summary">Сводная</button>
-          <button class="inner-tab" data-inner="departure-detail">Список вагонов</button>
+          <button class="inner-tab" data-inner="departure-detail">Расширенная</button>
         </div>
         <div id="departure-summary" class="inner-panel active">
           <section class="table-section">
@@ -249,7 +249,7 @@ $basePath = $basePath ?? '';
         </div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="loading-summary">Сводная</button>
-          <button class="inner-tab" data-inner="loading-detail">Список вагонов</button>
+          <button class="inner-tab" data-inner="loading-detail">Расширенная</button>
         </div>
         <div id="loading-summary" class="inner-panel active">
           <section class="table-section">
@@ -299,7 +299,7 @@ $basePath = $basePath ?? '';
         </div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="downtime-summary">Сводная по станциям</button>
-          <button class="inner-tab" data-inner="downtime-detail">Список вагонов</button>
+          <button class="inner-tab" data-inner="downtime-detail">Расширенная</button>
         </div>
         <div id="downtime-summary" class="inner-panel active">
           <section class="table-section">
@@ -333,8 +333,8 @@ $basePath = $basePath ?? '';
       <div id="panel-raw-material" class="tab-panel">
         <div class="kpi-grid" id="rawMetrics" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
-          <button class="inner-tab active" data-inner="raw-summary">По грузам</button>
-          <button class="inner-tab" data-inner="raw-detail">Список вагонов</button>
+          <button class="inner-tab active" data-inner="raw-summary">Сводная по грузам</button>
+          <button class="inner-tab" data-inner="raw-detail">Расширенная</button>
         </div>
         <div id="raw-summary" class="inner-panel active">
           <section class="table-section">
@@ -353,7 +353,7 @@ $basePath = $basePath ?? '';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title">Список вагонов с сырьём</span>
+                <span class="table-title">Расширенная с сырьём</span>
                 <span class="table-sub" id="rawDetSub"></span>
               </div>
             </div>
