@@ -1,13 +1,9 @@
 <?php
 /**
- * Создание локального пользователя.
- *
- * Использование:
+ * 
  *   php bin/create-user.php <username> <display_name> <email> <password>
- *
- * Примеры:
- *   php bin/create-user.php admin "Администратор" admin@company.local secret123
- *   php bin/create-user.php ivan  "Иван Петров"   ivan@company.local qwerty
+ * 
+ *   php bin/create-user.php user  "Пользователь"   user@local.ru user
  */
 
 declare(strict_types=1);
@@ -15,8 +11,6 @@ declare(strict_types=1);
 require __DIR__ . '/../vendor/autoload.php';
 
 $config = require __DIR__ . '/../src/Config.php';
-
-// ── Аргументы ─────────────────────────────────────────────────────────────────
 
 $args = array_slice($argv, 1);
 
@@ -31,8 +25,6 @@ if (strlen($password) < 6) {
     fwrite(STDERR, "Ошибка: пароль должен быть не короче 6 символов.\n");
     exit(1);
 }
-
-// ── БД ────────────────────────────────────────────────────────────────────────
 
 $db = \App\Database\DbFactory::create($config);
 
@@ -53,10 +45,10 @@ $db->execute(
     'INSERT INTO users (username, display_name, email, password_hash, is_active)
      VALUES (:username, :display_name, :email, :hash, 1)',
     [
-        'username'     => $username,
+        'username' => $username,
         'display_name' => $displayName,
-        'email'        => $email,
-        'hash'         => $hash,
+        'email' => $email,
+        'hash' => $hash,
     ]
 );
 
