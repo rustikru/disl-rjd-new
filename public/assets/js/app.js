@@ -338,7 +338,7 @@ function drawMain(sections, cols) {
           h += '<td></td>'
         }
       })
-      h += '<td class="col-total-col">' + fmt(rowSum) + '</td></tr>'
+      h += '<td class="col-total-col cell-link" data-ctx="dislocation" data-extra="' + extraAttr + '">' + fmt(rowSum) + '</td></tr>'
     })
   })
 
