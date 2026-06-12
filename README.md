@@ -176,27 +176,130 @@ php bin/set-password.php <username> <new_password>
 
 ## Запуск
 
-### Docker
+### Требования
+
+| | |
+|---|---|
+| PHP | 8.1+ |
+| Расширения PHP | `oci8` (Oracle) **или** `pdo_pgsql` (PostgreSQL), `ldap` (если AD включён) |
+| Oracle client | Instant Client 19+ (нужен для oci8) |
+| Composer | 2.x |
+
+---
+
+### Вариант 1 — Docker (быстрый старт с PostgreSQL)
 
 ```bash
-cp .env.example .env   # заполнить DB_* и AD_*
-docker compose up -d
+cp .env.example .env
 ```
 
-### Вручную (Apache + PHP)
+Отредактируйте `.env` — для Docker достаточно минимума:
+
+```dotenv
+DB_DRIVER=postgres
+DB_HOST=postgres        # имя сервиса из docker-compose.yml
+DB_PORT=5432
+DB_NAME=disl_rzd
+DB_USER=postgres
+DB_PASS=postgres
+```
+
+```bash
+docker compose up -d
+# Приложение доступно на http://localhost:8080
+```
+
+> Для Oracle в Docker замените сервис на `oracle` и укажите:
+> ```dotenv
+> DB_DRIVER=oracle
+> DB_HOST=oracle
+> DB_PORT=1521
+> DB_NAME=FREE
+> DB_USER=xx_etw
+> DB_PASS=xx_etw123
+> ```
+
+---
+
+### Вариант 2 — Apache + PHP (продакшн)
+
+```bash
+cp .env.example .env      # заполнить DB_* и при необходимости AD_*
+composer install --no-dev --optimize-autoloader
+```
+
+Конфиг виртуального хоста Apache:
+
+```apacheconf
+<VirtualHost *:80>
+    ServerName disl.company.local
+    DocumentRoot /var/www/disl-rjd-new/public
+
+    <Directory /var/www/disl-rjd-new/public>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+```
+
+Убедитесь что включены модули: `mod_rewrite`, `mod_headers`.
+
+Если приложение в подпапке (например `/rjd`), задайте в `.env`:
+```dotenv
+APP_BASE_PATH=/rjd
+```
+
+---
+
+### Вариант 3 — PHP built-in server (разработка)
 
 ```bash
 cp .env.example .env
 composer install
-# DocumentRoot → public/
-# AllowOverride All (для mod_rewrite)
+php -S 0.0.0.0:8080 router.php
+# http://localhost:8080
 ```
 
-### PHP built-in server (для разработки)
+---
+
+### Создание первого пользователя
 
 ```bash
-php -S 0.0.0.0:8080 router.php
+php bin/create-user.php admin "Иван Иванов" admin@company.local secretpass
 ```
+
+```bash
+# Сменить пароль
+php bin/set-password.php admin newpass
+```
+
+---
+
+### Отладка SQL-запросов
+
+Включите в `.env`:
+
+```dotenv
+APP_DEBUG=true
+```
+
+После этого каждый `SELECT` будет записываться в `tmp/log/sql_debug.log` с подставленными значениями — SQL можно сразу открыть в Oracle SQL Developer / DBeaver.
+
+```bash
+tail -f tmp/log/sql_debug.log
+```
+
+Пример записи:
+```sql
+[2026-06-12 18:40:00]
+SELECT wagon_no, train_no, oper_station FROM xx_dislocation_rjd
+WHERE report_dt BETWEEN '2026-06-12' AND '2026-06-12'
+  AND dest_road = 'ГОРЬКОВСКАЯ'
+  AND FNC_MAPPING_WAG_TYPE(wagon_type_code) = 'ПЛ'
+ORDER BY dest_road, dest_station
+```
+
+> Не забудьте вернуть `APP_DEBUG=false` после отладки.
 
 ---
 
