@@ -1171,8 +1171,9 @@ $(document).on('input', '.col-search-input', function () {
 // + проброс параметра в detail.php.
 var SUB_PARAM_NAMES = ['cargo_state']
 
-// Drill-down: открыть страницу детализации в новой вкладке
-function openDetail(ctx, road, station, col, groupBy, subs) {
+// Drill-down: открыть страницу детализации в новой вкладке.
+// extra — активные фильтры вкладки (cfg.getParams()), уходят в URL как есть
+function openDetail(ctx, road, station, col, groupBy, subs, extra) {
   var p = new URLSearchParams()
   p.set('ctx', ctx)
   if (road) p.set('road', road)
@@ -1181,6 +1182,11 @@ function openDetail(ctx, road, station, col, groupBy, subs) {
   if (groupBy) p.set('group_by', groupBy)
   ;(subs || []).forEach(function (s, i) {
     if (s && SUB_PARAM_NAMES[i]) p.set(SUB_PARAM_NAMES[i], s)
+  })
+  Object.keys(extra || {}).forEach(function (k) {
+    if (extra[k] !== undefined && extra[k] !== null && extra[k] !== '') {
+      p.set(k, extra[k])
+    }
   })
   window.open(BASE + '/detail?' + p.toString(), '_blank')
 }
@@ -1199,7 +1205,10 @@ $(document).on('click', '.cell-link', function (e) {
     if (v === undefined || v === null || v === '') break
     subs.push(v)
   }
-  if (ctx) openDetail(ctx, road, station, col, groupBy, subs)
+  // Активные фильтры вкладки — чтобы детализация показывала то же, что сводная
+  var tabCfg = WAGON_TABS[ctx]
+  var extra = tabCfg && tabCfg.getParams ? tabCfg.getParams() : {}
+  if (ctx) openDetail(ctx, road, station, col, groupBy, subs, extra)
 })
 
 // Сворачивание/разворачивание

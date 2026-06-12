@@ -197,13 +197,15 @@ $basePath = $basePath ?? '';
       if (road) { apiParams.set('road', road); }
       if (station) { apiParams.set('station', station); }
       if (col) { apiParams.set('wagon_type', col); }
-      if (cargoState) { apiParams.set('cargo_state', cargoState); }
+      // Остальные параметры URL (cargo_state, cargo, prev_cargo, group_by...)
+      // пробрасываем в API как есть — это активные фильтры со сводной
+      var handled = { ctx: 1, road: 1, station: 1, col: 1 };
+      params.forEach(function (v, k) {
+        if (!handled[k] && v) { apiParams.set(k, v); }
+      });
       // Поля из cols конфига — backend делает SELECT только их
       var fields = ctxDef.cols.map(function (c) { return c.key; }).join(',');
       apiParams.set('fields', fields);
-      // Поля группировки из summary — backend фильтрует по ним road/station
-      var groupBy = params.get('group_by') || '';
-      if (groupBy) { apiParams.set('group_by', groupBy); }
 
       $('#detailSub').text('Загрузка...');
 
