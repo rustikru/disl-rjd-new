@@ -458,8 +458,12 @@ function showExtended(rows) {
 }
 
 // Конфиг для общео построения сводных вкладок и детализаций
+<<<<<<< HEAD
 // Подход / Отправление / Погрузка — описание всех полей см. в README.md
 
+=======
+/******** Вагон конфиг начало ********/
+>>>>>>> ce8b40f (upd)
 var WAGON_TABS = {
   // Подход
   approach: {
@@ -568,7 +572,7 @@ var WAGON_TABS = {
   },
 }
 
-/******** wagon tabs ********/
+/******** Вагон конфиг конец ********/
 
 function fillSelect(selector, values) {
   var $sel = $(selector)
@@ -581,10 +585,16 @@ function fillSelect(selector, values) {
 function initTab(cfg) {
   window[cfg.loadedKey] = true
   if (cfg.csvFilename) {
-    var $acts = $('#' + cfg.sumTableId).closest('.table-section').find('.table-acts')
+    var $acts = $('#' + cfg.sumTableId)
+      .closest('.table-section')
+      .find('.table-acts')
     if ($acts.length && !$acts.find('.btn-csv-tab').length) {
-      var $btn = $('<button class="btn btn-ghost btn-sm btn-csv-tab">↓ CSV</button>')
-      $btn.on('click', function () { exportTableToCSV(cfg.sumTableId, cfg.csvFilename) })
+      var $btn = $(
+        '<button class="btn btn-ghost btn-sm btn-csv-tab">↓ CSV</button>',
+      )
+      $btn.on('click', function () {
+        exportTableToCSV(cfg.sumTableId, cfg.csvFilename)
+      })
       $acts.append($btn)
     }
   }
@@ -617,7 +627,9 @@ function loadSummary(cfg) {
       if (cfg.metricsId) {
         var items = cfg.buildMetrics
           ? cfg.buildMetrics(data)
-          : [{ label: cfg.metricsLabel, value: data.total, accent: true }].concat(data.metrics || [])
+          : [
+              { label: cfg.metricsLabel, value: data.total, accent: true },
+            ].concat(data.metrics || [])
         $('#' + cfg.metricsId).html(items.map(kpiCard).join(''))
       }
       drawSummary(
@@ -906,7 +918,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     return
   }
   var colGroups = data.col_groups || null
-  var flatCols  = data.cols || []
+  var flatCols = data.cols || []
 
   // flatCells: [{col, subs:[]}] — один элемент на каждую фактическую колонку значений;
   // col — тип вагона (1-й уровень), subs — значения вложенных уровней по порядку
@@ -934,15 +946,25 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
       return count
     })(colGroups, 0, [])
   } else {
-    levels[0] = flatCols.map(function (c) { return { label: c, span: 1 } })
-    flatCols.forEach(function (c) { flatCells.push({ col: c, subs: [] }) })
+    levels[0] = flatCols.map(function (c) {
+      return { label: c, span: 1 }
+    })
+    flatCols.forEach(function (c) {
+      flatCells.push({ col: c, subs: [] })
+    })
   }
   var depth = levels.length
 
   var nGroup = groupCols.length
-  var groupBy = groupCols.map(function (g) { return g.key }).join(',')
+  var groupBy = groupCols
+    .map(function (g) {
+      return g.key
+    })
+    .join(',')
 
-  function fmt(v) { return v || '' }
+  function fmt(v) {
+    return v || ''
+  }
 
   // data-sub, data-sub2, data-sub3... — по одному атрибуту на уровень подзаголовка
   function subAttrs(subs) {
@@ -956,23 +978,40 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
   function cellLink(v, dataCtx, dataRoad, dataSt, cell) {
     if (!v || !dataCtx) return '<td>' + fmt(v) + '</td>'
     return (
-      '<td class="cell-link" data-ctx="' + esc(dataCtx) +
-      '" data-road="' + esc(dataRoad) +
-      '" data-station="' + esc(dataSt) +
-      '" data-col="' + esc(cell.col) +
-      '" data-group-by="' + esc(groupBy) + '"' + subAttrs(cell.subs) + '>' +
-      v + '</td>'
+      '<td class="cell-link" data-ctx="' +
+      esc(dataCtx) +
+      '" data-road="' +
+      esc(dataRoad) +
+      '" data-station="' +
+      esc(dataSt) +
+      '" data-col="' +
+      esc(cell.col) +
+      '" data-group-by="' +
+      esc(groupBy) +
+      '"' +
+      subAttrs(cell.subs) +
+      '>' +
+      v +
+      '</td>'
     )
   }
   function totalLink(v, dataCtx, dataRoad, dataSt) {
     var cls = 'col-total-col'
     if (!v || !dataCtx) return '<td class="' + cls + '">' + fmt(v) + '</td>'
     return (
-      '<td class="' + cls + ' cell-link" data-ctx="' + esc(dataCtx) +
-      '" data-road="' + esc(dataRoad) +
-      '" data-station="' + esc(dataSt) +
-      '" data-col="" data-group-by="' + esc(groupBy) + '">' +
-      (typeof v === 'number' ? v.toLocaleString('ru-RU') : v) + '</td>'
+      '<td class="' +
+      cls +
+      ' cell-link" data-ctx="' +
+      esc(dataCtx) +
+      '" data-road="' +
+      esc(dataRoad) +
+      '" data-station="' +
+      esc(dataSt) +
+      '" data-col="" data-group-by="' +
+      esc(groupBy) +
+      '">' +
+      (typeof v === 'number' ? v.toLocaleString('ru-RU') : v) +
+      '</td>'
     )
   }
 
@@ -984,26 +1023,42 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     h += '<th class="col-meta"' + rowspan + w + '>' + esc(gc.label) + '</th>'
   })
   levels[0].forEach(function (c) {
-    h += '<th' + (c.span > 1 ? ' colspan="' + c.span + '"' : '') +
-      (depth > 1 ? ' style="text-align:center"' : '') + '>' + esc(c.label) + '</th>'
+    h +=
+      '<th' +
+      (c.span > 1 ? ' colspan="' + c.span + '"' : '') +
+      (depth > 1 ? ' style="text-align:center"' : '') +
+      '>' +
+      esc(c.label) +
+      '</th>'
   })
   h += '<th class="col-total-col"' + rowspan + '>Итого</th></tr>'
   for (var d = 1; d < depth; d++) {
     h += '<tr>'
     levels[d].forEach(function (c) {
-      h += '<th' + (c.span > 1 ? ' colspan="' + c.span + '"' : '') +
-        ' style="text-align:center">' + esc(c.label) + '</th>'
+      h +=
+        '<th' +
+        (c.span > 1 ? ' colspan="' + c.span + '"' : '') +
+        ' style="text-align:center">' +
+        esc(c.label) +
+        '</th>'
     })
     h += '</tr>'
   }
   h += '</thead><tbody>'
 
-  var grandTotals = flatCells.map(function () { return 0 })
+  var grandTotals = flatCells.map(function () {
+    return 0
+  })
   var grandSum = 0
   ;(roads || []).forEach(function (road, ri) {
     var roadVal = road[groupCols[0].key] || ''
     h += '<tr class="row-road-parent" data-road-id="' + ri + '">'
-    h += '<td class="col-meta" colspan="' + nGroup + '"><span class="toggle-icon">▶</span>' + esc(roadVal) + '</td>'
+    h +=
+      '<td class="col-meta" colspan="' +
+      nGroup +
+      '"><span class="toggle-icon">▶</span>' +
+      esc(roadVal) +
+      '</td>'
     ;(road.total || []).forEach(function (v, i) {
       grandTotals[i] += v || 0
       h += cellLink(v, ctx, roadVal, '', flatCells[i])
@@ -1013,9 +1068,16 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     grandSum += road.grand_total || 0
     ;(road.stations || []).forEach(function (st) {
       var stVal = st[groupCols[nGroup - 1].key] || ''
-      var rowSum = (st.v || []).reduce(function (a, b) { return a + b }, 0)
-      h += '<tr class="row-data row-child row-hidden" data-parent-road="' + ri + '">'
-      for (var j = 0; j < nGroup - 1; j++) { h += '<td class="col-meta"></td>' }
+      var rowSum = (st.v || []).reduce(function (a, b) {
+        return a + b
+      }, 0)
+      h +=
+        '<tr class="row-data row-child row-hidden" data-parent-road="' +
+        ri +
+        '">'
+      for (var j = 0; j < nGroup - 1; j++) {
+        h += '<td class="col-meta"></td>'
+      }
       h += '<td class="col-meta">' + esc(stVal) + '</td>'
       ;(st.v || []).forEach(function (v, i) {
         h += cellLink(v, ctx, roadVal, stVal, flatCells[i])
@@ -1024,20 +1086,37 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
       h += '</tr>'
     })
   })
-  h += '<tr class="row-total row-grand"><td class="col-meta" colspan="' + nGroup + '">Общий итог</td>'
+  h +=
+    '<tr class="row-total row-grand"><td class="col-meta" colspan="' +
+    nGroup +
+    '">Общий итог</td>'
+
   grandTotals.forEach(function (v, i) {
     if (v && ctx) {
-      h += '<td class="cell-link" data-ctx="' + esc(ctx) +
-           '" data-road="" data-station="" data-col="' + esc(flatCells[i].col) + '"' + subAttrs(flatCells[i].subs) + '>' + v + '</td>'
+      h +=
+        '<td class="cell-link" data-ctx="' +
+        esc(ctx) +
+        '" data-road="" data-station="" data-col="' +
+        esc(flatCells[i].col) +
+        '"' +
+        subAttrs(flatCells[i].subs) +
+        '>' +
+        v +
+        '</td>'
     } else {
       h += '<td>' + (v || '') + '</td>'
     }
   })
   if (grandSum && ctx) {
-    h += '<td class="col-total-col cell-link" data-ctx="' + esc(ctx) + '" data-road="" data-station="" data-col="">' +
-         grandSum.toLocaleString('ru-RU') + '</td>'
+    h +=
+      '<td class="col-total-col cell-link" data-ctx="' +
+      esc(ctx) +
+      '" data-road="" data-station="" data-col="">' +
+      grandSum.toLocaleString('ru-RU') +
+      '</td>'
   } else {
-    h += '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>'
+    h +=
+      '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>'
   }
   h += '</tr></tbody>'
   $(selector).html(h)
@@ -1055,19 +1134,25 @@ function exportTableToCSV(tableId, filename) {
     })
     rows.push(cells.join(','))
   })
-  var csv = '﻿' + rows.join('\n')
+  var csv = '\uFEFF' + rows.join('\n') // BOM для корректного открытия в Excel
   var a = document.createElement('a')
-  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
-  a.download = (filename || 'таблица') + '_' + new Date().toISOString().slice(0, 10) + '.csv'
+  a.href = URL.createObjectURL(
+    new Blob([csv], { type: 'text/csv;charset=utf-8' }),
+  )
+  a.download =
+    (filename || 'таблица') +
+    '_' +
+    new Date().toISOString().slice(0, 10) +
+    '.csv'
   a.click()
   URL.revokeObjectURL(a.href)
 }
-
+// Простоая выгрузка в Excel активной таблицы (указаывается ID таблицы в настроках при построении сводной таблицы)
 function exportToCSV() {
   exportTableToCSV('mainTable', 'дислокация')
 }
 
-// Текст ошибки из jQuery XHR — HTTP-статус + сообщение из JSON-ответа
+// Текст ошибки из jQuery
 function ajaxErr(jqXHR) {
   var status = jqXHR.status ? ' (' + jqXHR.status + ')' : ''
   var detail = ''
@@ -1077,7 +1162,7 @@ function ajaxErr(jqXHR) {
   } catch (e) {
     detail = jqXHR.responseText || ''
   }
-  return 'Ошибка загрузки' + status + (detail ? ': ' + detail : '')
+  return 'Ошибка загрузки данных: ' + status + (detail ? ': ' + detail : '')
 }
 
 // Экранирование HTML
@@ -1090,9 +1175,12 @@ function esc(str) {
     .replace(/"/g, '&quot;')
 }
 
-// Цветовой стиль для простоя: красный ≥7 сут., оранжевый ≥3 сут.
+// Цветовой стиль простоя:
 function idleStyle(days) {
+  // красный ≥7 сут.,
   if (days >= 7) return ' style="color:#E8392A;font-weight:700"'
+
+  //оранжевый ≥3 сут.
   if (days >= 3) return ' style="color:#E8A530;font-weight:600"'
   return ''
 }
@@ -1115,7 +1203,7 @@ function kpiCard(item) {
   )
 }
 
-// Свернуть / Отобразить все дороги в таблице
+// Свернуть / Отобразить все строки в таблице
 function collapseAll($table) {
   $table.find('.row-road-parent').each(function () {
     var ri = $(this).data('road-id')
@@ -1138,7 +1226,7 @@ $(document).on('click', '[data-expand-table]', function () {
   expandAll($('#' + $(this).data('expand-table')))
 })
 
-// Поиск по столбцам: добавляет строку-фильтр под заголовком таблицы
+// Поиск по столбцам:  строку-фильтр под заголовком таблицы
 function addSearch($table) {
   var cells = ''
   $table.find('thead tr:first th').each(function () {
@@ -1222,7 +1310,7 @@ $(document).on('click', '.row-road-parent', function () {
     .find('.toggle-icon')
     .text(collapsed ? '▼' : '▶')
 })
-
+/******** НАЧАЛО ЗАПУСКА САЙТА ********/
 // Начало всего и конец тоже
 $(function () {
   initSidebar()

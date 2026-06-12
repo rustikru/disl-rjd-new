@@ -1,5 +1,7 @@
 // Настройки для построения таблицы детализации
+// Указываем поля из окончательного SELECT
 var DETAIL_CONTEXTS = {
+  /**** ПОдход вагонов */
   approach: {
     label: 'Подход вагонов',
     endpoint: '/api/approach/detail',
@@ -24,6 +26,7 @@ var DETAIL_CONTEXTS = {
       { key: 'norm_delivery_dt', label: 'Норм. дата дост.', meta: true },
     ],
   },
+  /**** Отправление вагонов */
   departure: {
     label: 'Отправление вагонов',
     endpoint: '/api/departure/detail',
@@ -40,6 +43,8 @@ var DETAIL_CONTEXTS = {
       { key: 'norm_delivery_dt', label: 'Норм. дата дост.', meta: true },
     ],
   },
+
+  /**** Погрузка */
   loading: {
     label: 'Погрузка',
     endpoint: '/api/loading/detail',
@@ -55,6 +60,8 @@ var DETAIL_CONTEXTS = {
       { key: 'oper_dt', label: 'Дата опер.', meta: true },
     ],
   },
+
+  /**** Простои */
   downtime: {
     label: 'Простои',
     endpoint: '/api/downtime/detail',
