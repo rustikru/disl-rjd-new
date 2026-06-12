@@ -550,7 +550,11 @@ var WAGON_TABS = {
     detPanelId: 'downtime-detail',
     loadedKey: '_downtimeLoaded',
     loadedDetKey: '_downtimeDetLoaded',
-    groupCols: [],
+    sumSubLabel: 'Вагонов с простоем',
+    groupCols: [
+      { key: 'oper_road', label: 'Дорога' },
+      { key: 'oper_station', label: 'Станция' },
+    ],
     applyBtnId: 'btnDowntimeApply',
     getParams: function () {
       var min = $('#fDowntimeMinDays').val()
@@ -564,12 +568,6 @@ var WAGON_TABS = {
     resetFilters: function () {
       $('#fDowntimeMinDays').val('1')
       $('#fDowntimeMaxDays').val('')
-    },
-    draw: function (data, cfg) {
-      drawDowntime(data.rows)
-      $('#' + cfg.sumSubId).text(
-        'Вагонов с простоем: ' + (data.total || 0).toLocaleString('ru-RU'),
-      )
     },
     showList: function (data, cfg) {
       showTable(
@@ -595,23 +593,14 @@ var WAGON_TABS = {
     detPanelId: 'raw-detail',
     loadedKey: '_rawLoaded',
     loadedDetKey: '_rawDetLoaded',
+    sumSubLabel: 'Гружёных вагонов',
     groupCols: [
-      { key: 'cargo_name', label: 'Груз-' },
-      { key: 'wagon_type_code', label: 'Тип вагона' },
+      { key: 'cargo_name', label: 'Груз' },
+      { key: 'oper_station', label: 'Станция' },
     ],
-    getParams: function () {
-      return {}
-    },
+    getParams: function () { return {} },
     fillFilters: function () {},
     resetFilters: function () {},
-    draw: function (data, cfg) {
-      drawRawTable(data.rows)
-      $('#' + cfg.sumSubId).text(
-        'Всего гружёных: ' +
-          (data.total || 0).toLocaleString('ru-RU') +
-          ' ваг.',
-      )
-    },
     showList: function (data, cfg) {
       showTable(
         $('#' + cfg.detTableId),
@@ -781,96 +770,7 @@ function showTable($table, rows, colDefs) {
 
 /******** cols config ********/
 
-/******** downtime ********/
-
-function drawDowntime(rows) {
-  if (!rows || !rows.length) {
-    $('#downtimeSumTable').html(
-      '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных</td></tr></tbody>',
-    )
-    return
-  }
-  var h =
-    '<thead><tr>' +
-    '<th class="col-meta">Дорога</th><th class="col-meta">Станция</th>' +
-    '<th class="col-meta">Тип вагона</th><th>Кол-во</th><th>Макс. простой (сут.)</th>' +
-    '</tr></thead><tbody>'
-  rows.forEach(function (r) {
-    var maxIdle = parseFloat(r.max_idle) || 0
-    var danger = idleStyle(maxIdle)
-    h +=
-      '<tr class="row-data">' +
-      '<td class="col-meta">' +
-      esc(r.oper_road) +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.oper_station) +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.wagon_type_code) +
-      '</td>' +
-      '<td class="cell-link" data-ctx="downtime" data-road="' +
-      esc(r.oper_road) +
-      '" data-station="' +
-      esc(r.oper_station) +
-      '" data-col="' +
-      esc(r.wagon_type_code) +
-      '">' +
-      esc(r.cnt) +
-      '</td>' +
-      '<td' +
-      danger +
-      '>' +
-      (maxIdle || '') +
-      '</td>' +
-      '</tr>'
-  })
-  $('#downtimeSumTable').html(h + '</tbody>')
-}
-
-/******** raw material ********/
-
-function drawRawTable(rows) {
-  if (!rows || !rows.length) {
-    $('#rawSumTable').html(
-      '<tbody><tr><td colspan="4" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных</td></tr></tbody>',
-    )
-    return
-  }
-  var h =
-    '<thead><tr><th class="col-meta">Груз</th><th class="col-meta">Тип вагона</th>' +
-    '<th>Кол-во</th><th>Макс. простой (сут.)</th></tr></thead><tbody>'
-  rows.forEach(function (r) {
-    h +=
-      '<tr class="row-data" style="cursor:pointer" onclick="rawToDetail(\'' +
-      esc(r.cargo_name).replace(/'/g, "\\'") +
-      '\')">' +
-      '<td class="col-meta">' +
-      esc(r.cargo_name) +
-      '</td>' +
-      '<td class="col-meta">' +
-      esc(r.wagon_type_code) +
-      '</td>' +
-      '<td>' +
-      esc(r.cnt) +
-      '</td>' +
-      '<td>' +
-      (r.max_idle || '') +
-      '</td>' +
-      '</tr>'
-  })
-  $('#rawSumTable').html(h + '</tbody>')
-}
-
-function rawToDetail(cargo) {
-  var extra = Object.assign(
-    { cargo: cargo },
-    WAGON_TABS['raw-material'].getParams(),
-  )
-  openDetail('raw-material', '', '', '', '', [], extra)
-}
-
-/******** summary / kpi  ********/
+/******** summary / kpi renders ********/
 
 function drawSummary(selector, roads, data, ctx, groupCols) {
   if (!roads || !roads.length) {

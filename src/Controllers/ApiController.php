@@ -583,40 +583,39 @@ class ApiController
     }
 
 
-    /** GET /api/downtime/summary — Сводная простоев по станциям */
+    /** GET /api/downtime/summary — Сводная простоев: Дорога→Станция × тип вагона */
     public function downtimeSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params = $request->getQueryParams();
+        $params   = $request->getQueryParams();
         $reportDt = $this->getReportDt($params['report_dt'] ?? null);
-        $minDays = max(0, (int) ($params['min_days'] ?? 1));
-        $maxDays = isset($params['max_days']) && $params['max_days'] !== '' ? (int) $params['max_days'] : null;
+        $minDays  = max(0, (int) ($params['min_days'] ?? 1));
+        $maxDays  = isset($params['max_days']) && $params['max_days'] !== '' ? (int) $params['max_days'] : null;
 
         if (!$reportDt) {
-            return $this->json($response, ['rows' => [], 'total' => 0]);
+            return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
+        }
+
+        $where = "report_dt = :report_dt AND idle_time_days IS NOT NULL AND nvl(idle_time_days,0) != 0";
+        $bindings = ['report_dt' => $reportDt];
+        if ($minDays > 0) {
+            $where .= ' AND idle_time_days >= :min_days';
+            $bindings['min_days'] = $minDays;
+        }
+        if ($maxDays !== null) {
+            $where .= ' AND idle_time_days <= :max_days';
+            $bindings['max_days'] = $maxDays;
         }
 
         $rows = $this->db->fetchAll(
-            "SELECT oper_road, oper_station, wagon_type_code,
-                    COUNT(*) AS cnt,
-                    MAX(idle_time_days) AS max_idle
+            "SELECT oper_road, oper_station, wagon_type_code, COUNT(*) AS cnt
              FROM xx_dislocation_rjd
-             WHERE report_dt = :report_dt
-               AND idle_time_days IS NOT NULL
-               AND nvl(idle_time_days,0) != 0
+             WHERE {$where}
              GROUP BY oper_road, oper_station, wagon_type_code
-             ORDER BY cnt DESC
-             " . "",
-            ['report_dt' => $reportDt]
+             ORDER BY oper_road, oper_station",
+            $bindings
         );
 
-        $rows = array_filter($rows, function ($r) use ($minDays, $maxDays) {
-            $idle = (float) ($r['max_idle'] ?? 0);
-            return $idle >= $minDays && ($maxDays === null || $idle <= $maxDays);
-        });
-
-        $total = array_sum(array_column($rows, 'cnt'));
-
-        return $this->json($response, ['rows' => array_values($rows), 'total' => (int) $total]);
+        return $this->json($response, $this->roadTable($rows, ['oper_road', 'oper_station']));
     }
 
     /** GET /api/downtime/detail — Список простаивающих вагонов */
@@ -672,53 +671,68 @@ class ApiController
     }
 
 
-    /** GET /api/raw-material/summary — Сводная сырья (простой гружёных вагонов) */
+    /** GET /api/raw-material/summary — Сводная сырья: Груз→Станция × тип вагона */
     public function rawSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params = $request->getQueryParams();
+        $params   = $request->getQueryParams();
         $reportDt = $this->getReportDt($params['report_dt'] ?? null);
 
         if (!$reportDt) {
-            return $this->json($response, ['rows' => [], 'total' => 0, 'max_idle' => 0]);
+            return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0, 'max_idle' => 0]);
         }
 
         $rows = $this->db->fetchAll(
-            "SELECT cargo_name, 
-                    XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) as wagon_type_code,
-                    COUNT(*) AS cnt,
-                    MAX(idle_time_days) AS max_idle
+            "SELECT cargo_name, oper_station,
+                    XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) AS wagon_type_code,
+                    COUNT(*) AS cnt
              FROM xx_dislocation_rjd
              WHERE report_dt = :report_dt
                AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0
                AND idle_time_days IS NOT NULL AND idle_time_days != 0
-             GROUP BY cargo_name, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE)
-             ORDER BY cnt DESC
-             ",
+             GROUP BY cargo_name, oper_station,
+                      XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)
+             ORDER BY cargo_name, oper_station",
             ['report_dt' => $reportDt]
         );
 
-        $total = array_sum(array_column($rows, 'cnt'));
-        $maxIdle = $rows ? max(array_column($rows, 'max_idle')) : 0;
+        $maxIdleRow = $this->db->fetchOne(
+            "SELECT MAX(idle_time_days) AS max_idle FROM xx_dislocation_rjd
+             WHERE report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0",
+            ['report_dt' => $reportDt]
+        );
 
-        return $this->json($response, ['rows' => $rows, 'total' => (int) $total, 'max_idle' => $maxIdle]);
+        $result = $this->roadTable($rows, ['cargo_name', 'oper_station']);
+        $result['max_idle'] = (float) ($maxIdleRow['max_idle'] ?? 0);
+        return $this->json($response, $result);
     }
 
     /** GET /api/raw-material/detail — Список вагонов с сырьём */
     public function rawDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params = $request->getQueryParams();
+        $params   = $request->getQueryParams();
         $reportDt = $this->getReportDt($params['report_dt'] ?? null);
-        $cargo = $params['cargo'] ?? null;
+        $road     = $params['road'] ?? null;
+        $station  = $params['station'] ?? null;
+        $wagType  = $params['wagon_type'] ?? null;
 
         if (!$reportDt) {
             return $this->json($response, ['rows' => []]);
         }
 
+        $gf = $this->groupFields($params['group_by'] ?? '', ['cargo_name', 'oper_station']);
+
         $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $bindings = ['report_dt' => $reportDt];
-        if ($cargo) {
-            $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';
-            $bindings['cargo_f'] = $cargo;
+
+        foreach (array_filter([0 => $road, 1 => $station]) as $idx => $val) {
+            if (isset($gf[$idx])) {
+                $where .= " AND {$gf[$idx]} = :gf_$idx";
+                $bindings["gf_$idx"] = $val;
+            }
+        }
+        if ($wagType) {
+            $where .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) = :wtype';
+            $bindings['wtype'] = $wagType;
         }
 
         $rows = $this->db->fetchAll(
