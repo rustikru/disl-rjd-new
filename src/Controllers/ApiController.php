@@ -70,7 +70,7 @@ class ApiController
              FROM xx_dislocation_rjd
              GROUP BY TRUNC(report_dt), type_reference
              ORDER BY TRUNC(report_dt) DESC, type_reference
-             ' . $this->db->limit(20)
+             '
         );
 
         $reports = array_map(function (array $r) {
@@ -109,11 +109,20 @@ class ApiController
 
         // Группируем по park_type
         $rows = $this->db->fetchAll(
-            'SELECT park_type, COUNT(*) AS total, wagon_type_code
-             FROM xx_dislocation_rjd
-             WHERE report_dt = :dt
-             GROUP BY park_type, wagon_type_code',
-            ['dt' => $dt]
+            "SELECT park_type, COUNT(*) AS total, wagon_type_code
+             FROM XX_DISLOCATION_RJD xdr
+                WHERE
+                    (xdr.report_dt, xdr.TYPE_REFERENCE) IN (
+                    SELECT
+                        max(x.REPORT_DT),TYPE_REFERENCE
+                    FROM
+                        XX_DISLOCATION_RJD x
+                    WHERE
+                        x.TYPE_REFERENCE IN ('Подход', 'Отправка')
+                    GROUP BY
+                        x.TYPE_REFERENCE) 
+             
+             GROUP BY park_type, wagon_type_code"
         );
 
         $sections = [];
@@ -159,7 +168,7 @@ class ApiController
         }
 
         $rows = $this->db->fetchAll(
-            "SELECT park_type, wagon_type_code, COUNT(*) AS wagon_count
+            "SELECT park_type, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) as wagon_type_code, COUNT(*) AS wagon_count
              FROM XX_DISLOCATION_RJD xdr
                 WHERE
                     (xdr.report_dt, xdr.TYPE_REFERENCE) IN (
@@ -171,7 +180,7 @@ class ApiController
                         x.TYPE_REFERENCE IN ('Подход', 'Отправка')
                     GROUP BY
                         x.TYPE_REFERENCE)
-             GROUP BY park_type, wagon_type_code
+             GROUP BY park_type, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE)
              ORDER BY park_type, wagon_type_code"
         );
 
@@ -200,7 +209,7 @@ class ApiController
         $bindings = $reportDt ? ['dt' => $reportDt] : [];
 
         if ($wagType) {
-            $where .= ' AND wagon_type_code = :wtype';
+            $where .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) = :wtype';
             $bindings['wtype'] = $wagType;
         }
         if ($parkType) {
@@ -310,7 +319,7 @@ class ApiController
                train_index, oper_dt, norm_delivery_dt, oper_mnemonic';
 
         $rows = $this->db->fetchAll(
-            "SELECT $select FROM xx_dislocation_rjd WHERE {$where} ORDER BY $gfStr " . $this->db->limit(1000),
+            "SELECT $select FROM xx_dislocation_rjd WHERE {$where} ORDER BY $gfStr " . "",
             $bindings
         );
 
@@ -333,14 +342,14 @@ class ApiController
             "SELECT DISTINCT cargo_name FROM xx_dislocation_rjd
              WHERE report_dt = :report_dt AND type_reference = 'Подход'
                AND cargo_name IS NOT NULL AND nvl(prev_cargo,'*') != '*'
-             ORDER BY cargo_name " . $this->db->limit(150),
+             ORDER BY cargo_name ",
             $bindings
         );
         $prevCargo = $this->db->fetchAll(
             "SELECT DISTINCT prev_cargo FROM xx_dislocation_rjd
              WHERE report_dt = :report_dt AND type_reference = 'Подход'
                AND prev_cargo IS NOT NULL AND nvl(prev_cargo,'*') != '*'
-             ORDER BY prev_cargo " . $this->db->limit(150),
+             ORDER BY prev_cargo ",
             $bindings
         );
 
@@ -442,7 +451,7 @@ class ApiController
                oper_station, oper_dt, dist_remain_km, norm_delivery_dt, waybill_no';
 
         $rows = $this->db->fetchAll(
-            "SELECT $select FROM xx_dislocation_rjd WHERE {$where} ORDER BY $gfStr " . $this->db->limit(1000),
+            "SELECT $select FROM xx_dislocation_rjd WHERE {$where} ORDER BY $gfStr " . "",
             $bindings
         );
 
@@ -523,7 +532,7 @@ class ApiController
                oper_station, oper_mnemonic, oper_dt, waybill_no';
 
         $rows = $this->db->fetchAll(
-            "SELECT $select FROM xx_dislocation_rjd WHERE {$where} ORDER BY $gfStr " . $this->db->limit(1000),
+            "SELECT $select FROM xx_dislocation_rjd WHERE {$where} ORDER BY $gfStr " . "",
             $bindings
         );
 
@@ -552,7 +561,7 @@ class ApiController
                AND nvl(idle_time_days,0) != 0
              GROUP BY oper_road, oper_station, wagon_type_code
              ORDER BY cnt DESC
-             " . $this->db->limit(200),
+             " . "",
             ['report_dt' => $reportDt]
         );
 
@@ -602,7 +611,7 @@ class ApiController
              FROM xx_dislocation_rjd
              WHERE {$where}
              ORDER BY idle_time_days DESC
-             " . $this->db->limit(1000),
+             " . "",
             $bindings
         );
 
@@ -630,7 +639,7 @@ class ApiController
                AND idle_time_days IS NOT NULL AND idle_time_days != 0
              GROUP BY cargo_name, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE)
              ORDER BY cnt DESC
-             " . $this->db->limit(100),
+             ",
             ['report_dt' => $reportDt]
         );
 
@@ -666,7 +675,7 @@ class ApiController
              FROM xx_dislocation_rjd
              WHERE {$where}
              ORDER BY idle_time_days DESC
-             " . $this->db->limit(1000),
+             " . "",
             $bindings
         );
 
@@ -693,15 +702,7 @@ class ApiController
     }
 
     /**
-     * Строит иерархию groupKeys[0]→groupKeys[last] с колонками по типу вагона.
-     * Принимает массив groupKeys любой длины — добавь поле в groupCols, больше ничего менять не нужно.
-     * groupKeys[0] = верхний уровень (дорога), groupKeys[last] = нижний (станция).
-     * Ключи в ответе совпадают с именами полей в БД → фронтенд читает через groupCols[i].key.
-     *
-     * $subGroupFields — доп. уровни шапки колонок после типа вагона, напр. ['cargo_w_type'].
-     * Уровней может быть сколько угодно: добавь поле в SELECT/GROUP BY и сюда.
-     * Пустой массив → плоская шапка, в ответе cols (старый формат).
-     * Иначе в ответе col_groups — дерево {label, subs: [...]}, листья — строки.
+     * Строит иерархию groupKeys[0]→groupKeys[last]
      */
     private function roadTable(array $rows, array $groupKeys, array $subGroupFields = []): array
     {
