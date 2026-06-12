@@ -120,7 +120,7 @@ function loadDashboard() {
   $.getJSON(BASE + '/api/dashboard')
     .done(function (data) {
       var label = data.updated_at || '—'
-      $('#brandDateSub').text('Дислокация РЖД · ' + label)
+      $('#brandDateSub').text('Дислокация РЖД ' + label)
       $('#headerDate').text(label)
       $('#dashboardSub').text('Справка: ' + label + ' · РЖД')
       showDashKpi(data.sections)
@@ -309,13 +309,22 @@ function drawMain(sections, cols) {
       '</td>'
     section.total.forEach(function (v, ci) {
       if (v) {
-        h += '<td class="cell-link" data-ctx="dislocation" data-col="' + esc(cols[ci].label) + '" data-extra="' + sectionExtra + '">' + fmt(v) + '</td>'
+        h +=
+          '<td class="cell-link" data-ctx="dislocation" data-col="' +
+          esc(cols[ci].label) +
+          '" data-extra="' +
+          sectionExtra +
+          '">' +
+          fmt(v) +
+          '</td>'
       } else {
         h += '<td></td>'
       }
     })
     h +=
-      '<td class="col-total-col cell-link" data-ctx="dislocation" data-extra="' + sectionExtra + '">' +
+      '<td class="col-total-col cell-link" data-ctx="dislocation" data-extra="' +
+      sectionExtra +
+      '">' +
       section.grand_total.toLocaleString('ru-RU') +
       '</td></tr>'
 
@@ -344,7 +353,12 @@ function drawMain(sections, cols) {
           h += '<td></td>'
         }
       })
-      h += '<td class="col-total-col cell-link" data-ctx="dislocation" data-extra="' + extraAttr + '">' + fmt(rowSum) + '</td></tr>'
+      h +=
+        '<td class="col-total-col cell-link" data-ctx="dislocation" data-extra="' +
+        extraAttr +
+        '">' +
+        fmt(rowSum) +
+        '</td></tr>'
     })
   })
 
@@ -360,7 +374,12 @@ function drawMain(sections, cols) {
     '<tr class="row-total row-grand"><td class="col-meta" colspan="2">Общий итог</td>'
   grandTotals.forEach(function (v, ci) {
     if (v) {
-      h += '<td class="cell-link" data-ctx="dislocation" data-col="' + esc(cols[ci].label) + '">' + v + '</td>'
+      h +=
+        '<td class="cell-link" data-ctx="dislocation" data-col="' +
+        esc(cols[ci].label) +
+        '">' +
+        v +
+        '</td>'
     } else {
       h += '<td></td>'
     }
@@ -392,27 +411,16 @@ var WAGON_TABS = {
     loadedDetKey: '_extLoaded',
     sumSubLabel: '',
     groupCols: [],
-    getParams: function () { return {} },
-    listParams: function () { return {} },
+    getParams: function () {
+      return {}
+    },
+    listParams: function () {
+      return {}
+    },
     draw: function (data, cfg) {
       var $sub = $('#' + cfg.sumSubId)
       var $table = $('#' + cfg.sumTableId)
       var dateLabel = data.report_dt_label || data.date || ''
-      if (dateLabel) {
-        $('#brandDateSub').text('Дислокация РЖД · ' + dateLabel)
-      }
-      if (!data.cols || !data.cols.length) {
-        $table.html(
-          '<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">' +
-            esc(
-              dateLabel ||
-                'Нет данных. Загрузите справку через «Управление → Загрузка справок»',
-            ) +
-            '</td></tr></tbody>',
-        )
-        $sub.text(dateLabel)
-        return
-      }
       drawMain(data.sections, data.cols)
       $sub.text(dateLabel)
     },

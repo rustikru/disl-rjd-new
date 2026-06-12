@@ -18,11 +18,11 @@ if (count($args) < 2) {
 }
 
 [$username, $password] = $args;
-
+/* 
 if (strlen($password) < 6) {
     fwrite(STDERR, "Ошибка: пароль должен быть не короче 6 символов.\n");
     exit(1);
-}
+} */
 
 $db = \App\Database\DbFactory::create($config);
 

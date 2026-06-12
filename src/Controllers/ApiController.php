@@ -107,7 +107,7 @@ class ApiController
             ]);
         }
 
-        // Группируем по park_type, в PHP берём первое слово как имя раздела
+        // Группируем по park_type
         $rows = $this->db->fetchAll(
             'SELECT park_type, COUNT(*) AS total, wagon_type_code
              FROM xx_dislocation_rjd
@@ -158,22 +158,21 @@ class ApiController
             $reportDt = $latest['dt'] ?? null;
         }
 
-        if (!$reportDt) {
-            return $this->json($response, [
-                'date' => null,
-                'report_dt_label' => 'Нет загруженных справок',
-                'cols' => [],
-                'sections' => [],
-            ]);
-        }
-
         $rows = $this->db->fetchAll(
-            'SELECT park_type, wagon_type_code, COUNT(*) AS wagon_count
-             FROM xx_dislocation_rjd
-             WHERE report_dt = :dt
+            "SELECT park_type, wagon_type_code, COUNT(*) AS wagon_count
+             FROM XX_DISLOCATION_RJD xdr
+                WHERE
+                    (xdr.report_dt, xdr.TYPE_REFERENCE) IN (
+                    SELECT
+                        max(x.REPORT_DT),TYPE_REFERENCE
+                    FROM
+                        XX_DISLOCATION_RJD x
+                    WHERE
+                        x.TYPE_REFERENCE IN ('Подход', 'Отправка')
+                    GROUP BY
+                        x.TYPE_REFERENCE)
              GROUP BY park_type, wagon_type_code
-             ORDER BY park_type, wagon_type_code',
-            ['dt' => $reportDt]
+             ORDER BY park_type, wagon_type_code"
         );
 
         try {
@@ -190,14 +189,14 @@ class ApiController
     /** GET /api/dislocation/detail — Расширенная дислокация */
     public function dislDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params   = $request->getQueryParams();
+        $params = $request->getQueryParams();
         $reportDt = $params['report_dt'] ?? null;
-        $wagType  = $params['wagon_type'] ?? null;
+        $wagType = $params['wagon_type'] ?? null;
         $parkType = $params['park_type'] ?? null;
-        $section  = $params['section'] ?? null;
+        $section = $params['section'] ?? null;
 
-        $dtParam  = $reportDt ? ':dt' : '(SELECT MAX(report_dt) FROM xx_dislocation_rjd)';
-        $where    = "report_dt = $dtParam";
+        $dtParam = $reportDt ? ':dt' : '(SELECT MAX(report_dt) FROM xx_dislocation_rjd)';
+        $where = "report_dt = $dtParam";
         $bindings = $reportDt ? ['dt' => $reportDt] : [];
 
         if ($wagType) {
@@ -210,7 +209,7 @@ class ApiController
         }
         if ($section) {
             $where .= ' AND (park_type = :section OR park_type LIKE :section_like)';
-            $bindings['section']      = $section;
+            $bindings['section'] = $section;
             $bindings['section_like'] = $section . ',%';
         }
 
@@ -696,34 +695,34 @@ class ApiController
      */
     private function roadTable(array $rows, array $groupKeys, array $subGroupFields = []): array
     {
-        $roadKey    = $groupKeys[0];
+        $roadKey = $groupKeys[0];
         $stationKey = $groupKeys[count($groupKeys) - 1];
 
         // Ось колонок: тип вагона + произвольное число под-уровней
         $axisFields = array_merge(['wagon_type_code'], $subGroupFields);
-        $nLevels    = count($axisFields);
+        $nLevels = count($axisFields);
 
         $values = array_fill(0, $nLevels, []); // уникальные значения уровня в порядке появления
-        $index  = array_fill(0, $nLevels, []); // значение => позиция
+        $index = array_fill(0, $nLevels, []); // значение => позиция
 
         foreach ($rows as $r) {
             foreach ($axisFields as $k => $f) {
-                $v = (string)($r[$f] ?? '');
+                $v = (string) ($r[$f] ?? '');
                 if ($v !== '' && !isset($index[$k][$v])) {
                     $index[$k][$v] = count($values[$k]);
-                    $values[$k][]  = $v;
+                    $values[$k][] = $v;
                 }
             }
         }
 
-        $dims  = array_map(fn($vals) => max(1, count($vals)), $values);
-        $nFlat = (int)array_product($dims);
+        $dims = array_map(fn($vals) => max(1, count($vals)), $values);
+        $nFlat = (int) array_product($dims);
 
         $roads = [];
         foreach ($rows as $r) {
-            $road    = (string)($r[$roadKey]    ?? 'Не указана');
-            $station = (string)($r[$stationKey] ?? 'Не указана');
-            $cnt     = (int)$r['cnt'];
+            $road = (string) ($r[$roadKey] ?? 'Не указана');
+            $station = (string) ($r[$stationKey] ?? 'Не указана');
+            $cnt = (int) $r['cnt'];
 
             if (!isset($roads[$road])) {
                 $roads[$road] = [$roadKey => $road, 'stations' => [], 'total' => array_fill(0, $nFlat, 0), 'grand_total' => 0];
@@ -732,20 +731,20 @@ class ApiController
                 $roads[$road]['stations'][$station] = [$stationKey => $station, 'v' => array_fill(0, $nFlat, 0)];
             }
 
-            $t = (string)($r['wagon_type_code'] ?? '');
+            $t = (string) ($r['wagon_type_code'] ?? '');
             if ($t === '' || !isset($index[0][$t])) {
                 continue;
             }
             // Плоский индекс: позиционная система счисления по уровням оси
             $fi = 0;
             foreach ($axisFields as $k => $f) {
-                $v  = (string)($r[$f] ?? '');
+                $v = (string) ($r[$f] ?? '');
                 $fi = $fi * $dims[$k] + ($index[$k][$v] ?? 0);
             }
 
             $roads[$road]['stations'][$station]['v'][$fi] += $cnt;
-            $roads[$road]['total'][$fi]                   += $cnt;
-            $roads[$road]['grand_total']                  += $cnt;
+            $roads[$road]['total'][$fi] += $cnt;
+            $roads[$road]['grand_total'] += $cnt;
         }
 
         foreach ($roads as &$road) {
@@ -756,7 +755,7 @@ class ApiController
         $roadList = array_values($roads);
         usort($roadList, fn($a, $b) => $b['grand_total'] - $a['grand_total']);
 
-        $metrics    = array_map(fn($r) => ['label' => $r[$roadKey], 'total' => $r['grand_total']], $roadList);
+        $metrics = array_map(fn($r) => ['label' => $r[$roadKey], 'total' => $r['grand_total']], $roadList);
         $grandTotal = array_sum(array_column($metrics, 'total'));
 
         if ($subGroupFields === []) {
@@ -766,7 +765,7 @@ class ApiController
         // Дерево шапки: полное декартово произведение значений уровней, листья — строки
         $buildTree = function (int $level) use (&$buildTree, $values, $nLevels) {
             $leaf = $level === $nLevels - 1;
-            $out  = [];
+            $out = [];
             foreach ($values[$level] as $v) {
                 $out[] = $leaf ? $v : ['label' => $v, 'subs' => $buildTree($level + 1)];
             }

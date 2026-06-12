@@ -24,14 +24,10 @@ $basePath = $basePath ?? '';
         </div>
         <div class="brand-text">
           <div class="brand-name"><?= htmlspecialchars($appName) ?></div>
-          <div id="brandDateSub" style="font-size:11px;color:var(--text-3);margin-top:2px"></div>
+          <div id="brandDateSub" class="brand-date-sub"></div>
         </div>
       </div>
       <div class="header-meta">
-        <!-- <span class="meta-update">
-          <span class="meta-label">Обновлено: </span>
-          <span id="headerDate">—</span>
-        </span> -->
         <div class="user-info">
           <span class="user-name" title="<?= htmlspecialchars($user['auth_source'] ?? '') ?>">
             <?= htmlspecialchars($user['display_name'] ?? $user['username']) ?>

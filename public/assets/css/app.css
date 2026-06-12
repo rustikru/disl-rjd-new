@@ -626,3 +626,9 @@ body {
 .placeholder-sub {
   font-size: 13px;
 }
+.brand-date-sub {
+  font-size: 11px;
+  color: rgb(159, 18, 79);
+  margin-top: 2px;
+  font-weight: bold;
+}
