@@ -253,12 +253,26 @@ APP_BASE_PATH=/rjd
 
 ### Вариант 3 — PHP built-in server (разработка)
 
+**Linux / Windows:**
 ```bash
 cp .env.example .env
 composer install
-php -S 0.0.0.0:8080 router.php
-# http://localhost:8080
+php -S localhost:8080 -t public/
 ```
+
+**macOS + Oracle Instant Client:**
+```bash
+DYLD_LIBRARY_PATH=/opt/oracle/instantclient_23_26 php -S localhost:8080 -t public/
+```
+
+> Путь `/opt/oracle/instantclient_23_26` — замените на вашу версию Instant Client.  
+> Oracle в Docker при этом запускается отдельно:
+> ```bash
+> docker compose up -d oracle
+> # подождать ~60 сек, затем:
+> docker compose logs -f oracle | grep -m1 "DATABASE IS READY"
+> ```
+> В `.env` указать `DB_HOST=127.0.0.1`.
 
 ---
 
