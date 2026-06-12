@@ -410,7 +410,7 @@ var WAGON_TABS = {
     detPanelId: 'disl-extended',
     loadedKey: '_dislLoaded',
     loadedDetKey: '_extLoaded',
-    sumSubLabel: '',
+    sumSubLabel: 'Итого по дислокации',
     groupCols: [
       { key: 'dest_state', label: 'Страна назначения' },
       { key: 'dest_road', label: 'Дорога назначения' },
