@@ -302,9 +302,11 @@ function drawMain(sections, cols) {
 
   sections.forEach(function (section, si) {
     var sectionExtra = esc(JSON.stringify({ section: section.name }))
+    var hasChildren = section.rows.length > 1
     h += '<tr class="row-road-parent" data-road-id="' + si + '">'
     h +=
-      '<td class="col-meta" colspan="2"><span class="toggle-icon">▼</span>' +
+      '<td class="col-meta" colspan="2">' +
+      (hasChildren ? '<span class="toggle-icon">▼</span>' : '') +
       esc(section.name) +
       '</td>'
     section.total.forEach(function (v, ci) {
@@ -328,38 +330,40 @@ function drawMain(sections, cols) {
       section.grand_total.toLocaleString('ru-RU') +
       '</td></tr>'
 
-    section.rows.forEach(function (row) {
-      var rowSum = row.v.reduce(function (a, b) {
-        return a + b
-      }, 0)
-      h +=
-        '<tr class="row-data row-child" data-parent-road="' +
-        si +
-        '">'
-      h += '<td class="col-meta"></td>'
-      h += '<td class="col-meta">' + esc(row.sub || '') + '</td>'
-      var extraAttr = esc(JSON.stringify({ park_type: row.sub }))
-      row.v.forEach(function (v, ci) {
-        if (v) {
-          h +=
-            '<td class="cell-link" data-ctx="dislocation" data-col="' +
-            esc(cols[ci].label) +
-            '" data-extra="' +
-            extraAttr +
-            '">' +
-            fmt(v) +
-            '</td>'
-        } else {
-          h += '<td></td>'
-        }
+    if (hasChildren) {
+      section.rows.forEach(function (row) {
+        var rowSum = row.v.reduce(function (a, b) {
+          return a + b
+        }, 0)
+        h +=
+          '<tr class="row-data row-child" data-parent-road="' +
+          si +
+          '">'
+        h += '<td class="col-meta"></td>'
+        h += '<td class="col-meta">' + esc(row.sub || '') + '</td>'
+        var extraAttr = esc(JSON.stringify({ park_type: row.sub }))
+        row.v.forEach(function (v, ci) {
+          if (v) {
+            h +=
+              '<td class="cell-link" data-ctx="dislocation" data-col="' +
+              esc(cols[ci].label) +
+              '" data-extra="' +
+              extraAttr +
+              '">' +
+              fmt(v) +
+              '</td>'
+          } else {
+            h += '<td></td>'
+          }
+        })
+        h +=
+          '<td class="col-total-col cell-link" data-ctx="dislocation" data-extra="' +
+          extraAttr +
+          '">' +
+          fmt(rowSum) +
+          '</td></tr>'
       })
-      h +=
-        '<td class="col-total-col cell-link" data-ctx="dislocation" data-extra="' +
-        extraAttr +
-        '">' +
-        fmt(rowSum) +
-        '</td></tr>'
-    })
+    }
   })
 
   var grandTotals = cols.map(function (_, ci) {
@@ -915,11 +919,14 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
   var grandSum = 0
   ;(roads || []).forEach(function (road, ri) {
     var roadVal = road[groupCols[0].key] || ''
+    var stations = road.stations || []
+    var hasChildren = stations.length > 1
     h += '<tr class="row-road-parent" data-road-id="' + ri + '">'
     h +=
       '<td class="col-meta" colspan="' +
       nGroup +
-      '"><span class="toggle-icon">▼</span>' +
+      '">' +
+      (hasChildren ? '<span class="toggle-icon">▼</span>' : '') +
       esc(roadVal) +
       '</td>'
     ;(road.total || []).forEach(function (v, i) {
@@ -929,25 +936,27 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     h += totalLink(road.grand_total || 0, ctx, roadVal, '')
     h += '</tr>'
     grandSum += road.grand_total || 0
-    ;(road.stations || []).forEach(function (st) {
-      var stVal = st[groupCols[nGroup - 1].key] || ''
-      var rowSum = (st.v || []).reduce(function (a, b) {
-        return a + b
-      }, 0)
-      h +=
-        '<tr class="row-data row-child" data-parent-road="' +
-        ri +
-        '">'
-      for (var j = 0; j < nGroup - 1; j++) {
-        h += '<td class="col-meta"></td>'
-      }
-      h += '<td class="col-meta">' + esc(stVal) + '</td>'
-      ;(st.v || []).forEach(function (v, i) {
-        h += cellLink(v, ctx, roadVal, stVal, flatCells[i])
+    if (hasChildren) {
+      stations.forEach(function (st) {
+        var stVal = st[groupCols[nGroup - 1].key] || ''
+        var rowSum = (st.v || []).reduce(function (a, b) {
+          return a + b
+        }, 0)
+        h +=
+          '<tr class="row-data row-child" data-parent-road="' +
+          ri +
+          '">'
+        for (var j = 0; j < nGroup - 1; j++) {
+          h += '<td class="col-meta"></td>'
+        }
+        h += '<td class="col-meta">' + esc(stVal) + '</td>'
+        ;(st.v || []).forEach(function (v, i) {
+          h += cellLink(v, ctx, roadVal, stVal, flatCells[i])
+        })
+        h += totalLink(rowSum, ctx, roadVal, stVal)
+        h += '</tr>'
       })
-      h += totalLink(rowSum, ctx, roadVal, stVal)
-      h += '</tr>'
-    })
+    }
   })
   h +=
     '<tr class="row-total row-grand"><td class="col-meta" colspan="' +
