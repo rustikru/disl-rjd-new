@@ -109,18 +109,17 @@ $basePath = $basePath ?? '';
         <div class="kpi-grid" id="approachMetrics" style="margin-bottom:16px"></div>
 
         <!-- Фильтры -->
-        <div
-          style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 16px;margin-bottom:12px">
+        <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-item">
               <label class="filter-label" for="fApproachCargo">Груз</label>
-              <select class="filter-input" id="fApproachCargo" style="min-width:200px">
+              <select class="filter-input" id="fApproachCargo">
                 <option value="">— Все —</option>
               </select>
             </div>
             <div class="filter-item">
-              <label class="filter-label" for="fApproachPrevCargo">Ранее выгруженный</label>
-              <select class="filter-input" id="fApproachPrevCargo" style="min-width:200px">
+              <label class="filter-label" for="fApproachPrevCargo">Ранее выгружен</label>
+              <select class="filter-input" id="fApproachPrevCargo">
                 <option value="">— Все —</option>
               </select>
             </div>
@@ -174,17 +173,18 @@ $basePath = $basePath ?? '';
       <!-- Отправление вагонов -->
       <div id="panel-departure" class="tab-panel">
         <div class="kpi-grid" id="departureMetrics" style="margin-bottom:16px"></div>
-        <div
-          style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 16px;margin-bottom:12px">
+        <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-item">
               <label class="filter-label" for="fDepartureCargo">Груз</label>
-              <select class="filter-input" id="fDepartureCargo" style="min-width:200px">
+              <select class="filter-input" id="fDepartureCargo">
                 <option value="">— Все —</option>
               </select>
-              <label class="filter-label" for="fDestStation">Станция назначения</label>
-              <select class="filter-input" id="fDestStation" style="min-width:200px">
-                <option value="">— Все станции —</option>
+            </div>
+            <div class="filter-item">
+              <label class="filter-label" for="fDestStation">Ст. назначения</label>
+              <select class="filter-input" id="fDestStation">
+                <option value="">— Все —</option>
               </select>
             </div>
             <div class="filter-actions">
@@ -232,12 +232,11 @@ $basePath = $basePath ?? '';
       <!-- Погрузка -->
       <div id="panel-loading" class="tab-panel">
         <div class="kpi-grid" id="loadingMetrics" style="margin-bottom:16px"></div>
-        <div
-          style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 16px;margin-bottom:12px">
+        <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-item">
               <label class="filter-label" for="fLoadingCargo">Груз</label>
-              <select class="filter-input" id="fLoadingCargo" style="min-width:200px">
+              <select class="filter-input" id="fLoadingCargo">
                 <option value="">— Все —</option>
               </select>
             </div>
@@ -285,12 +284,15 @@ $basePath = $basePath ?? '';
 
       <!-- Простои -->
       <div id="panel-downtime" class="tab-panel">
-        <div
-          style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 16px;margin-bottom:12px">
+        <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-item">
-              <label class="filter-label" for="fDowntimeMinDays">Простой, дн</label>
-              <input class="filter-input" type="number" id="fDowntimeMinDays" value="1" min="1" style="width:80px">
+              <label class="filter-label">Простой, дн</label>
+              <div style="display:flex;align-items:center;gap:6px">
+                <input class="filter-input" type="number" id="fDowntimeMinDays" value="1" min="0" placeholder="от" style="width:72px">
+                <span style="color:var(--text-3);font-size:12px">—</span>
+                <input class="filter-input" type="number" id="fDowntimeMaxDays" min="0" placeholder="до" style="width:72px">
+              </div>
             </div>
             <div class="filter-actions">
               <button class="btn btn-primary btn-sm" id="btnDowntimeApply">Применить</button>

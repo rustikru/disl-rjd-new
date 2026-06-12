@@ -82,6 +82,9 @@ return function (App $app, array $config): void {
         });
 
         // Отправление
+        $group->get('/api/departure/filters', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->departureFilters($req, $res);
+        });
         $group->get('/api/departure/summary', function ($req, $res) use ($getDb) {
             return (new \App\Controllers\ApiController($getDb()))->departureSummary($req, $res);
         });

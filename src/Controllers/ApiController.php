@@ -378,12 +378,46 @@ class ApiController
     }
 
 
-    /** GET /api/departure/summary — Сводная: Дорога→Станция отправления, кол-во по типам */
+    /** GET /api/departure/filters — значения для фильтров вкладки «Отправление» */
+    public function departureFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params   = $request->getQueryParams();
+        $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Отправка');
+
+        if (!$reportDt) {
+            return $this->json($response, ['cargo' => [], 'dest_station' => []]);
+        }
+
+        $bindings = ['report_dt' => $reportDt];
+
+        $cargo = $this->db->fetchAll(
+            "SELECT DISTINCT cargo_name FROM xx_dislocation_rjd
+             WHERE report_dt = :report_dt AND type_reference = 'Отправка'
+               AND oper_mnemonic = 'ОТПР' AND cargo_name IS NOT NULL
+             ORDER BY cargo_name " . $this->db->limit(150),
+            $bindings
+        );
+        $destStation = $this->db->fetchAll(
+            "SELECT DISTINCT dest_station FROM xx_dislocation_rjd
+             WHERE report_dt = :report_dt AND type_reference = 'Отправка'
+               AND oper_mnemonic = 'ОТПР' AND dest_station IS NOT NULL
+             ORDER BY dest_station " . $this->db->limit(300),
+            $bindings
+        );
+
+        return $this->json($response, [
+            'cargo'        => array_column($cargo, 'cargo_name'),
+            'dest_station' => array_column($destStation, 'dest_station'),
+        ]);
+    }
+
+
     public function departureSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
         $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Отправка');
         $cargo = $params['cargo'] ?? null;
+        $destStation = $params['dest_station'] ?? null;
 
         if (!$reportDt) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
@@ -397,6 +431,10 @@ class ApiController
         if ($cargo) {
             $where .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
             $bindings['cargo_f'] = $cargo;
+        }
+        if ($destStation) {
+            $where .= ' AND dest_station = :dest_station';
+            $bindings['dest_station'] = $destStation;
         }
 
         $rows = $this->db->fetchAll(
@@ -416,6 +454,7 @@ class ApiController
         $params = $request->getQueryParams();
         $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Отправка');
         $cargo = $params['cargo'] ?? null;
+        $destStation = $params['dest_station'] ?? null;
         $road = $params['road'] ?? null;
         $station = $params['station'] ?? null;
         $wagType = $params['wagon_type'] ?? null;
@@ -432,6 +471,10 @@ class ApiController
         if ($cargo) {
             $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';
             $bindings['cargo_f'] = $cargo;
+        }
+        if ($destStation) {
+            $where .= ' AND dest_station = :dest_station';
+            $bindings['dest_station'] = $destStation;
         }
         foreach (array_filter([0 => $road, 1 => $station]) as $idx => $val) {
             if (isset($gf[$idx])) {
@@ -546,6 +589,7 @@ class ApiController
         $params = $request->getQueryParams();
         $reportDt = $this->getReportDt($params['report_dt'] ?? null);
         $minDays = max(0, (int) ($params['min_days'] ?? 1));
+        $maxDays = isset($params['max_days']) && $params['max_days'] !== '' ? (int) $params['max_days'] : null;
 
         if (!$reportDt) {
             return $this->json($response, ['rows' => [], 'total' => 0]);
@@ -565,10 +609,10 @@ class ApiController
             ['report_dt' => $reportDt]
         );
 
-        // Фильтруем по минимальному кол-ву суток в PHP (избегаем CAST для кроссплатформенности)
-        if ($minDays > 1) {
-            $rows = array_filter($rows, fn($r) => (float) ($r['max_idle'] ?? 0) >= $minDays);
-        }
+        $rows = array_filter($rows, function ($r) use ($minDays, $maxDays) {
+            $idle = (float) ($r['max_idle'] ?? 0);
+            return $idle >= $minDays && ($maxDays === null || $idle <= $maxDays);
+        });
 
         $total = array_sum(array_column($rows, 'cnt'));
 
@@ -584,6 +628,7 @@ class ApiController
         $road = $params['road'] ?? null;
         $wagType = $params['wagon_type'] ?? null;
         $minDays = max(0, (int) ($params['min_days'] ?? 1));
+        $maxDays = isset($params['max_days']) && $params['max_days'] !== '' ? (int) $params['max_days'] : null;
 
         if (!$reportDt) {
             return $this->json($response, ['rows' => []]);
@@ -591,6 +636,14 @@ class ApiController
 
         $where = "report_dt = :report_dt AND idle_time_days IS NOT NULL AND idle_time_days != 0 ";
         $bindings = ['report_dt' => $reportDt];
+        if ($minDays > 0) {
+            $where .= ' AND idle_time_days >= :min_days';
+            $bindings['min_days'] = $minDays;
+        }
+        if ($maxDays !== null) {
+            $where .= ' AND idle_time_days <= :max_days';
+            $bindings['max_days'] = $maxDays;
+        }
         if ($station) {
             $where .= ' AND oper_station = :oper_station';
             $bindings['oper_station'] = $station;

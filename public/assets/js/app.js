@@ -473,7 +473,7 @@ var WAGON_TABS = {
   // Отправление
   departure: {
     ctx: 'departure',
-    filtersUrl: BASE + '/api/approach/filters',
+    filtersUrl: BASE + '/api/departure/filters',
     summaryUrl: BASE + '/api/departure/summary',
     detailUrl: BASE + '/api/departure/detail',
     metricsId: 'departureMetrics',
@@ -553,10 +553,18 @@ var WAGON_TABS = {
     groupCols: [],
     applyBtnId: 'btnDowntimeApply',
     getParams: function () {
-      return { min_days: $('#fDowntimeMinDays').val() || 1 }
+      var min = $('#fDowntimeMinDays').val()
+      var max = $('#fDowntimeMaxDays').val()
+      return {
+        min_days: min !== '' ? min : 1,
+        max_days: max !== '' ? max : undefined,
+      }
     },
     fillFilters: function () {},
-    resetFilters: function () {},
+    resetFilters: function () {
+      $('#fDowntimeMinDays').val('1')
+      $('#fDowntimeMaxDays').val('')
+    },
     draw: function (data, cfg) {
       drawDowntime(data.rows)
       $('#' + cfg.sumSubId).text(
