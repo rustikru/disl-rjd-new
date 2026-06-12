@@ -1,5 +1,5 @@
 // Настройки для построения таблицы детализации
-// Указываем поля из окончательного SELECT
+// Указываем поля из окончательного SELECT-a
 var DETAIL_CONTEXTS = {
   /**** Дислокация — расширенная */
   dislocation: {
@@ -93,6 +93,7 @@ var DETAIL_CONTEXTS = {
       { key: 'lessee', label: 'Арендатор', meta: true },
     ],
   },
+  ///**** Сырьё */
   'raw-material': {
     label: 'Сырьё',
     endpoint: '/api/raw-material/detail',
