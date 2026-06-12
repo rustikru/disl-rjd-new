@@ -54,7 +54,7 @@ class OracleDb implements DbInterface
 
     public function fetchAll(string $sql, array $params = []): array
     {
-        if (getenv('APP_DEBUG') === 'true') {
+        if (($_ENV['APP_DEBUG'] ?? '') === 'true') {
             $interpolated = self::interpolate($sql, $params);
             $ts = date('Y-m-d H:i:s');
             file_put_contents('/tmp/sql_debug.log', "[$ts]\n$interpolated\n\n", FILE_APPEND | LOCK_EX);
