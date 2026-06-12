@@ -193,6 +193,13 @@ class ApiController
                 $bindings["gf_$idx"] = $val;
             }
         }
+        // Прямые фильтры по именам полей (от промежуточных уровней дерева через data-extra)
+        foreach ($gf as $idx => $k) {
+            if (!array_key_exists("gf_$idx", $bindings) && isset($params[$k]) && $params[$k] !== '') {
+                $where .= " AND $k = :dfld_$idx";
+                $bindings["dfld_$idx"] = $params[$k];
+            }
+        }
         if ($wagType) {
             $where .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) = :wtype';
             $bindings['wtype'] = $wagType;
@@ -264,6 +271,13 @@ class ApiController
             if (isset($gf[$idx])) {
                 $where .= " AND {$gf[$idx]} = :gf_$idx";
                 $bindings["gf_$idx"] = $val;
+            }
+        }
+        // Прямые фильтры по именам полей (от промежуточных уровней дерева через data-extra)
+        foreach ($gf as $idx => $k) {
+            if (!array_key_exists("gf_$idx", $bindings) && isset($params[$k]) && $params[$k] !== '') {
+                $where .= " AND $k = :dfld_$idx";
+                $bindings["dfld_$idx"] = $params[$k];
             }
         }
         if ($wagType) {
@@ -447,6 +461,13 @@ class ApiController
                 $bindings["gf_$idx"] = $val;
             }
         }
+        // Прямые фильтры по именам полей (от промежуточных уровней дерева через data-extra)
+        foreach ($gf as $idx => $k) {
+            if (!array_key_exists("gf_$idx", $bindings) && isset($params[$k]) && $params[$k] !== '') {
+                $where .= " AND $k = :dfld_$idx";
+                $bindings["dfld_$idx"] = $params[$k];
+            }
+        }
         if ($wagType) {
             $where .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) = :wtype';
             $bindings['wtype'] = $wagType;
@@ -526,6 +547,13 @@ class ApiController
             if (isset($gf[$idx])) {
                 $where .= " AND {$gf[$idx]} = :gf_$idx";
                 $bindings["gf_$idx"] = $val;
+            }
+        }
+        // Прямые фильтры по именам полей (от промежуточных уровней дерева через data-extra)
+        foreach ($gf as $idx => $k) {
+            if (!array_key_exists("gf_$idx", $bindings) && isset($params[$k]) && $params[$k] !== '') {
+                $where .= " AND $k = :dfld_$idx";
+                $bindings["dfld_$idx"] = $params[$k];
             }
         }
         if ($wagType) {
@@ -699,6 +727,13 @@ class ApiController
             if (isset($gf[$idx])) {
                 $where .= " AND {$gf[$idx]} = :gf_$idx";
                 $bindings["gf_$idx"] = $val;
+            }
+        }
+        // Прямые фильтры по именам полей (от промежуточных уровней дерева через data-extra)
+        foreach ($gf as $idx => $k) {
+            if (!array_key_exists("gf_$idx", $bindings) && isset($params[$k]) && $params[$k] !== '') {
+                $where .= " AND $k = :dfld_$idx";
+                $bindings["dfld_$idx"] = $params[$k];
             }
         }
         if ($wagType) {

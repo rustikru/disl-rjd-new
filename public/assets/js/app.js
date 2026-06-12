@@ -809,8 +809,9 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     return s
   }
 
-  function cellLink(v, dataCtx, dataRoad, dataSt, cell) {
+  function cellLink(v, dataCtx, dataRoad, dataSt, cell, dataExtra) {
     if (!v || !dataCtx) return '<td>' + fmt(v) + '</td>'
+    var extra = dataExtra ? ' data-extra="' + esc(JSON.stringify(dataExtra)) + '"' : ''
     return (
       '<td class="cell-link" data-ctx="' +
       esc(dataCtx) +
@@ -824,12 +825,13 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
       esc(groupBy) +
       '"' +
       subAttrs(cell.subs) +
+      extra +
       '>' +
       v +
       '</td>'
     )
   }
-  function totalLink(v, dataCtx, dataRoad, dataSt) {
+  function totalLink(v, dataCtx, dataRoad, dataSt, dataExtra) {
     var cls = 'col-total-col'
     if (!v || !dataCtx) return '<td class="' + cls + '">' + fmt(v) + '</td>'
     return (
@@ -843,7 +845,9 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
       esc(dataSt) +
       '" data-col="" data-group-by="' +
       esc(groupBy) +
-      '">' +
+      '"' +
+      (dataExtra ? ' data-extra="' + esc(JSON.stringify(dataExtra)) + '"' : '') +
+      '>' +
       (typeof v === 'number' ? v.toLocaleString('ru-RU') : v) +
       '</td>'
     )
@@ -906,7 +910,8 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     if (hasChildren) {
       // Рекурсивный рендер для любого числа уровней.
       // level=1..nGroup-1; isLeaf когда level===nGroup-1
-      var renderNodes = function (level, items, parentNodeId) {
+      // ancestorFilters: {fieldName: value} — фильтры всех родительских уровней
+      var renderNodes = function (level, items, parentNodeId, ancestorFilters) {
         var out = ''
         var isLeaf = level === nGroup - 1
         var levelKey = groupCols[level].key
@@ -940,20 +945,25 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
               ;(st.v || []).forEach(function (v, i) { subTotal[i] += v || 0 })
               subSum += (st.v || []).reduce(function (a, b) { return a + b }, 0)
             })
+            // Полный набор фильтров для этого промежуточного уровня
+            var curFilters = Object.assign({}, ancestorFilters)
+            curFilters[levelKey] = groupVal
             out += '<tr class="row-data row-child row-sub-parent" data-parent-id="' + esc(parentNodeId) + '" data-node-id="' + esc(nodeId) + '">'
             out += '<td class="col-meta"></td>'
             for (var j = 1; j < level; j++) out += '<td class="col-meta"></td>'
             out += '<td class="col-meta"><span class="toggle-icon">▼</span>' + esc(groupVal) + '</td>'
             for (var j = level + 1; j < nGroup; j++) out += '<td class="col-meta"></td>'
-            subTotal.forEach(function (v, i) { out += cellLink(v, ctx, roadVal, groupVal, flatCells[i]) })
-            out += totalLink(subSum, ctx, roadVal, groupVal)
+            subTotal.forEach(function (v, i) { out += cellLink(v, ctx, '', '', flatCells[i], curFilters) })
+            out += totalLink(subSum, ctx, '', '', curFilters)
             out += '</tr>'
-            out += renderNodes(level + 1, gItems, nodeId)
+            out += renderNodes(level + 1, gItems, nodeId, curFilters)
           })
         }
         return out
       }
-      h += renderNodes(1, stations, '' + ri)
+      var rootFilters = {}
+      rootFilters[groupCols[0].key] = roadVal
+      h += renderNodes(1, stations, '' + ri, rootFilters)
     }
   })
   h +=
