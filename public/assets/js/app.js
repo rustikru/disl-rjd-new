@@ -380,7 +380,6 @@ var WAGON_TABS = {
   // Дислокация
   dislocation: {
     ctx: 'dislocation',
-    filtersUrl: BASE + '/api/dislocation/filters',
     summaryUrl: BASE + '/api/dislocation/summary',
     detailUrl: BASE + '/api/dislocation/detail',
     csvFilename: 'дислокация',
@@ -392,46 +391,29 @@ var WAGON_TABS = {
     loadedDetKey: '_extLoaded',
     sumSubLabel: '',
     groupCols: [],
-    applyBtnId: 'btnApply',
-    resetBtnId: 'btnReset',
-    getParams: function () {
-      var v = $('#fReportDt').val()
-      return v ? { report_dt: v } : {}
-    },
-    fillFilters: function (data) {
-      var sel = $('#fReportDt')
-      sel.find('option:not(:first)').remove()
-      ;(data.reports || []).forEach(function (r) {
-        sel.append(
-          $('<option>')
-            .val(r.report_dt)
-            .text(r.label + ' (' + r.cnt + ' ваг.)'),
-        )
-      })
-    },
-    resetFilters: function () {
-      $('#fReportDt').val('')
-    },
-    listParams: function () {
-      return {}
-    },
+    getParams: function () { return {} },
+    listParams: function () { return {} },
     draw: function (data, cfg) {
       var $sub = $('#' + cfg.sumSubId)
       var $table = $('#' + cfg.sumTableId)
+      var dateLabel = data.report_dt_label || data.date || ''
+      if (dateLabel) {
+        $('#brandDateSub').text('Дислокация РЖД · ' + dateLabel)
+      }
       if (!data.cols || !data.cols.length) {
         $table.html(
           '<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">' +
             esc(
-              data.report_dt_label ||
+              dateLabel ||
                 'Нет данных. Загрузите справку через «Управление → Загрузка справок»',
             ) +
             '</td></tr></tbody>',
         )
-        $sub.text(data.report_dt_label || '')
+        $sub.text(dateLabel)
         return
       }
       drawMain(data.sections, data.cols)
-      $sub.text((data.report_dt_label || data.date || '') + ' · РЖД')
+      $sub.text(dateLabel)
     },
     showList: function (data, cfg) {
       showTable(

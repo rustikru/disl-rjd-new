@@ -24,7 +24,7 @@ $basePath = $basePath ?? '';
         </div>
         <div class="brand-text">
           <div class="brand-name"><?= htmlspecialchars($appName) ?></div>
-
+          <div id="brandDateSub" style="font-size:11px;color:var(--text-3);margin-top:2px"></div>
         </div>
       </div>
       <div class="header-meta">
@@ -88,21 +88,6 @@ $basePath = $basePath ?? '';
                 <button class="btn btn-ghost btn-sm" data-expand-table="mainTable">Отобразить все</button>
               </div>
             </div>
-            <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px">
-              <div class="filters-inner">
-                <div class="filter-item">
-                  <label class="filter-label" for="fReportDt">Справка</label>
-                  <select class="filter-input" id="fReportDt" style="min-width:200px">
-                    <option value="">— Последняя —</option>
-                  </select>
-                </div>
-                <div class="filter-actions">
-                  <button class="btn btn-primary btn-sm" id="btnApply">Применить</button>
-                  <button class="btn btn-ghost btn-sm" id="btnReset">Сбросить</button>
-                </div>
-              </div>
-            </div>
-
             <div class="table-scroll">
               <table class="data-table" id="mainTable"></table>
             </div>
