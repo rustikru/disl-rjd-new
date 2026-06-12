@@ -870,11 +870,8 @@ function rawToDetail(cargo) {
   openDetail('raw-material', '', '', '', '', [], extra)
 }
 
-/******** summary / kpi renders ********/
+/******** summary / kpi  ********/
 
-// groupCols: [{key: 'dest_road', label: 'Дорога назначения'}, {key: 'dest_station', label: 'Станция назначения'}, ...]
-// data: полный ответ API — {cols, roads, ...} (плоская шапка)
-//       или {col_groups, roads, ...} (многоуровневая: дерево {label, subs: [...]}, листья — строки)
 function drawSummary(selector, roads, data, ctx, groupCols) {
   if (!roads || !roads.length) {
     $(selector).html(
@@ -888,7 +885,6 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
   // flatCells: [{col, subs:[]}] — один элемент на каждую фактическую колонку значений;
   // col — тип вагона (1-й уровень), subs — значения вложенных уровней по порядку
   var flatCells = []
-  // levels[d] — ячейки d-й строки шапки: [{label, span}]
   var levels = []
   if (colGroups) {
     ;(function walk(nodes, d, path) {
@@ -931,7 +927,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     return v || ''
   }
 
-  // data-sub, data-sub2, data-sub3... — по одному атрибуту на уровень подзаголовка
+  // data-sub, data-sub2, data-sub3..
   function subAttrs(subs) {
     var s = ''
     ;(subs || []).forEach(function (v, i) {
