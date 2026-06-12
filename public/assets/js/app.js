@@ -78,10 +78,7 @@ function switchTab(tabId) {
   document.querySelectorAll('.tab-panel').forEach(function (panel) {
     panel.classList.toggle('active', panel.id === 'panel-' + tabId)
   })
-  if (tabId === 'dislocation' && !window._dislLoaded) {
-    loadDislocation()
-  }
-  ;['approach', 'departure', 'loading'].forEach(function (k) {
+  Object.keys(WAGON_TABS).forEach(function (k) {
     var cfg = WAGON_TABS[k]
     if (tabId === k && !window[cfg.loadedKey]) {
       initTab(cfg)
@@ -111,10 +108,7 @@ function initInnerTabs() {
             .forEach(function (p) {
               p.classList.toggle('active', p.id === innerId)
             })
-          if (innerId === 'disl-extended' && !window._extLoaded) {
-            loadExtended()
-          }
-          ;['approach', 'departure', 'loading'].forEach(function (k) {
+          Object.keys(WAGON_TABS).forEach(function (k) {
             var cfg = WAGON_TABS[k]
             if (innerId === cfg.detPanelId && !window[cfg.loadedDetKey]) {
               window[cfg.loadedDetKey] = true
@@ -135,20 +129,6 @@ function initInnerTabs() {
   })
 }
 
-// Загрузить список справок в дропдаун
-function loadReports() {
-  $.getJSON(BASE + '/api/reports').done(function (data) {
-    var sel = $('#fReportDt')
-    sel.find('option:not(:first)').remove()
-    ;(data.reports || []).forEach(function (r) {
-      sel.append(
-        $('<option>')
-          .val(r.report_dt)
-          .text(r.label + ' (' + r.cnt + ' ваг.)'),
-      )
-    })
-  })
-}
 
 // Dashboard
 function loadDashboard() {
@@ -319,39 +299,6 @@ function drawDonut(sections) {
 }
 
 // Сводная дислокация
-function loadDislocation() {
-  window._dislLoaded = true
-  var reportDt = $('#fReportDt').val()
-  $('#mainTableSub').text('Загрузка...')
-
-  var params = reportDt ? { report_dt: reportDt } : {}
-  $.getJSON(BASE + '/api/dislocation/summary', params)
-    .done(function (data) {
-      if (!data.cols || !data.cols.length) {
-        $('#mainTable').html(
-          '<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">' +
-            (data.report_dt_label ||
-              'Нет данных. Загрузите справку через «Управление → Загрузка справок»') +
-            '</td></tr></tbody>',
-        )
-        $('#mainTableSub').text(data.report_dt_label || '')
-        return
-      }
-      drawMain(data.sections, data.cols)
-      $('#mainTableSub').text(
-        (data.report_dt_label || data.date || '') + ' · РЖД',
-      )
-    })
-    .fail(function (jqXHR) {
-      var msg = ajaxErr(jqXHR)
-      $('#mainTable').html(
-        '<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">' +
-          esc(msg) +
-          '</td></tr></tbody>',
-      )
-      $('#mainTableSub').text(msg)
-    })
-}
 
 function drawMain(sections, cols) {
   function fmt(v) {
@@ -419,31 +366,64 @@ function drawMain(sections, cols) {
   $('#mainTable').html(h)
 }
 
-// Расширенная дислокация
-function loadExtended() {
-  window._extLoaded = true
-  $.getJSON(BASE + '/api/dislocation/extended')
-    .done(function (data) {
-      showExtended(data.rows)
-    })
-    .fail(function (jqXHR) {
-      $('#dislExtTable').html(
-        '<tbody><tr><td colspan="10" style="text-align:center;padding:40px;color:#9DA5B0">' +
-          esc(ajaxErr(jqXHR)) +
-          '</td></tr></tbody>',
-      )
-    })
-}
-
-function showExtended(rows) {
-  showTable($('#dislExtTable'), rows, extCols)
-}
 
 // Конфиг для общео построения сводных вкладок и детализаций
 // Подход / Отправление / Погрузка — описание всех полей
 
 /******** Вагон конфиг начало ********/
 var WAGON_TABS = {
+  // Дислокация
+  dislocation: {
+    ctx: 'dislocation',
+    filtersUrl: BASE + '/api/reports',
+    summaryUrl: BASE + '/api/dislocation/summary',
+    detailUrl: BASE + '/api/dislocation/extended',
+    csvFilename: 'дислокация',
+    sumTableId: 'mainTable',
+    sumSubId: 'mainTableSub',
+    detTableId: 'dislExtTable',
+    detPanelId: 'disl-extended',
+    loadedKey: '_dislLoaded',
+    loadedDetKey: '_extLoaded',
+    sumSubLabel: '',
+    groupCols: [],
+    applyBtnId: 'btnApply',
+    resetBtnId: 'btnReset',
+    getParams: function () {
+      var v = $('#fReportDt').val()
+      return v ? { report_dt: v } : {}
+    },
+    fillFilters: function (data) {
+      var sel = $('#fReportDt')
+      sel.find('option:not(:first)').remove()
+      ;(data.reports || []).forEach(function (r) {
+        sel.append($('<option>').val(r.report_dt).text(r.label + ' (' + r.cnt + ' ваг.)'))
+      })
+    },
+    resetFilters: function () {
+      $('#fReportDt').val('')
+    },
+    detailParams: function () { return {} },
+    renderSummary: function (data, cfg) {
+      var $sub = $('#' + cfg.sumSubId)
+      var $table = $('#' + cfg.sumTableId)
+      if (!data.cols || !data.cols.length) {
+        $table.html(
+          '<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">' +
+            esc(data.report_dt_label || 'Нет данных. Загрузите справку через «Управление → Загрузка справок»') +
+            '</td></tr></tbody>',
+        )
+        $sub.text(data.report_dt_label || '')
+        return
+      }
+      drawMain(data.sections, data.cols)
+      $sub.text((data.report_dt_label || data.date || '') + ' · РЖД')
+    },
+    renderDetail: function (data, cfg) {
+      showTable($('#' + cfg.detTableId), data.rows, extCols)
+    },
+  },
+
   // Подход
   approach: {
     ctx: 'approach',
@@ -594,15 +574,15 @@ function loadSummary(cfg) {
   $table.html(
     '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Загрузка...</td></tr></tbody>',
   )
-  var summaryParams = Object.assign({}, cfg.getParams(), {
-    group_by: (cfg.groupCols || [])
-      .map(function (g) {
-        return g.key
-      })
-      .join(','),
-  })
+  var summaryParams = Object.assign({}, cfg.getParams())
+  var gby = (cfg.groupCols || []).map(function (g) { return g.key }).join(',')
+  if (gby) summaryParams.group_by = gby
   $.getJSON(cfg.summaryUrl, summaryParams)
     .done(function (data) {
+      if (cfg.renderSummary) {
+        cfg.renderSummary(data, cfg)
+        return
+      }
       if (cfg.metricsId) {
         var items = cfg.buildMetrics
           ? cfg.buildMetrics(data)
@@ -641,21 +621,19 @@ function loadDetail(cfg) {
   var $table = $('#' + cfg.detTableId)
   var cols = DETAIL_CONTEXTS[cfg.ctx] ? DETAIL_CONTEXTS[cfg.ctx].cols : []
   $sub.text('Загрузка...')
-  var detailParams = Object.assign({}, cfg.getParams(), {
-    fields: cols
-      .map(function (c) {
-        return c.key
+  var detailParams = cfg.detailParams
+    ? cfg.detailParams()
+    : Object.assign({}, cfg.getParams(), {
+        fields: cols.map(function (c) { return c.key }).join(','),
+        group_by: (cfg.groupCols || []).map(function (g) { return g.key }).join(','),
       })
-      .join(','),
-    group_by: (cfg.groupCols || [])
-      .map(function (g) {
-        return g.key
-      })
-      .join(','),
-  })
   $.getJSON(cfg.detailUrl, detailParams)
     .done(function (data) {
-      showTable($table, data.rows, cols)
+      if (cfg.renderDetail) {
+        cfg.renderDetail(data, cfg)
+      } else {
+        showTable($table, data.rows, cols)
+      }
       $sub.text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'))
     })
     .fail(function (jqXHR) {
@@ -1295,26 +1273,13 @@ $(function () {
   initSidebar()
   initInnerTabs()
   loadDashboard()
-  loadReports()
 
-  $('#btnApply').on('click', function () {
-    window._dislLoaded = false
-    loadDislocation()
-  })
-
-  $('#btnReset').on('click', function () {
-    $('#fReportDt').val('')
-    window._dislLoaded = false
-    loadDislocation()
-  })
-
-  $('#btnExportCSV').on('click', exportToCSV)
-
-  // Подход / Отправление / Погрузка — фильтры
-  ;['approach', 'departure', 'loading'].forEach(function (k) {
+  Object.keys(WAGON_TABS).forEach(function (k) {
     var cfg = WAGON_TABS[k]
     var capKey = k.charAt(0).toUpperCase() + k.slice(1)
-    $('#btn' + capKey + 'Apply').on('click', function () {
+    var applyId = cfg.applyBtnId || ('btn' + capKey + 'Apply')
+    var resetId = cfg.resetBtnId || ('btn' + capKey + 'Reset')
+    $('#' + applyId).on('click', function () {
       window[cfg.loadedDetKey] = false
       loadSummary(cfg)
       if ($('#' + cfg.detPanelId).hasClass('active')) {
@@ -1322,7 +1287,7 @@ $(function () {
         loadDetail(cfg)
       }
     })
-    $('#btn' + capKey + 'Reset').on('click', function () {
+    $('#' + resetId).on('click', function () {
       cfg.resetFilters()
       window[cfg.loadedDetKey] = false
       loadSummary(cfg)
