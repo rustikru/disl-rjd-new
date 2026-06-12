@@ -719,17 +719,19 @@ class ApiController
     }
 
     /**
-     * Базовый подзапрос для «Простои»: вычисляет idle_time_name и фильтрует по report_dt / idle_time_days / min_days / max_days.
-     * Возвращает ['from' => $subquery, 'bindings' => [...], 'reportDt' => $dt].
+     * Базовый подзапрос для «Простои»: вычисляет idle_time_name и фильтрует по актуальным датам
+     * справок (через latestDtCondition), idle_time_days, min_days, max_days.
+     * Возвращает ['from' => $subquery, 'bindings' => [...], 'reportDt' => $dt|null].
      */
     private function downtimeFrom(array $params): array
     {
-        $reportDt = $this->getReportDt($params['report_dt'] ?? null);
+        $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null);
+        $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $minDays = max(0, (int) ($params['min_days'] ?? 1));
         $maxDays = isset($params['max_days']) && $params['max_days'] !== '' ? (int) $params['max_days'] : null;
 
-        $innerWhere = "report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND idle_time_days IS NOT NULL AND nvl(idle_time_days,0) != 0";
-        $bindings = ['report_dt' => $reportDt];
+        $innerWhere = "{$cond['sql']} AND idle_time_days IS NOT NULL AND nvl(idle_time_days,0) != 0";
+        $bindings = $cond['params'];
         if ($minDays > 0) {
             $innerWhere .= ' AND idle_time_days >= :min_days';
             $bindings['min_days'] = $minDays;
@@ -739,6 +741,7 @@ class ApiController
             $bindings['max_days'] = $maxDays;
         }
 
+        $reportDt = !empty($dtsByType) ? max($dtsByType) : null;
         $from = "(SELECT xdr.*, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days) AS idle_time_name FROM xx_dislocation_rjd xdr WHERE $innerWhere)";
 
         return ['from' => $from, 'bindings' => $bindings, 'reportDt' => $reportDt];
