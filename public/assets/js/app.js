@@ -428,13 +428,6 @@ var WAGON_TABS = {
       drawMain(data.sections, data.cols)
       $sub.text(dateLabel)
     },
-    showList: function (data, cfg) {
-      showTable(
-        $('#' + cfg.detTableId),
-        data.rows,
-        DETAIL_CONTEXTS.dislocation.cols,
-      )
-    },
   },
 
   // Подход
@@ -573,13 +566,6 @@ var WAGON_TABS = {
       $('#fDowntimeMinDays').val('1')
       $('#fDowntimeMaxDays').val('')
     },
-    showList: function (data, cfg) {
-      showTable(
-        $('#' + cfg.detTableId),
-        data.rows,
-        DETAIL_CONTEXTS.downtime.cols,
-      )
-    },
   },
   // Сырьё
   'raw-material': {
@@ -604,15 +590,6 @@ var WAGON_TABS = {
     ],
     getParams: function () {
       return {}
-    },
-    fillFilters: function () {},
-    resetFilters: function () {},
-    showList: function (data, cfg) {
-      showTable(
-        $('#' + cfg.detTableId),
-        data.rows,
-        DETAIL_CONTEXTS['raw-material'].cols,
-      )
     },
   },
 }
