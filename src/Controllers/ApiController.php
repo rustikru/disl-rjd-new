@@ -196,7 +196,7 @@ class ApiController
         $section = $params['section'] ?? null;
 
         $dtParam = $reportDt ? ':dt' : '(SELECT MAX(report_dt) FROM xx_dislocation_rjd)';
-        $where = "report_dt = $dtParam";
+        $where = "";
         $bindings = $reportDt ? ['dt' => $reportDt] : [];
 
         if ($wagType) {
@@ -217,10 +217,20 @@ class ApiController
             "SELECT wagon_no, train_no, oper_station, depart_station, dest_station,
                     cargo_name, park_type, oper_mnemonic, idle_time_days, asoup_arrive_dt,
                     owner, lessee
-             FROM xx_dislocation_rjd
-             WHERE {$where}
+             FROM XX_DISLOCATION_RJD xdr
+                WHERE
+                    (xdr.report_dt, xdr.TYPE_REFERENCE) IN (
+                    SELECT
+                        max(x.REPORT_DT),TYPE_REFERENCE
+                    FROM
+                        XX_DISLOCATION_RJD x
+                    WHERE
+                        x.TYPE_REFERENCE IN ('Подход', 'Отправка')
+                    GROUP BY
+                        x.TYPE_REFERENCE) 
+                    {$where}
              ORDER BY oper_station
-             " . $this->db->limit(500),
+             ",
             $bindings
         );
 
