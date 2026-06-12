@@ -14,50 +14,38 @@ use Psr\Http\Message\ServerRequestInterface;
 class ApiController
 {
     private DbInterface $db;
-    private ?array $cachedTableColumns = null;
 
     public function __construct(DbInterface $db)
     {
         $this->db = $db;
     }
 
-    /** Возвращает список колонок таблицы xx_dislocation_rjd (кеш на запрос). */
-    private function getColumns(): array
+    /** Допускает только безопасные имена полей: буквы, цифры, _ и . */
+    private static function isSafeField(string $f): bool
     {
-        if ($this->cachedTableColumns === null) {
-            $rows = $this->db->fetchAll(
-                "SELECT LOWER(column_name) AS col FROM user_tab_columns WHERE table_name = 'XX_DISLOCATION_RJD'"
-            );
-            $this->cachedTableColumns = array_column($rows, 'col');
-        }
-        return $this->cachedTableColumns;
+        return $f !== '' && (bool) preg_match('/^[a-z_][a-z0-9_.]*$/i', $f);
     }
 
-    /**
-     * Строит безопасную строку для SELECT из списка полей, переданных клиентом.
-     * Каждое поле проверяется по реальным колонкам таблицы (user_tab_columns).
-     */
+    /** Строит строку SELECT из переданных клиентом полей. */
     private function selectFields(string $raw): string
     {
-        $allowed = $this->getColumns();
         $fields = array_values(array_filter(
             array_map('trim', explode(',', $raw)),
-            fn($f) => $f !== '' && in_array($f, $allowed, true)
+            fn($f) => self::isSafeField($f)
         ));
         return $fields ? implode(', ', $fields) : 'wagon_no';
     }
 
     /**
-     * Парсит group_by=field1,field2,... и возвращает все проверенные поля.
-     * Количество полей не ограничено — добавь в groupCols, backend подхватит.
+     * Парсит group_by=field1,field2,...
      * При пустом/невалидном raw — fallback на $defaults.
+     * $extra игнорируется (оставлен для обратной совместимости вызовов).
      */
     private function groupFields(string $raw, array $defaults, array $extra = []): array
     {
-        $allowed = array_merge($this->getColumns(), $extra);
         $fields = array_values(array_filter(
             array_map('trim', explode(',', $raw)),
-            fn($f) => $f !== '' && in_array($f, $allowed, true)
+            fn($f) => self::isSafeField($f)
         ));
         return $fields ?: $defaults;
     }
