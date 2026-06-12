@@ -719,9 +719,10 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
-        $gf = $this->groupFields($params['group_by'] ?? '', ['cargo_name', 'oper_station']);
+        $gf    = $this->groupFields($params['group_by'] ?? '', ['cargo_name', 'oper_station']);
+        $gfStr = implode(', ', $gf);
 
-        $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
+        $where    = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $bindings = ['report_dt' => $reportDt];
 
         foreach (array_filter([0 => $road, 1 => $station]) as $idx => $val) {
@@ -742,8 +743,7 @@ class ApiController
                     dest_station, owner, waybill_no
              FROM xx_dislocation_rjd
              WHERE {$where}
-             ORDER BY idle_time_days DESC
-             " . "",
+             ORDER BY $gfStr, idle_time_days DESC",
             $bindings
         );
 
