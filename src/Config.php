@@ -25,7 +25,6 @@ return [
     'app_env'  => env('APP_ENV', 'production'),
     'app_name' => env('APP_NAME', 'ПАО «Метафракс»'),
 
-    // ── База данных ───────────────────────────────────────────────
     // Меняйте DB_DRIVER в .env: 'postgres' или 'oracle'
     'db_driver' => env('DB_DRIVER', 'postgres'),
     'db_host'   => env('DB_HOST', 'localhost'),
@@ -34,7 +33,6 @@ return [
     'db_user'   => env('DB_USER', ''),
     'db_pass'   => env('DB_PASS', ''),
 
-    // ── Active Directory ──────────────────────────────────────────
     // AD_ENABLED=true → сначала проверяем AD, затем локальный пароль
     'ad_enabled' => env('AD_ENABLED', 'false') === 'true',
     'ad_host'    => env('AD_HOST', ''),

@@ -37,7 +37,7 @@ class ApiController
      * Строит безопасную строку для SELECT из списка полей, переданных клиентом.
      * Каждое поле проверяется по реальным колонкам таблицы (user_tab_columns).
      */
-    private function parseSelectFields(string $raw): string
+    private function selectFields(string $raw): string
     {
         $allowed = $this->getTableColumns();
         $fields = array_values(array_filter(
@@ -52,7 +52,7 @@ class ApiController
      * Количество полей не ограничено — добавь в groupCols, backend подхватит.
      * При пустом/невалидном raw — fallback на $defaults.
      */
-    private function parseGroupFields(string $raw, array $defaults): array
+    private function groupFields(string $raw, array $defaults): array
     {
         $allowed = $this->getTableColumns();
         $fields = array_values(array_filter(
@@ -183,7 +183,7 @@ class ApiController
             $label = $reportDt;
         }
 
-        $data = $this->buildSummaryStructure($rows, $label);
+        $data = $this->makeSummary($rows, $label);
         return $this->json($response, $data);
     }
 
@@ -214,7 +214,7 @@ class ApiController
     public function approachSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null, 'Подход');
+        $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Подход');
         $cargo = $params['cargo'] ?? null;
         $prevCargo = $params['prev_cargo'] ?? null;
 
@@ -222,9 +222,9 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        [$where, $bindings] = $this->buildApproachWhere($reportDt, $cargo, $prevCargo);
+        [$where, $bindings] = $this->approachWhere($reportDt, $cargo, $prevCargo);
 
-        $gf = $this->parseGroupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
+        $gf = $this->groupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
         $gfStr = implode(', ', $gf);
 
         $rows = $this->db->fetchAll(
@@ -237,14 +237,14 @@ class ApiController
             $bindings
         );
 
-        return $this->json($response, $this->buildRoadStationTable($rows, $gf, ['cargo_w_type']));
+        return $this->json($response, $this->roadTable($rows, $gf, ['cargo_w_type']));
     }
 
     /** GET /api/approach/detail — Список вагонов подхода */
     public function approachDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null, 'Подход');
+        $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Подход');
         $cargo = $params['cargo'] ?? null;
         $prevCargo = $params['prev_cargo'] ?? null;
         $road = $params['road'] ?? null;
@@ -255,9 +255,9 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
-        $gf = $this->parseGroupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
+        $gf = $this->groupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
         $gfStr = implode(', ', $gf);
-        [$where, $bindings] = $this->buildApproachWhere($reportDt, $cargo, $prevCargo);
+        [$where, $bindings] = $this->approachWhere($reportDt, $cargo, $prevCargo);
 
         foreach (array_filter([0 => $road, 1 => $station]) as $idx => $val) {
             if (isset($gf[$idx])) {
@@ -277,7 +277,7 @@ class ApiController
         }
 
         $select = isset($params['fields']) && $params['fields'] !== ''
-            ? $this->parseSelectFields($params['fields'])
+            ? $this->selectFields($params['fields'])
             : 'wagon_no, wagon_type_code, cargo_name, prev_cargo, dist_remain_km,
                depart_station, depart_road, dest_station, dest_road, oper_station,
                train_index, oper_dt, norm_delivery_dt, oper_mnemonic';
@@ -294,7 +294,7 @@ class ApiController
     public function approachFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null, 'Подход');
+        $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Подход');
 
         if (!$reportDt) {
             return $this->json($response, ['cargo' => [], 'prev_cargo' => []]);
@@ -324,7 +324,7 @@ class ApiController
     }
 
     /** WHERE-условие для запросов «Подход» (wagons in transit: dist_remain_km > 0) */
-    private function buildApproachWhere(string $reportDt, ?string $cargo, ?string $prevCargo): array
+    private function approachWhere(string $reportDt, ?string $cargo, ?string $prevCargo): array
     {
         $where = "report_dt = :report_dt AND type_reference = 'Подход' AND dist_remain_km IS NOT NULL and dist_remain_km != 0";
         $bindings = ['report_dt' => $reportDt];
@@ -341,20 +341,19 @@ class ApiController
         return [$where, $bindings];
     }
 
-    // ── Отправление вагонов ─────────────────────────────────────
 
     /** GET /api/departure/summary — Сводная: Дорога→Станция отправления, кол-во по типам */
     public function departureSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null, 'Отправка');
+        $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Отправка');
         $cargo = $params['cargo'] ?? null;
 
         if (!$reportDt) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $gf = $this->parseGroupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+        $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $gfStr = implode(', ', $gf);
 
         $where = "report_dt = :report_dt AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
@@ -372,14 +371,14 @@ class ApiController
             $bindings
         );
 
-        return $this->json($response, $this->buildRoadStationTable($rows, $gf));
+        return $this->json($response, $this->roadTable($rows, $gf));
     }
 
     /** GET /api/departure/detail — Список отправленных вагонов */
     public function departureDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null, 'Отправка');
+        $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Отправка');
         $cargo = $params['cargo'] ?? null;
         $road = $params['road'] ?? null;
         $station = $params['station'] ?? null;
@@ -389,7 +388,7 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
-        $gf = $this->parseGroupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+        $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $gfStr = implode(', ', $gf);
 
         $where = "report_dt = :report_dt AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
@@ -410,7 +409,7 @@ class ApiController
         }
 
         $select = isset($params['fields']) && $params['fields'] !== ''
-            ? $this->parseSelectFields($params['fields'])
+            ? $this->selectFields($params['fields'])
             : 'wagon_no, wagon_type_code, cargo_name, cargo_weight_kg,
                depart_station, depart_road, dest_station, dest_road,
                oper_station, oper_dt, dist_remain_km, norm_delivery_dt, waybill_no';
@@ -423,20 +422,19 @@ class ApiController
         return $this->json($response, ['rows' => $rows]);
     }
 
-    // ── Погрузка ─────────────────────────────────────────────────
 
     /** GET /api/loading/summary — Погруженные вагоны по станциям отправления */
     public function loadingSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null);
+        $reportDt = $this->getReportDt($params['report_dt'] ?? null);
         $cargo = $params['cargo'] ?? null;
 
         if (!$reportDt) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $gf = $this->parseGroupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+        $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $gfStr = implode(', ', $gf);
 
         $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
@@ -454,14 +452,14 @@ class ApiController
             $bindings
         );
 
-        return $this->json($response, $this->buildRoadStationTable($rows, $gf));
+        return $this->json($response, $this->roadTable($rows, $gf));
     }
 
     /** GET /api/loading/detail — Список погруженных вагонов */
     public function loadingDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null);
+        $reportDt = $this->getReportDt($params['report_dt'] ?? null);
         $cargo = $params['cargo'] ?? null;
         $road = $params['road'] ?? null;
         $station = $params['station'] ?? null;
@@ -471,7 +469,7 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
-        $gf = $this->parseGroupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+        $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $gfStr = implode(', ', $gf);
 
         $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
@@ -492,7 +490,7 @@ class ApiController
         }
 
         $select = isset($params['fields']) && $params['fields'] !== ''
-            ? $this->parseSelectFields($params['fields'])
+            ? $this->selectFields($params['fields'])
             : 'wagon_no, wagon_type_code, cargo_name, cargo_weight_kg,
                depart_station, depart_road, dest_station, dest_road,
                oper_station, oper_mnemonic, oper_dt, waybill_no';
@@ -505,13 +503,12 @@ class ApiController
         return $this->json($response, ['rows' => $rows]);
     }
 
-    // ── Простои ──────────────────────────────────────────────────
 
     /** GET /api/downtime/summary — Сводная простоев по станциям */
     public function downtimeSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null);
+        $reportDt = $this->getReportDt($params['report_dt'] ?? null);
         $minDays = max(0, (int) ($params['min_days'] ?? 1));
 
         if (!$reportDt) {
@@ -546,7 +543,7 @@ class ApiController
     public function downtimeDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null);
+        $reportDt = $this->getReportDt($params['report_dt'] ?? null);
         $station = $params['station'] ?? null;
         $road = $params['road'] ?? null;
         $wagType = $params['wagon_type'] ?? null;
@@ -585,13 +582,12 @@ class ApiController
         return $this->json($response, ['rows' => $rows]);
     }
 
-    // ── Сырьё ────────────────────────────────────────────────────
 
     /** GET /api/raw-material/summary — Сводная сырья (простой гружёных вагонов) */
     public function rawMaterialSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null);
+        $reportDt = $this->getReportDt($params['report_dt'] ?? null);
 
         if (!$reportDt) {
             return $this->json($response, ['rows' => [], 'total' => 0, 'max_idle' => 0]);
@@ -621,7 +617,7 @@ class ApiController
     public function rawMaterialDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $reportDt = $this->resolveReportDt($params['report_dt'] ?? null);
+        $reportDt = $this->getReportDt($params['report_dt'] ?? null);
         $cargo = $params['cargo'] ?? null;
 
         if (!$reportDt) {
@@ -650,13 +646,12 @@ class ApiController
         return $this->json($response, ['rows' => $rows]);
     }
 
-    // ── Вспомогательные методы ────────────────────────────────────
 
     /**
      * Возвращает переданный report_dt или последний MAX(report_dt) для указанного типа справки.
      * $typeRef = 'Подход' | 'Отправка' | null (любой тип)
      */
-    private function resolveReportDt(?string $dt, ?string $typeRef = null): ?string
+    private function getReportDt(?string $dt, ?string $typeRef = null): ?string
     {
         if ($dt)
             return $dt;
@@ -681,7 +676,7 @@ class ApiController
      * Пустой массив → плоская шапка, в ответе cols (старый формат).
      * Иначе в ответе col_groups — дерево {label, subs: [...]}, листья — строки.
      */
-    private function buildRoadStationTable(array $rows, array $groupKeys, array $subGroupFields = []): array
+    private function roadTable(array $rows, array $groupKeys, array $subGroupFields = []): array
     {
         $roadKey    = $groupKeys[0];
         $stationKey = $groupKeys[count($groupKeys) - 1];
@@ -763,9 +758,8 @@ class ApiController
         return ['col_groups' => $buildTree(0), 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
     }
 
-    // ── Строитель сводной таблицы ────────────────────────────────
 
-    private function buildSummaryStructure(array $rows, string $dateLabel): array
+    private function makeSummary(array $rows, string $dateLabel): array
     {
         // Собираем упорядоченный список типов вагонов (колонки)
         $colOrder = [];
