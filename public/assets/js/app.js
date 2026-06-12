@@ -911,7 +911,11 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
         }, 0)
         h += '<tr class="row-data row-child" data-parent-road="' + ri + '">'
         for (var j = 0; j < nGroup - 1; j++) {
-          h += '<td class="col-meta"></td>'
+          if (j === 0) {
+            h += '<td class="col-meta"></td>'
+          } else {
+            h += '<td class="col-meta">' + esc(st[groupCols[j].key] || '') + '</td>'
+          }
         }
         h += '<td class="col-meta">' + esc(stVal) + '</td>'
         ;(st.v || []).forEach(function (v, i) {

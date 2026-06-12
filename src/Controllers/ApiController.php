@@ -187,7 +187,7 @@ class ApiController
         $where     = '';
         $bindings  = $cond['params'];
 
-        foreach (array_filter([0 => $road, 1 => $station]) as $idx => $val) {
+        foreach (array_filter([0 => $road, count($gf) - 1 => $station]) as $idx => $val) {
             if (isset($gf[$idx])) {
                 $where .= " AND {$gf[$idx]} = :gf_$idx";
                 $bindings["gf_$idx"] = $val;
@@ -260,7 +260,7 @@ class ApiController
         $gfStr = implode(', ', $gf);
         [$where, $bindings] = $this->approachWhere($reportDt, $cargo, $prevCargo);
 
-        foreach (array_filter([0 => $road, 1 => $station]) as $idx => $val) {
+        foreach (array_filter([0 => $road, count($gf) - 1 => $station]) as $idx => $val) {
             if (isset($gf[$idx])) {
                 $where .= " AND {$gf[$idx]} = :gf_$idx";
                 $bindings["gf_$idx"] = $val;
@@ -441,7 +441,7 @@ class ApiController
             $where .= ' AND dest_station = :dest_station';
             $bindings['dest_station'] = $destStation;
         }
-        foreach (array_filter([0 => $road, 1 => $station]) as $idx => $val) {
+        foreach (array_filter([0 => $road, count($gf) - 1 => $station]) as $idx => $val) {
             if (isset($gf[$idx])) {
                 $where .= " AND {$gf[$idx]} = :gf_$idx";
                 $bindings["gf_$idx"] = $val;
@@ -522,7 +522,7 @@ class ApiController
             $where .= ' AND UPPER(COALESCE(cargo_name,\'\')) = UPPER(:cargo_f)';
             $bindings['cargo_f'] = $cargo;
         }
-        foreach (array_filter([0 => $road, 1 => $station]) as $idx => $val) {
+        foreach (array_filter([0 => $road, count($gf) - 1 => $station]) as $idx => $val) {
             if (isset($gf[$idx])) {
                 $where .= " AND {$gf[$idx]} = :gf_$idx";
                 $bindings["gf_$idx"] = $val;
@@ -695,7 +695,7 @@ class ApiController
         $where = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $bindings = ['report_dt' => $reportDt];
 
-        foreach (array_filter([0 => $road, 1 => $station]) as $idx => $val) {
+        foreach (array_filter([0 => $road, count($gf) - 1 => $station]) as $idx => $val) {
             if (isset($gf[$idx])) {
                 $where .= " AND {$gf[$idx]} = :gf_$idx";
                 $bindings["gf_$idx"] = $val;
@@ -818,17 +818,22 @@ class ApiController
         $dims = array_map(fn($vals) => max(1, count($vals)), $values);
         $nFlat = (int) array_product($dims);
 
+        $stationParts = array_slice($groupKeys, 1); // all keys after road key
         $roads = [];
         foreach ($rows as $r) {
             $road = (string) ($r[$roadKey] ?? 'Не указана');
-            $station = (string) ($r[$stationKey] ?? 'Не указана');
+            $stComposite = implode('|', array_map(fn($k) => (string)($r[$k] ?? ''), $stationParts)) ?: 'Не указана';
             $cnt = (int) $r['cnt'];
 
             if (!isset($roads[$road])) {
                 $roads[$road] = [$roadKey => $road, 'stations' => [], 'total' => array_fill(0, $nFlat, 0), 'grand_total' => 0];
             }
-            if (!isset($roads[$road]['stations'][$station])) {
-                $roads[$road]['stations'][$station] = [$stationKey => $station, 'v' => array_fill(0, $nFlat, 0)];
+            if (!isset($roads[$road]['stations'][$stComposite])) {
+                $stData = ['v' => array_fill(0, $nFlat, 0)];
+                foreach ($stationParts as $k) {
+                    $stData[$k] = (string)($r[$k] ?? '');
+                }
+                $roads[$road]['stations'][$stComposite] = $stData;
             }
 
             $t = (string) ($r['wagon_type_code'] ?? '');
@@ -842,7 +847,7 @@ class ApiController
                 $fi = $fi * $dims[$k] + ($index[$k][$v] ?? 0);
             }
 
-            $roads[$road]['stations'][$station]['v'][$fi] += $cnt;
+            $roads[$road]['stations'][$stComposite]['v'][$fi] += $cnt;
             $roads[$road]['total'][$fi] += $cnt;
             $roads[$road]['grand_total'] += $cnt;
         }
