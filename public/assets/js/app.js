@@ -304,7 +304,7 @@ function drawMain(sections, cols) {
     var sectionExtra = esc(JSON.stringify({ section: section.name }))
     h += '<tr class="row-road-parent" data-road-id="' + si + '">'
     h +=
-      '<td class="col-meta" colspan="2"><span class="toggle-icon">▶</span>' +
+      '<td class="col-meta" colspan="2"><span class="toggle-icon">▼</span>' +
       esc(section.name) +
       '</td>'
     section.total.forEach(function (v, ci) {
@@ -333,7 +333,7 @@ function drawMain(sections, cols) {
         return a + b
       }, 0)
       h +=
-        '<tr class="row-data row-child row-hidden" data-parent-road="' +
+        '<tr class="row-data row-child" data-parent-road="' +
         si +
         '">'
       h += '<td class="col-meta"></td>'
@@ -919,7 +919,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     h +=
       '<td class="col-meta" colspan="' +
       nGroup +
-      '"><span class="toggle-icon">▶</span>' +
+      '"><span class="toggle-icon">▼</span>' +
       esc(roadVal) +
       '</td>'
     ;(road.total || []).forEach(function (v, i) {
@@ -935,7 +935,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
         return a + b
       }, 0)
       h +=
-        '<tr class="row-data row-child row-hidden" data-parent-road="' +
+        '<tr class="row-data row-child" data-parent-road="' +
         ri +
         '">'
       for (var j = 0; j < nGroup - 1; j++) {
