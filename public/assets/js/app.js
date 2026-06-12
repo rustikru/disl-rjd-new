@@ -547,10 +547,16 @@ var WAGON_TABS = {
     resetFilters: function () {},
     draw: function (data, cfg) {
       drawDowntime(data.rows)
-      $('#' + cfg.sumSubId).text('Вагонов с простоем: ' + (data.total || 0).toLocaleString('ru-RU'))
+      $('#' + cfg.sumSubId).text(
+        'Вагонов с простоем: ' + (data.total || 0).toLocaleString('ru-RU'),
+      )
     },
     showList: function (data, cfg) {
-      showTable($('#' + cfg.detTableId), data.rows, DETAIL_CONTEXTS.downtime.cols)
+      showTable(
+        $('#' + cfg.detTableId),
+        data.rows,
+        DETAIL_CONTEXTS.downtime.cols,
+      )
     },
   },
 
@@ -573,7 +579,9 @@ var WAGON_TABS = {
     loadedKey: '_rawLoaded',
     loadedDetKey: '_rawDetLoaded',
     groupCols: [],
-    getParams: function () { return {} },
+    getParams: function () {
+      return {}
+    },
     fillFilters: function () {},
     resetFilters: function () {},
     listParams: function () {
@@ -583,10 +591,18 @@ var WAGON_TABS = {
     },
     draw: function (data, cfg) {
       drawRawTable(data.rows)
-      $('#' + cfg.sumSubId).text('Всего гружёных: ' + (data.total || 0).toLocaleString('ru-RU') + ' ваг.')
+      $('#' + cfg.sumSubId).text(
+        'Всего гружёных: ' +
+          (data.total || 0).toLocaleString('ru-RU') +
+          ' ваг.',
+      )
     },
     showList: function (data, cfg) {
-      showTable($('#' + cfg.detTableId), data.rows, DETAIL_CONTEXTS['raw-material'].cols)
+      showTable(
+        $('#' + cfg.detTableId),
+        data.rows,
+        DETAIL_CONTEXTS['raw-material'].cols,
+      )
     },
   },
 }
@@ -609,7 +625,7 @@ function initTab(cfg) {
       .find('.table-acts')
     if ($acts.length && !$acts.find('.btn-csv-tab').length) {
       var $btn = $(
-        '<button class="btn btn-ghost btn-sm btn-csv-tab">↓ CSV</button>',
+        '<button class="btn btn-ghost btn-sm btn-csv-tab">Скачать CSV</button>',
       )
       $btn.on('click', function () {
         saveCSV(cfg.sumTableId, cfg.csvFilename)
@@ -752,7 +768,6 @@ function showTable($table, rows, colDefs) {
 
 /******** downtime ********/
 
-
 function drawDowntime(rows) {
   if (!rows || !rows.length) {
     $('#downtimeSumTable').html(
@@ -836,7 +851,9 @@ function rawToDetail(cargo) {
   var cfg = WAGON_TABS['raw-material']
   window._rawCargo = cargo
   window[cfg.loadedDetKey] = false
-  document.querySelector('#panel-raw-material .inner-tab[data-inner="raw-detail"]').click()
+  document
+    .querySelector('#panel-raw-material .inner-tab[data-inner="raw-detail"]')
+    .click()
 }
 
 /******** summary / kpi renders ********/
@@ -1275,5 +1292,4 @@ $(function () {
       loadSummary(cfg)
     })
   })
-
 })

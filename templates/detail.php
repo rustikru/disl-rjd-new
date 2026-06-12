@@ -85,7 +85,7 @@ $basePath = $basePath ?? '';
           <span class="table-sub" id="detailSub"></span>
         </div>
         <div class="table-acts">
-          <button class="btn btn-ghost btn-sm" id="btnDetailCSV">↓ CSV</button>
+          <button class="btn btn-ghost btn-sm" id="btnDetailCSV">Скачать CSV</button>
         </div>
       </div>
       <div class="table-scroll">
