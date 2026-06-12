@@ -314,14 +314,26 @@ function drawMain(sections, cols) {
       '</td></tr>'
 
     section.rows.forEach(function (row) {
-      var rowSum = row.v.reduce(function (a, b) { return a + b }, 0)
-      h += '<tr class="row-data row-child row-hidden" data-parent-road="' + si + '">'
+      var rowSum = row.v.reduce(function (a, b) {
+        return a + b
+      }, 0)
+      h +=
+        '<tr class="row-data row-child row-hidden" data-parent-road="' +
+        si +
+        '">'
       h += '<td class="col-meta"></td>'
       h += '<td class="col-meta">' + esc(row.sub || '') + '</td>'
       var extraAttr = esc(JSON.stringify({ park_type: row.sub }))
       row.v.forEach(function (v, ci) {
         if (v) {
-          h += '<td class="cell-link" data-ctx="dislocation" data-col="' + esc(cols[ci].label) + '" data-extra="' + extraAttr + '">' + fmt(v) + '</td>'
+          h +=
+            '<td class="cell-link" data-ctx="dislocation" data-col="' +
+            esc(cols[ci].label) +
+            '" data-extra="' +
+            extraAttr +
+            '">' +
+            fmt(v) +
+            '</td>'
         } else {
           h += '<td></td>'
         }
@@ -526,7 +538,7 @@ var WAGON_TABS = {
       $('#fLoadingCargo').val('')
     },
   },
-
+  // Простои
   downtime: {
     ctx: 'downtime',
     summaryUrl: BASE + '/api/downtime/summary',
@@ -559,7 +571,7 @@ var WAGON_TABS = {
       )
     },
   },
-
+  // Сырьё
   'raw-material': {
     ctx: 'raw-material',
     summaryUrl: BASE + '/api/raw-material/summary',
@@ -843,7 +855,10 @@ function drawRawTable(rows) {
 }
 
 function rawToDetail(cargo) {
-  var extra = Object.assign({ cargo: cargo }, WAGON_TABS['raw-material'].getParams())
+  var extra = Object.assign(
+    { cargo: cargo },
+    WAGON_TABS['raw-material'].getParams(),
+  )
   openDetail('raw-material', '', '', '', '', [], extra)
 }
 
@@ -1234,7 +1249,8 @@ $(document).on('click', '.cell-link', function (e) {
   var tabCfg = WAGON_TABS[ctx]
   var extra = tabCfg && tabCfg.getParams ? tabCfg.getParams() : {}
   var dataExtra = $(this).data('extra')
-  if (dataExtra && typeof dataExtra === 'object') Object.assign(extra, dataExtra)
+  if (dataExtra && typeof dataExtra === 'object')
+    Object.assign(extra, dataExtra)
   if (ctx) openDetail(ctx, road, station, col, groupBy, subs, extra)
 })
 
