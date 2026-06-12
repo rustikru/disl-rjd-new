@@ -561,7 +561,6 @@ var WAGON_TABS = {
         max_days: max !== '' ? max : undefined,
       }
     },
-    fillFilters: function () {},
     resetFilters: function () {
       $('#fDowntimeMinDays').val('1')
       $('#fDowntimeMaxDays').val('')
@@ -627,7 +626,7 @@ function initTab(cfg) {
 function loadFilters(cfg) {
   if (!cfg.filtersUrl) return
   $.getJSON(cfg.filtersUrl).done(function (data) {
-    cfg.fillFilters(data)
+    if (cfg.fillFilters) cfg.fillFilters(data)
   })
 }
 
@@ -1179,7 +1178,7 @@ $(function () {
       }
     })
     $('#' + resetId).on('click', function () {
-      cfg.resetFilters()
+      if (cfg.resetFilters) cfg.resetFilters()
       window[cfg.loadedDetKey] = false
       loadSummary(cfg)
     })
