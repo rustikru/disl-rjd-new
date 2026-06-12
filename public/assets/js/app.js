@@ -948,13 +948,15 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
             // Полный набор фильтров для этого промежуточного уровня
             var curFilters = Object.assign({}, ancestorFilters)
             curFilters[levelKey] = groupVal
+            var bcVals = Object.keys(curFilters).map(function (k) { return curFilters[k] })
+            var curFiltersWithPath = Object.assign({}, curFilters, { _bcpath: JSON.stringify(bcVals) })
             out += '<tr class="row-data row-child row-sub-parent" data-parent-id="' + esc(parentNodeId) + '" data-node-id="' + esc(nodeId) + '">'
             out += '<td class="col-meta"></td>'
             for (var j = 1; j < level; j++) out += '<td class="col-meta"></td>'
             out += '<td class="col-meta"><span class="toggle-icon">▼</span>' + esc(groupVal) + '</td>'
             for (var j = level + 1; j < nGroup; j++) out += '<td class="col-meta"></td>'
-            subTotal.forEach(function (v, i) { out += cellLink(v, ctx, '', '', flatCells[i], curFilters) })
-            out += totalLink(subSum, ctx, '', '', curFilters)
+            subTotal.forEach(function (v, i) { out += cellLink(v, ctx, '', '', flatCells[i], curFiltersWithPath) })
+            out += totalLink(subSum, ctx, '', '', curFiltersWithPath)
             out += '</tr>'
             out += renderNodes(level + 1, gItems, nodeId, curFilters)
           })

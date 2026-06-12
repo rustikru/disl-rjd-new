@@ -154,9 +154,16 @@ $basePath = $basePath ?? '';
       $('#breadcrumb').html(bcParts.join(''));
 
       // Заголовок
+      var bcpathRaw = params.get('_bcpath') || '';
+      var bcpathParts = [];
+      try { if (bcpathRaw) bcpathParts = JSON.parse(bcpathRaw); } catch (e) {}
       var titleParts = [];
       if (ctxDef) { titleParts.push(ctxDef.label); }
-      if (road) { titleParts.push(road); }
+      if (road) {
+        titleParts.push(road);
+      } else if (bcpathParts.length) {
+        bcpathParts.forEach(function (p) { if (p) titleParts.push(p); });
+      }
       if (station) { titleParts.push(station); }
       if (col) { titleParts.push(col); }
       if (cargoState) { titleParts.push(cargoState); }
@@ -174,7 +181,7 @@ $basePath = $basePath ?? '';
       if (col) { apiParams.set('wagon_type', col); }
       // Остальные параметры URL (cargo_state, cargo, prev_cargo, group_by...)
       // передаем в API (активные фильтры)
-      var handled = { ctx: 1, road: 1, station: 1, col: 1 };
+      var handled = { ctx: 1, road: 1, station: 1, col: 1, _bcpath: 1 };
       params.forEach(function (v, k) {
         if (!handled[k] && v) { apiParams.set(k, v); }
       });
