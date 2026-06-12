@@ -21,6 +21,9 @@
   --row-total: #f0f2f5;
   --row-head: #f7f8fa;
 
+  --total-col-head: #f0f2f5;
+  --total-col-row: #f7f8fa;
+
   --hover-green: #e6f4ea;
 
   --header-h: 56px;
@@ -461,9 +464,12 @@ body {
   font-size: 13px;
 }
 
-.data-table td.col-total-col,
+.data-table td.col-total-col {
+  background: var(--total-col-head);
+  font-weight: 700;
+}
 .data-table th.col-total-col {
-  background: #f0f4f8;
+  background: var(--total-col-row);
   font-weight: 700;
 }
 .data-table .row-data td.col-total-col {
