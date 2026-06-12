@@ -175,29 +175,27 @@ class ApiController
     /** GET /api/dislocation/detail — Расширенная дислокация */
     public function dislDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params = $request->getQueryParams();
-        $reportDt = $params['report_dt'] ?? null;
-        $wagType = $params['wagon_type'] ?? null;
-        $parkType = $params['park_type'] ?? null;
-        $section = $params['section'] ?? null;
+        $params   = $request->getQueryParams();
+        $road     = $params['road'] ?? null;
+        $station  = $params['station'] ?? null;
+        $wagType  = $params['wagon_type'] ?? null;
+        $gf       = $this->groupFields($params['group_by'] ?? '', ['dest_state', 'dest_road']);
+        $gfStr    = implode(', ', $gf);
 
-        $dtsByType = $this->getLatestDtsByType($reportDt, ['Подход', 'Отправка']);
-        $cond = $this->latestDtCondition($dtsByType, 'xdr');
-        $where = '';
-        $bindings = $cond['params'];
+        $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
+        $cond      = $this->latestDtCondition($dtsByType, 'xdr');
+        $where     = '';
+        $bindings  = $cond['params'];
 
+        foreach (array_filter([0 => $road, 1 => $station]) as $idx => $val) {
+            if (isset($gf[$idx])) {
+                $where .= " AND {$gf[$idx]} = :gf_$idx";
+                $bindings["gf_$idx"] = $val;
+            }
+        }
         if ($wagType) {
             $where .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) = :wtype';
             $bindings['wtype'] = $wagType;
-        }
-        if ($parkType) {
-            $where .= ' AND park_type = :park_type';
-            $bindings['park_type'] = $parkType;
-        }
-        if ($section) {
-            $where .= ' AND (park_type = :section OR park_type LIKE :section_like)';
-            $bindings['section'] = $section;
-            $bindings['section_like'] = $section . ',%';
         }
 
         $rows = $this->db->fetchAll(
@@ -206,7 +204,7 @@ class ApiController
                     owner, lessee
              FROM xx_dislocation_rjd xdr
              WHERE {$cond['sql']} {$where}
-             ORDER BY oper_station",
+             ORDER BY $gfStr, oper_station",
             $bindings
         );
 
