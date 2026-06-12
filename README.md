@@ -6,13 +6,13 @@
 
 ## Стек
 
-| Слой | Технология |
-|---|---|
-| Backend | PHP 8.1+, Slim Framework 4, PSR-7 |
-| База данных | Oracle (OCI8) / PostgreSQL (fallback) |
-| Frontend | Vanilla JS (ES5), jQuery 3, CSS-переменные |
+| Слой           | Технология                                   |
+| -------------- | -------------------------------------------- |
+| Backend        | PHP 8.1+, Slim Framework 4, PSR-7            |
+| База данных    | Oracle (OCI8) / PostgreSQL (fallback)        |
+| Frontend       | Vanilla JS (ES5), jQuery 3, CSS-переменные   |
 | Аутентификация | Локальный пароль или Active Directory (LDAP) |
-| Веб-сервер | Apache (mod_rewrite) / PHP built-in server |
+| Веб-сервер     | Apache (mod_rewrite) / PHP built-in server   |
 
 ---
 
@@ -72,29 +72,29 @@ disl-rjd-new/
 Центральная таблица. Одна строка = один вагон в одной справке РЖД.  
 126 колонок из Excel-выгрузки + 3 служебных:
 
-| Поле | Тип | Описание |
-|---|---|---|
-| `id` | NUMBER | Автоинкремент (SEQ + триггер) |
-| `report_dt` | TIMESTAMP | Дата и время справки |
-| `type_reference` | VARCHAR2 | `'Подход'` / `'Отправка'` |
-| `wagon_no` | VARCHAR2 | Номер вагона |
-| `wagon_type_code` | VARCHAR2 | Тип вагона (Цистерны, Полувагоны…) |
-| `depart_road` | VARCHAR2 | Дорога отправления |
-| `depart_station` | VARCHAR2 | Станция отправления |
-| `dest_road` | VARCHAR2 | Дорога назначения |
-| `dest_station` | VARCHAR2 | Станция назначения |
-| `oper_road` | VARCHAR2 | Дорога текущей операции |
-| `oper_station` | VARCHAR2 | Станция текущей операции |
-| `oper_mnemonic` | VARCHAR2 | Мнемоника операции (`ОТПР`, `ПРИБ`…) |
-| `cargo_name` | VARCHAR2 | Наименование груза |
-| `cargo_weight_kg` | NUMBER | Вес груза (кг) |
-| `dist_remain_km` | NUMBER | Остаток расстояния (км) |
-| `idle_time_days` | NUMBER | Простой (сут.) |
-| `norm_delivery_dt` | DATE | Нормативная дата доставки |
-| `owner` | VARCHAR2 | Собственник |
-| `lessee` | VARCHAR2 | Арендатор |
-| `park_type` | VARCHAR2 | Признак парка |
-| … | … | Полный список — в `sql/oracle_xx_dislocation_rjd.sql` |
+| Поле               | Тип       | Описание                                              |
+| ------------------ | --------- | ----------------------------------------------------- |
+| `id`               | NUMBER    | Автоинкремент (SEQ + триггер)                         |
+| `report_dt`        | TIMESTAMP | Дата и время справки                                  |
+| `type_reference`   | VARCHAR2  | `'Подход'` / `'Отправка'`                             |
+| `wagon_no`         | VARCHAR2  | Номер вагона                                          |
+| `wagon_type_code`  | VARCHAR2  | Тип вагона (Цистерны, Полувагоны…)                    |
+| `depart_road`      | VARCHAR2  | Дорога отправления                                    |
+| `depart_station`   | VARCHAR2  | Станция отправления                                   |
+| `dest_road`        | VARCHAR2  | Дорога назначения                                     |
+| `dest_station`     | VARCHAR2  | Станция назначения                                    |
+| `oper_road`        | VARCHAR2  | Дорога текущей операции                               |
+| `oper_station`     | VARCHAR2  | Станция текущей операции                              |
+| `oper_mnemonic`    | VARCHAR2  | Мнемоника операции (`ОТПР`, `ПРИБ`…)                  |
+| `cargo_name`       | VARCHAR2  | Наименование груза                                    |
+| `cargo_weight_kg`  | NUMBER    | Вес груза (кг)                                        |
+| `dist_remain_km`   | NUMBER    | Остаток расстояния (км)                               |
+| `idle_time_days`   | NUMBER    | Простой (сут.)                                        |
+| `norm_delivery_dt` | DATE      | Нормативная дата доставки                             |
+| `owner`            | VARCHAR2  | Собственник                                           |
+| `lessee`           | VARCHAR2  | Арендатор                                             |
+| `park_type`        | VARCHAR2  | Признак парка                                         |
+| …                  | …         | Полный список — в `sql/oracle_xx_dislocation_rjd.sql` |
 
 Полные комментарии на русском ко всем 126 колонкам есть в DDL-файле (`COMMENT ON COLUMN`).
 
@@ -108,33 +108,33 @@ disl-rjd-new/
 
 Все методы — GET, возвращают JSON. Защищены `AuthMiddleware`.
 
-| URL | Метод контроллера | Описание |
-|---|---|---|
-| `GET /api/dashboard` | `dashboard` | KPI + разбивка по типам вагонов |
-| `GET /api/dislocation/filters` | `dislFilters` | Список дат справок |
-| `GET /api/dislocation/summary` | `dislSummary` | Сводная по разделам парка |
-| `GET /api/dislocation/detail` | `dislDetail` | Детальный список вагонов |
-| `GET /api/approach/filters` | `approachFilters` | Значения для фильтров подхода |
-| `GET /api/approach/summary` | `approachSummary` | Сводная подхода |
-| `GET /api/approach/detail` | `approachDetail` | Список вагонов подхода |
-| `GET /api/departure/filters` | `departureFilters` | Значения для фильтров отправления |
-| `GET /api/departure/summary` | `departureSummary` | Сводная отправления |
-| `GET /api/departure/detail` | `departureDetail` | Список отправленных вагонов |
-| `GET /api/loading/summary` | `loadingSummary` | Сводная погрузки |
-| `GET /api/loading/detail` | `loadingDetail` | Список погруженных вагонов |
-| `GET /api/downtime/summary` | `downtimeSummary` | Простои по станциям |
-| `GET /api/downtime/detail` | `downtimeDetail` | Список вагонов с простоем |
-| `GET /api/raw-material/summary` | `rawSummary` | Сводная по сырью |
-| `GET /api/raw-material/detail` | `rawDetail` | Список вагонов с сырьём |
+| URL                             | Метод контроллера  | Описание                          |
+| ------------------------------- | ------------------ | --------------------------------- |
+| `GET /api/dashboard`            | `dashboard`        | KPI + разбивка по типам вагонов   |
+| `GET /api/dislocation/filters`  | `dislFilters`      | Список дат справок                |
+| `GET /api/dislocation/summary`  | `dislSummary`      | Сводная по разделам парка         |
+| `GET /api/dislocation/detail`   | `dislDetail`       | Детальный список вагонов          |
+| `GET /api/approach/filters`     | `approachFilters`  | Значения для фильтров подхода     |
+| `GET /api/approach/summary`     | `approachSummary`  | Сводная подхода                   |
+| `GET /api/approach/detail`      | `approachDetail`   | Список вагонов подхода            |
+| `GET /api/departure/filters`    | `departureFilters` | Значения для фильтров отправления |
+| `GET /api/departure/summary`    | `departureSummary` | Сводная отправления               |
+| `GET /api/departure/detail`     | `departureDetail`  | Список отправленных вагонов       |
+| `GET /api/loading/summary`      | `loadingSummary`   | Сводная погрузки                  |
+| `GET /api/loading/detail`       | `loadingDetail`    | Список погруженных вагонов        |
+| `GET /api/downtime/summary`     | `downtimeSummary`  | Простои по станциям               |
+| `GET /api/downtime/detail`      | `downtimeDetail`   | Список вагонов с простоем         |
+| `GET /api/raw-material/summary` | `rawSummary`       | Сводная по сырью                  |
+| `GET /api/raw-material/detail`  | `rawDetail`        | Список вагонов с сырьём           |
 
 ### Параметры сводных API
 
-| Параметр | Описание |
-|---|---|
-| `report_dt` | Фильтр по дате справки |
-| `cargo` | Фильтр по наименованию груза |
-| `group_by` | Поля группировки через запятую: `dest_road,dest_station` |
-| `fields` | Поля SELECT для детализации через запятую |
+| Параметр    | Описание                                                 |
+| ----------- | -------------------------------------------------------- |
+| `report_dt` | Фильтр по дате справки                                   |
+| `cargo`     | Фильтр по наименованию груза                             |
+| `group_by`  | Поля группировки через запятую: `dest_road,dest_station` |
+| `fields`    | Поля SELECT для детализации через запятую                |
 
 `group_by` формируется автоматически из `WAGON_TABS[k].groupCols` в `app.js` — PHP-код менять не нужно при изменении группировки.
 
@@ -178,12 +178,12 @@ php bin/set-password.php <username> <new_password>
 
 ### Требования
 
-| | |
-|---|---|
-| PHP | 8.1+ |
+|                |                                                                            |
+| -------------- | -------------------------------------------------------------------------- |
+| PHP            | 8.1+                                                                       |
 | Расширения PHP | `oci8` (Oracle) **или** `pdo_pgsql` (PostgreSQL), `ldap` (если AD включён) |
-| Oracle client | Instant Client 19+ (нужен для oci8) |
-| Composer | 2.x |
+| Oracle client  | Instant Client 19+ (нужен для oci8)                                        |
+| Composer       | 2.x                                                                        |
 
 ---
 
@@ -210,6 +210,7 @@ docker compose up -d
 ```
 
 > Для Oracle в Docker замените сервис на `oracle` и укажите:
+>
 > ```dotenv
 > DB_DRIVER=oracle
 > DB_HOST=oracle
@@ -245,6 +246,7 @@ composer install --no-dev --optimize-autoloader
 Убедитесь что включены модули: `mod_rewrite`, `mod_headers`.
 
 Если приложение в подпапке (например `/rjd`), задайте в `.env`:
+
 ```dotenv
 APP_BASE_PATH=/rjd
 ```
@@ -304,6 +306,7 @@ tail -f tmp/log/sql_debug.log
 ```
 
 Пример записи:
+
 ```sql
 [2026-06-12 18:40:00]
 SELECT wagon_no, train_no, oper_station FROM xx_dislocation_rjd
@@ -419,55 +422,55 @@ arrived: {
 
 ### Обязательные поля
 
-| Поле | Тип | Описание |
-|---|---|---|
-| `ctx` | string | Идентификатор контекста. Должен совпадать с ключом в `DETAIL_CONTEXTS` |
-| `summaryUrl` | string | URL сводного API |
-| `detailUrl` | string | URL детального API |
-| `sumTableId` | string | `id` элемента `<table>` сводной таблицы |
-| `sumSubId` | string | `id` подписи под заголовком сводной |
-| `detTableId` | string | `id` элемента `<table>` детализации |
-| `detSubId` | string | `id` подписи под заголовком детализации |
-| `detPanelId` | string | `id` inner-панели детализации |
-| `loadedKey` | string | Имя глобального флага первой загрузки сводной |
-| `loadedDetKey` | string | Имя глобального флага первой загрузки детализации |
-| `sumSubLabel` | string | Префикс подписи итогов |
-| `groupCols` | array | Колонки группировки. `{ key, label }` — `key` = поле БД, `label` = заголовок. Порядок = иерархия: первый — верхний уровень (дорога), последний — нижний (станция). Передаётся как `group_by` в оба API (summary и detail). |
-| `getParams()` | function | Возвращает объект параметров активных фильтров |
+| Поле           | Тип      | Описание                                                                                                                                                                                                                   |
+| -------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ctx`          | string   | Идентификатор контекста. Должен совпадать с ключом в `DETAIL_CONTEXTS`                                                                                                                                                     |
+| `summaryUrl`   | string   | URL сводного API                                                                                                                                                                                                           |
+| `detailUrl`    | string   | URL детального API                                                                                                                                                                                                         |
+| `sumTableId`   | string   | `id` элемента `<table>` сводной таблицы                                                                                                                                                                                    |
+| `sumSubId`     | string   | `id` подписи под заголовком сводной                                                                                                                                                                                        |
+| `detTableId`   | string   | `id` элемента `<table>` детализации                                                                                                                                                                                        |
+| `detSubId`     | string   | `id` подписи под заголовком детализации                                                                                                                                                                                    |
+| `detPanelId`   | string   | `id` inner-панели детализации                                                                                                                                                                                              |
+| `loadedKey`    | string   | Имя глобального флага первой загрузки сводной                                                                                                                                                                              |
+| `loadedDetKey` | string   | Имя глобального флага первой загрузки детализации                                                                                                                                                                          |
+| `sumSubLabel`  | string   | Префикс подписи итогов                                                                                                                                                                                                     |
+| `groupCols`    | array    | Колонки группировки. `{ key, label }` — `key` = поле БД, `label` = заголовок. Порядок = иерархия: первый — верхний уровень (дорога), последний — нижний (станция). Передаётся как `group_by` в оба API (summary и detail). |
+| `getParams()`  | function | Возвращает объект параметров активных фильтров                                                                                                                                                                             |
 
 ### Опциональные поля
 
-| Поле | Тип | Описание |
-|---|---|---|
-| `filtersUrl` | string | URL API фильтров. Если не задан — `fillFilters` не вызывается |
-| `fillFilters(data)` | function | Заполняет `<select>` фильтров данными из `filtersUrl` |
-| `resetFilters()` | function | Сбрасывает фильтры. Вызывается при клике на кнопку Сброс |
-| `metricsId` | string | `id` контейнера KPI-карточек. Если не задан — карточки не рендерятся |
-| `metricsLabel` | string | Подпись главной KPI-карточки (используется когда `kpi` не задан) |
-| `kpi(data)` | function | Переопределяет набор KPI-карточек. Получает ответ API, возвращает `[{label, value, accent?}]` |
-| `csvFilename` | string | Префикс имени CSV-файла. Если не задан — кнопка «↓ CSV» не появляется |
-| `draw(data, cfg)` | function | Переопределяет стандартный рендер сводной таблицы (`drawSummary`). Нужен когда структура ответа API отличается от стандартной `{roads, cols}`. Пример: Дислокация использует `{sections, cols}` и рендерится через `drawMain` |
-| `listParams()` | function | Переопределяет параметры запроса к `detailUrl`. По умолчанию — `getParams()` + `fields` + `group_by` из `groupCols` |
+| Поле                | Тип      | Описание                                                                                                                                                                                                                      |
+| ------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `filtersUrl`        | string   | URL API фильтров. Если не задан — `fillFilters` не вызывается                                                                                                                                                                 |
+| `fillFilters(data)` | function | Заполняет `<select>` фильтров данными из `filtersUrl`                                                                                                                                                                         |
+| `resetFilters()`    | function | Сбрасывает фильтры. Вызывается при клике на кнопку Сброс                                                                                                                                                                      |
+| `metricsId`         | string   | `id` контейнера KPI-карточек. Если не задан — карточки не рендерятся                                                                                                                                                          |
+| `metricsLabel`      | string   | Подпись главной KPI-карточки (используется когда `kpi` не задан)                                                                                                                                                              |
+| `kpi(data)`         | function | Переопределяет набор KPI-карточек. Получает ответ API, возвращает `[{label, value, accent?}]`                                                                                                                                 |
+| `csvFilename`       | string   | Префикс имени CSV-файла. Если не задан — кнопка «↓ CSV» не появляется                                                                                                                                                         |
+| `draw(data, cfg)`   | function | Переопределяет стандартный рендер сводной таблицы (`drawSummary`). Нужен когда структура ответа API отличается от стандартной `{roads, cols}`. Пример: Дислокация использует `{sections, cols}` и рендерится через `drawMain` |
+| `listParams()`      | function | Переопределяет параметры запроса к `detailUrl`. По умолчанию — `getParams()` + `fields` + `group_by` из `groupCols`                                                                                                           |
 
 ### Поля элемента groupCols
 
-| Поле | Описание |
-|---|---|
-| `key` | Имя поля в БД (lowercase). Передаётся в `group_by` |
-| `label` | Заголовок колонки в таблице |
+| Поле    | Описание                                           |
+| ------- | -------------------------------------------------- |
+| `key`   | Имя поля в БД (lowercase). Передаётся в `group_by` |
+| `label` | Заголовок колонки в таблице                        |
 
 ### Колонки детализации — не в WAGON_TABS
 
 Вынесены в `public/assets/js/detail-contexts.js` (объект `DETAIL_CONTEXTS`). Используется и на главной (drill-down), и на странице `/detail`.
 
-| Поле колонки | Описание |
-|---|---|
-| `key` | Имя поля в БД |
-| `label` | Заголовок |
-| `meta` | `true` → серая «мета» стилизация ячейки |
-| `mono` | `true` → моноширинный шрифт (для номеров вагонов) |
-| `right` | `true` → выравнивание по правому краю |
-| `fmt(v)` | Функция форматирования значения |
+| Поле колонки | Описание                                          |
+| ------------ | ------------------------------------------------- |
+| `key`        | Имя поля в БД                                     |
+| `label`      | Заголовок                                         |
+| `meta`       | `true` → серая «мета» стилизация ячейки           |
+| `mono`       | `true` → моноширинный шрифт (для номеров вагонов) |
+| `right`      | `true` → выравнивание по правому краю             |
+| `fmt(v)`     | Функция форматирования значения                   |
 
 ---
 
@@ -481,16 +484,19 @@ arrived: {
 
 ## Вспомогательные функции (`app.js`)
 
-| Функция | Описание |
-|---|---|
-| `esc(str)` | HTML-экранирование |
-| `ajaxErr(jqXHR)` | Читаемое сообщение об ошибке |
-| `idleStyle(days)` | Inline-стиль для простоя: красный ≥7 сут., оранжевый ≥3 сут. |
-| `kpiCard(item)` | HTML одной KPI-карточки |
-| `showKpi(selector, metrics, total, label)` | Рендер блока KPI-карточек |
-| `showTable($table, rows, cols)` | Универсальный рендер таблицы по конфигу колонок |
-| `drawSummary(selector, roads, data, ctx, groupCols)` | Стандартная сводная таблица дорога→станция |
-| `drawMain(sections, cols)` | Сводная таблица Дислокации (раздел→тип парка, особая структура) |
-| `exportTableToCSV(tableId, filename)` | Скачать таблицу как CSV (UTF-8 BOM) |
-| `addColumnSearch($table)` | Строка быстрого поиска под заголовком таблицы |
-| `openDetail(ctx, road, station, col, groupBy, subs, extra)` | Открыть страницу детализации в новой вкладке |
+| Функция                                                     | Описание                                                        |
+| ----------------------------------------------------------- | --------------------------------------------------------------- |
+| `esc(str)`                                                  | HTML-экранирование                                              |
+| `ajaxErr(jqXHR)`                                            | Читаемое сообщение об ошибке                                    |
+| `idleStyle(days)`                                           | Inline-стиль для простоя: красный ≥7 сут., оранжевый ≥3 сут.    |
+| `kpiCard(item)`                                             | HTML одной KPI-карточки                                         |
+| `showKpi(selector, metrics, total, label)`                  | Рендер блока KPI-карточек                                       |
+| `showTable($table, rows, cols)`                             | Универсальный рендер таблицы по конфигу колонок                 |
+| `drawSummary(selector, roads, data, ctx, groupCols)`        | Стандартная сводная таблица дорога→станция                      |
+| `drawMain(sections, cols)`                                  | Сводная таблица Дислокации (раздел→тип парка, особая структура) |
+| `exportTableToCSV(tableId, filename)`                       | Скачать таблицу как CSV (UTF-8 BOM)                             |
+| `addColumnSearch($table)`                                   | Строка быстрого поиска под заголовком таблицы                   |
+| `openDetail(ctx, road, station, col, groupBy, subs, extra)` | Открыть страницу детализации в новой вкладке                    |
+
+cd /Users/ru.bekmansurov/Documents/Programmer/Web/rjd
+DYLD_LIBRARY_PATH=/opt/oracle/instantclient_23_26 php -S localhost:8080 -t public/
