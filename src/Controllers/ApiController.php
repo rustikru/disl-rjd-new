@@ -95,35 +95,24 @@ class ApiController
     /** GET /api/dashboard — KPI-сводка */
     public function dashboard(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $latestDt = $this->db->fetchOne(
-            'SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd'
-        );
-        $dt = $latestDt['dt'] ?? null;
+        $dtsByType = $this->getLatestDtsByType(null, ['Подход', 'Отправка']);
 
-        if (!$dt) {
+        if (empty($dtsByType)) {
             return $this->json($response, [
                 'updated_at' => null,
                 'sections' => [],
             ]);
         }
 
-        // Группируем по park_type
+        $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $rows = $this->db->fetchAll(
             "SELECT park_type, COUNT(*) AS total, wagon_type_code
-             FROM XX_DISLOCATION_RJD xdr
-                WHERE
-                    (xdr.report_dt, xdr.TYPE_REFERENCE) IN (
-                    SELECT
-                        max(x.REPORT_DT),TYPE_REFERENCE
-                    FROM
-                        XX_DISLOCATION_RJD x
-                    WHERE
-                        x.TYPE_REFERENCE IN ('Подход', 'Отправка')
-                    GROUP BY
-                        x.TYPE_REFERENCE) 
-             
-             GROUP BY park_type, wagon_type_code"
+             FROM xx_dislocation_rjd xdr
+             WHERE {$cond['sql']}
+             GROUP BY park_type, wagon_type_code",
+            $cond['params']
         );
+        $dt = max($dtsByType);
 
         $sections = [];
         foreach ($rows as $r) {
@@ -159,40 +148,33 @@ class ApiController
     /** GET /api/dislocation/summary?report_dt=... — Сводная таблица */
     public function dislSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params = $request->getQueryParams();
-        $reportDt = $params['report_dt'] ?? null;
+        $params    = $request->getQueryParams();
+        $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
 
-        if (!$reportDt) {
-            $latest = $this->db->fetchOne('SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd');
-            $reportDt = $latest['dt'] ?? null;
+        if (empty($dtsByType)) {
+            return $this->json($response, $this->makeSummary([], ''));
         }
 
+        $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $rows = $this->db->fetchAll(
-            "SELECT park_type, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) as wagon_type_code, COUNT(*) AS wagon_count
-             FROM XX_DISLOCATION_RJD xdr
-                WHERE
-                    (xdr.report_dt, xdr.TYPE_REFERENCE) IN (
-                    SELECT
-                        max(x.REPORT_DT),TYPE_REFERENCE
-                    FROM
-                        XX_DISLOCATION_RJD x
-                    WHERE
-                        x.TYPE_REFERENCE IN ('Подход', 'Отправка')
-                    GROUP BY
-                        x.TYPE_REFERENCE)
-             GROUP BY park_type, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE)
-             ORDER BY park_type, wagon_type_code"
+            "SELECT park_type,
+                    XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) AS wagon_type_code,
+                    COUNT(*) AS wagon_count
+             FROM xx_dislocation_rjd xdr
+             WHERE {$cond['sql']}
+             GROUP BY park_type, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)
+             ORDER BY park_type, wagon_type_code",
+            $cond['params']
         );
 
+        $latestDt = max($dtsByType);
         try {
-            $d = new \DateTime($reportDt);
-            $label = $d->format('d.m.Y H:i');
+            $label = (new \DateTime($latestDt))->format('d.m.Y H:i');
         } catch (\Exception $e) {
-            $label = $reportDt;
+            $label = $latestDt;
         }
 
-        $data = $this->makeSummary($rows, $label);
-        return $this->json($response, $data);
+        return $this->json($response, $this->makeSummary($rows, $label));
     }
 
     /** GET /api/dislocation/detail — Расширенная дислокация */
@@ -204,12 +186,13 @@ class ApiController
         $parkType = $params['park_type'] ?? null;
         $section = $params['section'] ?? null;
 
-        $dtParam = $reportDt ? ':dt' : '(SELECT MAX(report_dt) FROM xx_dislocation_rjd)';
-        $where = "";
-        $bindings = $reportDt ? ['dt' => $reportDt] : [];
+        $dtsByType = $this->getLatestDtsByType($reportDt, ['Подход', 'Отправка']);
+        $cond      = $this->latestDtCondition($dtsByType, 'xdr');
+        $where     = '';
+        $bindings  = $cond['params'];
 
         if ($wagType) {
-            $where .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) = :wtype';
+            $where .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) = :wtype';
             $bindings['wtype'] = $wagType;
         }
         if ($parkType) {
@@ -218,7 +201,7 @@ class ApiController
         }
         if ($section) {
             $where .= ' AND (park_type = :section OR park_type LIKE :section_like)';
-            $bindings['section'] = $section;
+            $bindings['section']      = $section;
             $bindings['section_like'] = $section . ',%';
         }
 
@@ -226,20 +209,9 @@ class ApiController
             "SELECT wagon_no, train_no, oper_station, depart_station, dest_station,
                     cargo_name, park_type, oper_mnemonic, idle_time_days, asoup_arrive_dt,
                     owner, lessee
-             FROM XX_DISLOCATION_RJD xdr
-                WHERE
-                    (xdr.report_dt, xdr.TYPE_REFERENCE) IN (
-                    SELECT
-                        max(x.REPORT_DT),TYPE_REFERENCE
-                    FROM
-                        XX_DISLOCATION_RJD x
-                    WHERE
-                        x.TYPE_REFERENCE IN ('Подход', 'Отправка')
-                    GROUP BY
-                        x.TYPE_REFERENCE) 
-                    {$where}
-             ORDER BY oper_station
-             ",
+             FROM xx_dislocation_rjd xdr
+             WHERE {$cond['sql']} {$where}
+             ORDER BY oper_station",
             $bindings
         );
 
@@ -767,6 +739,57 @@ class ApiController
         }
         $row = $this->db->fetchOne($sql, $params);
         return $row['dt'] ?? null;
+    }
+
+    /**
+     * Возвращает [type_reference => MAX(report_dt)] для всех типов.
+     * Если передан конкретный $dt — возвращает его для всех типов без запроса к БД.
+     * $types = ['Подход', 'Отправка'] — ограничить список типов (null = все).
+     */
+    private function getLatestDtsByType(?string $dt = null, ?array $types = null): array
+    {
+        if ($types !== null && count($types) === 0) {
+            return [];
+        }
+        $sql = 'SELECT type_reference, MAX(report_dt) AS dt FROM xx_dislocation_rjd';
+        $params = [];
+        if ($types !== null) {
+            $placeholders = implode(',', array_map(fn($i) => ":t$i", array_keys($types)));
+            $sql .= " WHERE type_reference IN ($placeholders)";
+            foreach ($types as $i => $t) {
+                $params["t$i"] = $t;
+            }
+        }
+        $sql .= ' GROUP BY type_reference';
+        $rows = $this->db->fetchAll($sql, $params);
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(string) $r['type_reference']] = $dt ?? (string) $r['dt'];
+        }
+        return $map;
+    }
+
+    /**
+     * Строит SQL-фрагмент для WHERE из карты [type_reference => report_dt].
+     * Результат: ['sql' => '(type_reference=:ldt_type_0 AND report_dt=:ldt_dt_0) OR ...', 'params' => [...]]
+     * $alias — префикс таблицы, например 'xdr' → 'xdr.type_reference'
+     */
+    private function latestDtCondition(array $dtsByType, string $alias = ''): array
+    {
+        if (empty($dtsByType)) {
+            return ['sql' => '1=0', 'params' => []];
+        }
+        $col = fn(string $c) => $alias !== '' ? "$alias.$c" : $c;
+        $parts = [];
+        $params = [];
+        $i = 0;
+        foreach ($dtsByType as $type => $dt) {
+            $parts[] = "({$col('type_reference')} = :ldt_type_{$i} AND {$col('report_dt')} = :ldt_dt_{$i})";
+            $params["ldt_type_{$i}"] = $type;
+            $params["ldt_dt_{$i}"]   = $dt;
+            $i++;
+        }
+        return ['sql' => implode(' OR ', $parts), 'params' => $params];
     }
 
     /**
