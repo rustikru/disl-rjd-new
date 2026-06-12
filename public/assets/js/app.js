@@ -185,7 +185,7 @@ function showDashKpi(sections) {
   $('#kpiGrid').html(kpis.map(kpiCard).join(''))
 }
 
-// SVG столбчатый график
+// SVG
 var BAR_COLORS = [
   '#4A7FCB',
   '#5B9E6B',
