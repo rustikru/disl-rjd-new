@@ -555,19 +555,21 @@ class ApiController
     }
 
 
-    /** GET /api/downtime/summary — Сводная простоев: Дорога→Станция × тип вагона */
+    /** GET /api/downtime/summary — Сводная простоев × тип вагона */
     public function downtimeSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params = $request->getQueryParams();
+        $params   = $request->getQueryParams();
         $reportDt = $this->getReportDt($params['report_dt'] ?? null);
-        $minDays = max(0, (int) ($params['min_days'] ?? 1));
-        $maxDays = isset($params['max_days']) && $params['max_days'] !== '' ? (int) $params['max_days'] : null;
+        $gf       = $this->groupFields($params['group_by'] ?? '', ['oper_road', 'oper_station']);
+        $gfStr    = implode(', ', $gf);
+        $minDays  = max(0, (int) ($params['min_days'] ?? 1));
+        $maxDays  = isset($params['max_days']) && $params['max_days'] !== '' ? (int) $params['max_days'] : null;
 
         if (!$reportDt) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $where = "report_dt = :report_dt AND idle_time_days IS NOT NULL AND nvl(idle_time_days,0) != 0";
+        $where    = "report_dt = :report_dt AND idle_time_days IS NOT NULL AND nvl(idle_time_days,0) != 0";
         $bindings = ['report_dt' => $reportDt];
         if ($minDays > 0) {
             $where .= ' AND idle_time_days >= :min_days';
@@ -579,15 +581,15 @@ class ApiController
         }
 
         $rows = $this->db->fetchAll(
-            "SELECT oper_road, oper_station, wagon_type_code, COUNT(*) AS cnt
+            "SELECT $gfStr, wagon_type_code, COUNT(*) AS cnt
              FROM xx_dislocation_rjd
              WHERE {$where}
-             GROUP BY oper_road, oper_station, wagon_type_code
-             ORDER BY oper_road, oper_station",
+             GROUP BY $gfStr, wagon_type_code
+             ORDER BY $gfStr",
             $bindings
         );
 
-        return $this->json($response, $this->roadTable($rows, ['oper_road', 'oper_station']));
+        return $this->json($response, $this->roadTable($rows, $gf));
     }
 
     /** GET /api/downtime/detail — Список простаивающих вагонов */
@@ -643,27 +645,29 @@ class ApiController
     }
 
 
-    /** GET /api/raw-material/summary — Сводная сырья*/
+    /** GET /api/raw-material/summary — Сводная сырья */
     public function rawSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params = $request->getQueryParams();
+        $params   = $request->getQueryParams();
         $reportDt = $this->getReportDt($params['report_dt'] ?? null);
+        $gf       = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
+        $gfStr    = implode(', ', $gf);
 
         if (!$reportDt) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0, 'max_idle' => 0]);
         }
 
         $rows = $this->db->fetchAll(
-            "SELECT cargo_name,
+            "SELECT $gfStr,
                     XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) AS wagon_type_code,
                     COUNT(*) AS cnt
              FROM xx_dislocation_rjd
              WHERE report_dt = :report_dt
                AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0
                AND idle_time_days IS NOT NULL AND idle_time_days != 0
-             GROUP BY cargo_name,
+             GROUP BY $gfStr,
                       XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)
-             ORDER BY cargo_name",
+             ORDER BY $gfStr",
             ['report_dt' => $reportDt]
         );
 
@@ -673,7 +677,7 @@ class ApiController
             ['report_dt' => $reportDt]
         );
 
-        $result = $this->roadTable($rows, ['cargo_name']);
+        $result = $this->roadTable($rows, $gf);
         $result['max_idle'] = (float) ($maxIdleRow['max_idle'] ?? 0);
         return $this->json($response, $result);
     }
