@@ -1,4 +1,5 @@
 .env
+sql_debug.log
 .DS_Store
 \sql
 sql
