@@ -335,10 +335,7 @@ function drawMain(sections, cols) {
         var rowSum = row.v.reduce(function (a, b) {
           return a + b
         }, 0)
-        h +=
-          '<tr class="row-data row-child" data-parent-road="' +
-          si +
-          '">'
+        h += '<tr class="row-data row-child" data-parent-road="' + si + '">'
         h += '<td class="col-meta"></td>'
         h += '<td class="col-meta">' + esc(row.sub || '') + '</td>'
         var extraAttr = esc(JSON.stringify({ park_type: row.sub }))
@@ -414,7 +411,10 @@ var WAGON_TABS = {
     loadedKey: '_dislLoaded',
     loadedDetKey: '_extLoaded',
     sumSubLabel: '',
-    groupCols: [],
+    groupCols: [
+      { key: 'dest_state', label: 'Страна назначения' },
+      { key: 'dest_road', label: 'Дорога назначения' },
+    ],
     getParams: function () {
       return {}
     },
@@ -918,10 +918,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
         var rowSum = (st.v || []).reduce(function (a, b) {
           return a + b
         }, 0)
-        h +=
-          '<tr class="row-data row-child" data-parent-road="' +
-          ri +
-          '">'
+        h += '<tr class="row-data row-child" data-parent-road="' + ri + '">'
         for (var j = 0; j < nGroup - 1; j++) {
           h += '<td class="col-meta"></td>'
         }
