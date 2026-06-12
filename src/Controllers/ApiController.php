@@ -654,16 +654,16 @@ class ApiController
         }
 
         $rows = $this->db->fetchAll(
-            "SELECT cargo_name, oper_station,
+            "SELECT cargo_name,
                     XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) AS wagon_type_code,
                     COUNT(*) AS cnt
              FROM xx_dislocation_rjd
              WHERE report_dt = :report_dt
                AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0
                AND idle_time_days IS NOT NULL AND idle_time_days != 0
-             GROUP BY cargo_name, oper_station,
+             GROUP BY cargo_name,
                       XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)
-             ORDER BY cargo_name, oper_station",
+             ORDER BY cargo_name",
             ['report_dt' => $reportDt]
         );
 
@@ -673,7 +673,7 @@ class ApiController
             ['report_dt' => $reportDt]
         );
 
-        $result = $this->roadTable($rows, ['cargo_name', 'oper_station']);
+        $result = $this->roadTable($rows, ['cargo_name']);
         $result['max_idle'] = (float) ($maxIdleRow['max_idle'] ?? 0);
         return $this->json($response, $result);
     }
@@ -691,7 +691,7 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
-        $gf    = $this->groupFields($params['group_by'] ?? '', ['cargo_name', 'oper_station']);
+        $gf    = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
         $gfStr = implode(', ', $gf);
 
         $where    = "report_dt = :report_dt AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
