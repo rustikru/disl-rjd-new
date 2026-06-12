@@ -192,19 +192,31 @@ class ApiController
     {
         $params = $request->getQueryParams();
         $reportDt = $params['report_dt'] ?? null;
-        $dtParam = $reportDt
-            ? ':dt'
-            : '(SELECT MAX(report_dt) FROM xx_dislocation_rjd)';
+        $wagType  = $params['wagon_type'] ?? null;
+        $parkType = $params['park_type'] ?? null;
+
+        $dtParam  = $reportDt ? ':dt' : '(SELECT MAX(report_dt) FROM xx_dislocation_rjd)';
+        $where    = "report_dt = $dtParam";
+        $bindings = $reportDt ? ['dt' => $reportDt] : [];
+
+        if ($wagType) {
+            $where .= ' AND wagon_type_code = :wtype';
+            $bindings['wtype'] = $wagType;
+        }
+        if ($parkType) {
+            $where .= ' AND park_type = :park_type';
+            $bindings['park_type'] = $parkType;
+        }
 
         $rows = $this->db->fetchAll(
             "SELECT wagon_no, train_no, oper_station, depart_station, dest_station,
                     cargo_name, park_type, oper_mnemonic, idle_time_days, asoup_arrive_dt,
                     owner, lessee
              FROM xx_dislocation_rjd
-             WHERE report_dt = $dtParam
+             WHERE {$where}
              ORDER BY oper_station
              " . $this->db->limit(500),
-            $reportDt ? ['dt' => $reportDt] : []
+            $bindings
         );
 
         return $this->json($response, ['rows' => $rows]);

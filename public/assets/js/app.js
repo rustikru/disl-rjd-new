@@ -314,17 +314,17 @@ function drawMain(sections, cols) {
       '</td></tr>'
 
     section.rows.forEach(function (row) {
-      var rowSum = row.v.reduce(function (a, b) {
-        return a + b
-      }, 0)
-      h +=
-        '<tr class="row-data row-child row-hidden" data-parent-road="' +
-        si +
-        '">'
+      var rowSum = row.v.reduce(function (a, b) { return a + b }, 0)
+      h += '<tr class="row-data row-child row-hidden" data-parent-road="' + si + '">'
       h += '<td class="col-meta"></td>'
       h += '<td class="col-meta">' + esc(row.sub || '') + '</td>'
-      row.v.forEach(function (v) {
-        h += '<td>' + fmt(v) + '</td>'
+      var extraAttr = esc(JSON.stringify({ park_type: row.sub }))
+      row.v.forEach(function (v, ci) {
+        if (v) {
+          h += '<td class="cell-link" data-ctx="dislocation" data-col="' + esc(cols[ci].label) + '" data-extra="' + extraAttr + '">' + fmt(v) + '</td>'
+        } else {
+          h += '<td></td>'
+        }
       })
       h += '<td class="col-total-col">' + fmt(rowSum) + '</td></tr>'
     })
@@ -584,11 +584,6 @@ var WAGON_TABS = {
     },
     fillFilters: function () {},
     resetFilters: function () {},
-    listParams: function () {
-      var cargo = window._rawCargo
-      window._rawCargo = undefined
-      return cargo ? { cargo: cargo } : {}
-    },
     draw: function (data, cfg) {
       drawRawTable(data.rows)
       $('#' + cfg.sumSubId).text(
@@ -848,20 +843,11 @@ function drawRawTable(rows) {
 }
 
 function rawToDetail(cargo) {
-  var cfg = WAGON_TABS['raw-material']
-  window._rawCargo = cargo
-  window[cfg.loadedDetKey] = false
-  document
-    .querySelector('#panel-raw-material .inner-tab[data-inner="raw-detail"]')
-    .click()
+  var extra = Object.assign({ cargo: cargo }, WAGON_TABS['raw-material'].getParams())
+  openDetail('raw-material', '', '', '', '', [], extra)
 }
 
 /******** summary / kpi renders ********/
-
-function showKpi(selector, metrics, total, label) {
-  var all = [{ label: label, value: total, accent: true }].concat(metrics || [])
-  $(selector).html(all.map(kpiCard).join(''))
-}
 
 // groupCols: [{key: 'dest_road', label: 'Дорога назначения'}, {key: 'dest_station', label: 'Станция назначения'}, ...]
 // data: полный ответ API — {cols, roads, ...} (плоская шапка)
@@ -1104,10 +1090,6 @@ function saveCSV(tableId, filename) {
   URL.revokeObjectURL(a.href)
 }
 // Простоая выгрузка в Excel активной таблицы (указаывается ID таблицы в настроках при построении сводной таблицы)
-function exportToCSV() {
-  saveCSV('mainTable', 'дислокация')
-}
-
 // Текст ошибки из jQuery
 function ajaxErr(jqXHR) {
   var status = jqXHR.status ? ' (' + jqXHR.status + ')' : ''
@@ -1249,9 +1231,10 @@ $(document).on('click', '.cell-link', function (e) {
     if (v === undefined || v === null || v === '') break
     subs.push(v)
   }
-  // Активные фильтры вкладки — чтобы детализация показывала то же, что сводная
   var tabCfg = WAGON_TABS[ctx]
   var extra = tabCfg && tabCfg.getParams ? tabCfg.getParams() : {}
+  var dataExtra = $(this).data('extra')
+  if (dataExtra && typeof dataExtra === 'object') Object.assign(extra, dataExtra)
   if (ctx) openDetail(ctx, road, station, col, groupBy, subs, extra)
 })
 
