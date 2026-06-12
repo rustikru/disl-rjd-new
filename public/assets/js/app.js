@@ -264,7 +264,7 @@ function drawBar(sections) {
   $('#sectionsChart').html(svg)
 }
 
-// SVG донат
+// SVG донат с вагончиками
 function drawDonut(sections) {
   var grandTotal = sections.reduce(function (s, x) {
     return s + x.total
@@ -440,7 +440,8 @@ function showExtended(rows) {
 }
 
 // Конфиг для общео построения сводных вкладок и детализаций
-// Подход / Отправление / Погрузка — описание всех полей см. в README.md
+// Подход / Отправление / Погрузка — описание всех полей
+
 /******** Вагон конфиг начало ********/
 var WAGON_TABS = {
   // Подход
