@@ -888,7 +888,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     var roadVal = road[groupCols[0].key] || ''
     var stations = road.stations || []
     var hasChildren = nGroup > 1 && stations.length > 0
-    h += '<tr class="row-road-parent" data-road-id="' + ri + '">'
+    h += '<tr class="row-road-parent" data-road-id="' + ri + '" data-node-id="' + ri + '">'
     h +=
       '<td class="col-meta" colspan="' +
       nGroup +
@@ -904,26 +904,56 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     h += '</tr>'
     grandSum += road.grand_total || 0
     if (hasChildren) {
-      stations.forEach(function (st) {
-        var stVal = st[groupCols[nGroup - 1].key] || ''
-        var rowSum = (st.v || []).reduce(function (a, b) {
-          return a + b
-        }, 0)
-        h += '<tr class="row-data row-child" data-parent-road="' + ri + '">'
-        for (var j = 0; j < nGroup - 1; j++) {
-          if (j === 0) {
-            h += '<td class="col-meta"></td>'
-          } else {
-            h += '<td class="col-meta">' + esc(st[groupCols[j].key] || '') + '</td>'
-          }
+      // Рекурсивный рендер для любого числа уровней.
+      // level=1..nGroup-1; isLeaf когда level===nGroup-1
+      var renderNodes = function (level, items, parentNodeId) {
+        var out = ''
+        var isLeaf = level === nGroup - 1
+        var levelKey = groupCols[level].key
+        if (isLeaf) {
+          items.forEach(function (st) {
+            var stVal = st[levelKey] || ''
+            var rowSum = (st.v || []).reduce(function (a, b) { return a + b }, 0)
+            out += '<tr class="row-data row-child" data-parent-id="' + esc(parentNodeId) + '">'
+            out += '<td class="col-meta"></td>'
+            for (var j = 1; j < nGroup - 1; j++) out += '<td class="col-meta"></td>'
+            out += '<td class="col-meta">' + esc(stVal) + '</td>'
+            ;(st.v || []).forEach(function (v, i) {
+              out += cellLink(v, ctx, roadVal, stVal, flatCells[i])
+            })
+            out += totalLink(rowSum, ctx, roadVal, stVal)
+            out += '</tr>'
+          })
+        } else {
+          var groups = {}, order = []
+          items.forEach(function (st) {
+            var val = st[levelKey] || ''
+            if (!groups[val]) { groups[val] = []; order.push(val) }
+            groups[val].push(st)
+          })
+          order.forEach(function (groupVal, gi) {
+            var nodeId = parentNodeId + ':' + gi
+            var gItems = groups[groupVal]
+            var subTotal = flatCells.map(function () { return 0 })
+            var subSum = 0
+            gItems.forEach(function (st) {
+              ;(st.v || []).forEach(function (v, i) { subTotal[i] += v || 0 })
+              subSum += (st.v || []).reduce(function (a, b) { return a + b }, 0)
+            })
+            out += '<tr class="row-data row-child row-sub-parent" data-parent-id="' + esc(parentNodeId) + '" data-node-id="' + esc(nodeId) + '">'
+            out += '<td class="col-meta"></td>'
+            for (var j = 1; j < level; j++) out += '<td class="col-meta"></td>'
+            out += '<td class="col-meta"><span class="toggle-icon">▼</span>' + esc(groupVal) + '</td>'
+            for (var j = level + 1; j < nGroup; j++) out += '<td class="col-meta"></td>'
+            subTotal.forEach(function (v, i) { out += cellLink(v, ctx, roadVal, groupVal, flatCells[i]) })
+            out += totalLink(subSum, ctx, roadVal, groupVal)
+            out += '</tr>'
+            out += renderNodes(level + 1, gItems, nodeId)
+          })
         }
-        h += '<td class="col-meta">' + esc(stVal) + '</td>'
-        ;(st.v || []).forEach(function (v, i) {
-          h += cellLink(v, ctx, roadVal, stVal, flatCells[i])
-        })
-        h += totalLink(rowSum, ctx, roadVal, stVal)
-        h += '</tr>'
-      })
+        return out
+      }
+      h += renderNodes(1, stations, '' + ri)
     }
   })
   h +=
@@ -1041,18 +1071,45 @@ function kpiCard(item) {
 
 // Свернуть / Отобразить все строки в таблице
 function collapseAll($table) {
-  $table.find('.row-road-parent').each(function () {
-    var ri = $(this).data('road-id')
-    $table.find('tr[data-parent-road="' + ri + '"]').addClass('row-hidden')
-    $(this).find('.toggle-icon').text('▶')
+  $table.find('.row-road-parent, .row-sub-parent').each(function () {
+    $(this).data('node-collapsed', true).find('.toggle-icon').text('▶')
   })
+  $table.find('.row-child').addClass('row-hidden')
 }
 function expandAll($table) {
-  $table.find('.row-road-parent').each(function () {
-    var ri = $(this).data('road-id')
-    $table.find('tr[data-parent-road="' + ri + '"]').removeClass('row-hidden')
-    $(this).find('.toggle-icon').text('▼')
+  $table.find('.row-road-parent, .row-sub-parent').each(function () {
+    $(this).data('node-collapsed', false).find('.toggle-icon').text('▼')
   })
+  $table.find('.row-child').removeClass('row-hidden')
+}
+
+// Схлопнуть узел дерева: скрыть всех потомков (BFS по data-parent-id)
+function collapseNode($row, $table) {
+  $row.data('node-collapsed', true).find('.toggle-icon').text('▶')
+  var nodeId = $row.data('node-id')
+  var queue = [$table.find('tr[data-parent-id="' + nodeId + '"]')]
+  while (queue.length) {
+    var $set = queue.shift()
+    $set.addClass('row-hidden')
+    $set.each(function () {
+      var cid = $(this).data('node-id')
+      if (cid !== undefined) queue.push($table.find('tr[data-parent-id="' + cid + '"]'))
+    })
+  }
+}
+// Раскрыть узел дерева: показать потомков с учётом их собственного состояния
+function expandNode($row, $table) {
+  $row.data('node-collapsed', false).find('.toggle-icon').text('▼')
+  var nodeId = $row.data('node-id');
+  (function showChildren(pid) {
+    $table.find('tr[data-parent-id="' + pid + '"]').each(function () {
+      $(this).removeClass('row-hidden')
+      if (!$(this).data('node-collapsed')) {
+        var cid = $(this).data('node-id')
+        if (cid !== undefined) showChildren(cid)
+      }
+    })
+  })(nodeId)
 }
 
 $(document).on('click', '[data-collapse-table]', function () {
@@ -1140,14 +1197,16 @@ $(document).on('click', '.cell-link', function (e) {
 // Сворачивание/разворачивание
 $(document).on('click', '.row-road-parent', function (e) {
   if ($(e.target).closest('.cell-link').length) return
-  var ri = $(this).data('road-id')
   var $table = $(this).closest('table')
-  var $children = $table.find('tr[data-parent-road="' + ri + '"]')
-  var collapsed = $children.first().hasClass('row-hidden')
-  $children.toggleClass('row-hidden', !collapsed)
-  $(this)
-    .find('.toggle-icon')
-    .text(collapsed ? '▼' : '▶')
+  if ($(this).data('node-collapsed')) expandNode($(this), $table)
+  else collapseNode($(this), $table)
+})
+$(document).on('click', '.row-sub-parent', function (e) {
+  if ($(e.target).closest('.cell-link').length) return
+  e.stopPropagation()
+  var $table = $(this).closest('table')
+  if ($(this).data('node-collapsed')) expandNode($(this), $table)
+  else collapseNode($(this), $table)
 })
 /******** НАЧАЛО ЗАПУСКА САЙТА ********/
 // Начало всего и конец тоже
