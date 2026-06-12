@@ -1,13 +1,3 @@
-// cspell:disable
-/* ================================================================
- * app.js — Основная логика приложения
- * Добавить новый раздел:
- *   1. Добавить запись в TAB_GROUPS
- *   2. Добавить панель <div id="panel-xxx"> в templates/app.php
- *   3. Добавить маршрут /api/xxx в src/routes.php
- *   4. Добавить метод в src/Controllers/ApiController.php
- * ================================================================ */
-
 'use strict'
 
 var BASE = window.APP_BASE || ''
