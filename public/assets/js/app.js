@@ -414,6 +414,7 @@ var WAGON_TABS = {
     groupCols: [
       { key: 'dest_state', label: 'Страна назначения' },
       { key: 'dest_road', label: 'Дорога назначения' },
+      { key: 'dest_station', label: 'Станция назначения' },
     ],
     getParams: function () {
       return {}
