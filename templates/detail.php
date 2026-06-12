@@ -84,6 +84,9 @@ $basePath = $basePath ?? '';
           <span class="table-title" id="detailTitle">Загрузка...</span>
           <span class="table-sub" id="detailSub"></span>
         </div>
+        <div class="table-acts">
+          <button class="btn btn-ghost btn-sm" id="btnDetailCSV">↓ CSV</button>
+        </div>
       </div>
       <div class="table-scroll">
         <table class="data-table" id="detailTable"></table>
@@ -241,6 +244,35 @@ $basePath = $basePath ?? '';
       $('#detailTable').html(h);
       addColumnSearch($('#detailTable'));
     }
+
+    function saveCSV(tableId, filename) {
+      var rows = [];
+      var $table = $('#' + tableId);
+      $table.find('thead tr:first th').each(function () {
+        rows.push ? null : (rows = []);
+      });
+      var headers = [];
+      $table.find('thead tr:first th').each(function () { headers.push($(this).text()); });
+      rows.push(headers.map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(';'));
+      $table.find('tbody tr:not(.search-row)').each(function () {
+        if ($(this).is(':hidden')) return;
+        var cells = [];
+        $(this).find('td').each(function () { cells.push('"' + $(this).text().replace(/"/g, '""') + '"'); });
+        rows.push(cells.join(';'));
+      });
+      var bom = '﻿';
+      var blob = new Blob([bom + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (filename || 'детализация') + '_' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    $('#btnDetailCSV').on('click', function () {
+      var title = $('#detailTitle').text().replace(/[\\/:*?"<>|]/g, '_');
+      saveCSV('detailTable', title);
+    });
   </script>
 </body>
 
