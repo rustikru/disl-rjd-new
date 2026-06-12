@@ -12,7 +12,7 @@
 
 var BASE = window.APP_BASE || ''
 
-// наивигация
+// наивигация (Боковое меню)
 var TAB_GROUPS = [
   {
     label: '',
@@ -28,24 +28,16 @@ var TAB_GROUPS = [
       { id: 'approach', label: 'Подход вагонов' },
       { id: 'departure', label: 'Отправление вагонов' },
       { id: 'loading', label: 'Погрузка' },
-      //{ id: 'arrived', label: 'Прибыло за сутки' },
-      //{ id: 'trains', label: 'Бросание поездов' },
-    ],
-  },
-  {
-    label: 'Аналитика',
-    tabs: [
-      //{ id: 'analysis', label: 'Анализ за период' },
-      //{ id: 'recipients', label: 'Вагоны у получателя' },
       { id: 'raw-material', label: 'Сырьё' },
     ],
   },
   {
+    label: 'Аналитика',
+    tabs: [{ id: 'analysis', label: 'Анализ за период' }],
+  },
+  {
     label: 'Простои и оборот',
-    tabs: [
-      { id: 'downtime', label: 'Простои' },
-      //{ id: 'turnover', label: 'Оборот' },
-    ],
+    tabs: [{ id: 'downtime', label: 'Простои' }],
   },
   {
     label: 'Импорт',

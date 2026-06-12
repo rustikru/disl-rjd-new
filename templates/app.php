@@ -86,23 +86,10 @@ $basePath = $basePath ?? '';
               <div class="table-acts">
                 <button class="btn btn-ghost btn-sm" data-collapse-table="mainTable">Свернуть все</button>
                 <button class="btn btn-ghost btn-sm" data-expand-table="mainTable">Отобразить все</button>
-                <button class="btn btn-ghost btn-sm" id="btnExportCSV">↓ CSV</button>
+                <button class="btn btn-ghost btn-sm" id="btnExportCSV">Excel</button>
               </div>
             </div>
-            <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px">
-              <div class="filters-inner">
-                <div class="filter-item">
-                  <label class="filter-label" for="fReportDt">Справка</label>
-                  <select class="filter-input" id="fReportDt" style="min-width:200px">
-                    <option value="">— Последняя —</option>
-                  </select>
-                </div>
-                <div class="filter-actions">
-                  <button class="btn btn-primary btn-sm" id="btnApply">Применить</button>
-                  <button class="btn btn-ghost btn-sm" id="btnReset">Сбросить</button>
-                </div>
-              </div>
-            </div>
+
             <div class="table-scroll">
               <table class="data-table" id="mainTable"></table>
             </div>
@@ -134,7 +121,7 @@ $basePath = $basePath ?? '';
             <div class="filter-item">
               <label class="filter-label" for="fApproachCargo">Груз</label>
               <select class="filter-input" id="fApproachCargo" style="min-width:200px">
-                <option value="">— Все грузы —</option>
+                <option value="">— Все —</option>
               </select>
             </div>
             <div class="filter-item">
@@ -199,7 +186,7 @@ $basePath = $basePath ?? '';
             <div class="filter-item">
               <label class="filter-label" for="fDepartureCargo">Груз</label>
               <select class="filter-input" id="fDepartureCargo" style="min-width:200px">
-                <option value="">— Все грузы —</option>
+                <option value="">— Все —</option>
               </select>
               <label class="filter-label" for="fDestStation">Станция назначения</label>
               <select class="filter-input" id="fDestStation" style="min-width:200px">
@@ -257,7 +244,7 @@ $basePath = $basePath ?? '';
             <div class="filter-item">
               <label class="filter-label" for="fLoadingCargo">Груз</label>
               <select class="filter-input" id="fLoadingCargo" style="min-width:200px">
-                <option value="">— Все грузы —</option>
+                <option value="">— Все —</option>
               </select>
             </div>
             <div class="filter-actions">
