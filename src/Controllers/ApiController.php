@@ -586,10 +586,10 @@ class ApiController
     /** GET /api/downtime/summary — Сводная простоев: Дорога→Станция × тип вагона */
     public function downtimeSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params   = $request->getQueryParams();
+        $params = $request->getQueryParams();
         $reportDt = $this->getReportDt($params['report_dt'] ?? null);
-        $minDays  = max(0, (int) ($params['min_days'] ?? 1));
-        $maxDays  = isset($params['max_days']) && $params['max_days'] !== '' ? (int) $params['max_days'] : null;
+        $minDays = max(0, (int) ($params['min_days'] ?? 1));
+        $maxDays = isset($params['max_days']) && $params['max_days'] !== '' ? (int) $params['max_days'] : null;
 
         if (!$reportDt) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
@@ -671,10 +671,10 @@ class ApiController
     }
 
 
-    /** GET /api/raw-material/summary — Сводная сырья: Груз→Станция × тип вагона */
+    /** GET /api/raw-material/summary — Сводная сырья*/
     public function rawSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params   = $request->getQueryParams();
+        $params = $request->getQueryParams();
         $reportDt = $this->getReportDt($params['report_dt'] ?? null);
 
         if (!$reportDt) {
@@ -709,11 +709,11 @@ class ApiController
     /** GET /api/raw-material/detail — Список вагонов с сырьём */
     public function rawDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params   = $request->getQueryParams();
+        $params = $request->getQueryParams();
         $reportDt = $this->getReportDt($params['report_dt'] ?? null);
-        $road     = $params['road'] ?? null;
-        $station  = $params['station'] ?? null;
-        $wagType  = $params['wagon_type'] ?? null;
+        $road = $params['road'] ?? null;
+        $station = $params['station'] ?? null;
+        $wagType = $params['wagon_type'] ?? null;
 
         if (!$reportDt) {
             return $this->json($response, ['rows' => []]);

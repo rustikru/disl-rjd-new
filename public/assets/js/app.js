@@ -596,9 +596,11 @@ var WAGON_TABS = {
     sumSubLabel: 'Гружёных вагонов',
     groupCols: [
       { key: 'cargo_name', label: 'Груз' },
-      { key: 'oper_station', label: 'Станция' },
+      //{ key: 'consignee', label: 'Грузополучатель' },
     ],
-    getParams: function () { return {} },
+    getParams: function () {
+      return {}
+    },
     fillFilters: function () {},
     resetFilters: function () {},
     showList: function (data, cfg) {
