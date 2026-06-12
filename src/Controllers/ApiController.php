@@ -150,8 +150,8 @@ class ApiController
     {
         $params = $request->getQueryParams();
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
-        $gf        = $this->groupFields($params['group_by'] ?? '', ['dest_state', 'dest_road']);
-        $gfStr     = implode(', ', $gf);
+        $gf = $this->groupFields($params['group_by'] ?? '', ['dest_state', 'dest_road']);
+        $gfStr = implode(', ', $gf);
 
         if (empty($dtsByType)) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
@@ -175,17 +175,17 @@ class ApiController
     /** GET /api/dislocation/detail — Расширенная дислокация */
     public function dislDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params   = $request->getQueryParams();
-        $road     = $params['road'] ?? null;
-        $station  = $params['station'] ?? null;
-        $wagType  = $params['wagon_type'] ?? null;
-        $gf       = $this->groupFields($params['group_by'] ?? '', ['dest_state', 'dest_road']);
-        $gfStr    = implode(', ', $gf);
+        $params = $request->getQueryParams();
+        $road = $params['road'] ?? null;
+        $station = $params['station'] ?? null;
+        $wagType = $params['wagon_type'] ?? null;
+        $gf = $this->groupFields($params['group_by'] ?? '', ['dest_state', 'dest_road']);
+        $gfStr = implode(', ', $gf);
 
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
-        $cond      = $this->latestDtCondition($dtsByType, 'xdr');
-        $where     = '';
-        $bindings  = $cond['params'];
+        $cond = $this->latestDtCondition($dtsByType, 'xdr');
+        $where = '';
+        $bindings = $cond['params'];
 
         foreach (array_filter([0 => $road, count($gf) - 1 => $station]) as $idx => $val) {
             if (isset($gf[$idx])) {
@@ -602,10 +602,13 @@ class ApiController
         }
 
         $rows = $this->db->fetchAll(
-            "SELECT $gfStr, wagon_type_code, COUNT(*) AS cnt
-             FROM xx_dislocation_rjd
-             WHERE {$where}
-             GROUP BY $gfStr, wagon_type_code
+            "SELECT $gfStr, COUNT(*) AS cnt
+             from (
+                select x.*, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days) as idle_time_name 
+                FROM xx_dislocation_rjd x
+                WHERE {$where}
+             )
+             GROUP BY $gfStr
              ORDER BY $gfStr",
             $bindings
         );
@@ -857,7 +860,7 @@ class ApiController
         $roads = [];
         foreach ($rows as $r) {
             $road = (string) ($r[$roadKey] ?? 'Не указана');
-            $stComposite = implode('|', array_map(fn($k) => (string)($r[$k] ?? ''), $stationParts)) ?: 'Не указана';
+            $stComposite = implode('|', array_map(fn($k) => (string) ($r[$k] ?? ''), $stationParts)) ?: 'Не указана';
             $cnt = (int) $r['cnt'];
 
             if (!isset($roads[$road])) {
@@ -866,7 +869,7 @@ class ApiController
             if (!isset($roads[$road]['stations'][$stComposite])) {
                 $stData = ['v' => array_fill(0, $nFlat, 0)];
                 foreach ($stationParts as $k) {
-                    $stData[$k] = (string)($r[$k] ?? '');
+                    $stData[$k] = (string) ($r[$k] ?? '');
                 }
                 $roads[$road]['stations'][$stComposite] = $stData;
             }

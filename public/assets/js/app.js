@@ -540,8 +540,8 @@ var WAGON_TABS = {
     loadedDetKey: '_downtimeDetLoaded',
     sumSubLabel: 'Вагонов с простоем',
     groupCols: [
-      { key: 'oper_road', label: 'Дорога' },
-      { key: 'oper_station', label: 'Станция' },
+      { key: 'idle_time_name', label: 'Простой' },
+      //{ key: 'oper_station', label: 'Станция' },
     ],
     applyBtnId: 'btnDowntimeApply',
     getParams: function () {
@@ -811,7 +811,9 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
 
   function cellLink(v, dataCtx, dataRoad, dataSt, cell, dataExtra) {
     if (!v || !dataCtx) return '<td>' + fmt(v) + '</td>'
-    var extra = dataExtra ? ' data-extra="' + esc(JSON.stringify(dataExtra)) + '"' : ''
+    var extra = dataExtra
+      ? ' data-extra="' + esc(JSON.stringify(dataExtra)) + '"'
+      : ''
     return (
       '<td class="cell-link" data-ctx="' +
       esc(dataCtx) +
@@ -846,7 +848,9 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
       '" data-col="" data-group-by="' +
       esc(groupBy) +
       '"' +
-      (dataExtra ? ' data-extra="' + esc(JSON.stringify(dataExtra)) + '"' : '') +
+      (dataExtra
+        ? ' data-extra="' + esc(JSON.stringify(dataExtra)) + '"'
+        : '') +
       '>' +
       (typeof v === 'number' ? v.toLocaleString('ru-RU') : v) +
       '</td>'
@@ -892,7 +896,12 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     var roadVal = road[groupCols[0].key] || ''
     var stations = road.stations || []
     var hasChildren = nGroup > 1 && stations.length > 0
-    h += '<tr class="row-road-parent" data-road-id="' + ri + '" data-node-id="' + ri + '">'
+    h +=
+      '<tr class="row-road-parent" data-road-id="' +
+      ri +
+      '" data-node-id="' +
+      ri +
+      '">'
     h +=
       '<td class="col-meta" colspan="' +
       nGroup +
@@ -918,10 +927,16 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
         if (isLeaf) {
           items.forEach(function (st) {
             var stVal = st[levelKey] || ''
-            var rowSum = (st.v || []).reduce(function (a, b) { return a + b }, 0)
-            out += '<tr class="row-data row-child" data-parent-id="' + esc(parentNodeId) + '">'
+            var rowSum = (st.v || []).reduce(function (a, b) {
+              return a + b
+            }, 0)
+            out +=
+              '<tr class="row-data row-child" data-parent-id="' +
+              esc(parentNodeId) +
+              '">'
             out += '<td class="col-meta"></td>'
-            for (var j = 1; j < nGroup - 1; j++) out += '<td class="col-meta"></td>'
+            for (var j = 1; j < nGroup - 1; j++)
+              out += '<td class="col-meta"></td>'
             out += '<td class="col-meta">' + esc(stVal) + '</td>'
             ;(st.v || []).forEach(function (v, i) {
               out += cellLink(v, ctx, roadVal, stVal, flatCells[i])
@@ -930,32 +945,57 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
             out += '</tr>'
           })
         } else {
-          var groups = {}, order = []
+          var groups = {},
+            order = []
           items.forEach(function (st) {
             var val = st[levelKey] || ''
-            if (!groups[val]) { groups[val] = []; order.push(val) }
+            if (!groups[val]) {
+              groups[val] = []
+              order.push(val)
+            }
             groups[val].push(st)
           })
           order.forEach(function (groupVal, gi) {
             var nodeId = parentNodeId + ':' + gi
             var gItems = groups[groupVal]
-            var subTotal = flatCells.map(function () { return 0 })
+            var subTotal = flatCells.map(function () {
+              return 0
+            })
             var subSum = 0
             gItems.forEach(function (st) {
-              ;(st.v || []).forEach(function (v, i) { subTotal[i] += v || 0 })
-              subSum += (st.v || []).reduce(function (a, b) { return a + b }, 0)
+              ;(st.v || []).forEach(function (v, i) {
+                subTotal[i] += v || 0
+              })
+              subSum += (st.v || []).reduce(function (a, b) {
+                return a + b
+              }, 0)
             })
             // Полный набор фильтров для этого промежуточного уровня
             var curFilters = Object.assign({}, ancestorFilters)
             curFilters[levelKey] = groupVal
-            var bcVals = Object.keys(curFilters).map(function (k) { return curFilters[k] })
-            var curFiltersWithPath = Object.assign({}, curFilters, { _bcpath: JSON.stringify(bcVals) })
-            out += '<tr class="row-data row-child row-sub-parent" data-parent-id="' + esc(parentNodeId) + '" data-node-id="' + esc(nodeId) + '">'
+            var bcVals = Object.keys(curFilters).map(function (k) {
+              return curFilters[k]
+            })
+            var curFiltersWithPath = Object.assign({}, curFilters, {
+              _bcpath: JSON.stringify(bcVals),
+            })
+            out +=
+              '<tr class="row-data row-child row-sub-parent" data-parent-id="' +
+              esc(parentNodeId) +
+              '" data-node-id="' +
+              esc(nodeId) +
+              '">'
             out += '<td class="col-meta"></td>'
             for (var j = 1; j < level; j++) out += '<td class="col-meta"></td>'
-            out += '<td class="col-meta"><span class="toggle-icon">▼</span>' + esc(groupVal) + '</td>'
-            for (var j = level + 1; j < nGroup; j++) out += '<td class="col-meta"></td>'
-            subTotal.forEach(function (v, i) { out += cellLink(v, ctx, '', '', flatCells[i], curFiltersWithPath) })
+            out +=
+              '<td class="col-meta"><span class="toggle-icon">▼</span>' +
+              esc(groupVal) +
+              '</td>'
+            for (var j = level + 1; j < nGroup; j++)
+              out += '<td class="col-meta"></td>'
+            subTotal.forEach(function (v, i) {
+              out += cellLink(v, ctx, '', '', flatCells[i], curFiltersWithPath)
+            })
             out += totalLink(subSum, ctx, '', '', curFiltersWithPath)
             out += '</tr>'
             out += renderNodes(level + 1, gItems, nodeId, curFilters)
@@ -1105,15 +1145,16 @@ function collapseNode($row, $table) {
     $set.addClass('row-hidden')
     $set.each(function () {
       var cid = $(this).data('node-id')
-      if (cid !== undefined) queue.push($table.find('tr[data-parent-id="' + cid + '"]'))
+      if (cid !== undefined)
+        queue.push($table.find('tr[data-parent-id="' + cid + '"]'))
     })
   }
 }
 // Раскрыть узел дерева: показать потомков с учётом их собственного состояния
 function expandNode($row, $table) {
   $row.data('node-collapsed', false).find('.toggle-icon').text('▼')
-  var nodeId = $row.data('node-id');
-  (function showChildren(pid) {
+  var nodeId = $row.data('node-id')
+  ;(function showChildren(pid) {
     $table.find('tr[data-parent-id="' + pid + '"]').each(function () {
       $(this).removeClass('row-hidden')
       if (!$(this).data('node-collapsed')) {
