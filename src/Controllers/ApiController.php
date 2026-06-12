@@ -145,36 +145,31 @@ class ApiController
         ]);
     }
 
-    /** GET /api/dislocation/summary?report_dt=... — Сводная таблица */
+    /** GET /api/dislocation/summary?report_dt=...&group_by=... — Сводная таблица */
     public function dislSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
+        $gf        = $this->groupFields($params['group_by'] ?? '', ['dest_state', 'dest_road']);
+        $gfStr     = implode(', ', $gf);
 
         if (empty($dtsByType)) {
-            return $this->json($response, $this->makeSummary([], ''));
+            return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $rows = $this->db->fetchAll(
-            "SELECT park_type,
+            "SELECT $gfStr,
                     XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) AS wagon_type_code,
-                    COUNT(*) AS wagon_count
+                    COUNT(*) AS cnt
              FROM xx_dislocation_rjd xdr
              WHERE {$cond['sql']}
-             GROUP BY park_type, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)
-             ORDER BY park_type, wagon_type_code",
+             GROUP BY $gfStr, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)
+             ORDER BY $gfStr, wagon_type_code",
             $cond['params']
         );
 
-        $latestDt = max($dtsByType);
-        try {
-            $label = (new \DateTime($latestDt))->format('d.m.Y H:i');
-        } catch (\Exception $e) {
-            $label = $latestDt;
-        }
-
-        return $this->json($response, $this->makeSummary($rows, $label));
+        return $this->json($response, $this->roadTable($rows, $gf));
     }
 
     /** GET /api/dislocation/detail — Расширенная дислокация */

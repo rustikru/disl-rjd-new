@@ -418,16 +418,6 @@ var WAGON_TABS = {
     getParams: function () {
       return {}
     },
-    listParams: function () {
-      return {}
-    },
-    draw: function (data, cfg) {
-      var $sub = $('#' + cfg.sumSubId)
-      var $table = $('#' + cfg.sumTableId)
-      var dateLabel = data.report_dt_label || data.date || ''
-      drawMain(data.sections, data.cols)
-      $sub.text(dateLabel)
-    },
   },
 
   // Подход
