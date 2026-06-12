@@ -878,7 +878,7 @@ function rawToDetail(cargo) {
 function drawSummary(selector, roads, data, ctx, groupCols) {
   if (!roads || !roads.length) {
     $(selector).html(
-      '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных. Загрузите справку.</td></tr></tbody>',
+      '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных по данным параметрам.</td></tr></tbody>',
     )
     return
   }
