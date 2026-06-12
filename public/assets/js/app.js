@@ -129,7 +129,6 @@ function initInnerTabs() {
   })
 }
 
-
 // Dashboard
 function loadDashboard() {
   $.getJSON(BASE + '/api/dashboard')
@@ -366,7 +365,6 @@ function drawMain(sections, cols) {
   $('#mainTable').html(h)
 }
 
-
 // Конфиг для общео построения сводных вкладок и детализаций
 // Подход / Отправление / Погрузка — описание всех полей
 
@@ -397,20 +395,29 @@ var WAGON_TABS = {
       var sel = $('#fReportDt')
       sel.find('option:not(:first)').remove()
       ;(data.reports || []).forEach(function (r) {
-        sel.append($('<option>').val(r.report_dt).text(r.label + ' (' + r.cnt + ' ваг.)'))
+        sel.append(
+          $('<option>')
+            .val(r.report_dt)
+            .text(r.label + ' (' + r.cnt + ' ваг.)'),
+        )
       })
     },
     resetFilters: function () {
       $('#fReportDt').val('')
     },
-    listParams: function () { return {} },
+    listParams: function () {
+      return {}
+    },
     draw: function (data, cfg) {
       var $sub = $('#' + cfg.sumSubId)
       var $table = $('#' + cfg.sumTableId)
       if (!data.cols || !data.cols.length) {
         $table.html(
           '<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">' +
-            esc(data.report_dt_label || 'Нет данных. Загрузите справку через «Управление → Загрузка справок»') +
+            esc(
+              data.report_dt_label ||
+                'Нет данных. Загрузите справку через «Управление → Загрузка справок»',
+            ) +
             '</td></tr></tbody>',
         )
         $sub.text(data.report_dt_label || '')
@@ -420,7 +427,11 @@ var WAGON_TABS = {
       $sub.text((data.report_dt_label || data.date || '') + ' · РЖД')
     },
     showList: function (data, cfg) {
-      showTable($('#' + cfg.detTableId), data.rows, DETAIL_CONTEXTS.dislocation.cols)
+      showTable(
+        $('#' + cfg.detTableId),
+        data.rows,
+        DETAIL_CONTEXTS.dislocation.cols,
+      )
     },
   },
 
@@ -575,7 +586,11 @@ function loadSummary(cfg) {
     '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Загрузка...</td></tr></tbody>',
   )
   var summaryParams = Object.assign({}, cfg.getParams())
-  var gby = (cfg.groupCols || []).map(function (g) { return g.key }).join(',')
+  var gby = (cfg.groupCols || [])
+    .map(function (g) {
+      return g.key
+    })
+    .join(',')
   if (gby) summaryParams.group_by = gby
   $.getJSON(cfg.summaryUrl, summaryParams)
     .done(function (data) {
@@ -624,8 +639,16 @@ function loadDetail(cfg) {
   var listParams = cfg.listParams
     ? cfg.listParams()
     : Object.assign({}, cfg.getParams(), {
-        fields: cols.map(function (c) { return c.key }).join(','),
-        group_by: (cfg.groupCols || []).map(function (g) { return g.key }).join(','),
+        fields: cols
+          .map(function (c) {
+            return c.key
+          })
+          .join(','),
+        group_by: (cfg.groupCols || [])
+          .map(function (g) {
+            return g.key
+          })
+          .join(','),
       })
   $.getJSON(cfg.detailUrl, listParams)
     .done(function (data) {
@@ -676,7 +699,6 @@ function showTable($table, rows, colDefs) {
 }
 
 /******** cols config ********/
-
 
 /******** downtime ********/
 
@@ -1265,8 +1287,8 @@ $(function () {
   Object.keys(WAGON_TABS).forEach(function (k) {
     var cfg = WAGON_TABS[k]
     var capKey = k.charAt(0).toUpperCase() + k.slice(1)
-    var applyId = cfg.applyBtnId || ('btn' + capKey + 'Apply')
-    var resetId = cfg.resetBtnId || ('btn' + capKey + 'Reset')
+    var applyId = cfg.applyBtnId || 'btn' + capKey + 'Apply'
+    var resetId = cfg.resetBtnId || 'btn' + capKey + 'Reset'
     $('#' + applyId).on('click', function () {
       window[cfg.loadedDetKey] = false
       loadSummary(cfg)
