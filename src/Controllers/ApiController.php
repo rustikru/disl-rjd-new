@@ -62,8 +62,8 @@ class ApiController
         return $fields ?: $defaults;
     }
 
-    /** GET /api/reports — список загруженных справок */
-    public function reports(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    /** GET /api/dislocation/filters — список загруженных справок */
+    public function dislFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $rows = $this->db->fetchAll(
             'SELECT TRUNC(report_dt) AS report_date, type_reference, COUNT(*) AS cnt
@@ -187,13 +187,14 @@ class ApiController
         return $this->json($response, $data);
     }
 
-    /** GET /api/dislocation/extended — Расширенная дислокация */
-    public function dislExtended(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    /** GET /api/dislocation/detail — Расширенная дислокация */
+    public function dislDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params = $request->getQueryParams();
+        $params   = $request->getQueryParams();
         $reportDt = $params['report_dt'] ?? null;
         $wagType  = $params['wagon_type'] ?? null;
         $parkType = $params['park_type'] ?? null;
+        $section  = $params['section'] ?? null;
 
         $dtParam  = $reportDt ? ':dt' : '(SELECT MAX(report_dt) FROM xx_dislocation_rjd)';
         $where    = "report_dt = $dtParam";
@@ -206,6 +207,11 @@ class ApiController
         if ($parkType) {
             $where .= ' AND park_type = :park_type';
             $bindings['park_type'] = $parkType;
+        }
+        if ($section) {
+            $where .= ' AND (park_type = :section OR park_type LIKE :section_like)';
+            $bindings['section']      = $section;
+            $bindings['section_like'] = $section . ',%';
         }
 
         $rows = $this->db->fetchAll(

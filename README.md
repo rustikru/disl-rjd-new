@@ -108,9 +108,9 @@ disl-rjd-new/
 | URL | Метод контроллера | Описание |
 |---|---|---|
 | `GET /api/dashboard` | `dashboard` | KPI + разбивка по типам вагонов |
-| `GET /api/reports` | `reports` | Список дат справок для дропдауна |
-| `GET /api/dislocation/summary` | `dislocationSummary` | Сводная по разделам парка |
-| `GET /api/dislocation/extended` | `dislocationExtended` | Детальный список |
+| `GET /api/dislocation/filters` | `dislFilters` | Список дат справок для дропдауна |
+| `GET /api/dislocation/summary` | `dislSummary` | Сводная по разделам парка |
+| `GET /api/dislocation/detail` | `dislDetail` | Детальный список |
 | `GET /api/approach/summary` | `approachSummary` | Сводная подхода (группировка динамическая) |
 | `GET /api/approach/detail` | `approachDetail` | Список вагонов подхода |
 | `GET /api/approach/filters` | `approachFilters` | Значения для фильтров |

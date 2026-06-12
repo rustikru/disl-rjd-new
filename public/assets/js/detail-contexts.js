@@ -4,7 +4,7 @@ var DETAIL_CONTEXTS = {
   /**** Дислокация — расширенная */
   dislocation: {
     label: 'Расширенная дислокация',
-    endpoint: '/api/dislocation/extended',
+    endpoint: '/api/dislocation/detail',
     cols: [
       { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
       { key: 'train_no', label: 'Поезд №', meta: true },

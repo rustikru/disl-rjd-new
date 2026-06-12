@@ -57,16 +57,16 @@ return function (App $app, array $config): void {
             return (new \App\Controllers\ApiController($getDb()))->dashboard($req, $res);
         });
 
-        $group->get('/api/reports', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->reports($req, $res);
+        $group->get('/api/dislocation/filters', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->dislFilters($req, $res);
         });
 
         $group->get('/api/dislocation/summary', function ($req, $res) use ($getDb) {
             return (new \App\Controllers\ApiController($getDb()))->dislSummary($req, $res);
         });
 
-        $group->get('/api/dislocation/extended', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->dislExtended($req, $res);
+        $group->get('/api/dislocation/detail', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->dislDetail($req, $res);
         });
         // Подход сводная 
         $group->get('/api/approach/summary', function ($req, $res) use ($getDb) {

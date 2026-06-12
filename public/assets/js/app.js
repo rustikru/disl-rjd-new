@@ -300,16 +300,21 @@ function drawMain(sections, cols) {
   h += '</tr></thead><tbody>'
 
   sections.forEach(function (section, si) {
+    var sectionExtra = esc(JSON.stringify({ section: section.name }))
     h += '<tr class="row-road-parent" data-road-id="' + si + '">'
     h +=
       '<td class="col-meta" colspan="2"><span class="toggle-icon">▶</span>' +
       esc(section.name) +
       '</td>'
-    section.total.forEach(function (v) {
-      h += '<td>' + fmt(v) + '</td>'
+    section.total.forEach(function (v, ci) {
+      if (v) {
+        h += '<td class="cell-link" data-ctx="dislocation" data-col="' + esc(cols[ci].label) + '" data-extra="' + sectionExtra + '">' + fmt(v) + '</td>'
+      } else {
+        h += '<td></td>'
+      }
     })
     h +=
-      '<td class="col-total-col">' +
+      '<td class="col-total-col cell-link" data-ctx="dislocation" data-extra="' + sectionExtra + '">' +
       section.grand_total.toLocaleString('ru-RU') +
       '</td></tr>'
 
@@ -352,11 +357,15 @@ function drawMain(sections, cols) {
   }, 0)
   h +=
     '<tr class="row-total row-grand"><td class="col-meta" colspan="2">Общий итог</td>'
-  grandTotals.forEach(function (v) {
-    h += '<td>' + (v || '') + '</td>'
+  grandTotals.forEach(function (v, ci) {
+    if (v) {
+      h += '<td class="cell-link" data-ctx="dislocation" data-col="' + esc(cols[ci].label) + '">' + v + '</td>'
+    } else {
+      h += '<td></td>'
+    }
   })
   h +=
-    '<td class="col-total-col">' +
+    '<td class="col-total-col cell-link" data-ctx="dislocation">' +
     grandSum.toLocaleString('ru-RU') +
     '</td></tr></tbody>'
 
@@ -371,9 +380,9 @@ var WAGON_TABS = {
   // Дислокация
   dislocation: {
     ctx: 'dislocation',
-    filtersUrl: BASE + '/api/reports',
+    filtersUrl: BASE + '/api/dislocation/filters',
     summaryUrl: BASE + '/api/dislocation/summary',
-    detailUrl: BASE + '/api/dislocation/extended',
+    detailUrl: BASE + '/api/dislocation/detail',
     csvFilename: 'дислокация',
     sumTableId: 'mainTable',
     sumSubId: 'mainTableSub',
@@ -1255,7 +1264,8 @@ $(document).on('click', '.cell-link', function (e) {
 })
 
 // Сворачивание/разворачивание
-$(document).on('click', '.row-road-parent', function () {
+$(document).on('click', '.row-road-parent', function (e) {
+  if ($(e.target).closest('.cell-link').length) return
   var ri = $(this).data('road-id')
   var $table = $(this).closest('table')
   var $children = $table.find('tr[data-parent-road="' + ri + '"]')
