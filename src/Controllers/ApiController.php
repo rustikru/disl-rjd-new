@@ -601,10 +601,13 @@ class ApiController
             $bindings['max_days'] = $maxDays;
         }
 
+        // Метка единственного столбца (wagon_type_code) — передаётся из colLabel в WAGON_TABS
+        $colLabel = mb_substr(preg_replace('/[^\pL\pN\s.,\-]/u', '', $params['col_label'] ?? 'Кол-во'), 0, 40);
+
         $rows = $this->db->fetchAll(
-            "SELECT $gfStr, COUNT(*) AS cnt
-             from (
-                select x.*, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days) as idle_time_name 
+            "SELECT $gfStr, '$colLabel' AS wagon_type_code, COUNT(*) AS cnt
+             FROM (
+                SELECT x.*, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days) AS idle_time_name
                 FROM xx_dislocation_rjd x
                 WHERE {$where}
              )

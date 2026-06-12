@@ -539,6 +539,7 @@ var WAGON_TABS = {
     loadedKey: '_downtimeLoaded',
     loadedDetKey: '_downtimeDetLoaded',
     sumSubLabel: 'Вагонов с простоем',
+    colLabel: 'Вагонов',   // метка единственного столбца сводной
     groupCols: [
       { key: 'idle_time_name', label: 'Простой' },
       //{ key: 'oper_station', label: 'Станция' },
@@ -550,6 +551,7 @@ var WAGON_TABS = {
       return {
         min_days: min !== '' ? min : 1,
         max_days: max !== '' ? max : undefined,
+        col_label: this.colLabel,
       }
     },
     resetFilters: function () {
