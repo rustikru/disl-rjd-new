@@ -162,21 +162,8 @@ class ApiController
 
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
-        $where = '';
         $bindings = $cond['params'];
-
-        foreach (array_filter([0 => $road, count($gf) - 1 => $station]) as $idx => $val) {
-            if (isset($gf[$idx])) {
-                $where .= " AND {$gf[$idx]} = :gf_$idx";
-                $bindings["gf_$idx"] = $val;
-            }
-        }
-        foreach ($gf as $idx => $k) {
-            if (!array_key_exists("gf_$idx", $bindings) && isset($params[$k]) && $params[$k] !== '') {
-                $where .= " AND $k = :dfld_$idx";
-                $bindings["dfld_$idx"] = $params[$k];
-            }
-        }
+        $where = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
         if ($wagType) {
             $where .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) = :wtype';
             $bindings['wtype'] = $wagType;
@@ -268,20 +255,7 @@ class ApiController
 
         $gfStr = implode(', ', $gf);
         $bindings = $base['bindings'];
-        $outerWhere = '';
-
-        foreach (array_filter([0 => $road, count($gf) - 1 => $station]) as $idx => $val) {
-            if (isset($gf[$idx])) {
-                $outerWhere .= " AND {$gf[$idx]} = :gf_$idx";
-                $bindings["gf_$idx"] = $val;
-            }
-        }
-        foreach ($gf as $idx => $k) {
-            if (!array_key_exists("gf_$idx", $bindings) && isset($params[$k]) && $params[$k] !== '') {
-                $outerWhere .= " AND $k = :dfld_$idx";
-                $bindings["dfld_$idx"] = $params[$k];
-            }
-        }
+        $outerWhere = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
         if ($wagType) {
             $outerWhere .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) = :wtype';
             $bindings['wtype'] = $wagType;
@@ -372,20 +346,7 @@ class ApiController
 
         $gfStr = implode(', ', $gf);
         $bindings = $base['bindings'];
-        $outerWhere = '';
-
-        foreach (array_filter([0 => $road, count($gf) - 1 => $station]) as $idx => $val) {
-            if (isset($gf[$idx])) {
-                $outerWhere .= " AND {$gf[$idx]} = :gf_$idx";
-                $bindings["gf_$idx"] = $val;
-            }
-        }
-        foreach ($gf as $idx => $k) {
-            if (!array_key_exists("gf_$idx", $bindings) && isset($params[$k]) && $params[$k] !== '') {
-                $outerWhere .= " AND $k = :dfld_$idx";
-                $bindings["dfld_$idx"] = $params[$k];
-            }
-        }
+        $outerWhere = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
         if ($wagType) {
             $outerWhere .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) = :wtype';
             $bindings['wtype'] = $wagType;
@@ -445,20 +406,7 @@ class ApiController
 
         $gfStr = implode(', ', $gf);
         $bindings = $base['bindings'];
-        $outerWhere = '';
-
-        foreach (array_filter([0 => $road, count($gf) - 1 => $station]) as $idx => $val) {
-            if (isset($gf[$idx])) {
-                $outerWhere .= " AND {$gf[$idx]} = :gf_$idx";
-                $bindings["gf_$idx"] = $val;
-            }
-        }
-        foreach ($gf as $idx => $k) {
-            if (!array_key_exists("gf_$idx", $bindings) && isset($params[$k]) && $params[$k] !== '') {
-                $outerWhere .= " AND $k = :dfld_$idx";
-                $bindings["dfld_$idx"] = $params[$k];
-            }
-        }
+        $outerWhere = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
         if ($wagType) {
             $outerWhere .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) = :wtype';
             $bindings['wtype'] = $wagType;
@@ -517,20 +465,7 @@ class ApiController
         }
 
         $bindings = $base['bindings'];
-        $outerWhere = '';
-
-        foreach (array_filter([0 => $road, count($gf) - 1 => $station]) as $idx => $val) {
-            if (isset($gf[$idx])) {
-                $outerWhere .= " AND {$gf[$idx]} = :gf_$idx";
-                $bindings["gf_$idx"] = $val;
-            }
-        }
-        foreach ($gf as $idx => $k) {
-            if (!array_key_exists("gf_$idx", $bindings) && isset($params[$k]) && $params[$k] !== '') {
-                $outerWhere .= " AND $k = :dfld_$idx";
-                $bindings["dfld_$idx"] = $params[$k];
-            }
-        }
+        $outerWhere = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
         // wagon_type не фильтруем: wagon_type_code в сводной — синтетическая метка colLabel,
         // а не реальное поле. Группировка идёт через gf (oper_road / oper_station / idle_time_name).
 
@@ -597,20 +532,7 @@ class ApiController
 
         $gfStr = implode(', ', $gf);
         $bindings = $base['bindings'];
-        $outerWhere = '';
-
-        foreach (array_filter([0 => $road, count($gf) - 1 => $station]) as $idx => $val) {
-            if (isset($gf[$idx])) {
-                $outerWhere .= " AND {$gf[$idx]} = :gf_$idx";
-                $bindings["gf_$idx"] = $val;
-            }
-        }
-        foreach ($gf as $idx => $k) {
-            if (!array_key_exists("gf_$idx", $bindings) && isset($params[$k]) && $params[$k] !== '') {
-                $outerWhere .= " AND $k = :dfld_$idx";
-                $bindings["dfld_$idx"] = $params[$k];
-            }
-        }
+        $outerWhere = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
         if ($wagType) {
             $outerWhere .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) = :wtype';
             $bindings['wtype'] = $wagType;
@@ -762,6 +684,32 @@ class ApiController
     // =========================================================================
     // Утилиты
     // =========================================================================
+
+    /**
+     * Строит outerWhere из groupFields: road→gf[0], station→gf[last] (только если last>0),
+     * плюс промежуточные уровни через прямое имя поля в $params.
+     * Безопасно при одном поле в $gf: station не перетирает road.
+     */
+    private function applyGfFilters(array $gf, ?string $road, ?string $station, array $params, array &$bindings): string
+    {
+        $where = '';
+        if ($road !== null && $road !== '' && isset($gf[0])) {
+            $where .= " AND {$gf[0]} = :gf_0";
+            $bindings['gf_0'] = $road;
+        }
+        $last = count($gf) - 1;
+        if ($last > 0 && $station !== null && $station !== '' && isset($gf[$last])) {
+            $where .= " AND {$gf[$last]} = :gf_$last";
+            $bindings["gf_$last"] = $station;
+        }
+        foreach ($gf as $idx => $k) {
+            if (!array_key_exists("gf_$idx", $bindings) && isset($params[$k]) && $params[$k] !== '') {
+                $where .= " AND $k = :dfld_$idx";
+                $bindings["dfld_$idx"] = $params[$k];
+            }
+        }
+        return $where;
+    }
 
     /**
      * Возвращает переданный report_dt или MAX(report_dt) для указанного типа справки.
