@@ -218,10 +218,9 @@ class ApiController
             $bindings['wtype'] = $wagType;
         }
 
+        $select = $this->selectFields($params['fields'] ?? '');
         $rows = $this->db->fetchAll(
-            "SELECT wagon_no, train_no, oper_station, depart_station, dest_station,
-                    cargo_name, park_type, oper_mnemonic, idle_time_days, asoup_arrive_dt,
-                    owner, lessee
+            "SELECT $select
              FROM xx_dislocation_rjd xdr
              WHERE {$cond['sql']} {$where}
              ORDER BY $gfStr, oper_station",
@@ -305,11 +304,7 @@ class ApiController
             $outerWhere .= ' AND (CARGO_WEIGHT_KG IS NULL OR CARGO_WEIGHT_KG = 0)';
         }
 
-        $select = isset($params['fields']) && $params['fields'] !== ''
-            ? $this->selectFields($params['fields'])
-            : 'wagon_no, wagon_type_code, cargo_name, prev_cargo, dist_remain_km,
-               depart_station, depart_road, dest_station, dest_road, oper_station,
-               train_index, oper_dt, norm_delivery_dt, oper_mnemonic';
+        $select = $this->selectFields($params['fields'] ?? '');
 
         $rows = $this->db->fetchAll(
             "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY $gfStr",
@@ -382,11 +377,7 @@ class ApiController
             $bindings['wtype'] = $wagType;
         }
 
-        $select = isset($params['fields']) && $params['fields'] !== ''
-            ? $this->selectFields($params['fields'])
-            : 'wagon_no, wagon_type_code, cargo_name, cargo_weight_kg,
-               depart_station, depart_road, dest_station, dest_road,
-               oper_station, oper_dt, dist_remain_km, norm_delivery_dt, waybill_no';
+        $select = $this->selectFields($params['fields'] ?? '');
 
         $rows = $this->db->fetchAll(
             "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY $gfStr",
@@ -434,11 +425,7 @@ class ApiController
             $bindings['wtype'] = $wagType;
         }
 
-        $select = isset($params['fields']) && $params['fields'] !== ''
-            ? $this->selectFields($params['fields'])
-            : 'wagon_no, wagon_type_code, cargo_name, cargo_weight_kg,
-               depart_station, depart_road, dest_station, dest_road,
-               oper_station, oper_mnemonic, oper_dt, waybill_no';
+        $select = $this->selectFields($params['fields'] ?? '');
 
         $rows = $this->db->fetchAll(
             "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY $gfStr",
@@ -491,13 +478,9 @@ class ApiController
         // wagon_type не фильтруем: wagon_type_code в сводной — синтетическая метка colLabel,
         // а не реальное поле. Группировка идёт через gf (oper_road / oper_station / idle_time_name).
 
+        $select = $this->selectFields($params['fields'] ?? '');
         $rows = $this->db->fetchAll(
-            "SELECT wagon_no, wagon_type_code, cargo_name, park_type,
-                    oper_station, oper_road, idle_time_days, idle_time_hhmmss,
-                    depart_station, dest_station, owner, lessee
-             FROM {$base['from']}
-             WHERE 1=1 $outerWhere
-             ORDER BY idle_time_days DESC",
+            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY idle_time_days DESC",
             $bindings
         );
 
@@ -560,14 +543,9 @@ class ApiController
             $bindings['wtype'] = $wagType;
         }
 
+        $select = $this->selectFields($params['fields'] ?? '');
         $rows = $this->db->fetchAll(
-            "SELECT wagon_no, wagon_type_code, cargo_name, cargo_weight_kg,
-                    idle_time_days, idle_time_hhmmss,
-                    oper_station, oper_road, depart_station, depart_road,
-                    dest_station, owner, waybill_no
-             FROM {$base['from']}
-             WHERE 1=1 $outerWhere
-             ORDER BY $gfStr, idle_time_days DESC",
+            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY $gfStr, idle_time_days DESC",
             $bindings
         );
 
