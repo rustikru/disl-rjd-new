@@ -26,7 +26,7 @@ var DETAIL_CONTEXTS = {
       { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
       { key: 'wagon_type_code', label: 'Род вагона', meta: true },
       { key: 'cargo_name', label: 'Груз', meta: true },
-      { key: 'prev_cargo', label: 'Ранее выгружен', meta: true },
+      //{ key: 'prev_cargo', label: 'Ранее выгружен', meta: true },
       {
         key: 'dist_remain_km',
         label: 'Ост. расстояние',
