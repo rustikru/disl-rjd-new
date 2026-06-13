@@ -49,6 +49,51 @@ class ApiController
         return $fields ?: $defaults;
     }
 
+    /**
+     * Универсальный метод построения сводных таблиц для разных вкладок.
+     */
+    private function buildSummary(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $base,
+        array $defaultGroupBy,
+        bool $withCargoState = false
+    ): ResponseInterface {
+        if (!$base['reportDt']) {
+            return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
+        }
+
+        $params = $request->getQueryParams();
+        $gf = $this->groupFields($params['group_by'] ?? '', $defaultGroupBy);
+        $gfStr = implode(', ', $gf);
+
+        $wagonTypeExpr = "XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)";
+
+        $select = [$gfStr, "{$wagonTypeExpr} AS wagon_type_code"];
+        $groupBy = [$gfStr, $wagonTypeExpr];
+        $cols = ['wagon_type_code'];
+
+        if ($withCargoState) {
+            $cargoStateExpr = "CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END";
+            $select[] = "{$cargoStateExpr} AS cargo_w_type";
+            $groupBy[] = $cargoStateExpr;
+            $cols[] = 'cargo_w_type';
+        }
+
+        $selectStr = implode(', ', $select);
+        $groupByStr = implode(', ', $groupBy);
+
+        $rows = $this->db->fetchAll(
+            "SELECT {$selectStr}, COUNT(*) AS cnt
+             FROM {$base['from']}
+             GROUP BY {$groupByStr}
+             ORDER BY {$gfStr}, wagon_type_code" . ($withCargoState ? ", cargo_w_type" : ""),
+            $base['bindings']
+        );
+
+        return $this->json($response, $this->roadTable($rows, $gf, $cols));
+    }
+
 
     /** GET /api/dislocation/filters — список загруженных справок */
     public function dislFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -869,56 +914,6 @@ class ApiController
         };
 
         return ['col_groups' => $buildTree(0), 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
-    }
-
-    private function makeSummary(array $rows, string $dateLabel): array
-    {
-        $colOrder = [];
-        foreach ($rows as $r) {
-            $t = (string) ($r['wagon_type_code'] ?? '');
-            if ($t !== '' && !isset($colOrder[$t]))
-                $colOrder[$t] = true;
-        }
-        $cols = array_map(fn($t) => ['label' => $t, 'group' => ''], array_keys($colOrder));
-        $colIndex = array_flip(array_column($cols, 'label'));
-
-        $sections = [];
-        foreach ($rows as $r) {
-            $parkType = (string) ($r['park_type'] ?? '');
-            $sectionName = trim(explode(',', $parkType)[0]);
-            $cnt = (int) ($r['wagon_count'] ?? 0);
-
-            if (!isset($sections[$sectionName])) {
-                $sections[$sectionName] = [
-                    'id' => md5($sectionName),
-                    'name' => $sectionName,
-                    'rows' => [],
-                    'total' => array_fill(0, count($cols), 0),
-                    'grand_total' => 0,
-                ];
-            }
-            if (!isset($sections[$sectionName]['rows'][$parkType])) {
-                $sections[$sectionName]['rows'][$parkType] = ['sub' => $parkType, 'park' => '', 'v' => array_fill(0, count($cols), 0)];
-            }
-
-            $ci = $colIndex[$r['wagon_type_code'] ?? ''] ?? null;
-            if ($ci !== null) {
-                $sections[$sectionName]['rows'][$parkType]['v'][$ci] += $cnt;
-                $sections[$sectionName]['total'][$ci] += $cnt;
-                $sections[$sectionName]['grand_total'] += $cnt;
-            }
-        }
-
-        foreach ($sections as &$sec) {
-            $sec['rows'] = array_values($sec['rows']);
-        }
-
-        return [
-            'date' => $dateLabel,
-            'report_dt_label' => $dateLabel,
-            'cols' => $cols,
-            'sections' => array_values($sections),
-        ];
     }
 
     private function json(ResponseInterface $response, $data): ResponseInterface
