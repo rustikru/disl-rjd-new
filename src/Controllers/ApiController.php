@@ -844,7 +844,6 @@ class ApiController
         unset($road);
 
         $roadList = array_values($roads);
-        usort($roadList, fn($a, $b) => $b['grand_total'] - $a['grand_total']);
         $metrics = array_map(fn($r) => ['label' => $r[$roadKey], 'total' => $r['grand_total']], $roadList);
         $grandTotal = array_sum(array_column($metrics, 'total'));
 
