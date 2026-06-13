@@ -24,7 +24,7 @@
   --total-col-head: #f0f2f5;
   --total-col-row: #f7f8fa;
 
-  --hover-green: #e6f4ea;
+  --hover-green: #d7eaf2;
 
   --header-h: 56px;
   --sidebar-w: 178px;
@@ -447,9 +447,10 @@ body {
 .data-table .row-data:hover td {
   background: var(--hover-green);
 }
+/*
 .data-table .row-data:hover td.col-total-col {
   background: #d4f0e0;
-}
+}*/
 
 .data-table .row-total td {
   background: var(--row-total);
@@ -585,7 +586,7 @@ body {
   cursor: pointer;
 }
 .cell-link:hover {
-  background: #d4f0e0 !important;
+  background: #c1e9f475 !important;
   color: var(--accent) !important;
   font-weight: 700;
 }
