@@ -500,7 +500,6 @@ class ApiController
                     XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) AS wagon_type_code,
                     COUNT(*) AS cnt
              FROM {$base['from']}
-             WHERE idle_time_days IS NOT NULL AND idle_time_days != 0
              GROUP BY $gfStr, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)
              ORDER BY $gfStr",
             $base['bindings']
@@ -637,8 +636,8 @@ class ApiController
     }
 
     /**
-     * Базовый подзапрос для «Сырьё»: вагоны с грузом (cargo_weight_kg > 0).
-     * Summary дополнительно фильтрует по idle_time_days в своём WHERE.
+     * Базовый подзапрос для «Сырьё»: гружёные вагоны с ненулевым простоем.
+     * Оба метода (summary и detail) работают с одной и той же базой.
      */
     private function rawFrom(array $params): array
     {
@@ -647,7 +646,9 @@ class ApiController
             return ['from' => '', 'bindings' => [], 'reportDt' => null];
         }
 
-        $innerWhere = "report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
+        $innerWhere = "report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF')"
+            . " AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0"
+            . " AND idle_time_days IS NOT NULL AND idle_time_days != 0";
 
         return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $innerWhere)", 'bindings' => ['report_dt' => $reportDt], 'reportDt' => $reportDt];
     }
