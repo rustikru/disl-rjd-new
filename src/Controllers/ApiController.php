@@ -49,6 +49,37 @@ class ApiController
         return $fields ?: $defaults;
     }
 
+    /**
+     * @param array $extraCols  [['alias' => 'cargo_w_type', 'expr' => "CASE WHEN ..."]]
+     */
+    private function summaryReport(array $base, array $gf, array $extraCols = []): array
+    {
+        $gfStr   = implode(', ', $gf);
+        $wagExpr = "XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)";
+
+        $select    = [$gfStr, "$wagExpr AS wagon_type_code"];
+        $groupBy   = [$gfStr, $wagExpr];
+        $colFields = ['wagon_type_code'];
+        $orderTail = '';
+
+        foreach ($extraCols as $col) {
+            $select[]    = "{$col['expr']} AS {$col['alias']}";
+            $groupBy[]   = $col['expr'];
+            $colFields[] = $col['alias'];
+            $orderTail  .= ", {$col['alias']}";
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT " . implode(', ', $select) . ", COUNT(*) AS cnt
+             FROM {$base['from']}
+             GROUP BY " . implode(', ', $groupBy) . "
+             ORDER BY $gfStr, wagon_type_code$orderTail",
+            $base['bindings']
+        );
+
+        return $this->roadTable($rows, $gf, $colFields);
+    }
+
     /** GET /api/dislocation/filters — список загруженных справок */
     public function dislFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
@@ -222,28 +253,16 @@ class ApiController
     public function approachSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $base = $this->approachFrom($params);
+        $base   = $this->approachFrom($params);
 
         if (!$base['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
         $gf = $this->groupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
-        $gfStr = implode(', ', $gf);
-
-        $rows = $this->db->fetchAll(
-            "SELECT $gfStr,
-                    XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) AS wagon_type_code,
-                    CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END AS CARGO_W_TYPE,
-                    COUNT(*) AS cnt
-             FROM {$base['from']}
-             GROUP BY $gfStr, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE),
-                      CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END
-             ORDER BY $gfStr, wagon_type_code",
-            $base['bindings']
-        );
-
-        return $this->json($response, $this->roadTable($rows, $gf, ['wagon_type_code', 'cargo_w_type']));
+        return $this->json($response, $this->summaryReport($base, $gf, [
+            ['alias' => 'cargo_w_type', 'expr' => "CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END"],
+        ]));
     }
 
     /** GET /api/approach/detail — Список вагонов подхода */
@@ -317,24 +336,14 @@ class ApiController
     public function departureSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $base = $this->departureFrom($params);
+        $base   = $this->departureFrom($params);
 
         if (!$base['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
         $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
-        $gfStr = implode(', ', $gf);
-
-        $rows = $this->db->fetchAll(
-            "SELECT $gfStr, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) AS wagon_type_code, COUNT(*) AS cnt
-             FROM {$base['from']}
-             GROUP BY $gfStr, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE)
-             ORDER BY $gfStr, wagon_type_code",
-            $base['bindings']
-        );
-
-        return $this->json($response, $this->roadTable($rows, $gf, ['wagon_type_code']));
+        return $this->json($response, $this->summaryReport($base, $gf));
     }
 
     /** GET /api/departure/detail — Список отправленных вагонов */
@@ -377,24 +386,14 @@ class ApiController
     public function loadingSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $base = $this->loadingFrom($params);
+        $base   = $this->loadingFrom($params);
 
         if (!$base['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
         $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
-        $gfStr = implode(', ', $gf);
-
-        $rows = $this->db->fetchAll(
-            "SELECT $gfStr, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) AS wagon_type_code, COUNT(*) AS cnt
-             FROM {$base['from']}
-             GROUP BY $gfStr, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE)
-             ORDER BY $gfStr, wagon_type_code",
-            $base['bindings']
-        );
-
-        return $this->json($response, $this->roadTable($rows, $gf, ['wagon_type_code']));
+        return $this->json($response, $this->summaryReport($base, $gf));
     }
 
     /** GET /api/loading/detail — Список погруженных вагонов */
