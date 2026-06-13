@@ -338,7 +338,7 @@ class ApiController
             $base['bindings']
         );
 
-        return $this->json($response, $this->roadTable($rows, $gf));
+        return $this->json($response, $this->roadTable($rows, $gf, ['wagon_type_code']));
     }
 
     /** GET /api/departure/detail — Список отправленных вагонов */
@@ -398,7 +398,7 @@ class ApiController
             $base['bindings']
         );
 
-        return $this->json($response, $this->roadTable($rows, $gf));
+        return $this->json($response, $this->roadTable($rows, $gf, ['wagon_type_code']));
     }
 
     /** GET /api/loading/detail — Список погруженных вагонов */
@@ -459,7 +459,7 @@ class ApiController
             $base['bindings']
         );
 
-        return $this->json($response, $this->roadTable($rows, $gf));
+        return $this->json($response, $this->roadTable($rows, $gf, ['wagon_type_code']));
     }
 
     /** GET /api/downtime/detail — Список простаивающих вагонов */
@@ -521,7 +521,7 @@ class ApiController
             $base['bindings']
         );
 
-        $result = $this->roadTable($rows, $gf);
+        $result = $this->roadTable($rows, $gf, ['wagon_type_code']);
         $result['max_idle'] = (float) ($maxIdleRow['max_idle'] ?? 0);
         return $this->json($response, $result);
     }
@@ -794,7 +794,7 @@ class ApiController
     /**
      * Строит иерархическую структуру groupKeys[0]→groupKeys[last] для фронтенда.
      */
-    private function roadTable(array $rows, array $groupKeys, array $colFields = ['wagon_type_code']): array
+    private function roadTable(array $rows, array $groupKeys, array $colFields): array
     {
         $roadKey = $groupKeys[0];
         $axisFields = $colFields;
