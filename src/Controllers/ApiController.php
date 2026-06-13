@@ -49,9 +49,6 @@ class ApiController
         return $fields ?: $defaults;
     }
 
-    // =========================================================================
-    // Публичные эндпоинты
-    // =========================================================================
 
     /** GET /api/dislocation/filters — список загруженных справок */
     public function dislFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -85,7 +82,7 @@ class ApiController
     /** GET /api/dashboard — KPI-сводка */
     public function dashboard(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $dtsByType = $this->getLatestDtsByType(null, ['Подход', 'Отправка']);
+        $dtsByType = $this->getLatestDtsByType(null, ['Подход', 'Отправка']); // Дата Справки
 
         if (empty($dtsByType)) {
             return $this->json($response, ['updated_at' => null, 'sections' => []]);
