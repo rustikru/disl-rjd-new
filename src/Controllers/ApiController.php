@@ -49,52 +49,6 @@ class ApiController
         return $fields ?: $defaults;
     }
 
-    /**
-     * Универсальный метод построения сводных таблиц для разных вкладок.
-     */
-    private function buildSummary(
-        ServerRequestInterface $request,
-        ResponseInterface $response,
-        array $base,
-        array $defaultGroupBy,
-        bool $withCargoState = false
-    ): ResponseInterface {
-        if (!$base['reportDt']) {
-            return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
-        }
-
-        $params = $request->getQueryParams();
-        $gf = $this->groupFields($params['group_by'] ?? '', $defaultGroupBy);
-        $gfStr = implode(', ', $gf);
-
-        $wagonTypeExpr = "XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)";
-
-        $select = [$gfStr, "{$wagonTypeExpr} AS wagon_type_code"];
-        $groupBy = [$gfStr, $wagonTypeExpr];
-        $cols = ['wagon_type_code'];
-
-        if ($withCargoState) {
-            $cargoStateExpr = "CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END";
-            $select[] = "{$cargoStateExpr} AS cargo_w_type";
-            $groupBy[] = $cargoStateExpr;
-            $cols[] = 'cargo_w_type';
-        }
-
-        $selectStr = implode(', ', $select);
-        $groupByStr = implode(', ', $groupBy);
-
-        $rows = $this->db->fetchAll(
-            "SELECT {$selectStr}, COUNT(*) AS cnt
-             FROM {$base['from']}
-             GROUP BY {$groupByStr}
-             ORDER BY {$gfStr}, wagon_type_code" . ($withCargoState ? ", cargo_w_type" : ""),
-            $base['bindings']
-        );
-
-        return $this->json($response, $this->roadTable($rows, $gf, $cols));
-    }
-
-
     /** GET /api/dislocation/filters — список загруженных справок */
     public function dislFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
