@@ -164,15 +164,16 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
+        $wagExpr = self::WAG_TYPE_EXPR;
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $rows = $this->db->fetchAll(
             "SELECT $gfStr,
-                    XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) AS wagon_type_code,
+                    $wagExpr AS wagon_type_code,
                     CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END AS CARGO_W_TYPE,
                     COUNT(*) AS cnt
              FROM xx_dislocation_rjd xdr
              WHERE {$cond['sql']}
-             GROUP BY $gfStr, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)
+             GROUP BY $gfStr, $wagExpr
                  , CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END
              ORDER BY $gfStr, wagon_type_code, CARGO_W_TYPE",
             $cond['params']
@@ -205,7 +206,7 @@ class ApiController
         }
 
         if ($wagType) {
-            $where .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) = :wtype';
+            $where .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
             $bindings['wtype'] = $wagType;
         }
 
@@ -286,7 +287,7 @@ class ApiController
         $bindings = $base['bindings'];
         $outerWhere = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
         if ($wagType) {
-            $outerWhere .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) = :wtype';
+            $outerWhere .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
             $bindings['wtype'] = $wagType;
         }
         $cargoState = $params['cargo_state'] ?? null;
@@ -369,7 +370,7 @@ class ApiController
         $bindings = $base['bindings'];
         $outerWhere = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
         if ($wagType) {
-            $outerWhere .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) = :wtype';
+            $outerWhere .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
             $bindings['wtype'] = $wagType;
         }
 
@@ -421,7 +422,7 @@ class ApiController
         $bindings = $base['bindings'];
         $outerWhere = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
         if ($wagType) {
-            $outerWhere .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(WAGON_TYPE_CODE) = :wtype';
+            $outerWhere .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
             $bindings['wtype'] = $wagType;
         }
 
@@ -508,12 +509,13 @@ class ApiController
         $gf = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
         $gfStr = implode(', ', $gf);
 
+        $wagExpr = self::WAG_TYPE_EXPR;
         $rows = $this->db->fetchAll(
             "SELECT $gfStr,
-                    XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) AS wagon_type_code,
+                    $wagExpr AS wagon_type_code,
                     COUNT(*) AS cnt
              FROM {$base['from']}
-             GROUP BY $gfStr, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)
+             GROUP BY $gfStr, $wagExpr
              ORDER BY $gfStr",
             $base['bindings']
         );
@@ -546,7 +548,7 @@ class ApiController
         $bindings = $base['bindings'];
         $outerWhere = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
         if ($wagType) {
-            $outerWhere .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) = :wtype';
+            $outerWhere .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
             $bindings['wtype'] = $wagType;
         }
 
