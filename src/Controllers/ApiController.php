@@ -53,19 +53,27 @@ class ApiController
     /**
      * @param array $cols  [['alias' => 'wagon_type_code', 'expr' => "..."], ...]
      */
+    /* Строит и выполняет запрос для сводной таблицы, затем преобразует результат в формат:
+     * ['cols' => ['wagon_type_code', ...], 
+     *  'roads' => ['road1', 'road2', ...], 
+     *  'metrics' => [['road' => 'road1', 
+     *                 'wagon_type_code' => 'type1', 
+     *                 'cnt' => 123], ...], 
+     *                'total' => 123]
+     */
     private function summaryReport(array $base, array $gf, array $cols): array
     {
-        $gfStr     = implode(', ', $gf);
-        $select    = [$gfStr];
-        $groupBy   = [$gfStr];
+        $gfStr = implode(', ', $gf);
+        $select = [$gfStr];
+        $groupBy = [$gfStr];
         $colFields = [];
         $orderTail = '';
 
         foreach ($cols as $col) {
-            $select[]    = "{$col['expr']} AS {$col['alias']}";
-            $groupBy[]   = $col['expr'];
+            $select[] = "{$col['expr']} AS {$col['alias']}";
+            $groupBy[] = $col['expr'];
             $colFields[] = $col['alias'];
-            $orderTail  .= ", {$col['alias']}";
+            $orderTail .= ", {$col['alias']}";
         }
 
         $rows = $this->db->fetchAll(
@@ -265,7 +273,7 @@ class ApiController
         $gf = $this->groupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
         return $this->json($response, $this->summaryReport($base, $gf, [
             ['alias' => 'wagon_type_code', 'expr' => self::WAG_TYPE_EXPR],
-            ['alias' => 'cargo_w_type',    'expr' => "CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END"],
+            ['alias' => 'cargo_w_type', 'expr' => "CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END"],
         ]));
     }
 
