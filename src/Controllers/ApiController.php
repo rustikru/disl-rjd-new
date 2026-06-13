@@ -8,7 +8,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
- * JSON API для фронтенда.
+ * JSON API 
  * Все запросы к таблице xx_dislocation_rjd.
  */
 class ApiController
