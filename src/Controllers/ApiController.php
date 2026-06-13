@@ -9,7 +9,6 @@ use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * JSON API 
- * Все запросы к таблице xx_dislocation_rjd.
  */
 class ApiController
 {
