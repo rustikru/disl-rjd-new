@@ -602,6 +602,13 @@ body {
 .row-road-parent:hover td {
   background: #e6e9ef;
 }
+.row-sub-parent td {
+  cursor: pointer;
+  user-select: none;
+}
+.row-sub-parent:hover td {
+  background: #e6e9ef;
+}
 .toggle-icon {
   display: inline-block;
   margin-right: 5px;
