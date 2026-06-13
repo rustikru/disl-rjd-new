@@ -142,7 +142,7 @@ function showDashKpi(sections) {
   }, 0)
 
   var kpis = [
-    { label: 'Общий парк', value: grandTotal, accent: true },
+    { label: 'Всего вагонов', value: grandTotal, accent: true },
     { label: 'Цистерны', value: tankTotal },
     { label: 'Прочие вагоны', value: grandTotal - tankTotal },
     //{ label: 'Типов парка', value: sections.length, sub: 'разновидностей' },
