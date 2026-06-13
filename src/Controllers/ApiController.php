@@ -139,15 +139,17 @@ class ApiController
         $rows = $this->db->fetchAll(
             "SELECT $gfStr,
                     XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) AS wagon_type_code,
+                    CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END AS CARGO_W_TYPE,
                     COUNT(*) AS cnt
              FROM xx_dislocation_rjd xdr
              WHERE {$cond['sql']}
              GROUP BY $gfStr, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)
-             ORDER BY $gfStr, wagon_type_code",
+                 , CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END
+             ORDER BY $gfStr, wagon_type_code, CARGO_W_TYPE",
             $cond['params']
         );
 
-        return $this->json($response, $this->roadTable($rows, $gf));
+        return $this->json($response, $this->roadTable($rows, $gf, ['cargo_w_type']));
     }
 
     /** GET /api/dislocation/detail — Расширенная дислокация */
@@ -164,6 +166,15 @@ class ApiController
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $bindings = $cond['params'];
         $where = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
+
+
+        $cargoState = $params['cargo_state'] ?? null;
+        if ($cargoState === 'ГР') {
+            $where .= ' AND CARGO_WEIGHT_KG > 0';
+        } elseif ($cargoState === 'ПОР') {
+            $where .= ' AND (CARGO_WEIGHT_KG IS NULL OR CARGO_WEIGHT_KG = 0)';
+        }
+
         if ($wagType) {
             $where .= ' AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code) = :wtype';
             $bindings['wtype'] = $wagType;
