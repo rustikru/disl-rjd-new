@@ -145,7 +145,7 @@ function showDashKpi(sections) {
     { label: 'Общий парк', value: grandTotal, accent: true },
     { label: 'Цистерны', value: tankTotal },
     { label: 'Прочие вагоны', value: grandTotal - tankTotal },
-    { label: 'Типов парка', value: sections.length, sub: 'разновидностей' },
+    //{ label: 'Типов парка', value: sections.length, sub: 'разновидностей' },
   ]
 
   $('#kpiGrid').html(kpis.map(kpiCard).join(''))
@@ -539,7 +539,7 @@ var WAGON_TABS = {
     loadedKey: '_downtimeLoaded',
     loadedDetKey: '_downtimeDetLoaded',
     sumSubLabel: 'Вагонов с простоем',
-    colLabel: 'Вагонов',   // метка единственного столбца сводной
+    colLabel: 'Вагонов', // метка единственного столбца сводной
     groupCols: [
       { key: 'idle_time_name', label: 'Простой' },
       //{ key: 'oper_station', label: 'Станция' },
