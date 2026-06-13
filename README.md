@@ -337,23 +337,36 @@ $group->get('/api/arrived/detail', function ($req, $res) use ($getDb) {
 
 ### 2. API-методы (`src/Controllers/ApiController.php`)
 
-Скопируйте `approachSummary` / `approachDetail` и поменяйте WHERE-условие и дефолтные поля `groupFields`.
+Добавьте `arrivedFrom()` по образцу существующих `*From()` методов, затем вызовите `summaryReport` для сводной и `selectFields` для детализации.
 
 ```php
 public function arrivedSummary(Request $req, Response $res): Response
 {
-    $params   = $req->getQueryParams();
-    $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Подход');
-    $gf       = $this->groupFields($params['group_by'] ?? '', ['oper_road', 'oper_station']);
-    $gfStr    = implode(', ', $gf);
-    // ...
-    $rows = $this->db->fetchAll(
-        "SELECT $gfStr, wagon_type_code, COUNT(*) AS cnt
-         FROM xx_dislocation_rjd WHERE $where
-         GROUP BY $gfStr, wagon_type_code ORDER BY $gfStr",
+    $params = $req->getQueryParams();
+    $base   = $this->arrivedFrom($params);
+    if (!$base['reportDt']) {
+        return $this->json($res, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
+    }
+    $gf = $this->groupFields($params['group_by'] ?? '', ['oper_road', 'oper_station']);
+    return $this->json($res, $this->summaryReport($base, $gf, [
+        ['alias' => 'wagon_type_code', 'expr' => self::WAG_TYPE_EXPR],
+    ]));
+}
+
+public function arrivedDetail(Request $req, Response $res): Response
+{
+    $params  = $req->getQueryParams();
+    $base    = $this->arrivedFrom($params);
+    $gf      = $this->groupFields($params['group_by'] ?? '', ['oper_road', 'oper_station']);
+    $gfStr   = implode(', ', $gf);
+    $bindings = $base['bindings'];
+    $where   = $this->applyGfFilters($gf, $params['road'] ?? null, $params['station'] ?? null, $params, $bindings);
+    $select  = $this->selectFields($params['fields'] ?? '');
+    $rows    = $this->db->fetchAll(
+        "SELECT $select FROM {$base['from']} WHERE 1=1 $where ORDER BY $gfStr",
         $bindings
     );
-    return $this->json($res, $this->roadTable($rows, $gf));
+    return $this->json($res, ['rows' => $rows]);
 }
 ```
 
@@ -470,6 +483,7 @@ arrived: {
 | `meta`       | `true` → серая «мета» стилизация ячейки           |
 | `mono`       | `true` → моноширинный шрифт (для номеров вагонов) |
 | `right`      | `true` → выравнивание по правому краю             |
+| `danger`     | `true` → цветовая индикация простоя (≥3 → оранж, ≥7 → красный) |
 | `fmt(v)`     | Функция форматирования значения                   |
 
 ---
@@ -477,8 +491,9 @@ arrived: {
 ## Принцип «один источник правды»
 
 - `groupCols[].key` → `group_by` → SQL `GROUP BY / ORDER BY / WHERE` (в summary и detail)
-- `DETAIL_CONTEXTS[ctx].cols[].key` → `fields` → SQL `SELECT`
-- Валидация полей — через `user_tab_columns` (схема Oracle), не хардкод в PHP
+- `DETAIL_CONTEXTS[ctx].cols[].key` → `fields` → SQL `SELECT` (PHP не содержит дефолтных списков полей — всё в JS-конфиге)
+- `ApiController::WAG_TYPE_EXPR` — единственное место, где прописано имя Oracle-функции `FNC_MAPPING_WAG_TYPE`; все summary и detail методы ссылаются на эту константу
+- Валидация полей — через `isSafeField()` (whitelist `[a-z0-9_.]`), не хардкод в PHP
 
 ---
 
@@ -498,5 +513,4 @@ arrived: {
 | `addColumnSearch($table)`                                   | Строка быстрого поиска под заголовком таблицы                   |
 | `openDetail(ctx, road, station, col, groupBy, subs, extra)` | Открыть страницу детализации в новой вкладке                    |
 
-cd /Users/ru.bekmansurov/Documents/Programmer/Web/rjd
 DYLD_LIBRARY_PATH=/opt/oracle/instantclient_23_26 php -S localhost:8080 -t public/
