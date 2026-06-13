@@ -553,10 +553,8 @@ class ApiController
                 $bindings["dfld_$idx"] = $params[$k];
             }
         }
-        if ($wagType) {
-            $outerWhere .= ' AND wagon_type_code = :wtype';
-            $bindings['wtype'] = $wagType;
-        }
+        // wagon_type не фильтруем: в сводной wagon_type_code — синтетическая метка colLabel,
+        // а не реальное поле. Группировка идёт через gf (oper_road / oper_station / idle_time_name).
 
         $rows = $this->db->fetchAll(
             "SELECT wagon_no, wagon_type_code, cargo_name, park_type,
