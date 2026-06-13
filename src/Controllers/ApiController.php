@@ -805,6 +805,11 @@ class ApiController
 
     /**
      * Строит иерархическую структуру groupKeys[0]→groupKeys[last]
+     * 
+     * @param array $rows
+     * @param array $groupKeys
+     * @param array $colFields
+     * @return array{cols: array, metrics: array, roads: array, total: float|int|array{col_groups: array, metrics: array, roads: array, total: float|int}}
      */
     private function roadTable(array $rows, array $groupKeys, array $colFields): array
     {
