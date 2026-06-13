@@ -247,7 +247,7 @@ class ApiController
             $base['bindings']
         );
 
-        return $this->json($response, $this->roadTable($rows, $gf, ['cargo_w_type']));
+        return $this->json($response, $this->roadTable($rows, $gf, ['wagon_type_code', 'cargo_w_type']));
     }
 
     /** GET /api/approach/detail — Список вагонов подхода */
@@ -794,10 +794,10 @@ class ApiController
     /**
      * Строит иерархическую структуру groupKeys[0]→groupKeys[last] для фронтенда.
      */
-    private function roadTable(array $rows, array $groupKeys, array $subGroupFields = []): array
+    private function roadTable(array $rows, array $groupKeys, array $colFields = ['wagon_type_code']): array
     {
         $roadKey = $groupKeys[0];
-        $axisFields = array_merge(['wagon_type_code'], $subGroupFields);
+        $axisFields = $colFields;
         $nLevels = count($axisFields);
 
         $values = array_fill(0, $nLevels, []);
@@ -834,7 +834,7 @@ class ApiController
                 $roads[$road]['stations'][$stComposite] = $stData;
             }
 
-            $t = (string) ($r['wagon_type_code'] ?? '');
+            $t = (string) ($r[$axisFields[0]] ?? '');
             if ($t === '' || !isset($index[0][$t]))
                 continue;
 
@@ -858,7 +858,7 @@ class ApiController
         $metrics = array_map(fn($r) => ['label' => $r[$roadKey], 'total' => $r['grand_total']], $roadList);
         $grandTotal = array_sum(array_column($metrics, 'total'));
 
-        if ($subGroupFields === []) {
+        if (count($colFields) <= 1) {
             return ['cols' => $values[0], 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
         }
 
