@@ -443,8 +443,8 @@ class ApiController
         $rows = $this->db->fetchAll(
             "SELECT $gfStr, '$colLabel' AS wagon_type_code, COUNT(*) AS cnt
              FROM {$base['from']}
-             GROUP BY $gfStr
-             ORDER BY $gfStr",
+             GROUP BY idle_time_order_by, $gfStr
+             ORDER BY idle_time_order_by asc, $gfStr",
             $base['bindings']
         );
 
@@ -676,7 +676,11 @@ class ApiController
         }
 
         $reportDt = !empty($dtsByType) ? max($dtsByType) : null;
-        $from = "(SELECT xdr.*, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days) AS idle_time_name FROM xx_dislocation_rjd xdr WHERE $innerWhere)";
+        $from = "(SELECT xdr.*, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days,'name') AS idle_time_name 
+                        ,to_number(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days,'order_by')) AS idle_time_order_by
+                        FROM xx_dislocation_rjd xdr WHERE $innerWhere 
+                        order by idle_time_order_by
+                  )";
 
         return ['from' => $from, 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
@@ -717,7 +721,8 @@ class ApiController
      */
     private function getReportDt(?string $dt, ?string $typeRef = null): ?string
     {
-        if ($dt) return $dt;
+        if ($dt)
+            return $dt;
         $sql = 'SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd';
         $params = [];
         if ($typeRef !== null) {
@@ -734,13 +739,16 @@ class ApiController
      */
     private function getLatestDtsByType(?string $dt = null, ?array $types = null): array
     {
-        if ($types !== null && count($types) === 0) return [];
+        if ($types !== null && count($types) === 0)
+            return [];
         $sql = 'SELECT type_reference, MAX(report_dt) AS dt FROM xx_dislocation_rjd';
         $params = [];
         if ($types !== null) {
             $placeholders = implode(',', array_map(fn($i) => ":t$i", array_keys($types)));
             $sql .= " WHERE type_reference IN ($placeholders)";
-            foreach ($types as $i => $t) { $params["t$i"] = $t; }
+            foreach ($types as $i => $t) {
+                $params["t$i"] = $t;
+            }
         }
         $sql .= ' GROUP BY type_reference';
         $rows = $this->db->fetchAll($sql, $params);
@@ -757,7 +765,8 @@ class ApiController
      */
     private function latestDtCondition(array $dtsByType, string $alias = ''): array
     {
-        if (empty($dtsByType)) return ['sql' => '1=0', 'params' => []];
+        if (empty($dtsByType))
+            return ['sql' => '1=0', 'params' => []];
         $col = fn(string $c) => $alias !== '' ? "$alias.$c" : $c;
         $parts = [];
         $params = [];
@@ -808,12 +817,15 @@ class ApiController
             }
             if (!isset($roads[$road]['stations'][$stComposite])) {
                 $stData = ['v' => array_fill(0, $nFlat, 0)];
-                foreach ($stationParts as $k) { $stData[$k] = (string) ($r[$k] ?? ''); }
+                foreach ($stationParts as $k) {
+                    $stData[$k] = (string) ($r[$k] ?? '');
+                }
                 $roads[$road]['stations'][$stComposite] = $stData;
             }
 
             $t = (string) ($r['wagon_type_code'] ?? '');
-            if ($t === '' || !isset($index[0][$t])) continue;
+            if ($t === '' || !isset($index[0][$t]))
+                continue;
 
             $fi = 0;
             foreach ($axisFields as $k => $f) {
@@ -826,7 +838,9 @@ class ApiController
             $roads[$road]['grand_total'] += $cnt;
         }
 
-        foreach ($roads as &$road) { $road['stations'] = array_values($road['stations']); }
+        foreach ($roads as &$road) {
+            $road['stations'] = array_values($road['stations']);
+        }
         unset($road);
 
         $roadList = array_values($roads);
@@ -855,7 +869,8 @@ class ApiController
         $colOrder = [];
         foreach ($rows as $r) {
             $t = (string) ($r['wagon_type_code'] ?? '');
-            if ($t !== '' && !isset($colOrder[$t])) $colOrder[$t] = true;
+            if ($t !== '' && !isset($colOrder[$t]))
+                $colOrder[$t] = true;
         }
         $cols = array_map(fn($t) => ['label' => $t, 'group' => ''], array_keys($colOrder));
         $colIndex = array_flip(array_column($cols, 'label'));
@@ -868,8 +883,11 @@ class ApiController
 
             if (!isset($sections[$sectionName])) {
                 $sections[$sectionName] = [
-                    'id' => md5($sectionName), 'name' => $sectionName,
-                    'rows' => [], 'total' => array_fill(0, count($cols), 0), 'grand_total' => 0,
+                    'id' => md5($sectionName),
+                    'name' => $sectionName,
+                    'rows' => [],
+                    'total' => array_fill(0, count($cols), 0),
+                    'grand_total' => 0,
                 ];
             }
             if (!isset($sections[$sectionName]['rows'][$parkType])) {
@@ -884,7 +902,9 @@ class ApiController
             }
         }
 
-        foreach ($sections as &$sec) { $sec['rows'] = array_values($sec['rows']); }
+        foreach ($sections as &$sec) {
+            $sec['rows'] = array_values($sec['rows']);
+        }
 
         return [
             'date' => $dateLabel,
