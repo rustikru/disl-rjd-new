@@ -560,7 +560,7 @@ class ApiController
 
 
     // =========================================================================
-    // Базовые подзапросы: каждый возвращает ['from' => $subquery, 'bindings' => [...], 'reportDt' => $dt|null]
+    // Базовые подзапросы(FROM и т.д): каждый возвращает ['from' => $subquery, 'bindings' => [...], 'reportDt' => $dt|null]
     // =========================================================================
 
     /**
@@ -767,7 +767,7 @@ class ApiController
     }
 
     /**
-     * Строит SQL-фрагмент WHERE из карты [type_reference => report_dt].
+     * Строит SQL-фрагмент WHERE 
      * $alias — префикс таблицы, например 'xdr' → 'xdr.type_reference'
      */
     private function latestDtCondition(array $dtsByType, string $alias = ''): array
@@ -788,7 +788,7 @@ class ApiController
     }
 
     /**
-     * Строит иерархическую структуру groupKeys[0]→groupKeys[last] для фронтенда.
+     * Строит иерархическую структуру groupKeys[0]→groupKeys[last]
      */
     private function roadTable(array $rows, array $groupKeys, array $colFields): array
     {
