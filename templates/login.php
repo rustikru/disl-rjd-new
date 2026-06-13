@@ -8,15 +8,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Вход — <?= htmlspecialchars($appName) ?></title>
+  <title>Вход в систему</title>
   <link rel="stylesheet" href="/assets/css/auth.css">
 </head>
 
 <body>
 
   <div class="login-wrap">
-
-
 
     <div class="card">
       <div class="card-title">Вход в систему</div>
@@ -49,7 +47,7 @@
   </div>
 
   <div class="login-footer">
-    &copy; <?= date('Y') ?> <?= htmlspecialchars($appName) ?>
+    &copy; <?= date('Y') ?><!-- <?= htmlspecialchars($appName) ?> -->
   </div>
 
   <script src="/assets/js/auth.js"></script>
