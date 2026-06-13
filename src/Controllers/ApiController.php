@@ -149,7 +149,7 @@ class ApiController
             $cond['params']
         );
 
-        return $this->json($response, $this->roadTable($rows, $gf, ['cargo_w_type']));
+        return $this->json($response, $this->roadTable($rows, $gf, ['wagon_type_code', 'cargo_w_type']));
     }
 
     /** GET /api/dislocation/detail — Расширенная дислокация */
