@@ -21,10 +21,10 @@ var TAB_GROUPS = [
       { id: 'raw-material', label: 'Сырьё' },
     ],
   },
-  {
+  /*{
     label: 'Аналитика',
     tabs: [{ id: 'analysis', label: 'Анализ за период' }],
-  },
+  },*/
   {
     label: 'Простои и оборот',
     tabs: [{ id: 'downtime', label: 'Простои' }],
