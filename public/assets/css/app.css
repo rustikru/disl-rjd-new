@@ -423,11 +423,11 @@ body {
   white-space: nowrap;
 }
 .data-table thead th {
-  background: var(--row-head);
+  background: #e4e8f0;
   font-weight: 700;
   text-align: center;
-  font-size: 11px;
-  color: var(--text-2);
+  font-size: 13px;
+  color: #3a4151;
   position: sticky;
   top: 0;
   z-index: 2;
