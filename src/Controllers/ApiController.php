@@ -26,7 +26,7 @@ class ApiController
         return $f !== '' && (bool) preg_match('/^[a-z_][a-z0-9_.]*$/i', $f);
     }
 
-    /** Строит строку SELECT из переданных клиентом полей. */
+    /** Строит строку SELECT из переданных полей. */
     private function selectFields(string $raw): string
     {
         $fields = array_values(array_filter(
@@ -38,7 +38,6 @@ class ApiController
 
     /**
      * Парсит group_by=field1,field2,...
-     * При пустом/невалидном raw — fallback на $defaults.
      */
     private function groupFields(string $raw, array $defaults, array $extra = []): array
     {
@@ -54,19 +53,19 @@ class ApiController
      */
     private function summaryReport(array $base, array $gf, array $extraCols = []): array
     {
-        $gfStr   = implode(', ', $gf);
+        $gfStr = implode(', ', $gf);
         $wagExpr = "XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)";
 
-        $select    = [$gfStr, "$wagExpr AS wagon_type_code"];
-        $groupBy   = [$gfStr, $wagExpr];
+        $select = [$gfStr, "$wagExpr AS wagon_type_code"];
+        $groupBy = [$gfStr, $wagExpr];
         $colFields = ['wagon_type_code'];
         $orderTail = '';
 
         foreach ($extraCols as $col) {
-            $select[]    = "{$col['expr']} AS {$col['alias']}";
-            $groupBy[]   = $col['expr'];
+            $select[] = "{$col['expr']} AS {$col['alias']}";
+            $groupBy[] = $col['expr'];
             $colFields[] = $col['alias'];
-            $orderTail  .= ", {$col['alias']}";
+            $orderTail .= ", {$col['alias']}";
         }
 
         $rows = $this->db->fetchAll(
@@ -110,6 +109,9 @@ class ApiController
     }
 
     /** GET /api/dashboard — KPI-сводка */
+    /*
+        Страница дашборда
+     */
     public function dashboard(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $dtsByType = $this->getLatestDtsByType(null, ['Подход', 'Отправка']); // Дата Справки
@@ -253,7 +255,7 @@ class ApiController
     public function approachSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $base   = $this->approachFrom($params);
+        $base = $this->approachFrom($params);
 
         if (!$base['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
@@ -336,7 +338,7 @@ class ApiController
     public function departureSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $base   = $this->departureFrom($params);
+        $base = $this->departureFrom($params);
 
         if (!$base['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
@@ -386,7 +388,7 @@ class ApiController
     public function loadingSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $base   = $this->loadingFrom($params);
+        $base = $this->loadingFrom($params);
 
         if (!$base['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
