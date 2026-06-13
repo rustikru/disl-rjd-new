@@ -13,6 +13,8 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 class ApiController
 {
+    private const WAG_TYPE_EXPR = "XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)";
+
     private DbInterface $db;
 
     public function __construct(DbInterface $db)
@@ -49,30 +51,28 @@ class ApiController
     }
 
     /**
-     * @param array $extraCols  [['alias' => 'cargo_w_type', 'expr' => "CASE WHEN ..."]]
+     * @param array $cols  [['alias' => 'wagon_type_code', 'expr' => "..."], ...]
      */
-    private function summaryReport(array $base, array $gf, array $extraCols = []): array
+    private function summaryReport(array $base, array $gf, array $cols): array
     {
-        $gfStr = implode(', ', $gf);
-        $wagExpr = "XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)";
-
-        $select = [$gfStr, "$wagExpr AS wagon_type_code"];
-        $groupBy = [$gfStr, $wagExpr];
-        $colFields = ['wagon_type_code'];
+        $gfStr     = implode(', ', $gf);
+        $select    = [$gfStr];
+        $groupBy   = [$gfStr];
+        $colFields = [];
         $orderTail = '';
 
-        foreach ($extraCols as $col) {
-            $select[] = "{$col['expr']} AS {$col['alias']}";
-            $groupBy[] = $col['expr'];
+        foreach ($cols as $col) {
+            $select[]    = "{$col['expr']} AS {$col['alias']}";
+            $groupBy[]   = $col['expr'];
             $colFields[] = $col['alias'];
-            $orderTail .= ", {$col['alias']}";
+            $orderTail  .= ", {$col['alias']}";
         }
 
         $rows = $this->db->fetchAll(
             "SELECT " . implode(', ', $select) . ", COUNT(*) AS cnt
              FROM {$base['from']}
              GROUP BY " . implode(', ', $groupBy) . "
-             ORDER BY $gfStr, wagon_type_code$orderTail",
+             ORDER BY $gfStr$orderTail",
             $base['bindings']
         );
 
@@ -263,7 +263,8 @@ class ApiController
 
         $gf = $this->groupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
         return $this->json($response, $this->summaryReport($base, $gf, [
-            ['alias' => 'cargo_w_type', 'expr' => "CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END"],
+            ['alias' => 'wagon_type_code', 'expr' => self::WAG_TYPE_EXPR],
+            ['alias' => 'cargo_w_type',    'expr' => "CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END"],
         ]));
     }
 
@@ -345,7 +346,9 @@ class ApiController
         }
 
         $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
-        return $this->json($response, $this->summaryReport($base, $gf));
+        return $this->json($response, $this->summaryReport($base, $gf, [
+            ['alias' => 'wagon_type_code', 'expr' => self::WAG_TYPE_EXPR],
+        ]));
     }
 
     /** GET /api/departure/detail — Список отправленных вагонов */
@@ -395,7 +398,9 @@ class ApiController
         }
 
         $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
-        return $this->json($response, $this->summaryReport($base, $gf));
+        return $this->json($response, $this->summaryReport($base, $gf, [
+            ['alias' => 'wagon_type_code', 'expr' => self::WAG_TYPE_EXPR],
+        ]));
     }
 
     /** GET /api/loading/detail — Список погруженных вагонов */
