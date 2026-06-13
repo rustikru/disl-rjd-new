@@ -50,7 +50,6 @@ $basePath = $basePath ?? '';
       <div id="panel-dashboard" class="tab-panel active">
         <div style="margin-bottom:16px">
           <div style="font-size:20px;font-weight:700;letter-spacing:-.02em">Дашборд</div>
-          <div style="font-size:12px;color:#9DA5B0;margin-top:3px" id="dashboardSub">Загрузка...</div>
         </div>
         <div class="kpi-grid" id="kpiGrid"></div>
         <section class="analytics-grid">

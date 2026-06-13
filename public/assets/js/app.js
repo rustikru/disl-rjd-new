@@ -117,19 +117,14 @@ function initInnerTabs() {
 
 // Dashboard
 function loadDashboard() {
-  $.getJSON(BASE + '/api/dashboard')
-    .done(function (data) {
-      var label = data.updated_at || '—'
-      $('#brandDateSub').text('Дислокация РЖД ' + label)
-      $('#headerDate').text(label)
-      $('#dashboardSub').text('Справка: ' + label + ' · РЖД')
-      showDashKpi(data.sections)
-      drawBar(data.sections)
-      drawDonut(data.sections)
-    })
-    .fail(function (jqXHR) {
-      $('#dashboardSub').text(ajaxErr(jqXHR))
-    })
+  $.getJSON(BASE + '/api/dashboard').done(function (data) {
+    var label = data.updated_at || '—'
+    $('#brandDateSub').text('Дислокация РЖД на ' + label)
+    $('#headerDate').text(label)
+    showDashKpi(data.sections)
+    drawBar(data.sections)
+    drawDonut(data.sections)
+  })
 }
 
 // KPI карточки
