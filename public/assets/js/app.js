@@ -784,10 +784,9 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
   var colGroups = data.col_groups || null
   var flatCols = data.cols || []
 
-  // flatCells: [{col, subs:[]}] — один элемент на каждую фактическую колонку значений;
-  // col — тип вагона (1-й уровень), subs — значения вложенных уровней по порядку
   var flatCells = []
   var levels = []
+
   if (colGroups) {
     ;(function walk(nodes, d, path) {
       if (!levels[d]) levels[d] = []
@@ -800,7 +799,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
           count += 1
         } else {
           var pos = levels[d].length
-          levels[d].push(null) // span известен только после обхода детей
+          levels[d].push(null)
           var c = walk(n.subs, d + 1, path.concat([n.label]))
           levels[d][pos] = { label: n.label, span: c }
           count += c
@@ -829,13 +828,12 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     return v || ''
   }
 
-  // data-sub, data-sub2, data-sub3..
   function subAttrs(subs) {
-    var s = ''
+    var s = []
     ;(subs || []).forEach(function (v, i) {
-      if (v) s += ' data-sub' + (i ? i + 1 : '') + '="' + esc(v) + '"'
+      if (v) s.push(' data-sub' + (i ? i + 1 : '') + '="' + esc(v) + '"')
     })
-    return s
+    return s.join('')
   }
 
   function cellLink(v, dataCtx, dataRoad, dataSt, cell, dataExtra) {
@@ -862,6 +860,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
       '</td>'
     )
   }
+
   function totalLink(v, dataCtx, dataRoad, dataSt, dataExtra) {
     var cls = 'col-total-col'
     if (!v || !dataCtx) return '<td class="' + cls + '">' + fmt(v) + '</td>'
@@ -886,92 +885,104 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     )
   }
 
-  // thead: depth строк; groupCols и «Итого» растянуты на всю высоту через rowspan
+  // Переходим на массив строк вместо конкатенации строк
+  var h = []
   var rowspan = depth > 1 ? ' rowspan="' + depth + '"' : ''
-  var h = '<thead><tr>'
+
+  h.push('<thead><tr>')
   groupCols.forEach(function (gc, i) {
     var w = i === 0 ? ' style="min-width:160px"' : ' style="min-width:180px"'
-    h += '<th class="col-meta"' + rowspan + w + '>' + esc(gc.label) + '</th>'
+    h.push('<th class="col-meta"' + rowspan + w + '>' + esc(gc.label) + '</th>')
   })
+
   levels[0].forEach(function (c) {
-    h +=
+    h.push(
       '<th' +
-      (c.span > 1 ? ' colspan="' + c.span + '"' : '') +
-      (depth > 1 ? ' style="text-align:center"' : '') +
-      '>' +
-      esc(c.label) +
-      '</th>'
-  })
-  h += '<th class="col-total-col"' + rowspan + '>Итого</th></tr>'
-  for (var d = 1; d < depth; d++) {
-    h += '<tr>'
-    levels[d].forEach(function (c) {
-      h +=
-        '<th' +
         (c.span > 1 ? ' colspan="' + c.span + '"' : '') +
-        ' style="text-align:center">' +
+        (depth > 1 ? ' style="text-align:center"' : '') +
+        '>' +
         esc(c.label) +
-        '</th>'
+        '</th>',
+    )
+  })
+  h.push('<th class="col-total-col"' + rowspan + '>Итого</th></tr>')
+
+  for (var d = 1; d < depth; d++) {
+    h.push('<tr>')
+    levels[d].forEach(function (c) {
+      h.push(
+        '<th' +
+          (c.span > 1 ? ' colspan="' + c.span + '"' : '') +
+          ' style="text-align:center">' +
+          esc(c.label) +
+          '</th>',
+      )
     })
-    h += '</tr>'
+    h.push('</tr>')
   }
-  h += '</thead><tbody>'
+  h.push('</thead><tbody>')
 
   var grandTotals = flatCells.map(function () {
     return 0
   })
   var grandSum = 0
+
   ;(roads || []).forEach(function (road, ri) {
     var roadVal = road[groupCols[0].key] || ''
-    var stations = road.stations || []
+    var stations = road.stations || [] // жесткая привязка к .stations
     var hasChildren = nGroup > 1 && stations.length > 0
-    h +=
+
+    h.push(
       '<tr class="row-road-parent" data-road-id="' +
-      ri +
-      '" data-node-id="' +
-      ri +
-      '">'
-    h +=
+        ri +
+        '" data-node-id="' +
+        ri +
+        '">',
+    )
+    h.push(
       '<td class="col-meta" colspan="' +
-      nGroup +
-      '">' +
-      (hasChildren ? '<span class="toggle-icon">▼</span>' : '') +
-      esc(roadVal) +
-      '</td>'
+        nGroup +
+        '">' +
+        (hasChildren ? '<span class="toggle-icon">▼</span>' : '') +
+        esc(roadVal) +
+        '</td>',
+    )
     ;(road.total || []).forEach(function (v, i) {
       grandTotals[i] += v || 0
-      h += cellLink(v, ctx, roadVal, '', flatCells[i])
+      h.push(cellLink(v, ctx, roadVal, '', flatCells[i]))
     })
-    h += totalLink(road.grand_total || 0, ctx, roadVal, '')
-    h += '</tr>'
+    h.push(totalLink(road.grand_total || 0, ctx, roadVal, ''))
+    h.push('</tr>')
+
     grandSum += road.grand_total || 0
+
     if (hasChildren) {
-      // Рекурсивный рендер для любого числа уровней.
-      // level=1..nGroup-1; isLeaf когда level===nGroup-1
-      // ancestorFilters: {fieldName: value} — фильтры всех родительских уровней
       var renderNodes = function (level, items, parentNodeId, ancestorFilters) {
-        var out = ''
+        var out = []
         var isLeaf = level === nGroup - 1
         var levelKey = groupCols[level].key
+
         if (isLeaf) {
           items.forEach(function (st) {
             var stVal = st[levelKey] || ''
             var rowSum = (st.v || []).reduce(function (a, b) {
               return a + b
             }, 0)
-            out +=
+
+            out.push(
               '<tr class="row-data row-child" data-parent-id="' +
-              esc(parentNodeId) +
-              '">'
-            out += '<td class="col-meta"></td>'
+                esc(parentNodeId) +
+                '">',
+            )
+            out.push('<td class="col-meta"></td>')
             for (var j = 1; j < nGroup - 1; j++)
-              out += '<td class="col-meta"></td>'
-            out += '<td class="col-meta">' + esc(stVal) + '</td>'
+              out.push('<td class="col-meta"></td>')
+            out.push('<td class="col-meta">' + esc(stVal) + '</td>')
             ;(st.v || []).forEach(function (v, i) {
-              out += cellLink(v, ctx, roadVal, stVal, flatCells[i])
+              out.push(cellLink(v, ctx, roadVal, stVal, flatCells[i]))
             })
-            out += totalLink(rowSum, ctx, roadVal, stVal)
-            out += '</tr>'
+            out.push(totalLink(rowSum, ctx, roadVal, stVal))
+            out.push('</tr>')
           })
         } else {
           var groups = {},
@@ -984,6 +995,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
             }
             groups[val].push(st)
           })
+
           order.forEach(function (groupVal, gi) {
             var nodeId = parentNodeId + ':' + gi
             var gItems = groups[groupVal]
@@ -991,6 +1003,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
               return 0
             })
             var subSum = 0
+
             gItems.forEach(function (st) {
               ;(st.v || []).forEach(function (v, i) {
                 subTotal[i] += v || 0
@@ -999,7 +1012,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
                 return a + b
               }, 0)
             })
-            // Полный набор фильтров для этого промежуточного уровня
+
             var curFilters = Object.assign({}, ancestorFilters)
             curFilters[levelKey] = groupVal
             var bcVals = Object.keys(curFilters).map(function (k) {
@@ -1008,69 +1021,86 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
             var curFiltersWithPath = Object.assign({}, curFilters, {
               _bcpath: JSON.stringify(bcVals),
             })
-            out +=
+
+            out.push(
               '<tr class="row-data row-child row-sub-parent" data-parent-id="' +
-              esc(parentNodeId) +
-              '" data-node-id="' +
-              esc(nodeId) +
-              '">'
-            out += '<td class="col-meta"></td>'
-            for (var j = 1; j < level; j++) out += '<td class="col-meta"></td>'
-            out +=
+                esc(parentNodeId) +
+                '" data-node-id="' +
+                esc(nodeId) +
+                '">',
+            )
+            out.push('<td class="col-meta"></td>')
+            for (var j = 1; j < level; j++)
+              out.push('<td class="col-meta"></td>')
+            out.push(
               '<td class="col-meta"><span class="toggle-icon">▼</span>' +
-              esc(groupVal) +
-              '</td>'
+                esc(groupVal) +
+                '</td>',
+            )
             for (var j = level + 1; j < nGroup; j++)
-              out += '<td class="col-meta"></td>'
+              out.push('<td class="col-meta"></td>')
+
             subTotal.forEach(function (v, i) {
-              out += cellLink(v, ctx, '', '', flatCells[i], curFiltersWithPath)
+              out.push(
+                cellLink(v, ctx, '', '', flatCells[i], curFiltersWithPath),
+              )
             })
-            out += totalLink(subSum, ctx, '', '', curFiltersWithPath)
-            out += '</tr>'
-            out += renderNodes(level + 1, gItems, nodeId, curFilters)
+            out.push(totalLink(subSum, ctx, '', '', curFiltersWithPath))
+            out.push('</tr>')
+
+            out.push(renderNodes(level + 1, gItems, nodeId, curFilters))
           })
         }
-        return out
+        return out.join('')
       }
+
       var rootFilters = {}
       rootFilters[groupCols[0].key] = roadVal
-      h += renderNodes(1, stations, '' + ri, rootFilters)
+      h.push(renderNodes(1, stations, '' + ri, rootFilters))
     }
   })
-  h +=
+
+  h.push(
     '<tr class="row-total row-grand"><td class="col-meta" colspan="' +
-    nGroup +
-    '">Общий итог</td>'
+      nGroup +
+      '">Общий итог</td>',
+  )
 
   grandTotals.forEach(function (v, i) {
     if (v && ctx) {
-      h +=
+      h.push(
         '<td class="cell-link" data-ctx="' +
-        esc(ctx) +
-        '" data-road="" data-station="" data-col="' +
-        esc(flatCells[i].col) +
-        '"' +
-        subAttrs(flatCells[i].subs) +
-        '>' +
-        v +
-        '</td>'
+          esc(ctx) +
+          '" data-road="" data-station="" data-col="' +
+          esc(flatCells[i].col) +
+          '"' +
+          subAttrs(flatCells[i].subs) +
+          '>' +
+          v +
+          '</td>',
+      )
     } else {
-      h += '<td>' + (v || '') + '</td>'
+      h.push('<td>' + (v || '') + '</td>')
     }
   })
+
   if (grandSum && ctx) {
-    h +=
+    h.push(
       '<td class="col-total-col cell-link" data-ctx="' +
-      esc(ctx) +
-      '" data-road="" data-station="" data-col="">' +
-      grandSum.toLocaleString('ru-RU') +
-      '</td>'
+        esc(ctx) +
+        '" data-road="" data-station="" data-col="">' +
+        grandSum.toLocaleString('ru-RU') +
+        '</td>',
+    )
   } else {
-    h +=
-      '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>'
+    h.push(
+      '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>',
+    )
   }
-  h += '</tr></tbody>'
-  $(selector).html(h)
+  h.push('</tr></tbody>')
+
+  // Итоговый единый рендеринг в DOM
+  $(selector).html(h.join(''))
 }
 
 // CSV-экспорт таблицы по id и имени файла (без даты-суффикса в имени не нужна)
@@ -1179,7 +1209,7 @@ function collapseNode($row, $table) {
     })
   }
 }
-// Раскрыть узел дерева: показать потомков с учётом их собственного состояния
+// Раскрыть узел дерева: показать дочерние строки
 function expandNode($row, $table) {
   $row.data('node-collapsed', false).find('.toggle-icon').text('▼')
   var nodeId = $row.data('node-id')
@@ -1245,7 +1275,7 @@ $(document).on('input', '.col-search-input', function () {
 var SUB_PARAM_NAMES = ['cargo_state']
 
 // Drill-down: открыть страницу детализации в новой вкладке.
-// extra — активные фильтры вкладки (cfg.getParams()), уходят в URL как есть
+// extra — активные фильтры вкладки (cfg.getParams()) передаются в URL как есть
 function openDetail(ctx, road, station, col, groupBy, subs, extra) {
   var p = new URLSearchParams()
   p.set('ctx', ctx)
@@ -1300,6 +1330,7 @@ $(document).on('click', '.row-sub-parent', function (e) {
   if ($(this).data('node-collapsed')) expandNode($(this), $table)
   else collapseNode($(this), $table)
 })
+
 /******** НАЧАЛО ЗАПУСКА САЙТА ********/
 // Начало всего и конец тоже
 $(function () {
