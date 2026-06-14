@@ -616,17 +616,15 @@ var KPI_BOARDS = {
           label: 'Всего вагонов',
           value: grandTotal,
           accent: true,
-          detail: { ctx: 'dislocation', col: '' },
+          detail: { ctx: 'dislocation' },
         },
         {
           label: 'Цистерны',
           value: tankTotal,
-          detail: { ctx: 'dislocation', col: 'Цистерна', params: { park_type: 'Цистерна' } },
         },
         {
           label: 'Прочие вагоны',
           value: grandTotal - tankTotal,
-          detail: { ctx: 'dislocation', col: 'Прочие' },
         },
       ]
     },
