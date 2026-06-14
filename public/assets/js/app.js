@@ -121,29 +121,16 @@ function loadDashboard() {
     var label = data.updated_at || '—'
     $('#brandDateSub').text('Дислокация РЖД на ' + label)
     $('#headerDate').text(label)
-    showDashKpi(data.sections)
+    showDashKpi(data)
     drawBar(data.sections)
     drawDonut(data.sections)
   })
 }
 
-// KPI карточки
-function showDashKpi(sections) {
-  var grandTotal = sections.reduce(function (s, x) {
-    return s + x.total
-  }, 0)
-  var tankTotal = sections.reduce(function (s, x) {
-    return s + (x.tank_total || 0)
-  }, 0)
-
-  var kpis = [
-    { label: 'Всего вагонов', value: grandTotal, accent: true },
-    { label: 'Цистерны', value: tankTotal },
-    { label: 'Прочие вагоны', value: grandTotal - tankTotal },
-    //{ label: 'Типов парка', value: sections.length, sub: 'разновидностей' },
-  ]
-
-  $('#kpiGrid').html(kpis.map(kpiCard).join(''))
+// KPI карточки дашборда
+function showDashKpi(data) {
+  var cards = KPI_BOARDS.dashboard.cards(data)
+  $('#kpiGrid').html(cards.map(kpiCard).join(''))
 }
 
 // SVG
@@ -614,6 +601,37 @@ var WAGON_TABS = {
 }
 
 /******** Вагон конфиг конец ********/
+
+// Настройка KPI-карточек для дашборда и других standalone-блоков.
+// cards(data) — функция, возвращает массив карточек.
+// Поля карточки: label, value, accent, sub, detail.
+// detail.ctx — ключ из WAGON_TABS (тогда openDetail); detail.url — произвольная ссылка.
+var KPI_BOARDS = {
+  dashboard: {
+    cards: function (data) {
+      var grandTotal = data.sections.reduce(function (s, x) { return s + x.total }, 0)
+      var tankTotal = data.sections.reduce(function (s, x) { return s + (x.tank_total || 0) }, 0)
+      return [
+        {
+          label: 'Всего вагонов',
+          value: grandTotal,
+          accent: true,
+          detail: { ctx: 'dislocation', col: '' },
+        },
+        {
+          label: 'Цистерны',
+          value: tankTotal,
+          detail: { ctx: 'dislocation', col: 'Цистерна', params: { park_type: 'Цистерна' } },
+        },
+        {
+          label: 'Прочие вагоны',
+          value: grandTotal - tankTotal,
+          detail: { ctx: 'dislocation', col: 'Прочие' },
+        },
+      ]
+    },
+  },
+}
 
 function fillSelect(selector, values) {
   var $sel = $(selector)
@@ -1162,13 +1180,16 @@ function idleStyle(days) {
   return ''
 }
 
-// HTML одной KPI-карточки. Поля: label, value (или total), accent, sub.
+// HTML одной KPI-карточки. Поля: label, value (или total), accent, sub, detail.
+// detail: { ctx, road, station, col, groupBy, subs, params } — открыть детализацию по клику
+// detail: { url } — открыть произвольный URL по клику
 function kpiCard(item) {
   var val = item.value != null ? item.value : item.total || 0
+  var hasDetail = !!(item.detail)
+  var cls = 'kpi-card' + (item.accent ? ' accent' : '') + (hasDetail ? ' kpi-card--link' : '')
+  var detAttr = hasDetail ? ' data-detail=\'' + JSON.stringify(item.detail).replace(/'/g, '&#39;') + '\'' : ''
   return (
-    '<div class="kpi-card' +
-    (item.accent ? ' accent' : '') +
-    '">' +
+    '<div class="' + cls + '"' + detAttr + '>' +
     '<div class="kpi-value">' +
     (typeof val === 'number' ? val.toLocaleString('ru-RU') : esc(String(val))) +
     '</div>' +
@@ -1314,6 +1335,22 @@ $(document).on('click', '.cell-link', function (e) {
   if (dataExtra && typeof dataExtra === 'object')
     Object.assign(extra, dataExtra)
   if (ctx) openDetail(ctx, road, station, col, groupBy, subs, extra)
+})
+
+// Клик по KPI-карточке с детализацией
+$(document).on('click', '.kpi-card--link', function () {
+  var raw = $(this).attr('data-detail')
+  if (!raw) return
+  var d
+  try { d = JSON.parse(raw) } catch (e) { return }
+  if (d.url) {
+    window.open(d.url, '_blank')
+    return
+  }
+  var extra = d.params || {}
+  var tabCfg = d.ctx && WAGON_TABS[d.ctx]
+  if (tabCfg && tabCfg.getParams) Object.assign(extra, tabCfg.getParams())
+  openDetail(d.ctx || '', d.road || '', d.station || '', d.col || '', d.groupBy || '', d.subs || [], extra)
 })
 
 // Сворачивание/разворачивание

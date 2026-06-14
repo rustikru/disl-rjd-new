@@ -346,6 +346,17 @@ body {
   font-size: 11px;
   color: var(--text-3);
 }
+.kpi-card--link {
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.kpi-card--link:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.13);
+  border-color: var(--accent);
+}
+.kpi-card--link.accent:hover {
+  box-shadow: 0 4px 14px rgba(74, 127, 203, 0.35);
+}
 
 /* ── Графики ───────────────── */
 .analytics-grid {
