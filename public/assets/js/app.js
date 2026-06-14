@@ -430,9 +430,10 @@ var WAGON_TABS = {
     detailUrl: BASE + '/api/approach/detail',
     metricsId: 'approachMetrics',
     kpi: function (data) {
+      var gby = this.groupCols.map(function (g) { return g.key }).join(',')
       var main = { label: 'Всего в подходе', value: data.total, accent: true, detail: { ctx: 'approach' } }
       var rows = (data.metrics || []).map(function (m) {
-        return { label: m.label, value: m.total, detail: { ctx: 'approach', road: m.label } }
+        return { label: m.label, value: m.total, detail: { ctx: 'approach', road: m.label, groupBy: gby } }
       })
       return [main].concat(rows)
     },
@@ -473,9 +474,10 @@ var WAGON_TABS = {
     detailUrl: BASE + '/api/departure/detail',
     metricsId: 'departureMetrics',
     kpi: function (data) {
+      var gby = this.groupCols.map(function (g) { return g.key }).join(',')
       var main = { label: 'Всего отправлено', value: data.total, accent: true, detail: { ctx: 'departure' } }
       var rows = (data.metrics || []).map(function (m) {
-        return { label: m.label, value: m.total, detail: { ctx: 'departure', road: m.label } }
+        return { label: m.label, value: m.total, detail: { ctx: 'departure', road: m.label, groupBy: gby } }
       })
       return [main].concat(rows)
     },
@@ -516,9 +518,10 @@ var WAGON_TABS = {
     detailUrl: BASE + '/api/loading/detail',
     metricsId: 'loadingMetrics',
     kpi: function (data) {
+      var gby = this.groupCols.map(function (g) { return g.key }).join(',')
       var main = { label: 'Всего погружено', value: data.total, accent: true, detail: { ctx: 'loading' } }
       var rows = (data.metrics || []).map(function (m) {
-        return { label: m.label, value: m.total, detail: { ctx: 'loading', road: m.label } }
+        return { label: m.label, value: m.total, detail: { ctx: 'loading', road: m.label, groupBy: gby } }
       })
       return [main].concat(rows)
     },
@@ -586,9 +589,10 @@ var WAGON_TABS = {
     detailUrl: BASE + '/api/raw-material/detail',
     metricsId: 'rawMetrics',
     kpi: function (data) {
+      var gby = this.groupCols.map(function (g) { return g.key }).join(',')
       var main = { label: 'Гружёных вагонов', value: data.total, accent: true, detail: { ctx: 'raw-material' } }
       var rows = (data.metrics || []).map(function (m) {
-        return { label: m.label, value: m.total, detail: { ctx: 'raw-material', road: m.label } }
+        return { label: m.label, value: m.total, detail: { ctx: 'raw-material', road: m.label, groupBy: gby } }
       })
       return [main].concat(rows)
     },
