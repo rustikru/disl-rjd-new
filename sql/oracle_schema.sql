@@ -13,6 +13,6 @@ CREATE TABLE users (
 -- : администратор (пароль admin123)
 INSERT INTO users (username, display_name, email, password_hash)
   VALUES ('admin', 'Администратор', 'admin@company.local',
-          '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi');
+          '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC');
 COMMIT;
 /

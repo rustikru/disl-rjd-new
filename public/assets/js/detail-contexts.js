@@ -7,6 +7,7 @@ var DETAIL_CONTEXTS = {
     endpoint: '/api/dislocation/detail',
     cols: [
       { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
+      { key: 'wagon_type_code', label: 'Тип вагона', meta: true, mono: true },
       { key: 'train_no', label: 'Поезд №', meta: true },
       { key: 'oper_station', label: 'Тек. станция', meta: true },
       { key: 'depart_station', label: 'Ст. отправл.', meta: true },
