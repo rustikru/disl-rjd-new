@@ -602,15 +602,16 @@ var WAGON_TABS = {
 
 /******** Вагон конфиг конец ********/
 
-// Настройка KPI-карточек для дашборда и других standalone-блоков.
-// cards(data) — функция, возвращает массив карточек.
-// Поля карточки: label, value, accent, sub, detail.
-// detail.ctx — ключ из WAGON_TABS (тогда openDetail); detail.url — произвольная ссылка.
+// Настройка KPI-карточек для дашборда и других блоков.
 var KPI_BOARDS = {
   dashboard: {
     cards: function (data) {
-      var grandTotal = data.sections.reduce(function (s, x) { return s + x.total }, 0)
-      var tankTotal = data.sections.reduce(function (s, x) { return s + (x.tank_total || 0) }, 0)
+      var grandTotal = data.sections.reduce(function (s, x) {
+        return s + x.total
+      }, 0)
+      var tankTotal = data.sections.reduce(function (s, x) {
+        return s + (x.tank_total || 0)
+      }, 0)
       return [
         {
           label: 'Всего вагонов',
@@ -1183,11 +1184,22 @@ function idleStyle(days) {
 // detail: { url } — открыть произвольный URL по клику
 function kpiCard(item) {
   var val = item.value != null ? item.value : item.total || 0
-  var hasDetail = !!(item.detail)
-  var cls = 'kpi-card' + (item.accent ? ' accent' : '') + (hasDetail ? ' kpi-card--link' : '')
-  var detAttr = hasDetail ? ' data-detail=\'' + JSON.stringify(item.detail).replace(/'/g, '&#39;') + '\'' : ''
+  var hasDetail = !!item.detail
+  var cls =
+    'kpi-card' +
+    (item.accent ? ' accent' : '') +
+    (hasDetail ? ' kpi-card--link' : '')
+  var detAttr = hasDetail
+    ? " data-detail='" +
+      JSON.stringify(item.detail).replace(/'/g, '&#39;') +
+      "'"
+    : ''
   return (
-    '<div class="' + cls + '"' + detAttr + '>' +
+    '<div class="' +
+    cls +
+    '"' +
+    detAttr +
+    '>' +
     '<div class="kpi-value">' +
     (typeof val === 'number' ? val.toLocaleString('ru-RU') : esc(String(val))) +
     '</div>' +
@@ -1340,7 +1352,11 @@ $(document).on('click', '.kpi-card--link', function () {
   var raw = $(this).attr('data-detail')
   if (!raw) return
   var d
-  try { d = JSON.parse(raw) } catch (e) { return }
+  try {
+    d = JSON.parse(raw)
+  } catch (e) {
+    return
+  }
   if (d.url) {
     window.open(d.url, '_blank')
     return
@@ -1348,7 +1364,15 @@ $(document).on('click', '.kpi-card--link', function () {
   var extra = d.params || {}
   var tabCfg = d.ctx && WAGON_TABS[d.ctx]
   if (tabCfg && tabCfg.getParams) Object.assign(extra, tabCfg.getParams())
-  openDetail(d.ctx || '', d.road || '', d.station || '', d.col || '', d.groupBy || '', d.subs || [], extra)
+  openDetail(
+    d.ctx || '',
+    d.road || '',
+    d.station || '',
+    d.col || '',
+    d.groupBy || '',
+    d.subs || [],
+    extra,
+  )
 })
 
 // Сворачивание/разворачивание
