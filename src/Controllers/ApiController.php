@@ -674,6 +674,11 @@ class ApiController
             $innerWhere .= ' AND idle_time_days <= :max_days';
             $bindings['max_days'] = $maxDays;
         }
+        $destStation = trim($params['dest_station'] ?? '');
+        if ($destStation !== '') {
+            $innerWhere .= ' AND dest_station = :dest_station';
+            $bindings['dest_station'] = $destStation;
+        }
 
         $reportDt = !empty($dtsByType) ? max($dtsByType) : null;
         $from = "(SELECT xdr.*, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days,'name') AS idle_time_name 

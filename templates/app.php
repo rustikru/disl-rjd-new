@@ -295,6 +295,10 @@ $basePath = $basePath ?? '';
                   style="width:72px">
               </div>
             </div>
+            <div class="filter-item">
+              <label class="filter-label">Ст. назначения</label>
+              <input class="filter-input" type="text" id="fDowntimeDestStation" placeholder="Введите станцию" style="width:180px">
+            </div>
             <div class="filter-actions">
               <button class="btn btn-primary btn-sm" id="btnDowntimeApply">Применить</button>
             </div>

@@ -543,15 +543,18 @@ var WAGON_TABS = {
     getParams: function () {
       var min = $('#fDowntimeMinDays').val()
       var max = $('#fDowntimeMaxDays').val()
+      var destStation = $('#fDowntimeDestStation').val().trim()
       return {
         min_days: min !== '' ? min : 1,
         max_days: max !== '' ? max : undefined,
+        dest_station: destStation !== '' ? destStation : undefined,
         col_label: this.colLabel,
       }
     },
     resetFilters: function () {
       $('#fDowntimeMinDays').val('1')
       $('#fDowntimeMaxDays').val('')
+      $('#fDowntimeDestStation').val('')
     },
   },
   // Сырьё
