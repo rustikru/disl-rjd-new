@@ -431,7 +431,7 @@ var WAGON_TABS = {
     metricsId: 'approachMetrics',
     kpi: function (data) {
       return [
-        { label: 'Всего в подходе', value: data.total, accent: true },
+        { label: 'Всего в подходе', value: data.total, accent: true, detail: { ctx: 'approach' } },
       ].concat(data.metrics || [])
     },
     csvFilename: 'подход',
@@ -472,7 +472,7 @@ var WAGON_TABS = {
     metricsId: 'departureMetrics',
     kpi: function (data) {
       return [
-        { label: 'Всего отправлено', value: data.total, accent: true },
+        { label: 'Всего отправлено', value: data.total, accent: true, detail: { ctx: 'departure' } },
       ].concat(data.metrics || [])
     },
     csvFilename: 'отправление',
@@ -513,7 +513,7 @@ var WAGON_TABS = {
     metricsId: 'loadingMetrics',
     kpi: function (data) {
       return [
-        { label: 'Всего погружено', value: data.total, accent: true },
+        { label: 'Всего погружено', value: data.total, accent: true, detail: { ctx: 'loading' } },
       ].concat(data.metrics || [])
     },
     csvFilename: 'погрузка',
@@ -580,7 +580,7 @@ var WAGON_TABS = {
     detailUrl: BASE + '/api/raw-material/detail',
     metricsId: 'rawMetrics',
     kpi: function (data) {
-      return [{ label: 'Гружёных вагонов', value: data.total, accent: true }]
+      return [{ label: 'Гружёных вагонов', value: data.total, accent: true, detail: { ctx: 'raw-material' } }]
     },
     sumTableId: 'rawSumTable',
     sumSubId: 'rawSumSub',
