@@ -12,7 +12,7 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 class ApiController
 {
-    private const WAG_TYPE_EXPR = "XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)";
+    private const WAG_TYPE_EXPR = "XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)"; // краткое название типа вагона для сводных таблиц
 
     private DbInterface $db;
 
