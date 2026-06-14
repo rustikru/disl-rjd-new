@@ -430,9 +430,11 @@ var WAGON_TABS = {
     detailUrl: BASE + '/api/approach/detail',
     metricsId: 'approachMetrics',
     kpi: function (data) {
-      return [
-        { label: 'Всего в подходе', value: data.total, accent: true, detail: { ctx: 'approach' } },
-      ].concat(data.metrics || [])
+      var main = { label: 'Всего в подходе', value: data.total, accent: true, detail: { ctx: 'approach' } }
+      var rows = (data.metrics || []).map(function (m) {
+        return { label: m.label, value: m.total, detail: { ctx: 'approach', road: m.label } }
+      })
+      return [main].concat(rows)
     },
     csvFilename: 'подход',
     sumTableId: 'approachSumTable',
@@ -471,9 +473,11 @@ var WAGON_TABS = {
     detailUrl: BASE + '/api/departure/detail',
     metricsId: 'departureMetrics',
     kpi: function (data) {
-      return [
-        { label: 'Всего отправлено', value: data.total, accent: true, detail: { ctx: 'departure' } },
-      ].concat(data.metrics || [])
+      var main = { label: 'Всего отправлено', value: data.total, accent: true, detail: { ctx: 'departure' } }
+      var rows = (data.metrics || []).map(function (m) {
+        return { label: m.label, value: m.total, detail: { ctx: 'departure', road: m.label } }
+      })
+      return [main].concat(rows)
     },
     csvFilename: 'отправление',
     sumTableId: 'departureSumTable',
@@ -512,9 +516,11 @@ var WAGON_TABS = {
     detailUrl: BASE + '/api/loading/detail',
     metricsId: 'loadingMetrics',
     kpi: function (data) {
-      return [
-        { label: 'Всего погружено', value: data.total, accent: true, detail: { ctx: 'loading' } },
-      ].concat(data.metrics || [])
+      var main = { label: 'Всего погружено', value: data.total, accent: true, detail: { ctx: 'loading' } }
+      var rows = (data.metrics || []).map(function (m) {
+        return { label: m.label, value: m.total, detail: { ctx: 'loading', road: m.label } }
+      })
+      return [main].concat(rows)
     },
     csvFilename: 'погрузка',
     sumTableId: 'loadingSumTable',
@@ -580,7 +586,11 @@ var WAGON_TABS = {
     detailUrl: BASE + '/api/raw-material/detail',
     metricsId: 'rawMetrics',
     kpi: function (data) {
-      return [{ label: 'Гружёных вагонов', value: data.total, accent: true, detail: { ctx: 'raw-material' } }]
+      var main = { label: 'Гружёных вагонов', value: data.total, accent: true, detail: { ctx: 'raw-material' } }
+      var rows = (data.metrics || []).map(function (m) {
+        return { label: m.label, value: m.total, detail: { ctx: 'raw-material', road: m.label } }
+      })
+      return [main].concat(rows)
     },
     sumTableId: 'rawSumTable',
     sumSubId: 'rawSumSub',
