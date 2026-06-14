@@ -423,7 +423,9 @@ var WAGON_TABS = {
     summaryUrl: BASE + '/api/approach/summary',
     detailUrl: BASE + '/api/approach/detail',
     metricsId: 'approachMetrics',
-    metricsLabel: 'Всего в подходе',
+    kpi: function (data) {
+      return [{ label: 'Всего в подходе', value: data.total, accent: true }].concat(data.metrics || [])
+    },
     csvFilename: 'подход',
     sumTableId: 'approachSumTable',
     sumSubId: 'approachSumSub',
@@ -460,7 +462,9 @@ var WAGON_TABS = {
     summaryUrl: BASE + '/api/departure/summary',
     detailUrl: BASE + '/api/departure/detail',
     metricsId: 'departureMetrics',
-    metricsLabel: 'Всего отправлено',
+    kpi: function (data) {
+      return [{ label: 'Всего отправлено', value: data.total, accent: true }].concat(data.metrics || [])
+    },
     csvFilename: 'отправление',
     sumTableId: 'departureSumTable',
     sumSubId: 'departureSumSub',
@@ -497,7 +501,9 @@ var WAGON_TABS = {
     summaryUrl: BASE + '/api/loading/summary',
     detailUrl: BASE + '/api/loading/detail',
     metricsId: 'loadingMetrics',
-    metricsLabel: 'Всего погружено',
+    kpi: function (data) {
+      return [{ label: 'Всего погружено', value: data.total, accent: true }].concat(data.metrics || [])
+    },
     csvFilename: 'погрузка',
     sumTableId: 'loadingSumTable',
     sumSubId: 'loadingSumSub',
