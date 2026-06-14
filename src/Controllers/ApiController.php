@@ -435,6 +435,27 @@ class ApiController
     }
 
     /** GET /api/downtime/summary — Сводная простоев */
+    /** GET /api/downtime/filters — уникальные станции назначения для дропдауна */
+    public function downtimeFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $base = $this->downtimeFrom($request->getQueryParams());
+
+        if (!$base['reportDt']) {
+            return $this->json($response, ['dest_station' => []]);
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT DISTINCT dest_station FROM {$base['from']}
+             WHERE dest_station IS NOT NULL
+             ORDER BY dest_station",
+            $base['bindings']
+        );
+
+        return $this->json($response, [
+            'dest_station' => array_column($rows, 'dest_station'),
+        ]);
+    }
+
     public function downtimeSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();

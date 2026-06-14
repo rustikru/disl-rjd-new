@@ -101,6 +101,9 @@ return function (App $app, array $config): void {
         });
 
         // Простои
+        $group->get('/api/downtime/filters', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->downtimeFilters($req, $res);
+        });
         $group->get('/api/downtime/summary', function ($req, $res) use ($getDb) {
             return (new \App\Controllers\ApiController($getDb()))->downtimeSummary($req, $res);
         });

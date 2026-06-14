@@ -540,20 +540,18 @@ var WAGON_TABS = {
       //{ key: 'oper_station', label: 'Станция' },
     ],
     applyBtnId: 'btnDowntimeApply',
+    filtersUrl: BASE + '/api/downtime/filters',
+    fillFilters: function (data) {
+      fillSelect('#fDowntimeDestStation', data.dest_station || [])
+    },
     getParams: function () {
-      var min = $('#fDowntimeMinDays').val()
-      var max = $('#fDowntimeMaxDays').val()
-      var destStation = $('#fDowntimeDestStation').val().trim()
+      var destStation = $('#fDowntimeDestStation').val()
       return {
-        min_days: min !== '' ? min : 1,
-        max_days: max !== '' ? max : undefined,
         dest_station: destStation !== '' ? destStation : undefined,
         col_label: this.colLabel,
       }
     },
     resetFilters: function () {
-      $('#fDowntimeMinDays').val('1')
-      $('#fDowntimeMaxDays').val('')
       $('#fDowntimeDestStation').val('')
     },
   },

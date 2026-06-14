@@ -283,30 +283,22 @@ $basePath = $basePath ?? '';
 
       <!-- Простои -->
       <div id="panel-downtime" class="tab-panel">
+        <div class="inner-tabs">
+          <button class="inner-tab active" data-inner="downtime-summary">Сводная по станциям</button>
+          <button class="inner-tab" data-inner="downtime-detail">Расширенная</button>
+        </div>
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-item">
-              <label class="filter-label">Простой, дн</label>
-              <div style="display:flex;align-items:center;gap:6px">
-                <input class="filter-input" type="number" id="fDowntimeMinDays" value="1" min="0" placeholder="от"
-                  style="width:72px">
-                <span style="color:var(--text-3);font-size:12px">—</span>
-                <input class="filter-input" type="number" id="fDowntimeMaxDays" min="0" placeholder="до"
-                  style="width:72px">
-              </div>
-            </div>
-            <div class="filter-item">
               <label class="filter-label">Ст. назначения</label>
-              <input class="filter-input" type="text" id="fDowntimeDestStation" placeholder="Введите станцию" style="width:180px">
+              <select class="filter-select" id="fDowntimeDestStation" style="width:220px">
+                <option value="">— Все —</option>
+              </select>
             </div>
             <div class="filter-actions">
               <button class="btn btn-primary btn-sm" id="btnDowntimeApply">Применить</button>
             </div>
           </div>
-        </div>
-        <div class="inner-tabs">
-          <button class="inner-tab active" data-inner="downtime-summary">Сводная по станциям</button>
-          <button class="inner-tab" data-inner="downtime-detail">Расширенная</button>
         </div>
         <div id="downtime-summary" class="inner-panel active">
           <section class="table-section">
