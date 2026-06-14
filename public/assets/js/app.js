@@ -117,7 +117,7 @@ function initInnerTabs() {
 
 // Dashboard
 function loadDashboard() {
-  $.getJSON(BASE + '/api/dashboard').done(function (data) {
+  $.getJSON(KPI_BOARDS.dashboard.dataUrl).done(function (data) {
     var label = data.updated_at || '—'
     $('#brandDateSub').text('Дислокация РЖД на ' + label)
     $('#headerDate').text(label)
@@ -619,6 +619,7 @@ var WAGON_TABS = {
 // Настройка KPI-карточек для дашборда и других блоков.
 var KPI_BOARDS = {
   dashboard: {
+    dataUrl: BASE + '/api/dashboard',
     cards: function (data) {
       var grandTotal = data.sections.reduce(function (s, x) {
         return s + x.total
