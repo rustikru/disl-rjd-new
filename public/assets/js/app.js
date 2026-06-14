@@ -1170,6 +1170,13 @@ $(document).on('click', '[data-expand-table]', function () {
 })
 
 // Поиск по столбцам:  строку-фильтр под заголовком таблицы
+function matchFilter(q, text) {
+  if (q.indexOf('%') === -1) return text.indexOf(q) !== -1
+  var pattern = q.split('%').map(function (s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  }).join('.*')
+  return new RegExp(pattern).test(text)
+}
 function addSearch($table) {
   var cells = ''
   $table.find('thead tr:first th').each(function () {
@@ -1191,7 +1198,7 @@ $(document).on('input', '.col-search-input', function () {
   $table.find('tbody tr:not(.search-row)').each(function () {
     var $cells = $(this).find('td')
     var show = filters.every(function (q, ci) {
-      return !q || $cells.eq(ci).text().toLowerCase().indexOf(q) !== -1
+      return !q || matchFilter(q, $cells.eq(ci).text().toLowerCase())
     })
     $(this).toggle(show)
   })
