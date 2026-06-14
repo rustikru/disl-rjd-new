@@ -107,6 +107,12 @@ $basePath = $basePath ?? '';
         <!-- Метрики по дорогам -->
         <div class="kpi-grid" id="approachMetrics" style="margin-bottom:16px"></div>
 
+        <!-- Внутренние вкладки -->
+        <div class="inner-tabs">
+          <button class="inner-tab active" data-inner="approach-summary">Сводная</button>
+          <button class="inner-tab" data-inner="approach-detail">Расширенная</button>
+        </div>
+
         <!-- Фильтры -->
         <div class="filters-bar">
           <div class="filters-inner">
@@ -127,12 +133,6 @@ $basePath = $basePath ?? '';
               <button class="btn btn-ghost btn-sm" id="btnApproachReset">Сбросить</button>
             </div>
           </div>
-        </div>
-
-        <!-- Внутренние вкладки -->
-        <div class="inner-tabs">
-          <button class="inner-tab active" data-inner="approach-summary">Сводная</button>
-          <button class="inner-tab" data-inner="approach-detail">Расширенная</button>
         </div>
 
         <div id="approach-summary" class="inner-panel active">
@@ -172,6 +172,10 @@ $basePath = $basePath ?? '';
       <!-- Отправление вагонов -->
       <div id="panel-departure" class="tab-panel">
         <div class="kpi-grid" id="departureMetrics" style="margin-bottom:16px"></div>
+        <div class="inner-tabs">
+          <button class="inner-tab active" data-inner="departure-summary">Сводная</button>
+          <button class="inner-tab" data-inner="departure-detail">Расширенная</button>
+        </div>
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-item">
@@ -191,10 +195,6 @@ $basePath = $basePath ?? '';
               <button class="btn btn-ghost btn-sm" id="btnDepartureReset">Сбросить</button>
             </div>
           </div>
-        </div>
-        <div class="inner-tabs">
-          <button class="inner-tab active" data-inner="departure-summary">Сводная</button>
-          <button class="inner-tab" data-inner="departure-detail">Расширенная</button>
         </div>
         <div id="departure-summary" class="inner-panel active">
           <section class="table-section">
@@ -231,6 +231,10 @@ $basePath = $basePath ?? '';
       <!-- Погрузка -->
       <div id="panel-loading" class="tab-panel">
         <div class="kpi-grid" id="loadingMetrics" style="margin-bottom:16px"></div>
+        <div class="inner-tabs">
+          <button class="inner-tab active" data-inner="loading-summary">Сводная</button>
+          <button class="inner-tab" data-inner="loading-detail">Расширенная</button>
+        </div>
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-item">
@@ -244,10 +248,6 @@ $basePath = $basePath ?? '';
               <button class="btn btn-ghost btn-sm" id="btnLoadingReset">Сбросить</button>
             </div>
           </div>
-        </div>
-        <div class="inner-tabs">
-          <button class="inner-tab active" data-inner="loading-summary">Сводная</button>
-          <button class="inner-tab" data-inner="loading-detail">Расширенная</button>
         </div>
         <div id="loading-summary" class="inner-panel active">
           <section class="table-section">
