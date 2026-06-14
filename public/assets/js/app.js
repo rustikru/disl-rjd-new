@@ -392,6 +392,25 @@ function drawMain(sections, cols) {
 // Подход / Отправление / Погрузка — описание всех полей
 
 /******** Вагон конфиг начало ********/
+/* 
+Структура WAGON_TABS:
+  ctx — контекст для детализации (параметр data-ctx в ссылках)
+  summaryUrl — URL для получения данных сводной таблицы
+  detailUrl — URL для получения данных детализации
+  metricsId — id элемента для отображения KPI (если нет, KPI не отображаются)
+  kpi(data) — функция для генерации массива KPI карточек из данных сводной (если не указано, используется всего один KPI с total)
+  csvFilename — имя для скачиваемого CSV (если не указано, CSV не поддерживается)
+  sumTableId, sumSubId — id таблицы и элемента для отображения подвала со сводной
+  detTableId, detSubId — id таблицы и элемента для отображения подвала с детализацией
+  detPanelId — id панели с детализацией (для инициализации загрузки при открытии)
+  loadedKey, loadedDetKey — ключи для отметки загрузки сводной и детализации (в window)
+  sumSubLabel — шаблон для текста подвала сводной (используется как prefix + total)
+  groupCols — массив колонок для группировки (по ним строятся ссылки в сводной и фильтруется детализация)
+  getParams() — функция для получения дополнительных параметров для запросов сводной и детализации (по умолчанию {})
+  filtersUrl — URL для получения данных для заполнения фильтров (если не указано, фильтры не поддерживаются)
+  fillFilters(data) — функция для заполнения фильтров данными из filtersUrl (если не указано, данные не используются)
+  resetFilters() — функция для сброса фильтров (если не указано, фильтры не поддерживаются)
+*/
 var WAGON_TABS = {
   // Дислокация
   dislocation: {
@@ -424,7 +443,9 @@ var WAGON_TABS = {
     detailUrl: BASE + '/api/approach/detail',
     metricsId: 'approachMetrics',
     kpi: function (data) {
-      return [{ label: 'Всего в подходе', value: data.total, accent: true }].concat(data.metrics || [])
+      return [
+        { label: 'Всего в подходе', value: data.total, accent: true },
+      ].concat(data.metrics || [])
     },
     csvFilename: 'подход',
     sumTableId: 'approachSumTable',
@@ -463,7 +484,9 @@ var WAGON_TABS = {
     detailUrl: BASE + '/api/departure/detail',
     metricsId: 'departureMetrics',
     kpi: function (data) {
-      return [{ label: 'Всего отправлено', value: data.total, accent: true }].concat(data.metrics || [])
+      return [
+        { label: 'Всего отправлено', value: data.total, accent: true },
+      ].concat(data.metrics || [])
     },
     csvFilename: 'отправление',
     sumTableId: 'departureSumTable',
@@ -502,7 +525,9 @@ var WAGON_TABS = {
     detailUrl: BASE + '/api/loading/detail',
     metricsId: 'loadingMetrics',
     kpi: function (data) {
-      return [{ label: 'Всего погружено', value: data.total, accent: true }].concat(data.metrics || [])
+      return [
+        { label: 'Всего погружено', value: data.total, accent: true },
+      ].concat(data.metrics || [])
     },
     csvFilename: 'погрузка',
     sumTableId: 'loadingSumTable',
@@ -1179,9 +1204,12 @@ $(document).on('click', '[data-expand-table]', function () {
 // Поиск по столбцам:  строку-фильтр под заголовком таблицы
 function matchFilter(q, text) {
   if (q.indexOf('%') === -1) return text.indexOf(q) !== -1
-  var pattern = q.split('%').map(function (s) {
-    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  }).join('.*')
+  var pattern = q
+    .split('%')
+    .map(function (s) {
+      return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    })
+    .join('.*')
   return new RegExp(pattern).test(text)
 }
 function addSearch($table) {
