@@ -62,6 +62,38 @@ $success  = $_GET['success'] ?? '';
       width: 100%;
       font-size: 14px;
     }
+    .btn-loading {
+      opacity: 0.65;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .upload-spinner {
+      display: none;
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--text-muted, #9DA5B0);
+      align-items: center;
+      gap: 8px;
+    }
+
+    .upload-spinner.visible {
+      display: flex;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .spinner-icon {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #CBD5E1;
+      border-top-color: #3B82F6;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 
@@ -110,8 +142,21 @@ $success  = $_GET['success'] ?? '';
             <label class="filter-label" for="xlsx_file">Файл справки</label>
             <input type="file" id="xlsx_file" name="xlsx_file" accept=".xlsx,.xls">
           </div>
-          <button type="submit" class="btn btn-primary">Загрузить</button>
+          <button type="submit" id="btnUpload" class="btn btn-primary">Загрузить</button>
+          <div class="upload-spinner" id="uploadSpinner">
+            <div class="spinner-icon"></div>
+            <span>Идёт загрузка, пожалуйста подождите…</span>
+          </div>
         </form>
+        <script>
+          document.querySelector('form').addEventListener('submit', function () {
+            var btn = document.getElementById('btnUpload');
+            btn.textContent = 'Загружается…';
+            btn.classList.add('btn-loading');
+            btn.disabled = true;
+            document.getElementById('uploadSpinner').classList.add('visible');
+          });
+        </script>
       </div>
     </section>
 
