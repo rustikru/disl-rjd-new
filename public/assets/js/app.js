@@ -420,6 +420,14 @@ var WAGON_TABS = {
     getParams: function () {
       return {}
     },
+    mapDetailParams: function (road, station, col, subs) {
+      return {
+        road: road,
+        station: station,
+        wagon_type: col,
+        cargo_state: subs && subs[0] ? subs[0] : undefined,
+      }
+    },
   },
 
   // Подход
@@ -468,6 +476,9 @@ var WAGON_TABS = {
         cargo: $('#fApproachCargo').val() || undefined,
         prev_cargo: $('#fApproachPrevCargo').val() || undefined,
       }
+    },
+    mapDetailParams: function (road, station, col, subs) {
+      return Object.assign({ road: road, station: station, wagon_type: col }, this.getParams())
     },
     fillFilters: function (data) {
       fillSelect('#fApproachCargo', data.cargo || [])
@@ -526,6 +537,9 @@ var WAGON_TABS = {
         dest_station: $('#fDestStation').val() || undefined,
       }
     },
+    mapDetailParams: function (road, station, col, subs) {
+      return Object.assign({ road: road, station: station, wagon_type: col }, this.getParams())
+    },
     fillFilters: function (data) {
       fillSelect('#fDepartureCargo', data.cargo || [])
       fillSelect('#fDestStation', data.dest_station || [])
@@ -580,6 +594,9 @@ var WAGON_TABS = {
     getParams: function () {
       return { cargo: $('#fLoadingCargo').val() || undefined }
     },
+    mapDetailParams: function (road, station, col, subs) {
+      return Object.assign({ road: road, station: station, wagon_type: col }, this.getParams())
+    },
     fillFilters: function (data) {
       fillSelect('#fLoadingCargo', data.cargo || [])
     },
@@ -616,6 +633,15 @@ var WAGON_TABS = {
         dest_station: destStation !== '' ? destStation : undefined,
         col_label: this.colLabel,
       }
+    },
+    // col — синтетический лейбл ('Кол-во'), не передаём как wagon_type.
+    // wagon_type берём из subs[0] — это m_wagon_type_code из сводной.
+    mapDetailParams: function (road, station, col, subs) {
+      var p = { road: road }
+      if (subs && subs[0]) p.wagon_type = subs[0]
+      var fp = this.getParams()
+      if (fp.dest_station) p.dest_station = fp.dest_station
+      return p
     },
     resetFilters: function () {
       $('#fDowntimeDestStation').val('')
@@ -662,6 +688,9 @@ var WAGON_TABS = {
     ],
     getParams: function () {
       return {}
+    },
+    mapDetailParams: function (road, station, col, subs) {
+      return { road: road, station: station, wagon_type: col }
     },
   },
 }
@@ -1647,27 +1676,34 @@ $(document).on('input', '.col-search-input', function () {
   })
 })
 
-// Имена URL-параметров для уровней подзаголовка колонок (после типа вагона).
-// Новый уровень шапки → добавить имя параметра сюда + фильтр в *Detail на бэке
-// + проброс параметра в detail.php.
-var SUB_PARAM_NAMES = ['cargo_state']
-
 // Drill-down: открыть страницу детализации в новой вкладке.
-// extra — активные фильтры вкладки (cfg.getParams()) передаются в URL как есть
+// Параметры собираются через cfg.mapDetailParams (определяется в WAGON_TABS),
+// что позволяет каждому контексту задавать свой маппинг без переопределений.
 function openDetail(ctx, road, station, col, groupBy, subs, extra) {
   var p = new URLSearchParams()
   p.set('ctx', ctx)
-  if (road) p.set('road', road)
-  if (station) p.set('station', station)
-  if (col) p.set('col', col)
   if (groupBy) p.set('group_by', groupBy)
-  ;(subs || []).forEach(function (s, i) {
-    if (s && SUB_PARAM_NAMES[i]) p.set(SUB_PARAM_NAMES[i], s)
-  })
+
+  var tabCfg = WAGON_TABS[ctx]
+  if (tabCfg && tabCfg.mapDetailParams) {
+    // Контекст сам знает как смаппить road/station/col/subs на бэкенд-параметры
+    var mapped = tabCfg.mapDetailParams(road, station, col, subs)
+    Object.keys(mapped).forEach(function (k) {
+      if (mapped[k] !== undefined && mapped[k] !== null && mapped[k] !== '')
+        p.set(k, mapped[k])
+    })
+  } else {
+    // Дефолт: road→road, station→station, col→wagon_type, subs[0]→cargo_state
+    if (road) p.set('road', road)
+    if (station) p.set('station', station)
+    if (col) p.set('wagon_type', col)
+    if (subs && subs[0]) p.set('cargo_state', subs[0])
+  }
+
+  // Параметры активных фильтров вкладки (getParams) — не перетирают явно заданные
   Object.keys(extra || {}).forEach(function (k) {
-    if (extra[k] !== undefined && extra[k] !== null && extra[k] !== '') {
+    if (!p.has(k) && extra[k] !== undefined && extra[k] !== null && extra[k] !== '')
       p.set(k, extra[k])
-    }
   })
   window.open(BASE + '/detail?' + p.toString(), '_blank')
 }

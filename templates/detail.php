@@ -121,11 +121,11 @@ $basePath = $basePath ?? '';
 
     $(function () {
       var params = new URLSearchParams(window.location.search);
-      var ctx      = params.get('ctx')         || '';
-      var road     = params.get('road')        || '';
-      var station  = params.get('station')     || '';
-      var col      = params.get('col')         || '';
-      var cargoState = params.get('cargo_state') || '';
+      var ctx        = params.get('ctx')          || '';
+      var road       = params.get('road')         || '';
+      var station    = params.get('station')      || '';
+      var wagType    = params.get('wagon_type')   || '';
+      var cargoState = params.get('cargo_state')  || '';
 
       var ctxDef = null;
       var def = DETAIL_CONTEXTS[ctx];
@@ -143,7 +143,7 @@ $basePath = $basePath ?? '';
       if (road) { titleParts.push(road); }
       else if (bcpathParts.length) { bcpathParts.forEach(function (p) { if (p) titleParts.push(p); }); }
       if (station)   { titleParts.push(station); }
-      if (col)       { titleParts.push(col); }
+      if (wagType)   { titleParts.push(wagType); }
       if (cargoState){ titleParts.push(cargoState); }
       $('#detailTitle').text(titleParts.join(' › ') || 'Детализация');
 
@@ -152,12 +152,11 @@ $basePath = $basePath ?? '';
         return;
       }
 
+      // Все параметры детализации заданы в WAGON_TABS[ctx].mapDetailParams на фронтенде.
+      // Здесь просто прокидываем их дальше на бэкенд (кроме ctx и _bcpath).
       var apiParams = new URLSearchParams();
-      if (road)    { apiParams.set('road', road); }
-      if (station) { apiParams.set('station', station); }
-      if (col)     { apiParams.set('wagon_type', col); }
-      var handled = { ctx: 1, road: 1, station: 1, col: 1, _bcpath: 1 };
-      params.forEach(function (v, k) { if (!handled[k] && v) { apiParams.set(k, v); } });
+      var skipKeys = { ctx: 1, _bcpath: 1 };
+      params.forEach(function (v, k) { if (!skipKeys[k] && v) { apiParams.set(k, v); } });
       apiParams.set('fields', ctxDef.cols.map(function (c) { return c.key; }).join(','));
 
       if (ctxDef.sort && !apiParams.has('sort')) {
