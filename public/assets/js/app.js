@@ -943,14 +943,14 @@ function showTable($container, rows, colDefs) {
 
   function fitVpHeight() {
     var top = vp.getBoundingClientRect().top
-    vp.style.height = Math.max(200, window.innerHeight - top - 10) + 'px'
-    render(true)
+    var h   = top > 0 ? window.innerHeight - top - 10 : window.innerHeight - 10
+    vp.style.height = Math.max(300, h) + 'px'
+    render(false)
   }
 
-  requestAnimationFrame(fitVpHeight)
-
-  var _resizeHandler = function () { fitVpHeight() }
-  window.addEventListener('resize', _resizeHandler)
+  requestAnimationFrame(function () { fitVpHeight(); render(true) })
+  window.addEventListener('resize', fitVpHeight, { passive: true })
+  window.addEventListener('scroll', fitVpHeight, { passive: true })
 
   render(true)
   attachFloatScrollbar(vp)
