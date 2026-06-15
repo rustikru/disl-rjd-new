@@ -21,10 +21,10 @@ class ApiController
         $this->db = $db;
     }
 
-    /** Допускает только безопасные имена полей: буквы, цифры, _ и . */
+    /** Допускает только безопасные имена полей: буквы, цифры, _ (без точки и пробелов) */
     private static function isSafeField(string $f): bool
     {
-        return $f !== '' && (bool) preg_match('/^[a-z_][a-z0-9_.]*$/i', $f);
+        return $f !== '' && (bool) preg_match('/^[a-z_][a-z0-9_]*$/iD', $f);
     }
 
     /** Строит строку SELECT из переданных полей. */
@@ -61,7 +61,7 @@ class ApiController
         }
         $dir  = strtoupper($params['sort_dir']  ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
         $expr = strtolower($params['sort_type'] ?? '') === 'number'
-            ? "TO_NUMBER($sort)"
+            ? "TO_NUMBER($sort DEFAULT NULL ON CONVERSION ERROR)"
             : $sort;
         return "$expr $dir";
     }
