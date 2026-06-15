@@ -23,30 +23,66 @@ $basePath = $basePath ?? '';
       gap: 4px;
       flex-wrap: wrap;
     }
+    .detail-breadcrumb .bc-sep { color: var(--border); }
+    .detail-breadcrumb .bc-item { color: var(--text-2); }
+    .detail-breadcrumb .bc-item.bc-active { color: var(--text-1); font-weight: 700; }
+    .detail-page-body { padding: 16px 20px 40px; max-width: 100%; }
+    .detail-header-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 
-    .detail-breadcrumb .bc-sep {
-      color: var(--border);
+    /* ── Виртуальная таблица ── */
+    #detailTable { overflow: hidden; }
+    .vt-viewport {
+      height: calc(100vh - 210px);
+      min-height: 300px;
+      overflow: auto;
+      position: relative;
     }
-
-    .detail-breadcrumb .bc-item {
-      color: var(--text-2);
+    .vt-content { position: relative; }
+    .vt-head, .vt-filter, .vt-row { display: grid; }
+    .vt-head {
+      position: sticky; top: 0; z-index: 3;
+      background: #f0f2f5;
+      border-bottom: 2px solid var(--border, #dde0e6);
     }
-
-    .detail-breadcrumb .bc-item.bc-active {
-      color: var(--text-1);
-      font-weight: 700;
+    .vt-filter {
+      position: sticky; top: 34px; z-index: 2;
+      background: #fafbfc;
+      border-bottom: 1px solid var(--border, #dde0e6);
     }
-
-    .detail-page-body {
-      padding: 16px 20px 40px;
-      max-width: 100%;
+    .vt-th {
+      padding: 0 10px; height: 34px;
+      display: flex; align-items: center;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: .04em; text-transform: uppercase;
+      color: var(--text-2, #6b7682);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      user-select: none;
     }
-
-    .detail-header-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 14px;
+    .vt-th.col-meta { color: var(--text-3, #9DA5B0); }
+    .vt-fc { padding: 3px 6px; }
+    .vt-fc input {
+      width: 100%; padding: 3px 6px;
+      border: 1px solid var(--border, #dde0e6);
+      border-radius: 4px; font-size: 11px;
+      background: var(--bg, #f5f6fa);
+      color: var(--text-1, #1b2127);
+    }
+    .vt-row {
+      height: 34px;
+      border-bottom: 1px solid #eef1f3;
+    }
+    .vt-row:hover { background: rgba(0,0,0,.025); }
+    .vt-cell {
+      padding: 0 10px; height: 34px;
+      display: flex; align-items: center;
+      font-size: 13px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .vt-cell.col-meta { color: var(--text-3, #9DA5B0); }
+    .vt-cell.vt-right { justify-content: flex-end; }
+    .vt-empty {
+      padding: 40px; text-align: center;
+      color: var(--text-3, #9DA5B0); font-size: 14px;
     }
   </style>
 </head>
@@ -56,8 +92,7 @@ $basePath = $basePath ?? '';
   <header class="site-header">
     <div class="header-inner">
       <div class="brand">
-        <div class="brand-icon">
-        </div>
+        <div class="brand-icon"></div>
         <div class="brand-text">
           <div class="brand-name"><?= htmlspecialchars($appName) ?></div>
         </div>
@@ -89,9 +124,7 @@ $basePath = $basePath ?? '';
           <button class="btn btn-ghost btn-sm" id="btnDetailCSV">Скачать CSV</button>
         </div>
       </div>
-      <div class="table-scroll">
-        <table class="data-table" id="detailTable"></table>
-      </div>
+      <div id="detailTable"></div>
     </section>
 
   </div>
@@ -109,6 +142,7 @@ $basePath = $basePath ?? '';
         .replace(/&/g, '&amp;').replace(/</g, '&lt;')
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
+
     function attachFloatScrollbar(scrollEl) {
       if (scrollEl._floatScrollbar) scrollEl._floatScrollbar.remove();
       var floater = document.createElement('div');
@@ -136,89 +170,50 @@ $basePath = $basePath ?? '';
       update();
     }
 
-    // Добавляем строку для поиска по столбцам
-    function addColumnSearch($table) {
-      var cells = '';
-      $table.find('thead tr:first th').each(function () {
-        cells += '<td><input class="col-search-input" type="text" placeholder=""></td>';
-      });
-      $table.find('tbody').prepend('<tr class="search-row">' + cells + '</tr>');
-      var scrollEl = $table.closest('.table-scroll')[0];
-      if (scrollEl) attachFloatScrollbar(scrollEl);
-    }
-
-    $(document).on('input', '.col-search-input', function () {
-      var $row = $(this).closest('tr.search-row');
-      var $table = $row.closest('table');
-      var filters = $row.find('.col-search-input').map(function () {
-        return $(this).val().toLowerCase().trim();
-      }).get();
-      $table.find('tbody tr:not(.search-row)').each(function () {
-        var $cells = $(this).find('td');
-        var show = filters.every(function (q, ci) {
-          return !q || $cells.eq(ci).text().toLowerCase().indexOf(q) !== -1;
-        });
-        $(this).toggle(show);
-      });
-    });
+    /* Данные для CSV — обновляются при каждом showTable */
+    var _vtAllData = [], _vtFiltered = [], _vtCols = [];
 
     $(function () {
       var params = new URLSearchParams(window.location.search);
-      var ctx = params.get('ctx') || '';
-      var road = params.get('road') || '';
-      var station = params.get('station') || '';
-      var col = params.get('col') || '';
+      var ctx      = params.get('ctx')         || '';
+      var road     = params.get('road')        || '';
+      var station  = params.get('station')     || '';
+      var col      = params.get('col')         || '';
       var cargoState = params.get('cargo_state') || '';
 
-      // Конфиг DETAIL_CONTEXTS (detail-contexts.js)
       var ctxDef = null;
       var def = DETAIL_CONTEXTS[ctx];
       if (def) {
         ctxDef = { label: def.label, endpoint: BASE + def.endpoint, cols: def.cols, sort: def.sort || null };
       }
 
-      // Вверзняя навигация
-      var bcParts = [];
-      bcParts.push('<span class="bc-item"><a href="' + (window.APP_BASE || '') + '/" style="color:inherit;text-decoration:none">← Вернуться</a></span>');
+      $('#breadcrumb').html('<span class="bc-item"><a href="' + (window.APP_BASE || '') + '/" style="color:inherit;text-decoration:none">← Вернуться</a></span>');
 
-      $('#breadcrumb').html(bcParts.join(''));
-
-      // Заголовок
       var bcpathRaw = params.get('_bcpath') || '';
       var bcpathParts = [];
       try { if (bcpathRaw) bcpathParts = JSON.parse(bcpathRaw); } catch (e) {}
       var titleParts = [];
       if (ctxDef) { titleParts.push(ctxDef.label); }
-      if (road) {
-        titleParts.push(road);
-      } else if (bcpathParts.length) {
-        bcpathParts.forEach(function (p) { if (p) titleParts.push(p); });
-      }
-      if (station) { titleParts.push(station); }
-      if (col) { titleParts.push(col); }
-      if (cargoState) { titleParts.push(cargoState); }
+      if (road) { titleParts.push(road); }
+      else if (bcpathParts.length) { bcpathParts.forEach(function (p) { if (p) titleParts.push(p); }); }
+      if (station)   { titleParts.push(station); }
+      if (col)       { titleParts.push(col); }
+      if (cargoState){ titleParts.push(cargoState); }
       $('#detailTitle').text(titleParts.join(' › ') || 'Детализация');
 
       if (!ctxDef) {
-        $('#detailTable').html('<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">Неизвестный контекст</td></tr></tbody>');
+        $('#detailTable').html('<div style="text-align:center;padding:40px;color:#9DA5B0">Неизвестный контекст</div>');
         return;
       }
 
-      // API URL
       var apiParams = new URLSearchParams();
-      if (road) { apiParams.set('road', road); }
+      if (road)    { apiParams.set('road', road); }
       if (station) { apiParams.set('station', station); }
-      if (col) { apiParams.set('wagon_type', col); }
-      // Остальные параметры URL (cargo_state, cargo, prev_cargo, group_by...)
-      // передаем в API (активные фильтры)
+      if (col)     { apiParams.set('wagon_type', col); }
       var handled = { ctx: 1, road: 1, station: 1, col: 1, _bcpath: 1 };
-      params.forEach(function (v, k) {
-        if (!handled[k] && v) { apiParams.set(k, v); }
-      });
-      // Поля из cols конфига
-      var fields = ctxDef.cols.map(function (c) { return c.key; }).join(',');
-      apiParams.set('fields', fields);
-      // Дефолтная сортировка из конфига контекста (одиночный объект или массив)
+      params.forEach(function (v, k) { if (!handled[k] && v) { apiParams.set(k, v); } });
+      apiParams.set('fields', ctxDef.cols.map(function (c) { return c.key; }).join(','));
+
       if (ctxDef.sort && !apiParams.has('sort')) {
         var sortArr = Array.isArray(ctxDef.sort) ? ctxDef.sort : [ctxDef.sort];
         sortArr = sortArr.filter(function (s) { return s && s.field; });
@@ -243,100 +238,128 @@ $basePath = $basePath ?? '';
           var detail = '';
           try { var j = JSON.parse(jqXHR.responseText); detail = j.error || j.message || ''; }
           catch (e) { detail = jqXHR.responseText || ''; }
-          var msg = 'Ошибка загрузки данных: ' + status + (detail ? ': ' + detail : '');
-          $('#detailTable').html('<tbody><tr><td style="text-align:center;padding:40px;color:#9DA5B0">' + esc(msg) + '</td></tr></tbody>');
+          var msg = 'Ошибка загрузки данных' + status + (detail ? ': ' + detail : '');
+          $('#detailTable').html('<div style="text-align:center;padding:40px;color:#9DA5B0">' + esc(msg) + '</div>');
           $('#detailSub').text(msg);
         });
     });
 
     function showTable(rows, cols) {
-      var sortState = { idx: -1, dir: 'asc' };
+      _vtAllData  = rows || [];
+      _vtFiltered = _vtAllData.slice();
+      _vtCols     = cols;
 
-      function cellHtml(c, r) {
-        var val = r[c.key];
-        var display = (val !== null && val !== undefined && val !== '') ? val : '';
-        if (c.fmt) display = c.fmt(val);
-        var tdClass = c.meta ? ' class="col-meta"' : '';
-        var tdStyle = '';
-        if (c.right) tdStyle = ' style="text-align:right"';
-        if (c.danger) {
-          var days = parseFloat(display) || 0;
-          if (days >= 7)      tdStyle = ' style="text-align:right;color:#E8392A;font-weight:700"';
-          else if (days >= 3) tdStyle = ' style="text-align:right;color:#E8A530;font-weight:600"';
-        }
-        return '<td' + tdClass + tdStyle + '>' + esc(display) + '</td>';
-      }
+      var ROW_H  = 34;
+      var BUFFER = 8;
+      var DEF_W  = 130;
 
-      function sortedRows() {
-        if (sortState.idx < 0) return rows;
-        var c = cols[sortState.idx];
-        var key = c.order_by || c.key;
-        var isNum = c.type === 'number';
-        return rows.slice().sort(function (a, b) {
-          var av = a[key], bv = b[key];
-          if (isNum) { av = parseFloat(av) || 0; bv = parseFloat(bv) || 0; }
-          else { av = String(av || '').toLowerCase(); bv = String(bv || '').toLowerCase(); }
-          if (av < bv) return sortState.dir === 'asc' ? -1 : 1;
-          if (av > bv) return sortState.dir === 'asc' ? 1 : -1;
-          return 0;
-        });
-      }
+      var template = cols.map(function (c) { return (c.w || DEF_W) + 'px'; }).join(' ');
+      var totalW   = cols.reduce(function (s, c) { return s + (c.w || DEF_W); }, 0);
 
-      function build() {
-        var h = '<thead><tr>';
-        cols.forEach(function (c, i) {
-          var cls = 'th-sortable' + (c.meta ? ' col-meta' : '');
-          var icon = sortState.idx === i ? (sortState.dir === 'asc' ? ' ▲' : ' ▼') : '';
-          h += '<th class="' + cls + '" data-col-idx="' + i + '">' + esc(c.label) + icon + '</th>';
-        });
-        h += '</tr></thead><tbody>';
-        var data = sortedRows();
-        if (!data.length) {
-          h += '<tr><td colspan="' + cols.length + '" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных</td></tr>';
-        } else {
-          data.forEach(function (r) {
-            h += '<tr class="row-data">';
-            cols.forEach(function (c) { h += cellHtml(c, r); });
-            h += '</tr>';
-          });
-        }
-        h += '</tbody>';
-        $('#detailTable').html(h);
-        addColumnSearch($('#detailTable'));
-      }
+      $('#detailTable').html(
+        '<div class="vt-viewport" id="vtVp">' +
+          '<div class="vt-content" style="width:' + totalW + 'px">' +
+            '<div class="vt-head"   id="vtHead"   style="grid-template-columns:' + template + ';width:' + totalW + 'px"></div>' +
+            '<div class="vt-filter" id="vtFilter" style="grid-template-columns:' + template + ';width:' + totalW + 'px"></div>' +
+            '<div id="vtRows"></div>' +
+          '</div>' +
+        '</div>'
+      );
 
-      build();
-
-      $(document).off('click.sort').on('click.sort', '#detailTable thead th.th-sortable', function () {
-        var idx = parseInt($(this).data('col-idx'));
-        if (sortState.idx === idx) {
-          sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
-        } else {
-          sortState.idx = idx;
-          sortState.dir = 'asc';
-        }
-        build();
+      var hHtml = '', fHtml = '';
+      cols.forEach(function (c) {
+        hHtml += '<div class="vt-th' + (c.meta ? ' col-meta' : '') + '">' + esc(c.label) + '</div>';
+        fHtml += '<div class="vt-fc"><input data-k="' + c.key + '" type="text" placeholder=""></div>';
       });
+      document.getElementById('vtHead').innerHTML   = hHtml;
+      document.getElementById('vtFilter').innerHTML = fHtml;
+
+      function cellHtml(c, row) {
+        var v = row[c.key];
+        var display = (v !== null && v !== undefined && v !== '') ? v : '';
+        if (c.fmt) display = c.fmt(v);
+        var cls = 'vt-cell' + (c.meta ? ' col-meta' : '') + (c.right ? ' vt-right' : '');
+        var style = '';
+        if (c.danger) {
+          var d = parseFloat(display) || 0;
+          if (d >= 7)      style = ' style="color:#E8392A;font-weight:700"';
+          else if (d >= 3) style = ' style="color:#E8A530;font-weight:600"';
+        }
+        return '<div class="' + cls + '"' + style + '>' + esc(String(display)) + '</div>';
+      }
+
+      var vp      = document.getElementById('vtVp');
+      var rowsEl  = document.getElementById('vtRows');
+      var lastFirst = -1, lastLast = -1;
+
+      function render(force) {
+        var scrollTop = vp.scrollTop;
+        var total = _vtFiltered.length;
+        var viewRows = Math.ceil(vp.clientHeight / ROW_H);
+        var first = Math.max(0, Math.floor(scrollTop / ROW_H) - BUFFER);
+        var last  = Math.min(total, first + viewRows + BUFFER * 2);
+        if (!force && first === lastFirst && last === lastLast) return;
+        lastFirst = first; lastLast = last;
+
+        if (!total) {
+          rowsEl.style.paddingTop    = '0';
+          rowsEl.style.paddingBottom = '0';
+          rowsEl.innerHTML = '<div class="vt-empty">Нет данных</div>';
+          return;
+        }
+        var html = '';
+        for (var i = first; i < last; i++) {
+          html += '<div class="vt-row" style="grid-template-columns:' + template + ';width:' + totalW + 'px">';
+          cols.forEach(function (c) { html += cellHtml(c, _vtFiltered[i]); });
+          html += '</div>';
+        }
+        rowsEl.style.paddingTop    = (first * ROW_H) + 'px';
+        rowsEl.style.paddingBottom = ((total - last) * ROW_H) + 'px';
+        rowsEl.innerHTML = html;
+      }
+
+      document.getElementById('vtFilter').addEventListener('input', function () {
+        var inputs = this.querySelectorAll('input');
+        var terms  = [];
+        for (var i = 0; i < inputs.length; i++) {
+          var v = inputs[i].value.trim().toLowerCase();
+          if (v) terms.push({ k: inputs[i].getAttribute('data-k'), v: v });
+        }
+        _vtFiltered = !terms.length ? _vtAllData.slice() : _vtAllData.filter(function (row) {
+          for (var t = 0; t < terms.length; t++) {
+            if (String(row[terms[t].k] == null ? '' : row[terms[t].k]).toLowerCase().indexOf(terms[t].v) === -1) return false;
+          }
+          return true;
+        });
+        lastFirst = lastLast = -1;
+        render(true);
+        $('#detailSub').text('Строк: ' + _vtFiltered.length.toLocaleString('ru-RU') +
+          (_vtFiltered.length < _vtAllData.length ? ' (отфильтровано из ' + _vtAllData.length.toLocaleString('ru-RU') + ')' : ''));
+      });
+
+      var ticking = false;
+      vp.addEventListener('scroll', function () {
+        if (ticking) return; ticking = true;
+        requestAnimationFrame(function () { render(false); ticking = false; });
+      });
+
+      render(true);
+      attachFloatScrollbar(vp);
     }
 
-    function saveCSV(tableId, filename) {
-      var rows = [];
-      var $table = $('#' + tableId);
-      $table.find('thead tr:first th').each(function () {
-        rows.push ? null : (rows = []);
+    function saveCSV(filename) {
+      function cleanCell(v) {
+        return '"' + String(v == null ? '' : v).trim().replace(/\r?\n|\r/g, ' ').replace(/"/g, '""') + '"';
+      }
+      var lines = [];
+      lines.push(_vtCols.map(function (c) { return cleanCell(c.label); }).join(';'));
+      _vtAllData.forEach(function (row) {
+        lines.push(_vtCols.map(function (c) {
+          var v = row[c.key];
+          return cleanCell(c.fmt ? c.fmt(v) : v);
+        }).join(';'));
       });
-      function cleanCell(v) { return '"' + String(v).trim().replace(/\r?\n|\r/g, ' ').replace(/"/g, '""') + '"'; }
-      var headers = [];
-      $table.find('thead tr:first th').each(function () { headers.push($(this).text()); });
-      rows.push(headers.map(cleanCell).join(';'));
-      $table.find('tbody tr:not(.search-row)').each(function () {
-        if ($(this).is(':hidden')) return;
-        var cells = [];
-        $(this).find('td').each(function () { cells.push(cleanCell($(this).text())); });
-        rows.push(cells.join(';'));
-      });
-      var bom = '﻿';
-      var blob = new Blob([bom + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      var blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = (filename || 'детализация') + '_' + new Date().toISOString().slice(0, 10) + '.csv';
@@ -346,7 +369,7 @@ $basePath = $basePath ?? '';
 
     $('#btnDetailCSV').on('click', function () {
       var title = $('#detailTitle').text().replace(/[\\/:*?"<>|]/g, '_');
-      saveCSV('detailTable', title);
+      saveCSV(title);
     });
   </script>
 </body>
