@@ -9,14 +9,12 @@ $config = require __DIR__ . '/../src/Config.php';
 
 $app = \Slim\Factory\AppFactory::create();
 
-// 1. Сначала СОЗДАЕМ Middleware ошибок (вы этот шаг случайно пропустили)
 $errorMiddleware = $app->addErrorMiddleware(
     $config['app_env'] === 'development',
     true,
     true
 );
 
-// 2. Теперь НАСТРАИВАЕМ перехват 404 ошибки
 $errorMiddleware->setErrorHandler(
     HttpNotFoundException::class,
     function ($request, $exception) use ($app, $config) {
