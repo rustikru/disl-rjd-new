@@ -50,20 +50,33 @@ class ApiController
     }
 
     /**
-     * Строит ORDER BY из параметров sort/sort_dir с валидацией.
-     * Если sort не передан — возвращает $default.
+     * Строит ORDER BY из параметров sort/sort_dir/sort_type с валидацией.
+     * Поддерживает несколько полей через запятую: sort=f1,f2&sort_dir=asc,desc&sort_type=number,
+     * Если sort не передан или все поля невалидны — возвращает $default.
      */
     private function orderClause(array $params, string $default): string
     {
-        $sort = trim($params['sort'] ?? '');
-        if ($sort === '' || !self::isSafeField($sort)) {
+        $sortRaw = trim($params['sort'] ?? '');
+        if ($sortRaw === '') {
             return $default;
         }
-        $dir  = strtoupper($params['sort_dir']  ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
-        $expr = strtolower($params['sort_type'] ?? '') === 'number'
-            ? "TO_NUMBER($sort DEFAULT NULL ON CONVERSION ERROR)"
-            : $sort;
-        return "$expr $dir";
+        $fields = array_map('trim', explode(',', $sortRaw));
+        $dirs   = array_map('trim', explode(',', $params['sort_dir']  ?? ''));
+        $types  = array_map('trim', explode(',', $params['sort_type'] ?? ''));
+
+        $parts = [];
+        foreach ($fields as $i => $field) {
+            if ($field === '' || !self::isSafeField($field)) {
+                continue;
+            }
+            $dir  = strtoupper($dirs[$i] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
+            $expr = strtolower($types[$i] ?? '') === 'number'
+                ? "TO_NUMBER($field DEFAULT NULL ON CONVERSION ERROR)"
+                : $field;
+            $parts[] = "$expr $dir";
+        }
+
+        return $parts ? implode(', ', $parts) : $default;
     }
 
     /**

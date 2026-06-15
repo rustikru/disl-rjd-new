@@ -218,11 +218,16 @@ $basePath = $basePath ?? '';
       // Поля из cols конфига
       var fields = ctxDef.cols.map(function (c) { return c.key; }).join(',');
       apiParams.set('fields', fields);
-      // Дефолтная сортировка из конфига контекста
-      if (ctxDef.sort && ctxDef.sort.field && !apiParams.has('sort')) {
-        apiParams.set('sort', ctxDef.sort.field);
-        if (ctxDef.sort.type) apiParams.set('sort_type', ctxDef.sort.type);
-        if (ctxDef.sort.dir)  apiParams.set('sort_dir',  ctxDef.sort.dir);
+      // Дефолтная сортировка из конфига контекста (одиночный объект или массив)
+      if (ctxDef.sort && !apiParams.has('sort')) {
+        var sortArr = Array.isArray(ctxDef.sort) ? ctxDef.sort : [ctxDef.sort];
+        sortArr = sortArr.filter(function (s) { return s && s.field; });
+        if (sortArr.length) {
+          apiParams.set('sort',     sortArr.map(function (s) { return s.field; }).join(','));
+          apiParams.set('sort_dir', sortArr.map(function (s) { return s.dir || 'asc'; }).join(','));
+          var types = sortArr.map(function (s) { return s.type || ''; }).join(',');
+          if (types.replace(/,/g, '')) apiParams.set('sort_type', types);
+        }
       }
 
       $('#detailSub').text('Загрузка...');

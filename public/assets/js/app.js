@@ -796,32 +796,31 @@ function loadDetail(cfg) {
   var $table = $('#' + cfg.detTableId)
   var cols = DETAIL_CONTEXTS[cfg.ctx] ? DETAIL_CONTEXTS[cfg.ctx].cols : []
   $sub.text('Загрузка...')
-  var ctxSort = DETAIL_CONTEXTS[cfg.ctx] ? DETAIL_CONTEXTS[cfg.ctx].sort : null
+  var ctxSortRaw = DETAIL_CONTEXTS[cfg.ctx] ? DETAIL_CONTEXTS[cfg.ctx].sort : null
+  var ctxSortArr = ctxSortRaw
+    ? (Array.isArray(ctxSortRaw) ? ctxSortRaw : [ctxSortRaw]).filter(function (s) { return s && s.field })
+    : []
+  var sortExtra = ctxSortArr.length
+    ? {
+        sort:     ctxSortArr.map(function (s) { return s.field }).join(','),
+        sort_dir: ctxSortArr.map(function (s) { return s.dir || 'asc' }).join(','),
+        sort_type: ctxSortArr.map(function (s) { return s.type || '' }).join(','),
+      }
+    : {}
   var listParams = cfg.listParams
     ? cfg.listParams()
-    : Object.assign(
-        {},
-        cfg.getParams(),
-        {
-          fields: cols
-            .map(function (c) {
-              return c.key
-            })
-            .join(','),
-          group_by: (cfg.groupCols || [])
-            .map(function (g) {
-              return g.key
-            })
-            .join(','),
-        },
-        ctxSort && ctxSort.field
-          ? {
-              sort: ctxSort.field,
-              sort_dir: ctxSort.dir || 'asc',
-              sort_type: ctxSort.type || undefined,
-            }
-          : {}
-      )
+    : Object.assign({}, cfg.getParams(), {
+        fields: cols
+          .map(function (c) {
+            return c.key
+          })
+          .join(','),
+        group_by: (cfg.groupCols || [])
+          .map(function (g) {
+            return g.key
+          })
+          .join(','),
+      }, sortExtra)
   $.getJSON(cfg.detailUrl, listParams)
     .done(function (data) {
       if (cfg.showList) {
