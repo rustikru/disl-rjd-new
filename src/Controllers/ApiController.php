@@ -530,10 +530,13 @@ class ApiController
 
         $bindings = $base['bindings'];
         $outerWhere = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
-        // wagon_type не фильтруем: wagon_type_code в сводной — синтетическая метка colLabel,
-        // а не реальное поле. Группировка идёт через gf (oper_road / oper_station / idle_time_name).
-
-        $select = $this->selectFields($params['fields'] ?? '');
+        $wagExpr = self::WAG_TYPE_EXPR;
+        $fields = array_values(array_filter(
+            array_map('trim', explode(',', $params['fields'] ?? '')),
+            fn($f) => self::isSafeField($f)
+        ));
+        $selectParts = array_map(fn($f) => $f === 'wagon_type_code' ? "$wagExpr AS wagon_type_code" : $f, $fields);
+        $select = $selectParts ? implode(', ', $selectParts) : 'wagon_no';
         $rows = $this->db->fetchAll(
             "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY {$this->orderClause($params, 'idle_time_days DESC')}",
             $bindings
