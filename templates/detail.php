@@ -195,7 +195,7 @@ $basePath = $basePath ?? '';
         .done(function (data) {
           var rows = data.rows || [];
           $('#detailSub').text('Строк: ' + rows.length.toLocaleString('ru-RU'));
-          renderDetailTable(rows, ctxDef.cols);
+          showTable(rows, ctxDef.cols);
         })
         .fail(function (jqXHR) {
           var status = jqXHR.status ? ' (' + jqXHR.status + ')' : '';
@@ -208,7 +208,7 @@ $basePath = $basePath ?? '';
         });
     });
 
-    function renderDetailTable(rows, cols) {
+    function showTable(rows, cols) {
       var h = '<thead><tr>';
       cols.forEach(function (c) {
         h += '<th' + (c.meta ? ' class="col-meta"' : '') + '>' + esc(c.label) + '</th>';

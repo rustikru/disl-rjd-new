@@ -860,7 +860,7 @@ function showTable($table, rows, colDefs) {
 
 /******** cols config ********/
 
-/******** summary / kpi  ********/
+/******** Сводная и KPI ********/
 
 function drawSummary(selector, roads, data, ctx, groupCols) {
   if (!roads || !roads.length) {
@@ -1045,7 +1045,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     grandSum += road.grand_total || 0
 
     if (hasChildren) {
-      var renderNodes = function (level, items, parentNodeId, ancestorFilters) {
+      var buildRows = function (level, items, parentNodeId, ancestorFilters) {
         var out = []
         var isLeaf = level === nGroup - 1
         var levelKey = groupCols[level].key
@@ -1136,7 +1136,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
             out.push(totalLink(subSum, ctx, '', '', curFiltersWithPath))
             out.push('</tr>')
 
-            out.push(renderNodes(level + 1, gItems, nodeId, curFilters))
+            out.push(buildRows(level + 1, gItems, nodeId, curFilters))
           })
         }
         return out.join('')
@@ -1144,7 +1144,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
 
       var rootFilters = {}
       rootFilters[groupCols[0].key] = roadVal
-      h.push(renderNodes(1, stations, '' + ri, rootFilters))
+      h.push(buildRows(1, stations, '' + ri, rootFilters))
     }
   })
 
