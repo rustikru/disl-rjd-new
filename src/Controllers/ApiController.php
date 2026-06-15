@@ -520,17 +520,21 @@ class ApiController
     public function downtimeDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $road = $params['road'] ?? null;
-        $station = $params['station'] ?? null;
-        $gf = $this->groupFields($params['group_by'] ?? '', ['oper_road', 'oper_station'], ['idle_time_name']);
         $base = $this->downtimeFrom($params);
         $wagType = $params['wagon_type'] ?? null;
+        // idle_time_name передаётся явно из mapDetailParams (не через road+group_by),
+        // чтобы фильтр по категории простоя не зависел от group_by в URL.
+        $idleTimeName = $params['idle_time_name'] ?? null;
         if (!$base['reportDt']) {
             return $this->json($response, ['rows' => []]);
         }
 
         $bindings = $base['bindings'];
-        $outerWhere = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
+        $outerWhere = '';
+        if ($idleTimeName !== null && $idleTimeName !== '') {
+            $outerWhere .= ' AND idle_time_name = :itn';
+            $bindings['itn'] = $idleTimeName;
+        }
         if ($wagType) {
             $outerWhere .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
             $bindings['wtype'] = $wagType;

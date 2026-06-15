@@ -646,8 +646,11 @@ var WAGON_TABS = {
     },
     // col — синтетический лейбл ('Кол-во'), не передаём как wagon_type.
     // wagon_type берём из subs[0] — это m_wagon_type_code из сводной.
+    // idle_time_name передаём явно (не через road+group_by) — чтобы бэкенд
+    // всегда корректно фильтровал по категории простоя независимо от group_by.
     mapDetailParams: function (road, station, col, subs) {
-      var p = { road: road }
+      var p = {}
+      if (road) p.idle_time_name = road
       if (subs && subs[0]) p.wagon_type = subs[0]
       var fp = this.getParams()
       if (fp.dest_station) p.dest_station = fp.dest_station
