@@ -505,7 +505,7 @@ class ApiController
         $colLabel = mb_substr(preg_replace('/[^\pL\pN\s.,\-]/u', '', $params['col_label'] ?? 'Кол-во'), 0, 40);
 
         $rows = $this->db->fetchAll(
-            "SELECT $gfStr, '$colLabel' AS fix_label, COUNT(*) AS cnt
+            "SELECT $gfStr, '$colLabel' AS wagon_type_code, COUNT(*) AS cnt
                     ,m_wagon_type_code
              FROM {$base['from']}
              GROUP BY idle_time_order_by, $gfStr, m_wagon_type_code
@@ -513,7 +513,7 @@ class ApiController
             $base['bindings']
         );
 
-        return $this->json($response, $this->roadTable($rows, $gf, ['fix_label', 'm_wagon_type_code']));
+        return $this->json($response, $this->roadTable($rows, $gf, ['wagon_type_code', 'm_wagon_type_code']));
     }
 
     /** GET /api/downtime/detail — Список простаивающих вагонов */
