@@ -1191,28 +1191,26 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
   $(selector).html(h.join(''))
 }
 
-// CSV-экспорт таблицы по id и имени файла (без даты-суффикса в имени не нужна)
+// CSV-экспорт таблицы по id и имени файла
 function saveCSV(tableId, filename) {
   var table = document.getElementById(tableId)
   if (!table) return
   var rows = []
   table.querySelectorAll('tr').forEach(function (tr) {
+    if (tr.offsetParent === null || getComputedStyle(tr).display === 'none') return
     var cells = []
     tr.querySelectorAll('th, td').forEach(function (cell) {
-      cells.push('"' + cell.textContent.trim().replace(/\r?\n|\r/g, ' ').replace(/"/g, '""') + '"')
+      var clone = cell.cloneNode(true)
+      clone.querySelectorAll('.toggle-icon').forEach(function (el) { el.remove() })
+      var val = clone.textContent.trim().replace(/\r?\n|\r/g, ' ').replace(/"/g, '""')
+      cells.push('"' + val + '"')
     })
-    rows.push(cells.join(','))
+    rows.push(cells.join(';'))
   })
-  var csv = '\uFEFF' + rows.join('\n') // BOM для корректного открытия в Excel
+  var csv = '\uFEFF' + rows.join('\n')
   var a = document.createElement('a')
-  a.href = URL.createObjectURL(
-    new Blob([csv], { type: 'text/csv;charset=utf-8' }),
-  )
-  a.download =
-    (filename || 'таблица') +
-    '_' +
-    new Date().toISOString().slice(0, 10) +
-    '.csv'
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  a.download = (filename || 'таблица') + '_' + new Date().toISOString().slice(0, 10) + '.csv'
   a.click()
   URL.revokeObjectURL(a.href)
 }
