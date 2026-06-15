@@ -174,7 +174,7 @@ $basePath = $basePath ?? '';
       var ctxDef = null;
       var def = DETAIL_CONTEXTS[ctx];
       if (def) {
-        ctxDef = { label: def.label, endpoint: BASE + def.endpoint, cols: def.cols };
+        ctxDef = { label: def.label, endpoint: BASE + def.endpoint, cols: def.cols, sort: def.sort || null };
       }
 
       // Вверзняя навигация
@@ -215,9 +215,15 @@ $basePath = $basePath ?? '';
       params.forEach(function (v, k) {
         if (!handled[k] && v) { apiParams.set(k, v); }
       });
-      // Поля из cols конфига 
+      // Поля из cols конфига
       var fields = ctxDef.cols.map(function (c) { return c.key; }).join(',');
       apiParams.set('fields', fields);
+      // Дефолтная сортировка из конфига контекста
+      if (ctxDef.sort && ctxDef.sort.field && !apiParams.has('sort')) {
+        apiParams.set('sort', ctxDef.sort.field);
+        if (ctxDef.sort.type) apiParams.set('sort_type', ctxDef.sort.type);
+        if (ctxDef.sort.dir)  apiParams.set('sort_dir',  ctxDef.sort.dir);
+      }
 
       $('#detailSub').text('Загрузка...');
 

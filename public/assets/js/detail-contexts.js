@@ -5,6 +5,7 @@ var DETAIL_CONTEXTS = {
   dislocation: {
     label: 'Расширенная дислокация',
     endpoint: '/api/dislocation/detail',
+    sort: { field: 'wagon_no', type: 'number', dir: 'asc' },
     cols: [
       { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number' },
       { key: 'wagon_type_code', label: 'Тип вагона', meta: true, mono: true },
@@ -23,6 +24,7 @@ var DETAIL_CONTEXTS = {
   approach: {
     label: 'Подход вагонов',
     endpoint: '/api/approach/detail',
+    sort: { field: 'wagon_no', type: 'number', dir: 'asc' },
     cols: [
       { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number' },
       { key: 'wagon_type_code', label: 'Род вагона', meta: true },
@@ -48,6 +50,7 @@ var DETAIL_CONTEXTS = {
   departure: {
     label: 'Отправление вагонов',
     endpoint: '/api/departure/detail',
+    sort: { field: 'wagon_no', type: 'number', dir: 'asc' },
     cols: [
       { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number' },
       { key: 'wagon_type_code', label: 'Тип', meta: true },
@@ -66,6 +69,7 @@ var DETAIL_CONTEXTS = {
   loading: {
     label: 'Погрузка',
     endpoint: '/api/loading/detail',
+    sort: { field: 'wagon_no', type: 'number', dir: 'asc' },
     cols: [
       { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number' },
       { key: 'wagon_type_code', label: 'Тип', meta: true },
@@ -83,6 +87,7 @@ var DETAIL_CONTEXTS = {
   downtime: {
     label: 'Простои',
     endpoint: '/api/downtime/detail',
+    sort: { field: 'idle_time_days', dir: 'desc' },
     cols: [
       { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number' },
       { key: 'wagon_type_code', label: 'Тип', meta: true },
@@ -98,6 +103,7 @@ var DETAIL_CONTEXTS = {
   'raw-material': {
     label: 'Сырьё',
     endpoint: '/api/raw-material/detail',
+    sort: { field: 'wagon_no', type: 'number', dir: 'asc' },
     cols: [
       { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number' },
       { key: 'wagon_type_code', label: 'Тип', meta: true },
