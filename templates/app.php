@@ -11,7 +11,7 @@ $basePath = $basePath ?? '';
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= htmlspecialchars($appName) ?> — Дислокация</title>
-  <link rel="icon" type="image/png" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.png">
+  <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
   <script>window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';</script>
 </head>
