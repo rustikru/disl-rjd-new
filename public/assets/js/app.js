@@ -796,20 +796,32 @@ function loadDetail(cfg) {
   var $table = $('#' + cfg.detTableId)
   var cols = DETAIL_CONTEXTS[cfg.ctx] ? DETAIL_CONTEXTS[cfg.ctx].cols : []
   $sub.text('Загрузка...')
+  var ctxSort = DETAIL_CONTEXTS[cfg.ctx] ? DETAIL_CONTEXTS[cfg.ctx].sort : null
   var listParams = cfg.listParams
     ? cfg.listParams()
-    : Object.assign({}, cfg.getParams(), {
-        fields: cols
-          .map(function (c) {
-            return c.key
-          })
-          .join(','),
-        group_by: (cfg.groupCols || [])
-          .map(function (g) {
-            return g.key
-          })
-          .join(','),
-      })
+    : Object.assign(
+        {},
+        cfg.getParams(),
+        {
+          fields: cols
+            .map(function (c) {
+              return c.key
+            })
+            .join(','),
+          group_by: (cfg.groupCols || [])
+            .map(function (g) {
+              return g.key
+            })
+            .join(','),
+        },
+        ctxSort && ctxSort.field
+          ? {
+              sort: ctxSort.field,
+              sort_dir: ctxSort.dir || 'asc',
+              sort_type: ctxSort.type || undefined,
+            }
+          : {}
+      )
   $.getJSON(cfg.detailUrl, listParams)
     .done(function (data) {
       if (cfg.showList) {
