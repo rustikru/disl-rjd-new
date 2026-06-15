@@ -59,15 +59,15 @@ class ApiController
             return $default;
         }
         $fields = array_map('trim', explode(',', $sortRaw));
-        $dirs   = array_map('trim', explode(',', $params['sort_dir']  ?? ''));
-        $types  = array_map('trim', explode(',', $params['sort_type'] ?? ''));
+        $dirs = array_map('trim', explode(',', $params['sort_dir'] ?? ''));
+        $types = array_map('trim', explode(',', $params['sort_type'] ?? ''));
 
         $parts = [];
         foreach ($fields as $i => $field) {
             if ($field === '' || !self::isSafeField($field)) {
                 continue;
             }
-            $dir  = strtoupper($dirs[$i] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
+            $dir = strtoupper($dirs[$i] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
             $expr = strtolower($types[$i] ?? '') === 'number'
                 ? "TO_NUMBER($field)"
                 : $field;
@@ -506,13 +506,14 @@ class ApiController
 
         $rows = $this->db->fetchAll(
             "SELECT $gfStr, '$colLabel' AS wagon_type_code, COUNT(*) AS cnt
+                    ,m_wagon_type_code
              FROM {$base['from']}
-             GROUP BY idle_time_order_by, $gfStr
+             GROUP BY idle_time_order_by, $gfStr, m_wagon_type_code
              ORDER BY idle_time_order_by asc, $gfStr",
             $base['bindings']
         );
 
-        return $this->json($response, $this->roadTable($rows, $gf, ['wagon_type_code']));
+        return $this->json($response, $this->roadTable($rows, $gf, ['wagon_type_code', 'm_wagon_type_code']));
     }
 
     /** GET /api/downtime/detail — Список простаивающих вагонов */
@@ -523,7 +524,7 @@ class ApiController
         $station = $params['station'] ?? null;
         $gf = $this->groupFields($params['group_by'] ?? '', ['oper_road', 'oper_station'], ['idle_time_name']);
         $base = $this->downtimeFrom($params);
-
+        $wagType = $params['wagon_type'] ?? null;
         if (!$base['reportDt']) {
             return $this->json($response, ['rows' => []]);
         }
@@ -532,7 +533,10 @@ class ApiController
         $outerWhere = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
         // wagon_type не фильтруем: wagon_type_code в сводной — синтетическая метка colLabel,
         // а не реальное поле. Группировка идёт через gf (oper_road / oper_station / idle_time_name).
-
+        if ($wagType) {
+            $outerWhere .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
+            $bindings['wtype'] = $wagType;
+        }
         $select = $this->selectFields($params['fields'] ?? '');
         $rows = $this->db->fetchAll(
             "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY {$this->orderClause($params, 'idle_time_days DESC')}",
@@ -735,10 +739,12 @@ class ApiController
             $innerWhere .= ' AND dest_station = :dest_station';
             $bindings['dest_station'] = $destStation;
         }
-
+        $wagExpr = self::WAG_TYPE_EXPR;
         $reportDt = !empty($dtsByType) ? max($dtsByType) : null;
-        $from = "(SELECT xdr.*, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days,'name') AS idle_time_name 
+        $from = "(SELECT xdr.*
+                        ,XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days,'name') AS idle_time_name 
                         ,to_number(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days,'order_by')) AS idle_time_order_by
+                        ,$wagExpr as m_wagon_type_code
                         FROM xx_dislocation_rjd xdr WHERE $innerWhere 
                         order by idle_time_order_by
                   )";
