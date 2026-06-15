@@ -1,6 +1,8 @@
 <?php
 /** @var string $appName */
+/** @var string $basePath */
 /** @var string|null $error */
+$basePath = $basePath ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -9,8 +11,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Вход в систему</title>
-  <link rel="icon" type="image/x-icon" href="/assets/img/favicon.ico">
-  <link rel="stylesheet" href="/assets/css/auth.css">
+  <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
+  <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/auth.css">
 </head>
 
 <body>
@@ -24,7 +26,7 @@
         <div class="error-msg visible"><?= htmlspecialchars($error) ?></div>
       <?php endif; ?>
 
-      <form method="POST" action="/login" id="loginForm">
+      <form method="POST" action="<?= htmlspecialchars($basePath) ?>/login" id="loginForm">
         <div class="field">
           <label class="field-label" for="username">Логин</label>
           <input class="field-input<?= $error ? ' error' : '' ?>" type="text" id="username" name="username"
@@ -51,7 +53,7 @@
     &copy; <?= date('Y') ?><!-- <?= htmlspecialchars($appName) ?> -->
   </div>
 
-  <script src="/assets/js/auth.js"></script>
+  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/auth.js"></script>
 </body>
 
 </html>

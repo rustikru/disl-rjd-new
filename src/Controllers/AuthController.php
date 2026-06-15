@@ -25,8 +25,9 @@ class AuthController
             return $response->withHeader('Location', ($this->config['base_path'] ?? '') . '/')->withStatus(302);
         }
 
-        $appName = $this->config['app_name'];
-        $error   = $_SESSION['login_error'] ?? null;
+        $appName  = $this->config['app_name'];
+        $basePath = $this->config['base_path'] ?? '';
+        $error    = $_SESSION['login_error'] ?? null;
         unset($_SESSION['login_error']);
 
         ob_start();
