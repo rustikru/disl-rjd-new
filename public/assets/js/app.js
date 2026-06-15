@@ -1216,6 +1216,52 @@ function saveCSV(tableId, filename) {
 }
 // Простоая выгрузка в Excel активной таблицы (указаывается ID таблицы в настроках при построении сводной таблицы)
 // Текст ошибки из jQuery
+// Плавающий горизонтальный скролл для широких таблиц
+function attachFloatScrollbar(scrollEl) {
+  var existing = scrollEl._floatScrollbar
+  if (existing) existing.remove()
+
+  var floater = document.createElement('div')
+  floater.className = 'float-scrollbar'
+  var inner = document.createElement('div')
+  inner.className = 'float-scrollbar-inner'
+  floater.appendChild(inner)
+  document.body.appendChild(floater)
+  scrollEl._floatScrollbar = floater
+
+  var syncing = false
+  floater.addEventListener('scroll', function () {
+    if (syncing) return
+    syncing = true
+    scrollEl.scrollLeft = floater.scrollLeft
+    syncing = false
+  })
+  scrollEl.addEventListener('scroll', function () {
+    if (syncing) return
+    syncing = true
+    floater.scrollLeft = scrollEl.scrollLeft
+    syncing = false
+  })
+
+  function update() {
+    var rect = scrollEl.getBoundingClientRect()
+    var visible = rect.top < window.innerHeight && rect.bottom > 0
+    var needsScroll = scrollEl.scrollWidth > scrollEl.clientWidth
+    if (visible && needsScroll && rect.bottom > window.innerHeight) {
+      floater.style.display = 'block'
+      floater.style.left = rect.left + 'px'
+      floater.style.width = rect.width + 'px'
+      inner.style.width = scrollEl.scrollWidth + 'px'
+    } else {
+      floater.style.display = 'none'
+    }
+  }
+
+  window.addEventListener('scroll', update, { passive: true })
+  window.addEventListener('resize', update, { passive: true })
+  update()
+}
+
 function ajaxErr(jqXHR) {
   var status = jqXHR.status ? ' (' + jqXHR.status + ')' : ''
   var detail = ''
@@ -1349,6 +1395,8 @@ function addSearch($table) {
       '<td><input class="col-search-input" type="text" placeholder=""></td>'
   })
   $table.find('tbody').prepend('<tr class="search-row">' + cells + '</tr>')
+  var scrollEl = $table.closest('.table-scroll')[0]
+  if (scrollEl) attachFloatScrollbar(scrollEl)
 }
 
 $(document).on('input', '.col-search-input', function () {

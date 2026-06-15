@@ -424,6 +424,20 @@ body {
   overflow-x: auto;
 }
 
+.float-scrollbar {
+  position: fixed;
+  bottom: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  z-index: 200;
+  height: 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.float-scrollbar-inner {
+  height: 1px;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
