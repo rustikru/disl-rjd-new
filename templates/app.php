@@ -95,9 +95,7 @@ $basePath = $basePath ?? '';
             <div class="table-toolbar">
               <div class="table-info"><span class="table-title">Расширенная дислокация</span></div>
             </div>
-            <div class="table-scroll">
-              <table class="data-table" id="dislExtTable"></table>
-            </div>
+            <div id="dislExtTable"></div>
           </section>
         </div>
       </div>
@@ -162,9 +160,7 @@ $basePath = $basePath ?? '';
                 <span class="table-sub" id="approachDetSub"></span>
               </div>
             </div>
-            <div class="table-scroll">
-              <table class="data-table" id="approachDetTable"></table>
-            </div>
+            <div id="approachDetTable"></div>
           </section>
         </div>
 
@@ -222,9 +218,7 @@ $basePath = $basePath ?? '';
                 <span class="table-sub" id="departureDetSub"></span>
               </div>
             </div>
-            <div class="table-scroll">
-              <table class="data-table" id="departureDetTable"></table>
-            </div>
+            <div id="departureDetTable"></div>
           </section>
         </div>
       </div>
@@ -275,9 +269,7 @@ $basePath = $basePath ?? '';
                 <span class="table-sub" id="loadingDetSub"></span>
               </div>
             </div>
-            <div class="table-scroll">
-              <table class="data-table" id="loadingDetTable"></table>
-            </div>
+            <div id="loadingDetTable"></div>
           </section>
         </div>
       </div>
@@ -322,9 +314,7 @@ $basePath = $basePath ?? '';
                 <span class="table-sub" id="downtimeDetSub"></span>
               </div>
             </div>
-            <div class="table-scroll">
-              <table class="data-table" id="downtimeDetTable"></table>
-            </div>
+            <div id="downtimeDetTable"></div>
           </section>
         </div>
       </div>
@@ -357,9 +347,7 @@ $basePath = $basePath ?? '';
                 <span class="table-sub" id="rawDetSub"></span>
               </div>
             </div>
-            <div class="table-scroll">
-              <table class="data-table" id="rawDetTable"></table>
-            </div>
+            <div id="rawDetTable"></div>
           </section>
         </div>
       </div>

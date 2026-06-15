@@ -836,41 +836,113 @@ function loadDetail(cfg) {
       $sub.text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'))
     })
     .fail(function (jqXHR) {
-      $table.html(
-        '<tbody><tr><td colspan="' +
-          cols.length +
-          '" style="text-align:center;padding:40px;color:#9DA5B0">' +
-          esc(ajaxErr(jqXHR)) +
-          '</td></tr></tbody>',
-      )
+      $table.html('<div style="text-align:center;padding:40px;color:#9DA5B0">' + esc(ajaxErr(jqXHR)) + '</div>')
     })
 }
-/* Детализация */
-function showTable($table, rows, colDefs) {
-  var h = '<thead><tr>'
+/* Детализация — виртуальная таблица */
+var _vtInline = {}
+
+function showTable($container, rows, colDefs) {
+  var id      = $container.attr('id')
+  var ROW_H   = 28
+  var BUFFER  = 8
+  var DEF_W   = 130
+  var allData = rows || []
+
+  _vtInline[id] = { all: allData, filtered: allData.slice(), cols: colDefs }
+
+  var template = colDefs.map(function (c) { return (c.w || DEF_W) + 'px' }).join(' ')
+  var totalW   = colDefs.reduce(function (s, c) { return s + (c.w || DEF_W); }, 0)
+
+  $container.html(
+    '<div class="vt-viewport" id="ivp-' + id + '">' +
+      '<div class="vt-content" style="width:' + totalW + 'px">' +
+        '<div class="vt-head"   id="ivh-' + id + '" style="grid-template-columns:' + template + ';width:' + totalW + 'px"></div>' +
+        '<div class="vt-filter" id="ivf-' + id + '" style="grid-template-columns:' + template + ';width:' + totalW + 'px"></div>' +
+        '<div id="ivr-' + id + '"></div>' +
+      '</div>' +
+    '</div>'
+  )
+
+  var hHtml = '', fHtml = ''
   colDefs.forEach(function (c) {
-    h +=
-      '<th' + (c.meta ? ' class="col-meta"' : '') + '>' + esc(c.label) + '</th>'
+    hHtml += '<div class="vt-th' + (c.meta ? ' col-meta' : '') + '">' + esc(c.label) + '</div>'
+    fHtml += '<div class="vt-fc"><input data-k="' + c.key + '" type="text" placeholder=""></div>'
   })
-  h += '</tr></thead><tbody>'
-  ;(rows || []).forEach(function (r) {
-    h += '<tr class="row-data">'
-    colDefs.forEach(function (c) {
-      var val = c.fmt ? c.fmt(r[c.key]) : esc(r[c.key] != null ? r[c.key] : '')
-      var attrs = ''
-      if (c.meta) {
-        attrs = ' class="col-meta"'
-      } else if (c.danger) {
-        attrs = idleStyle(parseFloat(r[c.key]) || 0)
-      } else if (c.right) {
-        attrs = ' style="text-align:right"'
+  document.getElementById('ivh-' + id).innerHTML = hHtml
+  document.getElementById('ivf-' + id).innerHTML = fHtml
+
+  function cellHtml(c, row) {
+    var v       = row[c.key]
+    var display = (v !== null && v !== undefined && v !== '') ? v : ''
+    if (c.fmt) display = c.fmt(v)
+    var cls   = 'vt-cell' + (c.meta ? ' col-meta' : '') + (c.right ? ' vt-right' : '')
+    var style = ''
+    if (c.danger) {
+      var d = parseFloat(display) || 0
+      if (d >= 7)      style = ' style="color:#E8392A;font-weight:700"'
+      else if (d >= 3) style = ' style="color:#E8A530;font-weight:600"'
+    }
+    return '<div class="' + cls + '"' + style + '>' + esc(String(display)) + '</div>'
+  }
+
+  var vp     = document.getElementById('ivp-' + id)
+  var rowsEl = document.getElementById('ivr-' + id)
+  var lastFirst = -1, lastLast = -1
+
+  function render(force) {
+    var data     = _vtInline[id]
+    var total    = data.filtered.length
+    var scrollTop = vp.scrollTop
+    var viewRows = Math.ceil(vp.clientHeight / ROW_H)
+    var first    = Math.max(0, Math.floor(scrollTop / ROW_H) - BUFFER)
+    var last     = Math.min(total, first + viewRows + BUFFER * 2)
+    if (!force && first === lastFirst && last === lastLast) return
+    lastFirst = first; lastLast = last
+
+    if (!total) {
+      rowsEl.style.paddingTop    = '0'
+      rowsEl.style.paddingBottom = '0'
+      rowsEl.innerHTML = '<div class="vt-empty">Нет данных</div>'
+      return
+    }
+    var html = ''
+    for (var i = first; i < last; i++) {
+      html += '<div class="vt-row" style="grid-template-columns:' + template + ';width:' + totalW + 'px">'
+      colDefs.forEach(function (c) { html += cellHtml(c, data.filtered[i]) })
+      html += '</div>'
+    }
+    rowsEl.style.paddingTop    = (first * ROW_H) + 'px'
+    rowsEl.style.paddingBottom = ((total - last) * ROW_H) + 'px'
+    rowsEl.innerHTML = html
+  }
+
+  document.getElementById('ivf-' + id).addEventListener('input', function () {
+    var inputs = this.querySelectorAll('input')
+    var terms  = []
+    for (var i = 0; i < inputs.length; i++) {
+      var v = inputs[i].value.trim().toLowerCase()
+      if (v) terms.push({ k: inputs[i].getAttribute('data-k'), v: v })
+    }
+    var data = _vtInline[id]
+    data.filtered = !terms.length ? data.all.slice() : data.all.filter(function (row) {
+      for (var t = 0; t < terms.length; t++) {
+        if (String(row[terms[t].k] == null ? '' : row[terms[t].k]).toLowerCase().indexOf(terms[t].v) === -1) return false
       }
-      h += '<td' + attrs + '>' + (val || '') + '</td>'
+      return true
     })
-    h += '</tr>'
+    lastFirst = lastLast = -1
+    render(true)
   })
-  $table.html(h + '</tbody>')
-  addSearch($table)
+
+  var ticking = false
+  vp.addEventListener('scroll', function () {
+    if (ticking) return; ticking = true
+    requestAnimationFrame(function () { render(false); ticking = false })
+  })
+
+  render(true)
+  attachFloatScrollbar(vp)
 }
 
 /******** cols config ********/

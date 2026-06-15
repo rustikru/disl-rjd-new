@@ -682,3 +682,55 @@ body {
   margin-top: 2px;
   font-weight: bold;
 }
+
+/* ── Виртуальная таблица детализации ── */
+.vt-viewport {
+  height: 500px;
+  overflow: auto;
+  position: relative;
+}
+.vt-content { position: relative; }
+.vt-head, .vt-filter { display: grid; }
+.vt-head {
+  position: sticky; top: 0; z-index: 3;
+  background: #e4e8f0;
+  border-bottom: 1px solid var(--border-lt);
+}
+.vt-filter {
+  position: sticky; top: 29px; z-index: 2;
+  background: #fafbfc;
+  border-bottom: 1px solid var(--border-lt);
+}
+.vt-th {
+  padding: 3px 6px; height: 29px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: bold;
+  color: #3a4151;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  user-select: none;
+  border-right: 1px solid var(--border-lt);
+}
+.vt-th.col-meta { justify-content: flex-start; }
+.vt-fc { padding: 2px 4px; border-right: 1px solid var(--border-lt); }
+.vt-fc input {
+  width: 100%; padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px; font-size: 11px;
+  background: var(--bg);
+  color: var(--text-1);
+}
+.vt-row { display: grid; border-bottom: 1px solid var(--border-lt); }
+.vt-row:hover .vt-cell { background: var(--hover-green); }
+.vt-cell {
+  padding: 3px 6px; height: 27px;
+  display: flex; align-items: center; justify-content: flex-end;
+  font-size: 12px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-right: 1px solid var(--border-lt);
+}
+.vt-cell.col-meta { justify-content: flex-start; color: var(--text-2); }
+.vt-cell.vt-right { justify-content: flex-end; }
+.vt-empty {
+  padding: 40px; text-align: center;
+  color: var(--text-3); font-size: 14px;
+}

@@ -29,61 +29,9 @@ $basePath = $basePath ?? '';
     .detail-page-body { padding: 16px 20px 40px; max-width: 100%; }
     .detail-header-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 
-    /* ── Виртуальная таблица ── */
+    /* override: full-height viewport on the detail page */
     #detailTable { overflow: hidden; }
-    .vt-viewport {
-      height: calc(100vh - 210px);
-      min-height: 300px;
-      overflow: auto;
-      position: relative;
-    }
-    .vt-content { position: relative; }
-    .vt-head, .vt-filter, .vt-row { display: grid; }
-    .vt-head {
-      position: sticky; top: 0; z-index: 3;
-      background: #f0f2f5;
-      border-bottom: 2px solid var(--border, #dde0e6);
-    }
-    .vt-filter {
-      position: sticky; top: 34px; z-index: 2;
-      background: #fafbfc;
-      border-bottom: 1px solid var(--border, #dde0e6);
-    }
-    .vt-th {
-      padding: 0 10px; height: 34px;
-      display: flex; align-items: center;
-      font-size: 11px; font-weight: 600;
-      letter-spacing: .04em; text-transform: uppercase;
-      color: var(--text-2, #6b7682);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      user-select: none;
-    }
-    .vt-th.col-meta { color: var(--text-3, #9DA5B0); }
-    .vt-fc { padding: 3px 6px; }
-    .vt-fc input {
-      width: 100%; padding: 3px 6px;
-      border: 1px solid var(--border, #dde0e6);
-      border-radius: 4px; font-size: 11px;
-      background: var(--bg, #f5f6fa);
-      color: var(--text-1, #1b2127);
-    }
-    .vt-row {
-      height: 34px;
-      border-bottom: 1px solid #eef1f3;
-    }
-    .vt-row:hover { background: rgba(0,0,0,.025); }
-    .vt-cell {
-      padding: 0 10px; height: 34px;
-      display: flex; align-items: center;
-      font-size: 13px;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .vt-cell.col-meta { color: var(--text-3, #9DA5B0); }
-    .vt-cell.vt-right { justify-content: flex-end; }
-    .vt-empty {
-      padding: 40px; text-align: center;
-      color: var(--text-3, #9DA5B0); font-size: 14px;
-    }
+    .vt-viewport { height: calc(100vh - 210px); min-height: 300px; }
   </style>
 </head>
 
@@ -249,7 +197,7 @@ $basePath = $basePath ?? '';
       _vtFiltered = _vtAllData.slice();
       _vtCols     = cols;
 
-      var ROW_H  = 34;
+      var ROW_H  = 28;
       var BUFFER = 8;
       var DEF_W  = 130;
 
