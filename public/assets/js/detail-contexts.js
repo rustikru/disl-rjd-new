@@ -6,7 +6,7 @@ var DETAIL_CONTEXTS = {
     label: 'Расширенная дислокация',
     endpoint: '/api/dislocation/detail',
     cols: [
-      { key: 'wagon_no', label: '№ вагона', meta: true},
+      { key: 'wagon_no', label: '№ вагона', meta: true },
       { key: 'wagon_type_code', label: 'Тип вагона', meta: true, mono: false },
       { key: 'train_index', label: 'Индекс поезда', meta: true },
       { key: 'train_no', label: '№ Поезда', meta: true },
@@ -21,9 +21,8 @@ var DETAIL_CONTEXTS = {
       { key: 'dest_station', label: 'Станция назначения', meta: true },
       { key: 'consignor', label: 'Грузоотправитель', meta: true },
       { key: 'consignor_name', label: 'Грузоотправитель', meta: true },
-      { key: 'consignee_name', label: 'Грузополучатель', meta: true },
     ],
-    sort: [{field:"wagon_no", type:"number"}],
+    sort: [{ field: 'wagon_no', type: 'number' }],
   },
   /**** Подход вагонов */
   approach: {
