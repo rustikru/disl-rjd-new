@@ -1686,6 +1686,19 @@ $(document).on('input', '.col-search-input', function () {
   })
 })
 
+// Открыть URL в новой вкладке через <a>, а не window.open:
+// jQuery-делегированные обработчики блокируются попап-блокировщиком при window.open,
+// тогда как клик по якорю всегда проходит как пользовательский жест.
+function navNewTab(url) {
+  var a = document.createElement('a')
+  a.href = url
+  a.target = '_blank'
+  a.rel = 'noopener noreferrer'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+}
+
 // Drill-down: открыть страницу детализации в новой вкладке.
 // Параметры собираются через cfg.mapDetailParams (определяется в WAGON_TABS),
 // что позволяет каждому контексту задавать свой маппинг без переопределений.
@@ -1720,7 +1733,7 @@ function openDetail(ctx, road, station, col, groupBy, subs, extra) {
     )
       p.set(k, extra[k])
   })
-  window.open(BASE + '/detail?' + p.toString(), '_blank')
+  navNewTab(BASE + '/detail?' + p.toString())
 }
 
 $(document).on('click', '.cell-link', function (e) {
@@ -1756,7 +1769,7 @@ $(document).on('click', '.kpi-card--link', function () {
     return
   }
   if (d.url) {
-    window.open(d.url, '_blank')
+    navNewTab(d.url)
     return
   }
   var extra = d.params || {}
