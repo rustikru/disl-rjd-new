@@ -478,7 +478,10 @@ var WAGON_TABS = {
       }
     },
     mapDetailParams: function (road, station, col, subs) {
-      return Object.assign({ road: road, station: station, wagon_type: col }, this.getParams())
+      return Object.assign(
+        { road: road, station: station, wagon_type: col },
+        this.getParams(),
+      )
     },
     fillFilters: function (data) {
       fillSelect('#fApproachCargo', data.cargo || [])
@@ -538,7 +541,10 @@ var WAGON_TABS = {
       }
     },
     mapDetailParams: function (road, station, col, subs) {
-      return Object.assign({ road: road, station: station, wagon_type: col }, this.getParams())
+      return Object.assign(
+        { road: road, station: station, wagon_type: col },
+        this.getParams(),
+      )
     },
     fillFilters: function (data) {
       fillSelect('#fDepartureCargo', data.cargo || [])
@@ -595,7 +601,10 @@ var WAGON_TABS = {
       return { cargo: $('#fLoadingCargo').val() || undefined }
     },
     mapDetailParams: function (road, station, col, subs) {
-      return Object.assign({ road: road, station: station, wagon_type: col }, this.getParams())
+      return Object.assign(
+        { road: road, station: station, wagon_type: col },
+        this.getParams(),
+      )
     },
     fillFilters: function (data) {
       fillSelect('#fLoadingCargo', data.cargo || [])
@@ -619,8 +628,9 @@ var WAGON_TABS = {
     sumSubLabel: 'Вагонов с простоем',
     colLabel: 'Кол-во', // метка единственного столбца сводной
     groupCols: [
-      { key: 'idle_time_name', label: 'Простой' },
       //{ key: 'oper_station', label: 'Станция' },
+      { key: 'cargo_name', label: 'Груз' },
+      { key: 'idle_time_name', label: 'Простой' },
     ],
     applyBtnId: 'btnDowntimeApply',
     filtersUrl: BASE + '/api/downtime/filters',
@@ -1702,7 +1712,12 @@ function openDetail(ctx, road, station, col, groupBy, subs, extra) {
 
   // Параметры активных фильтров вкладки (getParams) — не перетирают явно заданные
   Object.keys(extra || {}).forEach(function (k) {
-    if (!p.has(k) && extra[k] !== undefined && extra[k] !== null && extra[k] !== '')
+    if (
+      !p.has(k) &&
+      extra[k] !== undefined &&
+      extra[k] !== null &&
+      extra[k] !== ''
+    )
       p.set(k, extra[k])
   })
   window.open(BASE + '/detail?' + p.toString(), '_blank')
