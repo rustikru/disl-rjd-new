@@ -80,8 +80,8 @@ $success  = $_GET['success'] ?? '';
         </div>
       </div>
       <div class="header-meta">
-        <a href="/" class="btn btn-ghost btn-sm">← На главную</a>
-        <form method="POST" action="/logout" style="display:inline">
+        <a href="<?= htmlspecialchars($basePath) ?>/" class="btn btn-ghost btn-sm">← На главную</a>
+        <form method="POST" action="<?= htmlspecialchars($basePath) ?>/logout" style="display:inline">
           <button type="submit" class="btn btn-ghost btn-sm">Выйти</button>
         </form>
       </div>

@@ -19,10 +19,10 @@ $errorMiddleware = $app->addErrorMiddleware(
 // 2. Теперь НАСТРАИВАЕМ перехват 404 ошибки
 $errorMiddleware->setErrorHandler(
     HttpNotFoundException::class,
-    function ($request, $exception) use ($app) {
+    function ($request, $exception) use ($app, $config) {
         $response = $app->getResponseFactory()->createResponse(404);
+        $basePath = $config['base_path'] ?? '';
 
-        // Включаем буферизацию вывода и подключаем ваш шаблон
         ob_start();
         require __DIR__ . '/../templates/404.php';
         $html = ob_get_clean();
