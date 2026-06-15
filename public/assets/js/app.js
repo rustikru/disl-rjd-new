@@ -844,7 +844,6 @@ function showTable($table, rows, colDefs) {
       var attrs = ''
       if (c.meta) {
         attrs = ' class="col-meta"'
-        if (c.mono) attrs += ' style="font-family:monospace;font-size:11px"'
       } else if (c.danger) {
         attrs = idleStyle(parseFloat(r[c.key]) || 0)
       } else if (c.right) {

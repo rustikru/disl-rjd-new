@@ -257,7 +257,7 @@ $basePath = $basePath ?? '';
             var tdStyle = '';
             if (c.mono && c.meta) {
               tdClass = ' class="col-meta"';
-              tdStyle = ' style="font-family:monospace;font-size:11px"';
+              tdStyle = '';
             } else if (c.right) {
               tdStyle = ' style="text-align:right"';
             }
