@@ -626,7 +626,7 @@ class ApiController
         $cargo = $params['cargo'] ?? null;
         $prevCargo = $params['prev_cargo'] ?? null;
 
-        $innerWhere = "report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND type_reference = 'Подход' AND dist_remain_km IS NOT NULL AND dist_remain_km != 0";
+        $innerWhere = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Подход' AND dist_remain_km IS NOT NULL AND dist_remain_km != 0";
         $bindings = ['report_dt' => $reportDt];
         if ($cargo) {
             $innerWhere .= " AND UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е')) = UPPER(REPLACE(:cargo_f, 'Ё', 'Е'))";
@@ -654,7 +654,7 @@ class ApiController
         $cargo = $params['cargo'] ?? null;
         $destStation = $params['dest_station'] ?? null;
 
-        $innerWhere = "report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
+        $innerWhere = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
         $bindings = ['report_dt' => $reportDt];
         if ($cargo) {
             $innerWhere .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
@@ -681,7 +681,7 @@ class ApiController
 
         $cargo = $params['cargo'] ?? null;
 
-        $innerWhere = "report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF') AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
+        $innerWhere = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $bindings = ['report_dt' => $reportDt];
         if ($cargo) {
             $innerWhere .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
@@ -702,7 +702,7 @@ class ApiController
             return ['from' => '', 'bindings' => [], 'reportDt' => null];
         }
 
-        $innerWhere = "report_dt = TO_TIMESTAMP(:report_dt, 'YYYY-MM-DD HH24:MI:SS.FF')"
+        $innerWhere = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')"
             . " AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0"
             . " AND idle_time_days IS NOT NULL AND idle_time_days != 0";
 
@@ -833,7 +833,7 @@ class ApiController
         $params = [];
         $i = 0;
         foreach ($dtsByType as $type => $dt) {
-            $parts[] = "({$col('type_reference')} = :ldt_type_{$i} AND {$col('report_dt')} = TO_TIMESTAMP(:ldt_dt_{$i}, 'YYYY-MM-DD HH24:MI:SS.FF'))";
+            $parts[] = "({$col('type_reference')} = :ldt_type_{$i} AND {$col('report_dt')} = TO_DATE(:ldt_dt_{$i}, 'YYYY-MM-DD HH24:MI:SS'))";
             $params["ldt_type_{$i}"] = $type;
             $params["ldt_dt_{$i}"] = $dt;
             $i++;
