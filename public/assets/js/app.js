@@ -734,7 +734,7 @@ function loadFilters(cfg) {
     if (cfg.fillFilters) cfg.fillFilters(data)
   })
 }
-
+/* Загрузка сводной таблицы и KPI, если они есть настроены */
 function loadSummary(cfg) {
   var $sub = $('#' + cfg.sumSubId)
   var $table = $('#' + cfg.sumTableId)
@@ -749,6 +749,8 @@ function loadSummary(cfg) {
     })
     .join(',')
   if (gby) summaryParams.group_by = gby
+
+  /* Получаем сводную информацию  */
   $.getJSON(cfg.summaryUrl, summaryParams)
     .done(function (data) {
       if (cfg.metricsId) {
@@ -763,6 +765,7 @@ function loadSummary(cfg) {
         cfg.draw(data, cfg)
         return
       }
+      /* Итоги по таблице */
       drawSummary(
         '#' + cfg.sumTableId,
         data.roads,
@@ -826,7 +829,7 @@ function loadDetail(cfg) {
       )
     })
 }
-
+/* Детализация */
 function showTable($table, rows, colDefs) {
   var h = '<thead><tr>'
   colDefs.forEach(function (c) {
@@ -857,7 +860,7 @@ function showTable($table, rows, colDefs) {
 
 /******** cols config ********/
 
-/******** summary / kpi renders ********/
+/******** summary / kpi  ********/
 
 function drawSummary(selector, roads, data, ctx, groupCols) {
   if (!roads || !roads.length) {
