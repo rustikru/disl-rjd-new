@@ -239,7 +239,7 @@ class ApiController
             "SELECT $select
              FROM xx_dislocation_rjd xdr
              WHERE {$cond['sql']} {$where}
-             ORDER BY $gfStr, oper_station",
+             ORDER BY {$this->orderClause($params, "$gfStr, oper_station")}",
             $bindings
         );
 
