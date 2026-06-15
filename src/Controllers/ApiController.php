@@ -50,9 +50,7 @@ class ApiController
     }
 
     /**
-     * Строит ORDER BY из параметров sort/sort_dir/sort_type с валидацией.
-     * Поддерживает несколько полей через запятую: sort=f1,f2&sort_dir=asc,desc&sort_type=number,
-     * Если sort не передан или все поля невалидны — возвращает $default.
+     * Строит ORDER BY из параметров sort/sort_dir/sort_type 
      */
     private function orderClause(array $params, string $default): string
     {
@@ -159,10 +157,14 @@ class ApiController
 
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $rows = $this->db->fetchAll(
-            "SELECT park_type, COUNT(*) AS total, wagon_type_code
+            "SELECT park_type, 
+                    1 AS total, 
+                    wagon_type_code,
+                    case when dest_station like '%УГЛ%' and oper_station!=dest_station then 1 else 0 end as comming_to_ugl
              FROM xx_dislocation_rjd xdr
              WHERE {$cond['sql']}
-             GROUP BY park_type, wagon_type_code",
+             /*GROUP BY park_type, wagon_type_code*/
+             ",
             $cond['params']
         );
         $dt = max($dtsByType);
@@ -171,10 +173,13 @@ class ApiController
         foreach ($rows as $r) {
             $sectionName = trim(explode(',', (string) ($r['park_type'] ?? ''))[0]);
             if (!isset($sections[$sectionName])) {
-                $sections[$sectionName] = ['id' => md5($sectionName), 'name' => $sectionName, 'total' => 0, 'tank_total' => 0];
+                $sections[$sectionName] = ['id' => md5($sectionName), 'name' => $sectionName, 'comming_to_ugl' => 0, 'total' => 0, 'tank_total' => 0];
             }
+
             $cnt = (int) $r['total'];
+            $commingToUgl = (int) $r['comming_to_ugl'];
             $sections[$sectionName]['total'] += $cnt;
+            $sections[$sectionName]['comming_to_ugl'] += $commingToUgl;
             if (mb_stripos((string) ($r['wagon_type_code'] ?? ''), 'цистерн') !== false) {
                 $sections[$sectionName]['tank_total'] += $cnt;
             }
@@ -246,7 +251,7 @@ class ApiController
             $where .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
             $bindings['wtype'] = $wagType;
         }
-
+        //$where.= ' and rownum = 10';
         $select = $this->selectFields($params['fields'] ?? '');
         $rows = $this->db->fetchAll(
             "SELECT $select

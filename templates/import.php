@@ -156,10 +156,6 @@ $success  = $_GET['success'] ?? '';
             btn.disabled = true;
             document.getElementById('uploadSpinner').classList.add('visible');
           });
-          // Убрать параметры error/warn/success из URL, чтобы при F5 сообщение не повторялось
-          if (window.location.search) {
-            history.replaceState(null, '', window.location.pathname);
-          }
         </script>
       </div>
     </section>

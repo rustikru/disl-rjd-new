@@ -128,7 +128,7 @@ class ImportController
 
         if ($result['skipped']) {
             return $this->redirect($response, '/import?warn=' . urlencode(
-                'Справка «' . $result['type'] . '» на ' . $result['report_dt'] . ' уже была загружена ранее — импорт пропущен'
+                'Справка «' . $result['type'] . '» на ' . $result['report_dt'] . ' уже была загружена ранее'
             ));
         }
 

@@ -32,7 +32,7 @@ var TAB_GROUPS = [
   {
     label: 'Импорт',
     tabs: [
-      { id: 'import', label: ' Загрузка справок ', url: BASE + '/import' },
+      { id: 'import', label: ' Загрузка справки РЖД ', url: BASE + '/import' },
     ],
   },
 ]
@@ -680,6 +680,7 @@ var KPI_BOARDS = {
       var tankTotal = data.sections.reduce(function (s, x) {
         return s + (x.tank_total || 0)
       }, 0)
+      var commingToUgl = data.sections.reduce(function (s, x) { return s + x.comming_to_ugl }, 0)
       return [
         {
           label: 'Всего вагонов',
@@ -694,6 +695,10 @@ var KPI_BOARDS = {
         {
           label: 'Прочие вагоны',
           value: grandTotal - tankTotal,
+        },
+        {
+          label: 'Едут на УГЛ',
+          value: commingToUgl,
         },
       ]
     },
