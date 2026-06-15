@@ -105,7 +105,7 @@ $success  = $_GET['success'] ?? '';
         </div>
       </div>
       <div style="padding:20px 24px">
-        <form method="POST" action="/import" enctype="multipart/form-data">
+        <form method="POST" action="<?= htmlspecialchars($basePath) ?>/import" enctype="multipart/form-data">
           <div style="margin-bottom:18px">
             <label class="filter-label" for="xlsx_file">Файл справки</label>
             <input type="file" id="xlsx_file" name="xlsx_file" accept=".xlsx,.xls">
