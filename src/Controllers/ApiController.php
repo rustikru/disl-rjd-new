@@ -50,6 +50,20 @@ class ApiController
     }
 
     /**
+     * Строит ORDER BY из параметров sort/sort_dir с валидацией.
+     * Если sort не передан — возвращает $default.
+     */
+    private function orderClause(array $params, string $default): string
+    {
+        $sort = trim($params['sort'] ?? '');
+        if ($sort === '' || !self::isSafeField($sort)) {
+            return $default;
+        }
+        $dir = strtoupper($params['sort_dir'] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
+        return "$sort $dir";
+    }
+
+    /**
      * @param array $cols  [['alias' => 'wagon_type_code', 'expr' => "..."], ...]
      */
     /* Строит и выполняет запрос для сводной таблицы, затем преобразует результат в формат:
@@ -306,7 +320,7 @@ class ApiController
         $select = $this->selectFields($params['fields'] ?? '');
 
         $rows = $this->db->fetchAll(
-            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY $gfStr",
+            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY {$this->orderClause($params, $gfStr)}",
             $bindings
         );
 
@@ -379,7 +393,7 @@ class ApiController
         $select = $this->selectFields($params['fields'] ?? '');
 
         $rows = $this->db->fetchAll(
-            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY $gfStr",
+            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY {$this->orderClause($params, $gfStr)}",
             $bindings
         );
 
@@ -427,7 +441,7 @@ class ApiController
         $select = $this->selectFields($params['fields'] ?? '');
 
         $rows = $this->db->fetchAll(
-            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY $gfStr",
+            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY {$this->orderClause($params, $gfStr)}",
             $bindings
         );
 
@@ -500,7 +514,7 @@ class ApiController
 
         $select = $this->selectFields($params['fields'] ?? '');
         $rows = $this->db->fetchAll(
-            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY idle_time_days DESC",
+            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY {$this->orderClause($params, 'idle_time_days DESC')}",
             $bindings
         );
 
@@ -565,7 +579,7 @@ class ApiController
 
         $select = $this->selectFields($params['fields'] ?? '');
         $rows = $this->db->fetchAll(
-            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY $gfStr, idle_time_days DESC",
+            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY {$this->orderClause($params, "$gfStr, idle_time_days DESC")}",
             $bindings
         );
 
