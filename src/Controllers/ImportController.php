@@ -413,6 +413,7 @@ class ImportController
 
     private function redirect(ResponseInterface $response, string $url): ResponseInterface
     {
-        return $response->withHeader('Location', $url)->withStatus(302);
+        $base = $this->config['base_path'] ?? '';
+        return $response->withHeader('Location', $base . $url)->withStatus(302);
     }
 }
