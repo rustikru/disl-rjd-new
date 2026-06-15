@@ -851,8 +851,11 @@ function showTable($container, rows, colDefs) {
 
   _vtInline[id] = { all: allData, filtered: allData.slice(), cols: colDefs }
 
-  var template = colDefs.map(function (c) { return (c.w || DEF_W) + 'px' }).join(' ')
-  var totalW   = colDefs.reduce(function (s, c) { return s + (c.w || DEF_W); }, 0)
+  var baseW    = colDefs.reduce(function (s, c) { return s + (c.w || DEF_W); }, 0)
+  var availW   = $container[0].offsetWidth || (window.innerWidth - 260)
+  var scale    = availW > baseW ? availW / baseW : 1
+  var template = colDefs.map(function (c) { return Math.floor((c.w || DEF_W) * scale) + 'px' }).join(' ')
+  var totalW   = availW > baseW ? availW : baseW
 
   $container.html(
     '<div class="vt-viewport" id="ivp-' + id + '">' +

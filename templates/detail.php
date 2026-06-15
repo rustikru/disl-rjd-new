@@ -199,8 +199,11 @@ $basePath = $basePath ?? '';
       var BUFFER = 8;
       var DEF_W  = 130;
 
-      var template = cols.map(function (c) { return (c.w || DEF_W) + 'px'; }).join(' ');
-      var totalW   = cols.reduce(function (s, c) { return s + (c.w || DEF_W); }, 0);
+      var baseW    = cols.reduce(function (s, c) { return s + (c.w || DEF_W); }, 0);
+      var availW   = document.getElementById('detailTable').offsetWidth || (window.innerWidth - 40);
+      var scale    = availW > baseW ? availW / baseW : 1;
+      var template = cols.map(function (c) { return Math.floor((c.w || DEF_W) * scale) + 'px'; }).join(' ');
+      var totalW   = availW > baseW ? availW : baseW;
 
       $('#detailTable').html(
         '<div class="vt-viewport" id="vtVp">' +
