@@ -2,8 +2,7 @@
 
 namespace PhpOffice\PhpSpreadsheet\Helper;
 
-/** @internal */
-final class Handler
+class Handler
 {
     private static string $invalidHex = 'Y';
 

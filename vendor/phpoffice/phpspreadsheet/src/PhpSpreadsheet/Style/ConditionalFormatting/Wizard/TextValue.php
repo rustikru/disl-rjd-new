@@ -54,8 +54,7 @@ class TextValue extends WizardAbstract implements WizardInterface
     protected function operator(string $operator): void
     {
         if (!isset(self::OPERATORS[$operator])) {
-            // should not happen - compareKeys confirms
-            throw new Exception('Invalid Operator for Text Value CF Rule Wizard'); // @codeCoverageIgnore
+            throw new Exception('Invalid Operator for Text Value CF Rule Wizard');
         }
 
         $this->operator = $operator;
@@ -161,18 +160,5 @@ class TextValue extends WizardAbstract implements WizardInterface
         }
 
         return $this;
-    }
-
-    /** @internal */
-    public static function compareKeys(): bool
-    {
-        $retVal = true;
-        $array = array_keys(self::OPERATORS);
-        foreach ($array as $value) {
-            // PhpStan is correct about next statement, but we want to test anyhow
-            $retVal = $retVal && in_array($value, self::MAGIC_OPERATIONS, true); // @phpstan-ignore-line
-        }
-
-        return $retVal;
     }
 }
