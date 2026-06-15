@@ -59,8 +59,11 @@ class ApiController
         if ($sort === '' || !self::isSafeField($sort)) {
             return $default;
         }
-        $dir = strtoupper($params['sort_dir'] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
-        return "$sort $dir";
+        $dir  = strtoupper($params['sort_dir']  ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
+        $expr = strtolower($params['sort_type'] ?? '') === 'number'
+            ? "TO_NUMBER($sort)"
+            : $sort;
+        return "$expr $dir";
     }
 
     /**
