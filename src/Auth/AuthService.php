@@ -45,7 +45,7 @@ class AuthService
         // Шаг 2: Локальный пароль из БД
         $user = $this->db->fetchOne(
             'SELECT id, username, display_name, email, password_hash, is_active
-             FROM users WHERE username = :username',
+             FROM xx_users_rjd WHERE username = :username',
             ['username' => $username]
         );
 
@@ -73,7 +73,7 @@ class AuthService
     public function setPassword(string $username, string $newPassword): void
     {
         $this->db->execute(
-            'UPDATE users SET password_hash = :hash WHERE username = :username',
+            'UPDATE xx_users_rjd SET password_hash = :hash WHERE username = :username',
             [
                 'hash'     => password_hash($newPassword, PASSWORD_BCRYPT),
                 'username' => $username,
@@ -87,7 +87,7 @@ class AuthService
     private function ensureUserExists(string $username, string $displayName, string $email): void
     {
         $exists = $this->db->fetchOne(
-            'SELECT id FROM users WHERE username = :username',
+            'SELECT id FROM xx_users_rjd WHERE username = :username',
             ['username' => $username]
         );
 
@@ -96,7 +96,7 @@ class AuthService
         }
 
         $this->db->execute(
-            'INSERT INTO users (username, display_name, email, password_hash, is_active)
+            'INSERT INTO xx_users_rjd (username, display_name, email, password_hash, is_active)
              VALUES (:username, :display_name, :email, :hash, 1)',
             [
                 'username'     => $username,

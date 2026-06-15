@@ -15,8 +15,8 @@ $success  = $_GET['success'] ?? '';
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Загрузка справки РЖД</title>
-  <link rel="icon" type="image/x-icon" href="/assets/img/favicon.ico">
-  <link rel="stylesheet" href="/assets/css/app.css">
+  <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
+  <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
   <style>
     .import-wrap {
       max-width: 760px;

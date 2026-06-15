@@ -79,8 +79,7 @@ class ImportController
             "SELECT to_char((report_dt),'DD.MM.YYYY HH24:MI:SS') AS report_date, type_reference, COUNT(*) AS cnt
              FROM xx_dislocation_rjd
              GROUP BY to_char((report_dt),'DD.MM.YYYY HH24:MI:SS'), (report_dt), type_reference
-             ORDER BY (report_dt) DESC, type_reference
-             " . $this->db->limit(20)
+             ORDER BY (report_dt) DESC, type_reference"
         );
 
         $appName  = $this->config['app_name']  ?? 'Дислокация РЖД';
