@@ -460,6 +460,13 @@ body {
   top: 0;
   z-index: 2;
 }
+.data-table thead th.th-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.data-table thead th.th-sortable:hover {
+  background: #d5dbe8;
+}
 .data-table thead th.col-meta {
   text-align: left;
 }

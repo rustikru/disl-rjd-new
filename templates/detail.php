@@ -239,47 +239,73 @@ $basePath = $basePath ?? '';
     });
 
     function showTable(rows, cols) {
-      var h = '<thead><tr>';
-      cols.forEach(function (c) {
-        h += '<th' + (c.meta ? ' class="col-meta"' : '') + '>' + esc(c.label) + '</th>';
-      });
-      h += '</tr></thead><tbody>';
+      var sortState = { idx: -1, dir: 'asc' };
 
-      if (!rows.length) {
-        h += '<tr><td colspan="' + cols.length + '" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных</td></tr>';
-      } else {
-        rows.forEach(function (r) {
-          h += '<tr class="row-data">';
-          cols.forEach(function (c) {
-            var val = r[c.key];
-            var display = (val !== null && val !== undefined && val !== '') ? val : '';
-            var tdClass = c.meta ? ' class="col-meta' + (c.mono ? '' : '') + '"' : '';
-            var tdStyle = '';
-            if (c.mono && c.meta) {
-              tdClass = ' class="col-meta"';
-              tdStyle = '';
-            } else if (c.right) {
-              tdStyle = ' style="text-align:right"';
-            }
-            if (c.danger) {
-              var days = parseFloat(display) || 0;
-              if (days >= 7) {
-                tdStyle = ' style="text-align:right;color:#E8392A;font-weight:700"';
-              } else if (days >= 3) {
-                tdStyle = ' style="text-align:right;color:#E8A530;font-weight:600"';
-              } else if (c.right) {
-                tdStyle = ' style="text-align:right"';
-              }
-            }
-            h += '<td' + tdClass + tdStyle + '>' + esc(display) + '</td>';
-          });
-          h += '</tr>';
+      function cellHtml(c, r) {
+        var val = r[c.key];
+        var display = (val !== null && val !== undefined && val !== '') ? val : '';
+        if (c.fmt) display = c.fmt(val);
+        var tdClass = c.meta ? ' class="col-meta"' : '';
+        var tdStyle = '';
+        if (c.right) tdStyle = ' style="text-align:right"';
+        if (c.danger) {
+          var days = parseFloat(display) || 0;
+          if (days >= 7)      tdStyle = ' style="text-align:right;color:#E8392A;font-weight:700"';
+          else if (days >= 3) tdStyle = ' style="text-align:right;color:#E8A530;font-weight:600"';
+        }
+        return '<td' + tdClass + tdStyle + '>' + esc(display) + '</td>';
+      }
+
+      function sortedRows() {
+        if (sortState.idx < 0) return rows;
+        var c = cols[sortState.idx];
+        var key = c.order_by || c.key;
+        var isNum = c.type === 'number';
+        return rows.slice().sort(function (a, b) {
+          var av = a[key], bv = b[key];
+          if (isNum) { av = parseFloat(av) || 0; bv = parseFloat(bv) || 0; }
+          else { av = String(av || '').toLowerCase(); bv = String(bv || '').toLowerCase(); }
+          if (av < bv) return sortState.dir === 'asc' ? -1 : 1;
+          if (av > bv) return sortState.dir === 'asc' ? 1 : -1;
+          return 0;
         });
       }
 
-      h += '</tbody>';
-      $('#detailTable').html(h);
-      addColumnSearch($('#detailTable'));
+      function build() {
+        var h = '<thead><tr>';
+        cols.forEach(function (c, i) {
+          var cls = 'th-sortable' + (c.meta ? ' col-meta' : '');
+          var icon = sortState.idx === i ? (sortState.dir === 'asc' ? ' ▲' : ' ▼') : '';
+          h += '<th class="' + cls + '" data-col-idx="' + i + '">' + esc(c.label) + icon + '</th>';
+        });
+        h += '</tr></thead><tbody>';
+        var data = sortedRows();
+        if (!data.length) {
+          h += '<tr><td colspan="' + cols.length + '" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных</td></tr>';
+        } else {
+          data.forEach(function (r) {
+            h += '<tr class="row-data">';
+            cols.forEach(function (c) { h += cellHtml(c, r); });
+            h += '</tr>';
+          });
+        }
+        h += '</tbody>';
+        $('#detailTable').html(h);
+        addColumnSearch($('#detailTable'));
+      }
+
+      build();
+
+      $(document).off('click.sort').on('click.sort', '#detailTable thead th.th-sortable', function () {
+        var idx = parseInt($(this).data('col-idx'));
+        if (sortState.idx === idx) {
+          sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortState.idx = idx;
+          sortState.dir = 'asc';
+        }
+        build();
+      });
     }
 
     function saveCSV(tableId, filename) {

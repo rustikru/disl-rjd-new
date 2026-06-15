@@ -6,7 +6,7 @@ var DETAIL_CONTEXTS = {
     label: 'Расширенная дислокация',
     endpoint: '/api/dislocation/detail',
     cols: [
-      { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
+      { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number' },
       { key: 'wagon_type_code', label: 'Тип вагона', meta: true, mono: true },
       { key: 'train_no', label: 'Поезд №', meta: true },
       { key: 'oper_station', label: 'Тек. станция', meta: true },
@@ -24,7 +24,7 @@ var DETAIL_CONTEXTS = {
     label: 'Подход вагонов',
     endpoint: '/api/approach/detail',
     cols: [
-      { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
+      { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number' },
       { key: 'wagon_type_code', label: 'Род вагона', meta: true },
       { key: 'cargo_name', label: 'Груз', meta: true },
       //{ key: 'prev_cargo', label: 'Ранее выгружен', meta: true },
@@ -49,7 +49,7 @@ var DETAIL_CONTEXTS = {
     label: 'Отправление вагонов',
     endpoint: '/api/departure/detail',
     cols: [
-      { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
+      { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number' },
       { key: 'wagon_type_code', label: 'Тип', meta: true },
       { key: 'cargo_name', label: 'Груз', meta: true },
       { key: 'cargo_weight_kg', label: 'Вес (кг)', right: true },
@@ -67,7 +67,7 @@ var DETAIL_CONTEXTS = {
     label: 'Погрузка',
     endpoint: '/api/loading/detail',
     cols: [
-      { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
+      { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number' },
       { key: 'wagon_type_code', label: 'Тип', meta: true },
       { key: 'cargo_name', label: 'Груз', meta: true },
       { key: 'cargo_weight_kg', label: 'Вес (кг)', right: true },
@@ -84,7 +84,7 @@ var DETAIL_CONTEXTS = {
     label: 'Простои',
     endpoint: '/api/downtime/detail',
     cols: [
-      { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
+      { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number' },
       { key: 'wagon_type_code', label: 'Тип', meta: true },
       { key: 'cargo_name', label: 'Груз', meta: true },
       { key: 'oper_station', label: 'Текущая станция', meta: true },
@@ -99,7 +99,7 @@ var DETAIL_CONTEXTS = {
     label: 'Сырьё',
     endpoint: '/api/raw-material/detail',
     cols: [
-      { key: 'wagon_no', label: '№ вагона', meta: true, mono: true },
+      { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number' },
       { key: 'wagon_type_code', label: 'Тип', meta: true },
       { key: 'cargo_name', label: 'Груз', meta: true },
       { key: 'cargo_weight_kg', label: 'Вес (кг)', right: true },
