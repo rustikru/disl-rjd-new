@@ -195,14 +195,32 @@ $basePath = $basePath ?? '';
       _vtFiltered = _vtAllData.slice();
       _vtCols     = cols;
 
-      var ROW_H  = 28;
-      var BUFFER = 8;
-      var DEF_W  = 130;
+      var ROW_H    = 28;
+      var BUFFER   = 8;
+      var measured = [];
 
-      var baseW    = cols.reduce(function (s, c) { return s + (c.w || DEF_W); }, 0);
+      (function measureCols() {
+        var cv  = document.createElement('canvas');
+        var ctx = cv.getContext('2d');
+        var PAD = 20, MIN = 50, MAX = 320;
+        ctx.font = 'bold 12px sans-serif';
+        measured = cols.map(function (c) {
+          return Math.max(MIN, Math.min(MAX, Math.ceil(ctx.measureText(c.label).width) + PAD));
+        });
+        ctx.font = '12px sans-serif';
+        var sample = _vtAllData.length > 300 ? _vtAllData.slice(0, 300) : _vtAllData;
+        sample.forEach(function (row) {
+          cols.forEach(function (c, i) {
+            var v = c.fmt ? c.fmt(row[c.key]) : (row[c.key] == null ? '' : String(row[c.key]));
+            var w = Math.ceil(ctx.measureText(String(v == null ? '' : v)).width) + PAD;
+            if (w > measured[i]) measured[i] = Math.min(MAX, w);
+          });
+        });
+      })();
       var availW   = document.getElementById('detailTable').offsetWidth || (window.innerWidth - 40);
+      var baseW    = measured.reduce(function (s, w) { return s + w; }, 0);
       var scale    = availW > baseW ? availW / baseW : 1;
-      var template = cols.map(function (c) { return Math.floor((c.w || DEF_W) * scale) + 'px'; }).join(' ');
+      var template = measured.map(function (w) { return Math.floor(w * scale) + 'px'; }).join(' ');
       var totalW   = availW > baseW ? availW : baseW;
 
       $('#detailTable').html(

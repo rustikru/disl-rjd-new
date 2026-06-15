@@ -842,19 +842,39 @@ function loadDetail(cfg) {
 /* Детализация — виртуальная таблица */
 var _vtInline = {}
 
+function vtMeasureCols(colDefs, data) {
+  var cv  = document.createElement('canvas')
+  var ctx = cv.getContext('2d')
+  var PAD = 20, MIN = 50, MAX = 320
+  ctx.font = 'bold 12px sans-serif'
+  var widths = colDefs.map(function (c) {
+    return Math.max(MIN, Math.min(MAX, Math.ceil(ctx.measureText(c.label).width) + PAD))
+  })
+  ctx.font = '12px sans-serif'
+  var sample = data.length > 300 ? data.slice(0, 300) : data
+  sample.forEach(function (row) {
+    colDefs.forEach(function (c, i) {
+      var v = c.fmt ? c.fmt(row[c.key]) : (row[c.key] == null ? '' : String(row[c.key]))
+      var w = Math.ceil(ctx.measureText(String(v == null ? '' : v)).width) + PAD
+      if (w > widths[i]) widths[i] = Math.min(MAX, w)
+    })
+  })
+  return widths
+}
+
 function showTable($container, rows, colDefs) {
   var id      = $container.attr('id')
   var ROW_H   = 28
   var BUFFER  = 8
-  var DEF_W   = 130
   var allData = rows || []
 
   _vtInline[id] = { all: allData, filtered: allData.slice(), cols: colDefs }
 
-  var baseW    = colDefs.reduce(function (s, c) { return s + (c.w || DEF_W); }, 0)
+  var measured = vtMeasureCols(colDefs, allData)
+  var baseW    = measured.reduce(function (s, w) { return s + w; }, 0)
   var availW   = $container[0].offsetWidth || (window.innerWidth - 260)
   var scale    = availW > baseW ? availW / baseW : 1
-  var template = colDefs.map(function (c) { return Math.floor((c.w || DEF_W) * scale) + 'px' }).join(' ')
+  var template = measured.map(function (w) { return Math.floor(w * scale) + 'px' }).join(' ')
   var totalW   = availW > baseW ? availW : baseW
 
   $container.html(
