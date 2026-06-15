@@ -71,7 +71,7 @@ class ApiController
             }
             $dir  = strtoupper($dirs[$i] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
             $expr = strtolower($types[$i] ?? '') === 'number'
-                ? "TO_NUMBER($field DEFAULT NULL ON CONVERSION ERROR)"
+                ? "TO_NUMBER($field)"
                 : $field;
             $parts[] = "$expr $dir";
         }
