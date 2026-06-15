@@ -600,7 +600,7 @@ var WAGON_TABS = {
     loadedKey: '_downtimeLoaded',
     loadedDetKey: '_downtimeDetLoaded',
     sumSubLabel: 'Вагонов с простоем',
-    colLabel: 'Вагонов', // метка единственного столбца сводной
+    colLabel: 'Кол-во', // метка единственного столбца сводной
     groupCols: [
       { key: 'idle_time_name', label: 'Простой' },
       //{ key: 'oper_station', label: 'Станция' },
@@ -680,7 +680,9 @@ var KPI_BOARDS = {
       var tankTotal = data.sections.reduce(function (s, x) {
         return s + (x.tank_total || 0)
       }, 0)
-      var commingToUgl = data.sections.reduce(function (s, x) { return s + x.comming_to_ugl }, 0)
+      var commingToUgl = data.sections.reduce(function (s, x) {
+        return s + x.comming_to_ugl
+      }, 0)
       return [
         {
           label: 'Всего вагонов',
@@ -801,31 +803,54 @@ function loadDetail(cfg) {
   var $table = $('#' + cfg.detTableId)
   var cols = DETAIL_CONTEXTS[cfg.ctx] ? DETAIL_CONTEXTS[cfg.ctx].cols : []
   $sub.text('Загрузка...')
-  var ctxSortRaw = DETAIL_CONTEXTS[cfg.ctx] ? DETAIL_CONTEXTS[cfg.ctx].sort : null
+  var ctxSortRaw = DETAIL_CONTEXTS[cfg.ctx]
+    ? DETAIL_CONTEXTS[cfg.ctx].sort
+    : null
   var ctxSortArr = ctxSortRaw
-    ? (Array.isArray(ctxSortRaw) ? ctxSortRaw : [ctxSortRaw]).filter(function (s) { return s && s.field })
+    ? (Array.isArray(ctxSortRaw) ? ctxSortRaw : [ctxSortRaw]).filter(
+        function (s) {
+          return s && s.field
+        },
+      )
     : []
   var sortExtra = ctxSortArr.length
     ? {
-        sort:     ctxSortArr.map(function (s) { return s.field }).join(','),
-        sort_dir: ctxSortArr.map(function (s) { return s.dir || 'asc' }).join(','),
-        sort_type: ctxSortArr.map(function (s) { return s.type || '' }).join(','),
+        sort: ctxSortArr
+          .map(function (s) {
+            return s.field
+          })
+          .join(','),
+        sort_dir: ctxSortArr
+          .map(function (s) {
+            return s.dir || 'asc'
+          })
+          .join(','),
+        sort_type: ctxSortArr
+          .map(function (s) {
+            return s.type || ''
+          })
+          .join(','),
       }
     : {}
   var listParams = cfg.listParams
     ? cfg.listParams()
-    : Object.assign({}, cfg.getParams(), {
-        fields: cols
-          .map(function (c) {
-            return c.key
-          })
-          .join(','),
-        group_by: (cfg.groupCols || [])
-          .map(function (g) {
-            return g.key
-          })
-          .join(','),
-      }, sortExtra)
+    : Object.assign(
+        {},
+        cfg.getParams(),
+        {
+          fields: cols
+            .map(function (c) {
+              return c.key
+            })
+            .join(','),
+          group_by: (cfg.groupCols || [])
+            .map(function (g) {
+              return g.key
+            })
+            .join(','),
+        },
+        sortExtra,
+      )
   $.getJSON(cfg.detailUrl, listParams)
     .done(function (data) {
       if (cfg.showList) {
@@ -836,25 +861,38 @@ function loadDetail(cfg) {
       $sub.text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'))
     })
     .fail(function (jqXHR) {
-      $table.html('<div style="text-align:center;padding:40px;color:#9DA5B0">' + esc(ajaxErr(jqXHR)) + '</div>')
+      $table.html(
+        '<div style="text-align:center;padding:40px;color:#9DA5B0">' +
+          esc(ajaxErr(jqXHR)) +
+          '</div>',
+      )
     })
 }
 /* Детализация — виртуальная таблица */
 var _vtInline = {}
 
 function vtMeasureCols(colDefs, data) {
-  var cv  = document.createElement('canvas')
+  var cv = document.createElement('canvas')
   var ctx = cv.getContext('2d')
-  var PAD = 20, MIN = 50, MAX = 320
+  var PAD = 20,
+    MIN = 50,
+    MAX = 320
   ctx.font = 'bold 12px sans-serif'
   var widths = colDefs.map(function (c) {
-    return Math.max(MIN, Math.min(MAX, Math.ceil(ctx.measureText(c.label).width) + PAD))
+    return Math.max(
+      MIN,
+      Math.min(MAX, Math.ceil(ctx.measureText(c.label).width) + PAD),
+    )
   })
   ctx.font = '12px sans-serif'
   var sample = data.length > 300 ? data.slice(0, 300) : data
   sample.forEach(function (row) {
     colDefs.forEach(function (c, i) {
-      var v = c.fmt ? c.fmt(row[c.key]) : (row[c.key] == null ? '' : String(row[c.key]))
+      var v = c.fmt
+        ? c.fmt(row[c.key])
+        : row[c.key] == null
+          ? ''
+          : String(row[c.key])
       var w = Math.ceil(ctx.measureText(String(v == null ? '' : v)).width) + PAD
       if (w > widths[i]) widths[i] = Math.min(MAX, w)
     })
@@ -863,115 +901,174 @@ function vtMeasureCols(colDefs, data) {
 }
 
 function showTable($container, rows, colDefs) {
-  var id      = $container.attr('id')
-  var ROW_H   = 28
-  var BUFFER  = 8
+  var id = $container.attr('id')
+  var ROW_H = 28
+  var BUFFER = 8
   var allData = rows || []
 
   _vtInline[id] = { all: allData, filtered: allData.slice(), cols: colDefs }
 
   var measured = vtMeasureCols(colDefs, allData)
-  var baseW    = measured.reduce(function (s, w) { return s + w; }, 0)
-  var availW   = $container[0].offsetWidth || (window.innerWidth - 260)
-  var scale    = availW > baseW ? availW / baseW : 1
-  var template = measured.map(function (w) { return Math.floor(w * scale) + 'px' }).join(' ')
-  var totalW   = availW > baseW ? availW : baseW
+  var baseW = measured.reduce(function (s, w) {
+    return s + w
+  }, 0)
+  var availW = $container[0].offsetWidth || window.innerWidth - 260
+  var scale = availW > baseW ? availW / baseW : 1
+  var template = measured
+    .map(function (w) {
+      return Math.floor(w * scale) + 'px'
+    })
+    .join(' ')
+  var totalW = availW > baseW ? availW : baseW
 
   $container.html(
-    '<div class="vt-viewport" id="ivp-' + id + '">' +
-      '<div class="vt-content" style="width:' + totalW + 'px">' +
-        '<div class="vt-head"   id="ivh-' + id + '" style="grid-template-columns:' + template + ';width:' + totalW + 'px"></div>' +
-        '<div class="vt-filter" id="ivf-' + id + '" style="grid-template-columns:' + template + ';width:' + totalW + 'px"></div>' +
-        '<div id="ivr-' + id + '"></div>' +
+    '<div class="vt-viewport" id="ivp-' +
+      id +
+      '">' +
+      '<div class="vt-content" style="width:' +
+      totalW +
+      'px">' +
+      '<div class="vt-head"   id="ivh-' +
+      id +
+      '" style="grid-template-columns:' +
+      template +
+      ';width:' +
+      totalW +
+      'px"></div>' +
+      '<div class="vt-filter" id="ivf-' +
+      id +
+      '" style="grid-template-columns:' +
+      template +
+      ';width:' +
+      totalW +
+      'px"></div>' +
+      '<div id="ivr-' +
+      id +
+      '"></div>' +
       '</div>' +
-    '</div>'
+      '</div>',
   )
 
-  var hHtml = '', fHtml = ''
+  var hHtml = '',
+    fHtml = ''
   colDefs.forEach(function (c) {
-    hHtml += '<div class="vt-th' + (c.meta ? ' col-meta' : '') + '">' + esc(c.label) + '</div>'
-    fHtml += '<div class="vt-fc"><input data-k="' + c.key + '" type="text" placeholder=""></div>'
+    hHtml +=
+      '<div class="vt-th' +
+      (c.meta ? ' col-meta' : '') +
+      '">' +
+      esc(c.label) +
+      '</div>'
+    fHtml +=
+      '<div class="vt-fc"><input data-k="' +
+      c.key +
+      '" type="text" placeholder=""></div>'
   })
   document.getElementById('ivh-' + id).innerHTML = hHtml
   document.getElementById('ivf-' + id).innerHTML = fHtml
 
   function cellHtml(c, row) {
-    var v       = row[c.key]
-    var display = (v !== null && v !== undefined && v !== '') ? v : ''
+    var v = row[c.key]
+    var display = v !== null && v !== undefined && v !== '' ? v : ''
     if (c.fmt) display = c.fmt(v)
-    var cls   = 'vt-cell' + (c.meta ? ' col-meta' : '') + (c.right ? ' vt-right' : '')
+    var cls =
+      'vt-cell' + (c.meta ? ' col-meta' : '') + (c.right ? ' vt-right' : '')
     var style = ''
     if (c.danger) {
       var d = parseFloat(display) || 0
-      if (d >= 7)      style = ' style="color:#E8392A;font-weight:700"'
+      if (d >= 7) style = ' style="color:#E8392A;font-weight:700"'
       else if (d >= 3) style = ' style="color:#E8A530;font-weight:600"'
     }
-    return '<div class="' + cls + '"' + style + '>' + esc(String(display)) + '</div>'
+    return (
+      '<div class="' + cls + '"' + style + '>' + esc(String(display)) + '</div>'
+    )
   }
 
-  var vp     = document.getElementById('ivp-' + id)
+  var vp = document.getElementById('ivp-' + id)
   var rowsEl = document.getElementById('ivr-' + id)
-  var lastFirst = -1, lastLast = -1
+  var lastFirst = -1,
+    lastLast = -1
 
   function render(force) {
-    var data     = _vtInline[id]
-    var total    = data.filtered.length
+    var data = _vtInline[id]
+    var total = data.filtered.length
     var scrollTop = vp.scrollTop
     var viewRows = Math.ceil(vp.clientHeight / ROW_H)
-    var first    = Math.max(0, Math.floor(scrollTop / ROW_H) - BUFFER)
-    var last     = Math.min(total, first + viewRows + BUFFER * 2)
+    var first = Math.max(0, Math.floor(scrollTop / ROW_H) - BUFFER)
+    var last = Math.min(total, first + viewRows + BUFFER * 2)
     if (!force && first === lastFirst && last === lastLast) return
-    lastFirst = first; lastLast = last
+    lastFirst = first
+    lastLast = last
 
     if (!total) {
-      rowsEl.style.paddingTop    = '0'
+      rowsEl.style.paddingTop = '0'
       rowsEl.style.paddingBottom = '0'
       rowsEl.innerHTML = '<div class="vt-empty">Нет данных</div>'
       return
     }
     var html = ''
     for (var i = first; i < last; i++) {
-      html += '<div class="vt-row" style="grid-template-columns:' + template + ';width:' + totalW + 'px">'
-      colDefs.forEach(function (c) { html += cellHtml(c, data.filtered[i]) })
+      html +=
+        '<div class="vt-row" style="grid-template-columns:' +
+        template +
+        ';width:' +
+        totalW +
+        'px">'
+      colDefs.forEach(function (c) {
+        html += cellHtml(c, data.filtered[i])
+      })
       html += '</div>'
     }
-    rowsEl.style.paddingTop    = (first * ROW_H) + 'px'
-    rowsEl.style.paddingBottom = ((total - last) * ROW_H) + 'px'
+    rowsEl.style.paddingTop = first * ROW_H + 'px'
+    rowsEl.style.paddingBottom = (total - last) * ROW_H + 'px'
     rowsEl.innerHTML = html
   }
 
   document.getElementById('ivf-' + id).addEventListener('input', function () {
     var inputs = this.querySelectorAll('input')
-    var terms  = []
+    var terms = []
     for (var i = 0; i < inputs.length; i++) {
       var v = inputs[i].value.trim().toLowerCase()
       if (v) terms.push({ k: inputs[i].getAttribute('data-k'), v: v })
     }
     var data = _vtInline[id]
-    data.filtered = !terms.length ? data.all.slice() : data.all.filter(function (row) {
-      for (var t = 0; t < terms.length; t++) {
-        if (String(row[terms[t].k] == null ? '' : row[terms[t].k]).toLowerCase().indexOf(terms[t].v) === -1) return false
-      }
-      return true
-    })
+    data.filtered = !terms.length
+      ? data.all.slice()
+      : data.all.filter(function (row) {
+          for (var t = 0; t < terms.length; t++) {
+            if (
+              String(row[terms[t].k] == null ? '' : row[terms[t].k])
+                .toLowerCase()
+                .indexOf(terms[t].v) === -1
+            )
+              return false
+          }
+          return true
+        })
     lastFirst = lastLast = -1
     render(true)
   })
 
   var ticking = false
   vp.addEventListener('scroll', function () {
-    if (ticking) return; ticking = true
-    requestAnimationFrame(function () { render(false); ticking = false })
+    if (ticking) return
+    ticking = true
+    requestAnimationFrame(function () {
+      render(false)
+      ticking = false
+    })
   })
 
   function fitVpHeight() {
     var top = vp.getBoundingClientRect().top
-    var h   = top > 0 ? window.innerHeight - top - 10 : window.innerHeight - 10
+    var h = top > 0 ? window.innerHeight - top - 10 : window.innerHeight - 10
     vp.style.height = Math.max(300, h) + 'px'
     render(false)
   }
 
-  requestAnimationFrame(function () { fitVpHeight(); render(true) })
+  requestAnimationFrame(function () {
+    fitVpHeight()
+    render(true)
+  })
   window.addEventListener('resize', fitVpHeight, { passive: true })
   window.addEventListener('scroll', fitVpHeight, { passive: true })
 
@@ -1318,20 +1415,32 @@ function saveCSV(tableId, filename) {
   if (!table) return
   var rows = []
   table.querySelectorAll('tr').forEach(function (tr) {
-    if (tr.offsetParent === null || getComputedStyle(tr).display === 'none') return
+    if (tr.offsetParent === null || getComputedStyle(tr).display === 'none')
+      return
     var cells = []
     tr.querySelectorAll('th, td').forEach(function (cell) {
       var clone = cell.cloneNode(true)
-      clone.querySelectorAll('.toggle-icon').forEach(function (el) { el.remove() })
-      var val = clone.textContent.trim().replace(/\r?\n|\r/g, ' ').replace(/"/g, '""')
+      clone.querySelectorAll('.toggle-icon').forEach(function (el) {
+        el.remove()
+      })
+      var val = clone.textContent
+        .trim()
+        .replace(/\r?\n|\r/g, ' ')
+        .replace(/"/g, '""')
       cells.push('"' + val + '"')
     })
     rows.push(cells.join(';'))
   })
   var csv = '\uFEFF' + rows.join('\n')
   var a = document.createElement('a')
-  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
-  a.download = (filename || 'таблица') + '_' + new Date().toISOString().slice(0, 10) + '.csv'
+  a.href = URL.createObjectURL(
+    new Blob([csv], { type: 'text/csv;charset=utf-8' }),
+  )
+  a.download =
+    (filename || 'таблица') +
+    '_' +
+    new Date().toISOString().slice(0, 10) +
+    '.csv'
   a.click()
   URL.revokeObjectURL(a.href)
 }
