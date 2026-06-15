@@ -29,9 +29,7 @@ $basePath = $basePath ?? '';
     .detail-page-body { padding: 16px 20px 40px; max-width: 100%; }
     .detail-header-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 
-    /* override: full-height viewport on the detail page */
     #detailTable { overflow: hidden; }
-    .vt-viewport { height: calc(100vh - 210px); min-height: 300px; }
   </style>
 </head>
 
@@ -290,6 +288,15 @@ $basePath = $basePath ?? '';
         if (ticking) return; ticking = true;
         requestAnimationFrame(function () { render(false); ticking = false; });
       });
+
+      function fitVpHeight() {
+        var top = vp.getBoundingClientRect().top;
+        vp.style.height = Math.max(200, window.innerHeight - top - 10) + 'px';
+        render(true);
+      }
+
+      requestAnimationFrame(fitVpHeight);
+      window.addEventListener('resize', fitVpHeight);
 
       render(true);
       attachFloatScrollbar(vp);

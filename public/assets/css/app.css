@@ -685,7 +685,7 @@ body {
 
 /* ── Виртуальная таблица детализации ── */
 .vt-viewport {
-  height: 500px;
+  min-height: 200px;
   overflow: auto;
   position: relative;
 }
