@@ -259,13 +259,14 @@ $basePath = $basePath ?? '';
       $table.find('thead tr:first th').each(function () {
         rows.push ? null : (rows = []);
       });
+      function cleanCell(v) { return '"' + String(v).trim().replace(/\r?\n|\r/g, ' ').replace(/"/g, '""') + '"'; }
       var headers = [];
       $table.find('thead tr:first th').each(function () { headers.push($(this).text()); });
-      rows.push(headers.map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(';'));
+      rows.push(headers.map(cleanCell).join(';'));
       $table.find('tbody tr:not(.search-row)').each(function () {
         if ($(this).is(':hidden')) return;
         var cells = [];
-        $(this).find('td').each(function () { cells.push('"' + $(this).text().replace(/"/g, '""') + '"'); });
+        $(this).find('td').each(function () { cells.push(cleanCell($(this).text())); });
         rows.push(cells.join(';'));
       });
       var bom = '﻿';

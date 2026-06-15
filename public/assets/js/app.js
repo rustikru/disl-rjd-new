@@ -1199,7 +1199,7 @@ function saveCSV(tableId, filename) {
   table.querySelectorAll('tr').forEach(function (tr) {
     var cells = []
     tr.querySelectorAll('th, td').forEach(function (cell) {
-      cells.push('"' + cell.textContent.trim().replace(/"/g, '""') + '"')
+      cells.push('"' + cell.textContent.trim().replace(/\r?\n|\r/g, ' ').replace(/"/g, '""') + '"')
     })
     rows.push(cells.join(','))
   })
