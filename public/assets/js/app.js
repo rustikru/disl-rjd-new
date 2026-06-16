@@ -613,7 +613,7 @@ var WAGON_TABS = {
     sumSubLabel: 'Вагонов с простоем',
     groupCols: [
       //{ key: 'oper_station', label: 'Станция' },
-      { key: 'cargo_name', label: 'Груз' },
+      //{ key: 'cargo_name', label: 'Груз' },
       { key: 'idle_time_name', label: 'Простой' },
     ],
     applyBtnId: 'btnDowntimeApply',
@@ -762,12 +762,21 @@ function loadSummary(cfg) {
   var $table = $('#' + cfg.sumTableId)
   $sub.text('Загрузка...')
   $table.html(
-    '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Загрузка...</td></tr></tbody>',
+    '<tbody><tr><td colspan="10" style="text-align:center;padding:40px;color:#9DA5B0"><div class="div-loader"></div></td></tr></tbody>',
   )
+  return
   var summaryParams = Object.assign({}, cfg.getParams())
-  var gby = (cfg.groupCols || []).map(function (g) { return g.key }).join(',')
+  var gby = (cfg.groupCols || [])
+    .map(function (g) {
+      return g.key
+    })
+    .join(',')
   if (gby) summaryParams.group_by = gby
-  var cby = (cfg.colDims || []).map(function (f) { return f.key }).join(',')
+  var cby = (cfg.colDims || [])
+    .map(function (f) {
+      return f.key
+    })
+    .join(',')
   if (cby) summaryParams.col_by = cby
 
   /* Получаем сводную информацию  */

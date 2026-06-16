@@ -12,7 +12,8 @@ use Psr\Http\Message\ServerRequestInterface;
  */
 class ApiController
 {
-    private const WAG_TYPE_EXPR = "XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(wagon_type_code)"; // краткое название типа вагона для сводных таблиц
+    private const WAG_TYPE_EXPR = "xx_etw.xx_rjd_dislocation_new_pkg.fnc_mapping_wag_type(wagon_type_code)"; // краткое название типа вагона для сводных таблиц
+    private const WAG_STATE = "xx_etw.xx_rjd_dislocation_new_pkg.fnc_get_state_wagon(cargo_weight_kg)"; // краткое состояние вагона (пор. / гр. )
 
     private DbInterface $db;
 
@@ -84,10 +85,12 @@ class ApiController
      */
     private function resolveColDims(string $colBy, array $defaultAliases): array
     {
-        $wagExpr  = self::WAG_TYPE_EXPR;
+        $wagExpr  = self::WAG_TYPE_EXPR; 
+        $wagState  = self::WAG_STATE;
+        
         $registry = [
             'wagon_type_code' => ['alias' => 'wagon_type_code', 'expr' => $wagExpr],
-            'cargo_w_type'    => ['alias' => 'cargo_w_type',    'expr' => "CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END"],
+            'cargo_w_type'    => ['alias' => 'cargo_w_type',    'expr' => $wagState],
         ];
         $aliases = $this->groupFields($colBy, $defaultAliases);
         return array_values(array_filter(
@@ -423,8 +426,7 @@ class ApiController
 
         return $this->json($response, ['rows' => $rows]);
     }
-
-    /** GET /api/downtime/summary — Сводная простоев */
+    
     /** GET /api/downtime/filters — уникальные станции назначения для дропдауна */
     public function downtimeFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
@@ -445,7 +447,7 @@ class ApiController
             'dest_station' => array_column($rows, 'dest_station'),
         ]);
     }
-
+    /** GET /api/downtime/summary — Сводная простоев */
     public function downtimeSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
