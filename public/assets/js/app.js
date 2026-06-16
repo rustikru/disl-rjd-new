@@ -122,8 +122,8 @@ function loadDashboard() {
     $('#brandDateSub').text('Дислокация РЖД на ' + label)
     $('#headerDate').text(label)
     showDashKpi(data)
-    drawBar(data.sections)
-    drawDonut(data.sections)
+    //drawBar(data.sections)
+    //drawDonut(data.sections)
   })
 }
 
@@ -690,6 +690,8 @@ var WAGON_TABS = {
     loadedKey: '_analysisPeriodLoaded',
     loadedDetKey: '_analysisPeriodDetLoaded',
     applyBtnId: 'btnAnalysisPeriodApply',
+    csvFilename: 'анализ',
+
     getParams: function () {
       return {
         wagon_no: $('#fAnalysisPeriodWagonNo').val().trim() || undefined,

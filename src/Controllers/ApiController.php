@@ -178,51 +178,51 @@ class ApiController
      */
     public function dashboard(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $dtsByType = $this->getLatestDtsByType(null, ['Подход', 'Отправка']); // Дата Справки
+        $dtsByType = $this->getLatestDtsByType(null, ['Подход', 'Отправка']);
 
         if (empty($dtsByType)) {
-            return $this->json($response, ['updated_at' => null, 'sections' => []]);
+            return $this->json($response, ['updated_at' => null, 'sections' => [], 'trends' => []]);
         }
 
-        $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $rows = $this->db->fetchAll(
-            "SELECT * FROM TABLE (XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_set_dashboard())
-             ",
+            "SELECT * FROM TABLE(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_set_dashboard())"
         );
         $dt = max($dtsByType);
 
         $sections = [];
+
         foreach ($rows as $r) {
-            $sectionName = trim(explode(',', (string) ($r['park_type'] ?? ''))[0]);
+            $sectionName = trim(explode(',', (string) ($r['id'] ?? ''))[0]);
             if (!isset($sections[$sectionName])) {
                 $sections[$sectionName] = [
-                    'id' => md5($sectionName),
-                    'name' => $sectionName,
-                    'comming_to_ugl' => 0,
                     'total' => 0,
+                    'tank_total' => 0,
+                    'comming_to_ugl' => 0,
                     'arrived_today_ugl' => 0,
-                    'tank_total' => 0
-
+                    'arrived_ugl' => 0,
                 ];
             }
 
-            $cnt = (int) $r['total'];
-            /* В пути на УГЛ*/
-            $commingToUgl = (int) $r['comming_to_ugl'];
-            /* ---- Прибыло сегодня на УГЛ ------ */
-            $arrivedTodayUgl = (int) $r['arrived_today_ugl'];
-            $arrivedUgl = (int) $r['arrived_ugl'];
-            /* ---- Прибыло сегодня на УГЛ ------ */
-            /* Всего вагонов по справке */
-            $sections[$sectionName]['total'] += $cnt;
-            $sections[$sectionName]['comming_to_ugl'] += $commingToUgl;
-            $sections[$sectionName]['arrived_today_ugl'] += $arrivedTodayUgl;
-            $sections[$sectionName]['arrived_ugl'] = '12%';
-            $sections[$sectionName]['arrived_ugl_dir'] = 'up';
-            if (mb_stripos((string) ($r['wagon_type_code'] ?? ''), 'цистерн') !== false) {
-                /* Всего вагонов (цистерны)*/
-                $sections[$sectionName]['tank_total'] += $cnt;
-            }
+
+            $sections[$sectionName]['total'] = (int) $r['total'];
+            $sections[$sectionName]['tank_total'] = (int) $r['tank_total'];
+            $sections[$sectionName]['comming_to_ugl'] = (int) $r['comming_to_ugl'];
+            $sections[$sectionName]['arrived_today_ugl'] = (int) $r['arrived_today_ugl'];
+            $sections[$sectionName]['arrived_ugl'] = (int) $r['arrived_ugl'];
+
+            /* Динамика изменения */
+            $trends = [
+                'total' => null,
+                'total_dir' => null,
+                'tank' => null,
+                'tank_dir' => null,
+                'other' => null,
+                'other_dir' => null,
+                'ugl' => null,
+                'ugl_dir' => null,
+                'arrived_ugl' => $r['arrived_ugl'],
+                'arrived_ugl_dir' => $r['arrived_ugl_dir'],
+            ];
         }
 
         try {
@@ -231,7 +231,11 @@ class ApiController
             $dtLabel = $dt;
         }
 
-        return $this->json($response, ['updated_at' => $dtLabel, 'sections' => array_values($sections)]);
+        return $this->json($response, [
+            'updated_at' => $dtLabel,
+            'sections' => array_values($sections),
+            'trends' => $trends,
+        ]);
     }
 
     /** GET /api/dislocation/summary — Сводная таблица */

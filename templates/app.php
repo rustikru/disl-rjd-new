@@ -53,7 +53,7 @@ $basePath = $basePath ?? '';
           <div style="font-size:20px;font-weight:700;letter-spacing:-.02em">Дашборд</div>
         </div>
         <div class="kpi-grid" id="kpiGrid"></div>
-        <section class="analytics-grid">
+        <!-- <section class="analytics-grid">
           <div class="chart-card">
             <div class="chart-title">Распределение по типам парка</div>
             <div id="sectionsChart"></div>
@@ -62,7 +62,7 @@ $basePath = $basePath ?? '';
             <div class="chart-title">Цистерны / Прочие</div>
             <div id="typesChart"></div>
           </div>
-        </section>
+        </section> -->
       </div>
 
       <!-- Дислокация -->
