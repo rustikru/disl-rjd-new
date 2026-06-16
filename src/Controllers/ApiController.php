@@ -37,6 +37,30 @@ class ApiController
         ));
         return $fields ? implode(', ', $fields) : 'wagon_no';
     }
+    /* Подготавливает данные для SQL-оператора IN.
+     *
+     * @param string $string Исходная строка (например, "234234;234234")
+     * @param string $delimiter Разделитель (например, ";")
+     * @param string $paramName Базовое имя для плейсхолдеров (например, "wagon_no")
+     * @param array $bindings Ссылка на массив с биндами PDO
+     * @return string Строка плейсхолдеров для SQL (например, ":wagon_no_0, :wagon_no_1")
+     */
+    private function parserInValues(string $string, string $delimiter, string $paramName, array &$bindings): string
+    {
+        $items = array_filter(array_map('trim', explode($delimiter, $string)));
+        if (empty($items)) {
+            return '';
+        }
+
+        $placeholders = [];
+        foreach ($items as $index => $value) {
+            $key = "{$paramName}_{$index}";
+            $placeholders[] = ':' . $key;
+            $bindings[$key] = $value;
+        }
+
+        return implode(', ', $placeholders);
+    }
 
     /**
      * Парсит group_by=field1,field2,...
@@ -572,19 +596,18 @@ class ApiController
 
         $wagonNo = trim($params['wagon_no'] ?? '');
         if ($wagonNo !== '') {
-            $where .= ' AND wagon_no = :wagon_no';
-            $bindings['wagon_no'] = $wagonNo;
+            $where .= ' AND wagon_no IN (' . $this->parserInValues($wagonNo, ';', 'wagon_no', $bindings) . ')';
         }
 
         $dateFrom = $params['date_from'] ?? '';
         if ($dateFrom !== '') {
-            $where .= " AND TRUNC(report_dt) >= TO_DATE(:date_from, 'YYYY-MM-DD')";
+            $where .= " AND TRUNC(oper_dt) >= TO_DATE(:date_from, 'YYYY-MM-DD')";
             $bindings['date_from'] = $dateFrom;
         }
 
         $dateTo = $params['date_to'] ?? '';
         if ($dateTo !== '') {
-            $where .= " AND TRUNC(report_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
+            $where .= " AND TRUNC(oper_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
             $bindings['date_to'] = $dateTo;
         }
 
