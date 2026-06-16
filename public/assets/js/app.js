@@ -545,7 +545,6 @@ var KPI_BOARDS = {
   dashboard: {
     dataUrl: BASE + '/api/dashboard',
     cards: function (data) {
-      // Один проход вместо четырёх
       const { grandTotal, tankTotal, commingToUgl, arrivedTodayUgl } =
         data.sections.reduce(
           (acc, x) => ({
