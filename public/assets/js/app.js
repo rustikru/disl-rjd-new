@@ -708,41 +708,47 @@ var KPI_BOARDS = {
   dashboard: {
     dataUrl: BASE + '/api/dashboard',
     cards: function (data) {
-      var grandTotal = data.sections.reduce(function (s, x) {
-        return s + x.total
-      }, 0)
-      var tankTotal = data.sections.reduce(function (s, x) {
-        return s + (x.tank_total || 0)
-      }, 0)
-      var commingToUgl = data.sections.reduce(function (s, x) {
-        return s + x.comming_to_ugl
-      }, 0)
-      var arrivedTodayUgl = data.sections.reduce(function (s, x) {
-        return s + x.arrived_today_ugl
-      }, 0)
-
+      var grandTotal      = data.sections.reduce(function (s, x) { return s + x.total }, 0)
+      var tankTotal       = data.sections.reduce(function (s, x) { return s + (x.tank_total || 0) }, 0)
+      var commingToUgl    = data.sections.reduce(function (s, x) { return s + x.comming_to_ugl }, 0)
+      var arrivedTodayUgl = data.sections.reduce(function (s, x) { return s + (x.arrived_today_ugl || 0) }, 0)
+      /* tr — тренды из бэкенда (опционально).
+         Структура: { total: '-8.7%', total_dir: 'down', tank: '+12%', tank_dir: 'up', ... }
+         Когда бэкенд добавит поле trends, бейджи появятся автоматически. */
+      var tr = data.trends || {}
+      function trend(pct, dir) { return pct ? { pct: pct, dir: dir || 'neutral' } : null }
       return [
         {
           label: 'Всего вагонов',
           value: grandTotal,
           accent: true,
+          variant: 'pill',
+          trend: trend(tr.total, tr.total_dir),
           detail: { ctx: 'dislocation' },
         },
         {
           label: 'Цистерны',
           value: tankTotal,
+          variant: 'pill',
+          trend: trend(tr.tank, tr.tank_dir),
         },
         {
           label: 'Прочие вагоны',
           value: grandTotal - tankTotal,
+          variant: 'pill',
+          trend: trend(tr.other, tr.other_dir),
         },
         {
           label: 'В пути на УГЛ',
           value: commingToUgl,
+          variant: 'pill',
+          trend: trend(tr.ugl, tr.ugl_dir),
         },
         {
           label: 'Прибыло сегодня (УГЛ)',
           value: arrivedTodayUgl,
+          variant: 'pill',
+          trend: trend(tr.arrived_ugl, tr.arrived_ugl_dir),
         },
       ]
     },
@@ -1580,33 +1586,47 @@ function idleStyle(days) {
 // HTML одной KPI-карточки. Поля: label, value (или total), accent, sub, detail.
 // detail: { ctx, road, station, col, groupBy, subs, params } — открыть детализацию по клику
 // detail: { url } — открыть произвольный URL по клику
+/*
+  kpiCard — рендерит одну KPI-карточку.
+  Атрибуты item:
+    label   — подпись
+    value   — число
+    accent  — синий фон
+    detail  — объект для перехода в детализацию
+    sub     — мелкий текст под значением
+    variant — 'pill': label сверху, value + бейдж в строку (для дашборда)
+    trend   — { pct: '-8.7%', dir: 'up'|'down'|'neutral' } — бейдж с трендом
+*/
 function kpiCard(item) {
   var val = item.value != null ? item.value : item.total || 0
   var hasDetail = !!item.detail
-  var cls =
-    'kpi-card' +
-    (item.accent ? ' accent' : '') +
-    (hasDetail ? ' kpi-card--link' : '')
+  var cls = 'kpi-card' + (item.accent ? ' accent' : '') + (hasDetail ? ' kpi-card--link' : '')
   var detAttr = hasDetail
-    ? " data-detail='" +
-      JSON.stringify(item.detail).replace(/'/g, '&#39;') +
-      "'"
+    ? " data-detail='" + JSON.stringify(item.detail).replace(/'/g, '&#39;') + "'"
     : ''
-  return (
-    '<div class="' +
-    cls +
-    '"' +
-    detAttr +
-    '>' +
-    '<div class="kpi-value">' +
-    (typeof val === 'number' ? val.toLocaleString('ru-RU') : esc(String(val))) +
-    '</div>' +
-    '<div class="kpi-label">' +
-    esc(item.label) +
-    '</div>' +
+  var valStr = typeof val === 'number' ? val.toLocaleString('ru-RU') : esc(String(val))
+
+  if (item.variant === 'pill' || item.trend) {
+    var badgeHtml = ''
+    if (item.trend) {
+      var t = item.trend
+      var dir = t.dir || 'neutral'
+      var arrow = dir === 'up' ? '▲ ' : dir === 'down' ? '▼ ' : ''
+      var bc = 'kpi-badge' + (dir === 'up' ? ' kpi-badge--up' : dir === 'down' ? ' kpi-badge--down' : '')
+      badgeHtml = '<span class="' + bc + '">' + arrow + esc(t.pct) + '</span>'
+    }
+    return '<div class="' + cls + '"' + detAttr + '>' +
+      '<div class="kpi-label">' + esc(item.label) + '</div>' +
+      '<div class="kpi-value-row"><span class="kpi-value">' + valStr + '</span>' + badgeHtml + '</div>' +
+      (item.sub ? '<div class="kpi-delta">' + esc(item.sub) + '</div>' : '') +
+      '</div>'
+  }
+
+  return '<div class="' + cls + '"' + detAttr + '>' +
+    '<div class="kpi-value">' + valStr + '</div>' +
+    '<div class="kpi-label">' + esc(item.label) + '</div>' +
     (item.sub ? '<div class="kpi-delta">' + esc(item.sub) + '</div>' : '') +
     '</div>'
-  )
 }
 
 // Свернуть / Отобразить все строки в таблице
