@@ -228,8 +228,6 @@ class ApiController
     public function dislDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $road = $params['road'] ?? null;
-        $station = $params['station'] ?? null;
         $wagType = $params['wagon_type'] ?? null;
         $gf = $this->groupFields($params['group_by'] ?? '', ['dest_state', 'dest_road']);
         $gfStr = implode(', ', $gf);
@@ -237,7 +235,7 @@ class ApiController
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $bindings = $cond['params'];
-        $where = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
+        $where = $this->applyGfFilters($gf, $params, $bindings);
 
 
         $cargoState = $params['cargo_state'] ?? null;
@@ -314,8 +312,6 @@ class ApiController
     public function approachDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $road = $params['road'] ?? null;
-        $station = $params['station'] ?? null;
         $wagType = $params['wagon_type'] ?? null;
         $gf = $this->groupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
         $base = $this->approachFrom($params);
@@ -326,7 +322,7 @@ class ApiController
 
         $gfStr = implode(', ', $gf);
         $bindings = $base['bindings'];
-        $outerWhere = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
+        $outerWhere = $this->applyGfFilters($gf, $params, $bindings);
         if ($wagType) {
             $outerWhere .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
             $bindings['wtype'] = $wagType;
@@ -393,8 +389,6 @@ class ApiController
     public function departureDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $road = $params['road'] ?? null;
-        $station = $params['station'] ?? null;
         $wagType = $params['wagon_type'] ?? null;
         $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $base = $this->departureFrom($params);
@@ -405,7 +399,7 @@ class ApiController
 
         $gfStr = implode(', ', $gf);
         $bindings = $base['bindings'];
-        $outerWhere = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
+        $outerWhere = $this->applyGfFilters($gf, $params, $bindings);
         if ($wagType) {
             $outerWhere .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
             $bindings['wtype'] = $wagType;
@@ -441,8 +435,6 @@ class ApiController
     public function loadingDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $road = $params['road'] ?? null;
-        $station = $params['station'] ?? null;
         $wagType = $params['wagon_type'] ?? null;
         $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $base = $this->loadingFrom($params);
@@ -453,7 +445,7 @@ class ApiController
 
         $gfStr = implode(', ', $gf);
         $bindings = $base['bindings'];
-        $outerWhere = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
+        $outerWhere = $this->applyGfFilters($gf, $params, $bindings);
         if ($wagType) {
             $outerWhere .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
             $bindings['wtype'] = $wagType;
@@ -522,19 +514,13 @@ class ApiController
         $params = $request->getQueryParams();
         $base = $this->downtimeFrom($params);
         $wagType = $params['wagon_type'] ?? null;
-        // idle_time_name передаётся явно из mapDetailParams (не через road+group_by),
-        // чтобы фильтр по категории простоя не зависел от group_by в URL.
-        $idleTimeName = $params['idle_time_name'] ?? null;
         if (!$base['reportDt']) {
             return $this->json($response, ['rows' => []]);
         }
 
+        $gf = $this->groupFields($params['group_by'] ?? '', ['idle_time_name']);
         $bindings = $base['bindings'];
-        $outerWhere = '';
-        if ($idleTimeName !== null && $idleTimeName !== '') {
-            $outerWhere .= ' AND idle_time_name = :itn';
-            $bindings['itn'] = $idleTimeName;
-        }
+        $outerWhere = $this->applyGfFilters($gf, $params, $bindings);
         if ($wagType) {
             $outerWhere .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
             $bindings['wtype'] = $wagType;
@@ -592,8 +578,6 @@ class ApiController
     public function rawDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $road = $params['road'] ?? null;
-        $station = $params['station'] ?? null;
         $wagType = $params['wagon_type'] ?? null;
         $gf = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
         $base = $this->rawFrom($params);
@@ -604,7 +588,7 @@ class ApiController
 
         $gfStr = implode(', ', $gf);
         $bindings = $base['bindings'];
-        $outerWhere = $this->applyGfFilters($gf, $road, $station, $params, $bindings);
+        $outerWhere = $this->applyGfFilters($gf, $params, $bindings);
         if ($wagType) {
             $outerWhere .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
             $bindings['wtype'] = $wagType;
@@ -766,26 +750,17 @@ class ApiController
     // =========================================================================
 
     /**
-     * Строит outerWhere из groupFields: road→gf[0], station→gf[last] (только если last>0),
-     * плюс промежуточные уровни через прямое имя поля в $params.
-     * Безопасно при одном поле в $gf: station не перетирает road.
+     * Строит outerWhere по groupFields: для каждого поля ищет одноимённый параметр
+     * в $params и добавляет AND field = :gfv_field.
      */
-    private function applyGfFilters(array $gf, ?string $road, ?string $station, array $params, array &$bindings): string
+    private function applyGfFilters(array $gf, array $params, array &$bindings): string
     {
         $where = '';
-        if ($road !== null && $road !== '' && isset($gf[0])) {
-            $where .= " AND {$gf[0]} = :gf_0";
-            $bindings['gf_0'] = $road;
-        }
-        $last = count($gf) - 1;
-        if ($last > 0 && $station !== null && $station !== '' && isset($gf[$last])) {
-            $where .= " AND {$gf[$last]} = :gf_$last";
-            $bindings["gf_$last"] = $station;
-        }
-        foreach ($gf as $idx => $k) {
-            if (!array_key_exists("gf_$idx", $bindings) && isset($params[$k]) && $params[$k] !== '') {
-                $where .= " AND $k = :dfld_$idx";
-                $bindings["dfld_$idx"] = $params[$k];
+        foreach ($gf as $k) {
+            if (isset($params[$k]) && $params[$k] !== '') {
+                $safe = preg_replace('/[^a-z0-9_]/i', '', $k);
+                $where .= " AND $k = :gfv_$safe";
+                $bindings["gfv_$safe"] = $params[$k];
             }
         }
         return $where;

@@ -420,14 +420,10 @@ var WAGON_TABS = {
     getParams: function () {
       return {}
     },
-    mapDetailParams: function (road, station, col, subs) {
-      return {
-        road: road,
-        station: station,
-        wagon_type: col,
-        cargo_state: subs && subs[0] ? subs[0] : undefined,
-      }
-    },
+    colFields: [
+      { key: 'wagon_type_code', paramName: 'wagon_type' },
+      { key: 'cargo_w_type', paramName: 'cargo_state' },
+    ],
   },
 
   // Подход
@@ -477,12 +473,10 @@ var WAGON_TABS = {
         prev_cargo: $('#fApproachPrevCargo').val() || undefined,
       }
     },
-    mapDetailParams: function (road, station, col, subs) {
-      return Object.assign(
-        { road: road, station: station, wagon_type: col },
-        this.getParams(),
-      )
-    },
+    colFields: [
+      { key: 'wagon_type_code', paramName: 'wagon_type' },
+      { key: 'cargo_w_type', paramName: 'cargo_state' },
+    ],
     fillFilters: function (data) {
       fillSelect('#fApproachCargo', data.cargo || [])
       fillSelect('#fApproachPrevCargo', data.prev_cargo || [])
@@ -540,12 +534,9 @@ var WAGON_TABS = {
         dest_station: $('#fDestStation').val() || undefined,
       }
     },
-    mapDetailParams: function (road, station, col, subs) {
-      return Object.assign(
-        { road: road, station: station, wagon_type: col },
-        this.getParams(),
-      )
-    },
+    colFields: [
+      { key: 'wagon_type_code', paramName: 'wagon_type' },
+    ],
     fillFilters: function (data) {
       fillSelect('#fDepartureCargo', data.cargo || [])
       fillSelect('#fDestStation', data.dest_station || [])
@@ -600,12 +591,9 @@ var WAGON_TABS = {
     getParams: function () {
       return { cargo: $('#fLoadingCargo').val() || undefined }
     },
-    mapDetailParams: function (road, station, col, subs) {
-      return Object.assign(
-        { road: road, station: station, wagon_type: col },
-        this.getParams(),
-      )
-    },
+    colFields: [
+      { key: 'wagon_type_code', paramName: 'wagon_type' },
+    ],
     fillFilters: function (data) {
       fillSelect('#fLoadingCargo', data.cargo || [])
     },
@@ -644,18 +632,10 @@ var WAGON_TABS = {
         col_label: this.colLabel,
       }
     },
-    // col — синтетический лейбл ('Кол-во'), не передаём как wagon_type.
-    // wagon_type берём из subs[0] — это m_wagon_type_code из сводной.
-    // idle_time_name передаём явно (не через road+group_by) — чтобы бэкенд
-    // всегда корректно фильтровал по категории простоя независимо от group_by.
-    mapDetailParams: function (road, station, col, subs) {
-      var p = {}
-      if (road) p.idle_time_name = road
-      if (subs && subs[0]) p.wagon_type = subs[0]
-      var fp = this.getParams()
-      if (fp.dest_station) p.dest_station = fp.dest_station
-      return p
-    },
+    colFields: [
+      { key: 'wagon_type_code', synthetic: true },
+      { key: 'm_wagon_type_code', paramName: 'wagon_type' },
+    ],
     resetFilters: function () {
       $('#fDowntimeDestStation').val('')
     },
@@ -702,9 +682,9 @@ var WAGON_TABS = {
     getParams: function () {
       return {}
     },
-    mapDetailParams: function (road, station, col, subs) {
-      return { road: road, station: station, wagon_type: col }
-    },
+    colFields: [
+      { key: 'wagon_type_code', paramName: 'wagon_type' },
+    ],
   },
 }
 
@@ -1703,37 +1683,34 @@ function navNewTab(url) {
 }
 
 // Drill-down: открыть страницу детализации в новой вкладке.
-// Параметры собираются через cfg.mapDetailParams (определяется в WAGON_TABS),
-// что позволяет каждому контексту задавать свой маппинг без переопределений.
+// road/station → заголовок страницы + реальные поля groupCols[0]/groupCols[last].
+// col/subs → маппятся через colFields из WAGON_TABS (synthetic=true — не передаётся).
+// extra — доп. фильтры из getParams(), не перетирают явно заданные.
 function openDetail(ctx, road, station, col, groupBy, subs, extra) {
   var p = new URLSearchParams()
   p.set('ctx', ctx)
   if (groupBy) p.set('group_by', groupBy)
+  if (road) p.set('road', road)
+  if (station) p.set('station', station)
 
   var tabCfg = WAGON_TABS[ctx]
-  if (tabCfg && tabCfg.mapDetailParams) {
-    // Контекст сам знает как смаппить road/station/col/subs на бэкенд-параметры
-    var mapped = tabCfg.mapDetailParams(road, station, col, subs)
-    Object.keys(mapped).forEach(function (k) {
-      if (mapped[k] !== undefined && mapped[k] !== null && mapped[k] !== '')
-        p.set(k, mapped[k])
+  if (tabCfg) {
+    var gc = tabCfg.groupCols || []
+    if (road && gc[0]) p.set(gc[0].key, road)
+    if (station && gc.length > 1) p.set(gc[gc.length - 1].key, station)
+
+    var cf = tabCfg.colFields || []
+    var hdrVals = [col].concat(subs || [])
+    var vi = 0
+    cf.forEach(function (f) {
+      var v = hdrVals[vi++]
+      if (!f.synthetic && f.paramName && v !== undefined && v !== null && v !== '')
+        p.set(f.paramName, v)
     })
-  } else {
-    // Дефолт: road→road, station→station, col→wagon_type, subs[0]→cargo_state
-    if (road) p.set('road', road)
-    if (station) p.set('station', station)
-    if (col) p.set('wagon_type', col)
-    if (subs && subs[0]) p.set('cargo_state', subs[0])
   }
 
-  // Параметры активных фильтров вкладки (getParams) — не перетирают явно заданные
   Object.keys(extra || {}).forEach(function (k) {
-    if (
-      !p.has(k) &&
-      extra[k] !== undefined &&
-      extra[k] !== null &&
-      extra[k] !== ''
-    )
+    if (!p.has(k) && extra[k] !== undefined && extra[k] !== null && extra[k] !== '')
       p.set(k, extra[k])
   })
   navNewTab(BASE + '/detail?' + p.toString())
