@@ -175,7 +175,7 @@ class ImportController
         // Определяем тип справки по dest_station (кол. 12) первой непустой строки
         $fileType = $this->detectFileType($sheet, $highestRow);
 
-        $reportDate = substr($reportDt, 0, 10); // 'YYYY-MM-DD'
+        $reportDate = substr($reportDt, 0, 10); // 'YYYY-MM-DD HH24:MI:SS'
         $exists = $this->db->fetchOne(
             "SELECT COUNT(*) AS cnt FROM xx_dislocation_rjd
              WHERE (report_dt) = TO_DATE(:dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = :type",
