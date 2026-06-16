@@ -693,8 +693,8 @@ var WAGON_TABS = {
     getParams: function () {
       return {
         wagon_no: $('#fAnalysisPeriodWagonNo').val().trim() || undefined,
-        start_dt: $('#fAnalysisPeriodDateFrom').val() || undefined,
-        end_dt: $('#fAnalysisPeriodDateTo').val() || undefined,
+        date_from: $('#fAnalysisPeriodDateFrom').val() || undefined,
+        date_to: $('#fAnalysisPeriodDateTo').val() || undefined,
       }
     },
   },
@@ -708,15 +708,25 @@ var KPI_BOARDS = {
   dashboard: {
     dataUrl: BASE + '/api/dashboard',
     cards: function (data) {
-      var grandTotal      = data.sections.reduce(function (s, x) { return s + x.total }, 0)
-      var tankTotal       = data.sections.reduce(function (s, x) { return s + (x.tank_total || 0) }, 0)
-      var commingToUgl    = data.sections.reduce(function (s, x) { return s + x.comming_to_ugl }, 0)
-      var arrivedTodayUgl = data.sections.reduce(function (s, x) { return s + (x.arrived_today_ugl || 0) }, 0)
+      var grandTotal = data.sections.reduce(function (s, x) {
+        return s + x.total
+      }, 0)
+      var tankTotal = data.sections.reduce(function (s, x) {
+        return s + (x.tank_total || 0)
+      }, 0)
+      var commingToUgl = data.sections.reduce(function (s, x) {
+        return s + x.comming_to_ugl
+      }, 0)
+      var arrivedTodayUgl = data.sections.reduce(function (s, x) {
+        return s + (x.arrived_today_ugl || 0)
+      }, 0)
       /* tr — тренды из бэкенда (опционально).
          Структура: { total: '-8.7%', total_dir: 'down', tank: '+12%', tank_dir: 'up', ... }
          Когда бэкенд добавит поле trends, бейджи появятся автоматически. */
       var tr = data.trends || {}
-      function trend(pct, dir) { return pct ? { pct: pct, dir: dir || 'neutral' } : null }
+      function trend(pct, dir) {
+        return pct ? { pct: pct, dir: dir || 'neutral' } : null
+      }
       return [
         {
           label: 'Всего вагонов',
@@ -1600,11 +1610,17 @@ function idleStyle(days) {
 function kpiCard(item) {
   var val = item.value != null ? item.value : item.total || 0
   var hasDetail = !!item.detail
-  var cls = 'kpi-card' + (item.accent ? ' accent' : '') + (hasDetail ? ' kpi-card--link' : '')
+  var cls =
+    'kpi-card' +
+    (item.accent ? ' accent' : '') +
+    (hasDetail ? ' kpi-card--link' : '')
   var detAttr = hasDetail
-    ? " data-detail='" + JSON.stringify(item.detail).replace(/'/g, '&#39;') + "'"
+    ? " data-detail='" +
+      JSON.stringify(item.detail).replace(/'/g, '&#39;') +
+      "'"
     : ''
-  var valStr = typeof val === 'number' ? val.toLocaleString('ru-RU') : esc(String(val))
+  var valStr =
+    typeof val === 'number' ? val.toLocaleString('ru-RU') : esc(String(val))
 
   if (item.variant === 'pill' || item.trend) {
     var badgeHtml = ''
@@ -1612,21 +1628,49 @@ function kpiCard(item) {
       var t = item.trend
       var dir = t.dir || 'neutral'
       var arrow = dir === 'up' ? '▲ ' : dir === 'down' ? '▼ ' : ''
-      var bc = 'kpi-badge' + (dir === 'up' ? ' kpi-badge--up' : dir === 'down' ? ' kpi-badge--down' : '')
+      var bc =
+        'kpi-badge' +
+        (dir === 'up'
+          ? ' kpi-badge--up'
+          : dir === 'down'
+            ? ' kpi-badge--down'
+            : '')
       badgeHtml = '<span class="' + bc + '">' + arrow + esc(t.pct) + '</span>'
     }
-    return '<div class="' + cls + '"' + detAttr + '>' +
-      '<div class="kpi-label">' + esc(item.label) + '</div>' +
-      '<div class="kpi-value-row"><span class="kpi-value">' + valStr + '</span>' + badgeHtml + '</div>' +
+    return (
+      '<div class="' +
+      cls +
+      '"' +
+      detAttr +
+      '>' +
+      '<div class="kpi-label">' +
+      esc(item.label) +
+      '</div>' +
+      '<div class="kpi-value-row"><span class="kpi-value">' +
+      valStr +
+      '</span>' +
+      badgeHtml +
+      '</div>' +
       (item.sub ? '<div class="kpi-delta">' + esc(item.sub) + '</div>' : '') +
       '</div>'
+    )
   }
 
-  return '<div class="' + cls + '"' + detAttr + '>' +
-    '<div class="kpi-value">' + valStr + '</div>' +
-    '<div class="kpi-label">' + esc(item.label) + '</div>' +
+  return (
+    '<div class="' +
+    cls +
+    '"' +
+    detAttr +
+    '>' +
+    '<div class="kpi-value">' +
+    valStr +
+    '</div>' +
+    '<div class="kpi-label">' +
+    esc(item.label) +
+    '</div>' +
     (item.sub ? '<div class="kpi-delta">' + esc(item.sub) + '</div>' : '') +
     '</div>'
+  )
 }
 
 // Свернуть / Отобразить все строки в таблице

@@ -358,18 +358,17 @@ $basePath = $basePath ?? '';
           <div class="filters-inner" style="flex-wrap:wrap;gap:8px 16px">
             <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label">№ вагона</label>
-              <input class="filter-input" type="text" id="fAnalysisPeriodWagonNo"
-                placeholder="52345678; 52345679; ..." style="width:360px">
+              <input class="filter-input" type="text" id="fAnalysisPeriodWagonNo" placeholder="52345678; 52345679; ..."">
             </div>
-            <div class="filter-item">
+            <div class=" filter-item">
               <label class="filter-label">Операция с</label>
-              <input class="filter-input" type="date" id="fAnalysisPeriodDateFrom"
-                value="<?= date('Y-m-01') ?>" style="width:145px">
+              <input class="filter-input" type="date" id="fAnalysisPeriodDateFrom" value="<?= date('Y-m-01') ?>"
+                style="width:145px">
             </div>
             <div class="filter-item">
               <label class="filter-label">по</label>
-              <input class="filter-input" type="date" id="fAnalysisPeriodDateTo"
-                value="<?= date('Y-m-d') ?>" style="width:145px">
+              <input class="filter-input" type="date" id="fAnalysisPeriodDateTo" value="<?= date('Y-m-d') ?>"
+                style="width:145px">
             </div>
             <div class="filter-actions">
               <button class="btn btn-primary btn-sm" id="btnAnalysisPeriodApply">Применить</button>
