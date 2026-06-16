@@ -29,7 +29,7 @@ if (strlen($password) < 6) {
 $db = \App\Database\DbFactory::create($config);
 
 $existing = $db->fetchOne(
-    'SELECT id FROM users WHERE username = :username',
+    'SELECT id FROM xx_users_rjd WHERE username = :username',
     ['username' => $username]
 );
 
@@ -42,7 +42,7 @@ if ($existing) {
 $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 10]);
 
 $db->execute(
-    'INSERT INTO users (username, display_name, email, password_hash, is_active)
+    'INSERT INTO xx_users_rjd (username, display_name, email, password_hash, is_active)
      VALUES (:username, :display_name, :email, :hash, 1)',
     [
         'username' => $username,

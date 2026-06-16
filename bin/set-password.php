@@ -27,7 +27,7 @@ if (strlen($password) < 6) {
 $db = \App\Database\DbFactory::create($config);
 
 $user = $db->fetchOne(
-    'SELECT id FROM users WHERE username = :username',
+    'SELECT id FROM xx_users_rjd WHERE username = :username',
     ['username' => $username]
 );
 
@@ -39,7 +39,7 @@ if (!$user) {
 $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 10]);
 
 $db->execute(
-    'UPDATE users SET password_hash = :hash WHERE username = :username',
+    'UPDATE xx_users_rjd SET password_hash = :hash WHERE username = :username',
     ['hash' => $hash, 'username' => $username]
 );
 
