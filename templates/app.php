@@ -94,6 +94,7 @@ $basePath = $basePath ?? '';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info"><span class="table-title">Расширенная дислокация</span></div>
+              <div class="table-acts"></div>
             </div>
             <div id="dislExtTable"></div>
           </section>
@@ -159,6 +160,7 @@ $basePath = $basePath ?? '';
                 <span class="table-title">Расширенная в подходе</span>
                 <span class="table-sub" id="approachDetSub"></span>
               </div>
+              <div class="table-acts"></div>
             </div>
             <div id="approachDetTable"></div>
           </section>
@@ -217,6 +219,7 @@ $basePath = $basePath ?? '';
                 <span class="table-title">Список отправленных вагонов</span>
                 <span class="table-sub" id="departureDetSub"></span>
               </div>
+              <div class="table-acts"></div>
             </div>
             <div id="departureDetTable"></div>
           </section>
@@ -268,6 +271,7 @@ $basePath = $basePath ?? '';
                 <span class="table-title">Список погруженных вагонов</span>
                 <span class="table-sub" id="loadingDetSub"></span>
               </div>
+              <div class="table-acts"></div>
             </div>
             <div id="loadingDetTable"></div>
           </section>
@@ -317,6 +321,7 @@ $basePath = $basePath ?? '';
                 <span class="table-title">Простаивающие вагоны</span>
                 <span class="table-sub" id="downtimeDetSub"></span>
               </div>
+              <div class="table-acts"></div>
             </div>
             <div id="downtimeDetTable"></div>
           </section>
@@ -337,6 +342,7 @@ $basePath = $basePath ?? '';
                 <span class="table-title">Сырьё — гружёные вагоны</span>
                 <span class="table-sub" id="rawSumSub"></span>
               </div>
+              <div class="table-acts"></div>
             </div>
             <div class="table-scroll">
               <table class="data-table" id="rawSumTable"></table>
@@ -350,6 +356,7 @@ $basePath = $basePath ?? '';
                 <span class="table-title">Расширенная с сырьём</span>
                 <span class="table-sub" id="rawDetSub"></span>
               </div>
+              <div class="table-acts"></div>
             </div>
             <div id="rawDetTable"></div>
           </section>

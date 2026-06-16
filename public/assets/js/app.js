@@ -406,6 +406,7 @@ var WAGON_TABS = {
     summaryUrl: BASE + '/api/dislocation/summary',
     detailUrl: BASE + '/api/dislocation/detail',
     csvFilename: 'дислокация',
+    csvDetFilename: 'дислокация-расширенная',
     sumTableId: 'mainTable',
     sumSubId: 'mainTableSub',
     detTableId: 'dislExtTable',
@@ -456,6 +457,7 @@ var WAGON_TABS = {
       return [main].concat(rows)
     },
     csvFilename: 'подход',
+    csvDetFilename: 'подход-расширенная',
     sumTableId: 'approachSumTable',
     sumSubId: 'approachSumSub',
     detTableId: 'approachDetTable',
@@ -517,6 +519,7 @@ var WAGON_TABS = {
       return [main].concat(rows)
     },
     csvFilename: 'отправление',
+    csvDetFilename: 'отправление-расширенная',
     sumTableId: 'departureSumTable',
     sumSubId: 'departureSumSub',
     detTableId: 'departureDetTable',
@@ -575,6 +578,7 @@ var WAGON_TABS = {
       return [main].concat(rows)
     },
     csvFilename: 'погрузка',
+    csvDetFilename: 'погрузка-расширенная',
     sumTableId: 'loadingSumTable',
     sumSubId: 'loadingSumSub',
     detTableId: 'loadingDetTable',
@@ -603,6 +607,8 @@ var WAGON_TABS = {
     ctx: 'downtime',
     summaryUrl: BASE + '/api/downtime/summary',
     detailUrl: BASE + '/api/downtime/detail',
+    csvFilename: 'простои',
+    csvDetFilename: 'простои-расширенная',
     sumTableId: 'downtimeSumTable',
     sumSubId: 'downtimeSumSub',
     detTableId: 'downtimeDetTable',
@@ -662,6 +668,8 @@ var WAGON_TABS = {
       })
       return [main].concat(rows)
     },
+    csvFilename: 'сырьё',
+    csvDetFilename: 'сырьё-расширенная',
     sumTableId: 'rawSumTable',
     sumSubId: 'rawSumSub',
     detTableId: 'rawDetTable',
