@@ -23,7 +23,7 @@ var TAB_GROUPS = [
   },
   {
     label: 'Аналитика',
-    tabs: [{ id: 'analysis', label: 'Анализ за период' }],
+    tabs: [{ id: 'analysis-period', label: 'Анализ за период' }],
   },
   {
     label: 'Простои и оборот',
@@ -613,7 +613,7 @@ var WAGON_TABS = {
     sumSubLabel: 'Вагонов с простоем',
     groupCols: [
       //{ key: 'oper_station', label: 'Станция' },
-      //{ key: 'cargo_name', label: 'Груз' },
+      { key: 'cargo_name', label: 'Груз' },
       { key: 'idle_time_name', label: 'Простой' },
     ],
     applyBtnId: 'btnDowntimeApply',
@@ -679,6 +679,7 @@ var WAGON_TABS = {
     },
     colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
   },
+
   // Анализ за период
   'analysis-period': {
     ctx: 'analysis-period',
@@ -688,8 +689,13 @@ var WAGON_TABS = {
     detPanelId: 'analysisPeriod-detail',
     loadedKey: '_analysisPeriodLoaded',
     loadedDetKey: '_analysisPeriodDetLoaded',
+    applyBtnId: 'btnAnalysisPeriodApply',
     getParams: function () {
-      return {}
+      return {
+        wagon_no:  $('#fAnalysisPeriodWagonNo').val().trim() || undefined,
+        date_from: $('#fAnalysisPeriodDateFrom').val() || undefined,
+        date_to:   $('#fAnalysisPeriodDateTo').val()   || undefined,
+      }
     },
   },
 }
@@ -727,7 +733,7 @@ var KPI_BOARDS = {
           value: grandTotal - tankTotal,
         },
         {
-          label: 'В пути на УГЛ',
+          label: 'Едут на УГЛ',
           value: commingToUgl,
         },
       ]
@@ -761,6 +767,10 @@ function initTab(cfg) {
   }
   loadFilters(cfg)
   loadSummary(cfg)
+  if (!cfg.summaryUrl && cfg.detailUrl && !window[cfg.loadedDetKey]) {
+    window[cfg.loadedDetKey] = true
+    loadDetail(cfg)
+  }
 }
 /* Загрузка и отображение фильтров, если они есть настроены */
 function loadFilters(cfg) {
@@ -771,28 +781,17 @@ function loadFilters(cfg) {
 }
 /* Загрузка сводной таблицы и KPI, если они есть настроены */
 function loadSummary(cfg) {
-  if (!cfg.summaryUrl) return // Если нет сводной, то и не грузим
+  if (!cfg.summaryUrl) return
   var $sub = $('#' + cfg.sumSubId)
   var $table = $('#' + cfg.sumTableId)
   $sub.text('Загрузка...')
   $table.html(
-    '<tbody><tr><td colspan="10" style="padding:40px; display:flex; justify-content:center; align-items:center;">' +
-      '<div class="div-loader"></div>' +
-      '</td></tr></tbody>',
+    '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Загрузка...</td></tr></tbody>',
   )
-  //return
   var summaryParams = Object.assign({}, cfg.getParams())
-  var gby = (cfg.groupCols || [])
-    .map(function (g) {
-      return g.key
-    })
-    .join(',')
+  var gby = (cfg.groupCols || []).map(function (g) { return g.key }).join(',')
   if (gby) summaryParams.group_by = gby
-  var cby = (cfg.colDims || [])
-    .map(function (f) {
-      return f.key
-    })
-    .join(',')
+  var cby = (cfg.colDims || []).map(function (f) { return f.key }).join(',')
   if (cby) summaryParams.col_by = cby
 
   /* Получаем сводную информацию  */

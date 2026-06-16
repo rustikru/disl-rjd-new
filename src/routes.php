@@ -111,6 +111,11 @@ return function (App $app, array $config): void {
             return (new \App\Controllers\ApiController($getDb()))->downtimeDetail($req, $res);
         });
 
+        // Анализ за период
+        $group->get('/api/analysis/period/detail', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->analysisPeriodDetail($req, $res);
+        });
+
         // Сырьё
         $group->get('/api/raw-material/summary', function ($req, $res) use ($getDb) {
             return (new \App\Controllers\ApiController($getDb()))->rawSummary($req, $res);
