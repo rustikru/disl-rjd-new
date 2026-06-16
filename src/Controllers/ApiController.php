@@ -123,14 +123,23 @@ class ApiController
         ));
     }
 
+    /** Если у определения колонки задан formatData — оборачивает выражение в TO_CHAR. */
+    private function applyFormat(array $def): string
+    {
+        if (!empty($def['formatData'])) {
+            return "TO_CHAR({$def['expr']}, '{$def['formatData']}')";
+        }
+        return $def['expr'];
+    }
+
     /* Строит и выполняет запрос для сводной таблицы, затем преобразует результат в roadTable-формат */
     private function summaryReport(array $base, array $rowDims, array $colDefs): array
     {
-        $rowSelect = implode(', ', $rowDims);
-        $colSelect = implode(', ', array_map(fn($c) => "{$c['expr']} AS {$c['alias']}", $colDefs));
-        $colGroupBy = implode(', ', array_map(fn($c) => $c['expr'], $colDefs));
-        $colFields = array_column($colDefs, 'alias');
-        $colOrder = implode(', ', $colFields);
+        $rowSelect  = implode(', ', $rowDims);
+        $colSelect  = implode(', ', array_map(fn($c) => $this->applyFormat($c) . " AS {$c['alias']}", $colDefs));
+        $colGroupBy = implode(', ', array_map(fn($c) => $this->applyFormat($c), $colDefs));
+        $colFields  = array_column($colDefs, 'alias');
+        $colOrder   = implode(', ', $colFields);
 
         $rows = $this->db->fetchAll(
             "SELECT $rowSelect, $colSelect, COUNT(*) AS cnt
@@ -256,12 +265,12 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
-        $rowSelect = implode(', ', $rowDims);
-        $colSelect = implode(', ', array_map(fn($c) => "{$c['expr']} AS {$c['alias']}", $colDefs));
-        $colGroupBy = implode(', ', array_map(fn($c) => $c['expr'], $colDefs));
-        $colFields = array_column($colDefs, 'alias');
-        $colOrder = implode(', ', $colFields);
+        $colDefs    = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
+        $rowSelect  = implode(', ', $rowDims);
+        $colSelect  = implode(', ', array_map(fn($c) => $this->applyFormat($c) . " AS {$c['alias']}", $colDefs));
+        $colGroupBy = implode(', ', array_map(fn($c) => $this->applyFormat($c), $colDefs));
+        $colFields  = array_column($colDefs, 'alias');
+        $colOrder   = implode(', ', $colFields);
 
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $rows = $this->db->fetchAll(
@@ -562,11 +571,11 @@ class ApiController
         $rowDims = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
         $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code']);
 
-        $rowSelect = implode(', ', $rowDims);
-        $colSelect = implode(', ', array_map(fn($c) => "{$c['expr']} AS {$c['alias']}", $colDefs));
-        $colGroupBy = implode(', ', array_map(fn($c) => $c['expr'], $colDefs));
-        $colFields = array_column($colDefs, 'alias');
-        $colOrder = implode(', ', $colFields);
+        $rowSelect  = implode(', ', $rowDims);
+        $colSelect  = implode(', ', array_map(fn($c) => $this->applyFormat($c) . " AS {$c['alias']}", $colDefs));
+        $colGroupBy = implode(', ', array_map(fn($c) => $this->applyFormat($c), $colDefs));
+        $colFields  = array_column($colDefs, 'alias');
+        $colOrder   = implode(', ', $colFields);
 
         $rows = $this->db->fetchAll(
             "SELECT $rowSelect, $colSelect, COUNT(*) AS cnt
