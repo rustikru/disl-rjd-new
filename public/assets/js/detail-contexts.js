@@ -27,7 +27,7 @@ var DETAIL_CONTEXTS = {
         label: 'Дата операции',
         meta: true,
         w: 90,
-        outputFormat: 'DD.MM.YYYY HH24:MI:SS',
+        formatData: 'DD.MM.YYYY HH24:MI:SS',
       },
       { key: 'idle_time_days', label: 'Простой (дн)', danger: true, w: 105 },
       { key: 'asoup_arrive_dt', label: 'Приб. (АСОУП)', meta: true, w: 130 },
