@@ -502,44 +502,6 @@ class ApiController
         return $this->json($response, ['rows' => $rows]);
     }
 
-    /** GET /api/analysis/period/detail — Анализ операций за период */
-    public function analysisPeriodDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
-    {
-        $params  = $request->getQueryParams();
-        $bindings = [];
-        $where   = '1=1';
-
-        $wagonNo = trim($params['wagon_no'] ?? '');
-        if ($wagonNo !== '') {
-            $where .= ' AND wagon_no = :wagon_no';
-            $bindings['wagon_no'] = $wagonNo;
-        }
-
-        $dateFrom = $params['date_from'] ?? '';
-        if ($dateFrom !== '') {
-            $where .= " AND TRUNC(report_dt) >= TO_DATE(:date_from, 'YYYY-MM-DD')";
-            $bindings['date_from'] = $dateFrom;
-        }
-
-        $dateTo = $params['date_to'] ?? '';
-        if ($dateTo !== '') {
-            $where .= " AND TRUNC(report_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
-            $bindings['date_to'] = $dateTo;
-        }
-
-        $select = $this->selectFields($params['fields'] ?? '');
-
-        $rows = $this->db->fetchAll(
-            "SELECT $select
-             FROM xx_dislocation_rjd
-             WHERE $where
-             ORDER BY {$this->orderClause($params, 'wagon_no, report_dt')}",
-            $bindings
-        );
-
-        return $this->json($response, ['rows' => $rows]);
-    }
-
     /** GET /api/raw-material/summary — Сводная сырья */
     public function rawSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
@@ -605,16 +567,35 @@ class ApiController
     public function analysisPeriod(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
+        $bindings = [];
+        $where = '1=1';
+
+        $wagonNo = trim($params['wagon_no'] ?? '');
+        if ($wagonNo !== '') {
+            $where .= ' AND wagon_no = :wagon_no';
+            $bindings['wagon_no'] = $wagonNo;
+        }
+
+        $dateFrom = $params['date_from'] ?? '';
+        if ($dateFrom !== '') {
+            $where .= " AND TRUNC(report_dt) >= TO_DATE(:date_from, 'YYYY-MM-DD')";
+            $bindings['date_from'] = $dateFrom;
+        }
+
+        $dateTo = $params['date_to'] ?? '';
+        if ($dateTo !== '') {
+            $where .= " AND TRUNC(report_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
+            $bindings['date_to'] = $dateTo;
+        }
+
+        $select = $this->selectFields($params['fields'] ?? '');
+
         $rows = $this->db->fetchAll(
-            "SELECT *
+            "SELECT distinct $select
              FROM xx_dislocation_rjd
-             WHERE report_dt >= TO_DATE(:start_dt, 'YYYY-MM-DD HH24:MI:SS') AND report_dt <= TO_DATE(:end_dt, 'YYYY-MM-DD HH24:MI:SS')
-             GROUP BY report_dt, type_reference
-             ORDER BY report_dt DESC, type_reference",
-            [
-                'start_dt' => $params['start_dt'] ?? '',
-                'end_dt' => $params['end_dt'] ?? '',
-            ]
+             WHERE $where
+             ORDER BY {$this->orderClause($params, 'wagon_no, report_dt')}",
+            $bindings
         );
 
         return $this->json($response, ['rows' => $rows]);

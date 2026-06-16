@@ -168,31 +168,21 @@ var DETAIL_CONTEXTS = {
   'analysis-period': {
     label: 'Анализ за период',
     endpoint: '/api/analysis/period/detail',
-    sort: { field: 'report_dt', type: 'date', dir: 'desc' },
-    cols: [
-      {
-        key: 'report_dt',
-        label: 'Дата отчёта',
-        meta: true,
-        type: 'date',
-        w: 130,
-      },
-      { key: 'type_reference', label: 'Тип справки', meta: true, w: 150 },
-    ],
-  },
-  /**** Анализ за период */
-  'analysis-period': {
-    label: 'Анализ за период',
-    endpoint: '/api/analysis/period/detail',
     sort: { field: 'wagon_no', type: 'number', dir: 'asc' },
     cols: [
-      { key: 'wagon_no',        label: '№ вагона',         meta: true, type: 'number', w: 110 },
-      { key: 'wagon_type_code', label: 'Тип вагона',        meta: true,                 w: 120 },
-      { key: 'oper_station',    label: 'Текущая станция',   meta: true,                 w: 155 },
-      { key: 'oper_mnemonic',   label: 'Операция',          meta: true,                 w: 90  },
-      { key: 'report_dt',       label: 'Дата отчёта',       meta: true,                 w: 130 },
-      { key: 'cargo_name',      label: 'Груз',              meta: true,                 w: 150 },
-      { key: 'idle_time_days',  label: 'Простой (сут.)',    danger: true,               w: 115 },
+      {
+        key: 'wagon_no',
+        label: '№ вагона',
+        meta: true,
+        type: 'number',
+        w: 110,
+      },
+      { key: 'wagon_type_code', label: 'Тип вагона', meta: true, w: 120 },
+      { key: 'oper_station', label: 'Текущая станция', meta: true, w: 155 },
+      { key: 'oper_mnemonic', label: 'Операция', meta: true, w: 90 },
+      { key: 'report_dt', label: 'Дата отчёта', meta: true, w: 130 },
+      { key: 'cargo_name', label: 'Груз', meta: true, w: 150 },
+      { key: 'idle_time_days', label: 'Простой (сут.)', danger: true, w: 115 },
     ],
   },
 }
