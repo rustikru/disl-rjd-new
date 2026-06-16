@@ -801,6 +801,22 @@ function loadDetail(cfg) {
 /* Детализация — виртуальная таблица */
 var _vtInline = {}
 
+function oracleMaskFmt(v, mask) {
+  if (v == null || v === '') return '';
+  var s = String(v);
+  var d = null;
+  var m = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):?(\d{2})?/);
+  if (m) d = { DD: m[3], MM: m[2], YYYY: m[1], HH24: m[4], MI: m[5], SS: m[6] || '00' };
+  if (!d) {
+    m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})[T ](\d{2}):(\d{2}):?(\d{2})?/);
+    if (m) d = { DD: m[1], MM: m[2], YYYY: m[3], HH24: m[4], MI: m[5], SS: m[6] || '00' };
+  }
+  if (!d) return s;
+  return mask.replace('HH24', d.HH24).replace('YYYY', d.YYYY)
+             .replace('MM', d.MM).replace('DD', d.DD)
+             .replace('MI', d.MI).replace('SS', d.SS);
+}
+
 function vtMeasureCols(colDefs, data) {
   var cv = document.createElement('canvas')
   var ctx = cv.getContext('2d')
@@ -831,6 +847,13 @@ function vtMeasureCols(colDefs, data) {
 }
 /* Рендер таблицы с виртуальным скроллом. Рисует только видимую часть, рассчитывая её при скролле. */
 function showTable($container, rows, colDefs) {
+  colDefs = colDefs.map(function (c) {
+    if (c.formatData && !c.fmt) {
+      var mask = c.formatData;
+      return Object.assign({}, c, { fmt: function (v) { return oracleMaskFmt(v, mask); } });
+    }
+    return c;
+  });
   var id = $container.attr('id')
   var ROW_H = 28 // высота строки, используется для расчёта виртуального скролла
   var BUFFER = 8 // кол-во строк в буфере до и после видимой области, для предотвращения мерцания при скролле
