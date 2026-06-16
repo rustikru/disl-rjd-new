@@ -302,13 +302,14 @@ body {
 /* ── KPI ─────────────────────── */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(120px, 190px));
+  justify-content: start;
   gap: 12px;
   margin-bottom: 14px;
 }
 @media (max-width: 1000px) {
   .kpi-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(120px, 190px));
   }
 }
 .kpi-card {
