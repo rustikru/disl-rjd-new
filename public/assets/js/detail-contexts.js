@@ -22,6 +22,13 @@ var DETAIL_CONTEXTS = {
       { key: 'cargo_name', label: 'Груз', meta: true, w: 150 },
       { key: 'park_type', label: 'Тип парка', meta: true, w: 125 },
       { key: 'oper_mnemonic', label: 'Операция', meta: true, w: 90 },
+      {
+        key: 'oper_dt',
+        label: 'Дата операции',
+        meta: true,
+        w: 90,
+        formatData: 'DD.MM.YYYY HH24:MI:SS',
+      },
       { key: 'idle_time_days', label: 'Простой (дн)', danger: true, w: 105 },
       { key: 'asoup_arrive_dt', label: 'Приб. (АСОУП)', meta: true, w: 130 },
     ],
