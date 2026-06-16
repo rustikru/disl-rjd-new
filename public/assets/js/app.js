@@ -720,6 +720,7 @@ var KPI_BOARDS = {
       var arrivedTodayUgl = data.sections.reduce(function (s, x) {
         return s + (x.arrived_today_ugl || 0)
       }, 0)
+
       /* tr — тренды из бэкенда (опционально).
          Структура: { total: '-8.7%', total_dir: 'down', tank: '+12%', tank_dir: 'up', ... }
          Когда бэкенд добавит поле trends, бейджи появятся автоматически. */

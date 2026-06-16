@@ -186,16 +186,8 @@ class ApiController
 
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $rows = $this->db->fetchAll(
-            "SELECT park_type, 
-                    1 AS total, 
-                    wagon_type_code,
-                    case when dest_station like '%УГЛ%' and oper_station!=dest_station then 1 else 0 end as comming_to_ugl,
-                    case when dest_station like '%УГЛ%' and oper_station=dest_station and trunc(oper_dt) = trunc(sysdate) then 1 else 0 end as arrived_today_ugl
-             FROM xx_dislocation_rjd xdr
-             WHERE {$cond['sql']}
-             /*GROUP BY park_type, wagon_type_code*/
+            "SELECT * FROM TABLE (XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_set_dashboard())
              ",
-            $cond['params']
         );
         $dt = max($dtsByType);
 
@@ -210,18 +202,23 @@ class ApiController
                     'total' => 0,
                     'arrived_today_ugl' => 0,
                     'tank_total' => 0
+
                 ];
             }
 
             $cnt = (int) $r['total'];
             /* В пути на УГЛ*/
             $commingToUgl = (int) $r['comming_to_ugl'];
-            /* Прибыло сегодня на УГЛ*/
+            /* ---- Прибыло сегодня на УГЛ ------ */
             $arrivedTodayUgl = (int) $r['arrived_today_ugl'];
+            $arrivedUgl = (int) $r['arrived_ugl'];
+            /* ---- Прибыло сегодня на УГЛ ------ */
             /* Всего вагонов по справке */
             $sections[$sectionName]['total'] += $cnt;
             $sections[$sectionName]['comming_to_ugl'] += $commingToUgl;
             $sections[$sectionName]['arrived_today_ugl'] += $arrivedTodayUgl;
+            $sections[$sectionName]['arrived_ugl'] = '12%';
+            $sections[$sectionName]['arrived_ugl_dir'] = 'up';
             if (mb_stripos((string) ($r['wagon_type_code'] ?? ''), 'цистерн') !== false) {
                 /* Всего вагонов (цистерны)*/
                 $sections[$sectionName]['tank_total'] += $cnt;
@@ -631,7 +628,7 @@ class ApiController
             "SELECT distinct $select
              FROM xx_dislocation_rjd
              WHERE $where
-             ORDER BY {$this->orderClause($params, 'wagon_no, report_dt')}",
+             ORDER BY oper_dt desc, wagon_no",
             $bindings
         );
 

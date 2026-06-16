@@ -300,6 +300,10 @@ $basePath = $basePath ?? '';
                 <span class="table-title">Простои — сводная</span>
                 <span class="table-sub" id="downtimeSumSub"></span>
               </div>
+              <div class="table-acts">
+                <button class="btn btn-ghost btn-sm" data-collapse-table="downtimeSumTable">Свернуть все</button>
+                <button class="btn btn-ghost btn-sm" data-expand-table="downtimeSumTable">Отобразить все</button>
+              </div>
             </div>
             <div class="table-scroll">
               <table class="data-table" id="downtimeSumTable"></table>
