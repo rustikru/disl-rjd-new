@@ -765,12 +765,10 @@ function loadSummary(cfg) {
     '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Загрузка...</td></tr></tbody>',
   )
   var summaryParams = Object.assign({}, cfg.getParams())
-  var gby = (cfg.groupCols || [])
-    .map(function (g) {
-      return g.key
-    })
-    .join(',')
+  var gby = (cfg.groupCols || []).map(function (g) { return g.key }).join(',')
   if (gby) summaryParams.group_by = gby
+  var cby = (cfg.colDims || []).map(function (f) { return f.key }).join(',')
+  if (cby) summaryParams.col_by = cby
 
   /* Получаем сводную информацию  */
   $.getJSON(cfg.summaryUrl, summaryParams)

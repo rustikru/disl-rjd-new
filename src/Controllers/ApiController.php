@@ -78,40 +78,42 @@ class ApiController
     }
 
     /**
-     * @param array $cols  [['alias' => 'wagon_type_code', 'expr' => "..."], ...]
+     * Реестр вычисляемых колонок сводной: alias → SQL-выражение.
+     * col_by посылает ключи (alias), бэкенд подставляет выражение.
+     * [['alias' => 'wagon_type_code', 'expr' => "..."], ...]
      */
-    /* Строит и выполняет запрос для сводной таблицы, затем преобразует результат в формат:
-     * ['cols' => ['wagon_type_code', ...], 
-     *  'roads' => ['road1', 'road2', ...], 
-     *  'metrics' => [['road' => 'road1', 
-     *                 'wagon_type_code' => 'type1', 
-     *                 'cnt' => 123], ...], 
-     *                'total' => 123]
-     */
-    private function summaryReport(array $base, array $gf, array $cols): array
+    private function resolveColDims(string $colBy, array $defaultAliases): array
     {
-        $gfStr = implode(', ', $gf);
-        $select = [$gfStr];
-        $groupBy = [$gfStr];
-        $colFields = [];
-        $orderTail = '';
+        $wagExpr  = self::WAG_TYPE_EXPR;
+        $registry = [
+            'wagon_type_code' => ['alias' => 'wagon_type_code', 'expr' => $wagExpr],
+            'cargo_w_type'    => ['alias' => 'cargo_w_type',    'expr' => "CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END"],
+        ];
+        $aliases = $this->groupFields($colBy, $defaultAliases);
+        return array_values(array_filter(
+            array_map(fn($a) => $registry[$a] ?? null, $aliases),
+            fn($c) => $c !== null
+        ));
+    }
 
-        foreach ($cols as $col) {
-            $select[] = "{$col['expr']} AS {$col['alias']}";
-            $groupBy[] = $col['expr'];
-            $colFields[] = $col['alias'];
-            $orderTail .= ", {$col['alias']}";
-        }
+    /* Строит и выполняет запрос для сводной таблицы, затем преобразует результат в roadTable-формат */
+    private function summaryReport(array $base, array $rowDims, array $colDefs): array
+    {
+        $rowSelect  = implode(', ', $rowDims);
+        $colSelect  = implode(', ', array_map(fn($c) => "{$c['expr']} AS {$c['alias']}", $colDefs));
+        $colGroupBy = implode(', ', array_map(fn($c) => $c['expr'], $colDefs));
+        $colFields  = array_column($colDefs, 'alias');
+        $colOrder   = implode(', ', $colFields);
 
         $rows = $this->db->fetchAll(
-            "SELECT " . implode(', ', $select) . ", COUNT(*) AS cnt
+            "SELECT $rowSelect, $colSelect, COUNT(*) AS cnt
              FROM {$base['from']}
-             GROUP BY " . implode(', ', $groupBy) . "
-             ORDER BY $gfStr$orderTail",
+             GROUP BY $rowSelect, $colGroupBy
+             ORDER BY $rowSelect, $colOrder",
             $base['bindings']
         );
 
-        return $this->roadTable($rows, $gf, $colFields);
+        return $this->roadTable($rows, $rowDims, $colFields);
     }
 
     /** GET /api/dislocation/filters — список загруженных справок */
@@ -199,29 +201,30 @@ class ApiController
     {
         $params = $request->getQueryParams();
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
-        $gf = $this->groupFields($params['group_by'] ?? '', ['dest_state', 'dest_road']);
-        $gfStr = implode(', ', $gf);
+        $rowDims = $this->groupFields($params['group_by'] ?? '', ['dest_state', 'dest_road']);
 
         if (empty($dtsByType)) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $wagExpr = self::WAG_TYPE_EXPR;
+        $colDefs    = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
+        $rowSelect  = implode(', ', $rowDims);
+        $colSelect  = implode(', ', array_map(fn($c) => "{$c['expr']} AS {$c['alias']}", $colDefs));
+        $colGroupBy = implode(', ', array_map(fn($c) => $c['expr'], $colDefs));
+        $colFields  = array_column($colDefs, 'alias');
+        $colOrder   = implode(', ', $colFields);
+
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $rows = $this->db->fetchAll(
-            "SELECT $gfStr,
-                    $wagExpr AS wagon_type_code,
-                    CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END AS CARGO_W_TYPE,
-                    COUNT(*) AS cnt
+            "SELECT $rowSelect, $colSelect, COUNT(*) AS cnt
              FROM xx_dislocation_rjd xdr
              WHERE {$cond['sql']}
-             GROUP BY $gfStr, $wagExpr
-                 , CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END
-             ORDER BY $gfStr, wagon_type_code, CARGO_W_TYPE",
+             GROUP BY $rowSelect, $colGroupBy
+             ORDER BY $rowSelect, $colOrder",
             $cond['params']
         );
 
-        return $this->json($response, $this->roadTable($rows, $gf, ['wagon_type_code', 'cargo_w_type']));
+        return $this->json($response, $this->roadTable($rows, $rowDims, $colFields));
     }
 
     /** GET /api/dislocation/detail — Расширенная дислокация */
@@ -286,11 +289,9 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $gf = $this->groupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
-        return $this->json($response, $this->summaryReport($base, $gf, [
-            ['alias' => 'wagon_type_code', 'expr' => self::WAG_TYPE_EXPR],
-            ['alias' => 'cargo_w_type', 'expr' => "CASE WHEN CARGO_WEIGHT_KG > 0 THEN 'ГР' ELSE 'ПОР' END"],
-        ]));
+        $rowDims = $this->groupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
+        $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
+        return $this->json($response, $this->summaryReport($base, $rowDims, $colDefs));
     }
 
     /** GET /api/approach/detail — Список вагонов подхода */
@@ -353,10 +354,9 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
-        return $this->json($response, $this->summaryReport($base, $gf, [
-            ['alias' => 'wagon_type_code', 'expr' => self::WAG_TYPE_EXPR],
-        ]));
+        $rowDims = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+        $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code']);
+        return $this->json($response, $this->summaryReport($base, $rowDims, $colDefs));
     }
 
     /** GET /api/departure/detail — Список отправленных вагонов */
@@ -394,10 +394,9 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
-        return $this->json($response, $this->summaryReport($base, $gf, [
-            ['alias' => 'wagon_type_code', 'expr' => self::WAG_TYPE_EXPR],
-        ]));
+        $rowDims = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+        $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code']);
+        return $this->json($response, $this->summaryReport($base, $rowDims, $colDefs));
     }
 
     /** GET /api/loading/detail — Список погруженных вагонов */
@@ -456,19 +455,22 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $gf = $this->groupFields($params['group_by'] ?? '', ['oper_road', 'oper_station'], ['idle_time_name']);
-        $gfStr = implode(', ', $gf);
+        $rowDims    = $this->groupFields($params['group_by'] ?? '', ['oper_road', 'oper_station'], ['idle_time_name']);
+        $colFields  = $this->groupFields($params['col_by'] ?? '', ['fixed_col_label', 'm_wagon_type_code']);
+
+        $rowSelect  = implode(', ', $rowDims);
+        $colSelect  = implode(', ', $colFields);
+        $colGroupBy = implode(', ', $colFields);
 
         $rows = $this->db->fetchAll(
-            "SELECT $gfStr, fixed_col_label, COUNT(*) AS cnt
-                    ,m_wagon_type_code
+            "SELECT $rowSelect, $colSelect, COUNT(*) AS cnt
              FROM {$base['from']}
-             GROUP BY idle_time_order_by, $gfStr, m_wagon_type_code, fixed_col_label
-             ORDER BY idle_time_order_by asc, $gfStr",
+             GROUP BY idle_time_order_by, $rowSelect, $colGroupBy
+             ORDER BY idle_time_order_by ASC, $rowSelect",
             $base['bindings']
         );
 
-        return $this->json($response, $this->roadTable($rows, $gf, ['fixed_col_label', 'm_wagon_type_code']));
+        return $this->json($response, $this->roadTable($rows, $rowDims, $colFields));
     }
 
     /** GET /api/downtime/detail — Список простаивающих вагонов */
@@ -508,17 +510,20 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0, 'max_idle' => 0]);
         }
 
-        $gf = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
-        $gfStr = implode(', ', $gf);
+        $rowDims    = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
+        $colDefs    = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code']);
 
-        $wagExpr = self::WAG_TYPE_EXPR;
+        $rowSelect  = implode(', ', $rowDims);
+        $colSelect  = implode(', ', array_map(fn($c) => "{$c['expr']} AS {$c['alias']}", $colDefs));
+        $colGroupBy = implode(', ', array_map(fn($c) => $c['expr'], $colDefs));
+        $colFields  = array_column($colDefs, 'alias');
+        $colOrder   = implode(', ', $colFields);
+
         $rows = $this->db->fetchAll(
-            "SELECT $gfStr,
-                    $wagExpr AS wagon_type_code,
-                    COUNT(*) AS cnt
+            "SELECT $rowSelect, $colSelect, COUNT(*) AS cnt
              FROM {$base['from']}
-             GROUP BY $gfStr, $wagExpr
-             ORDER BY $gfStr",
+             GROUP BY $rowSelect, $colGroupBy
+             ORDER BY $rowSelect, $colOrder",
             $base['bindings']
         );
 
@@ -527,7 +532,7 @@ class ApiController
             $base['bindings']
         );
 
-        $result = $this->roadTable($rows, $gf, ['wagon_type_code']);
+        $result = $this->roadTable($rows, $rowDims, $colFields);
         $result['max_idle'] = (float) ($maxIdleRow['max_idle'] ?? 0);
         return $this->json($response, $result);
     }
