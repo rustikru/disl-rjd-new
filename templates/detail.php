@@ -130,7 +130,13 @@ $basePath = $basePath ?? '';
       var ctxDef = null;
       var def = DETAIL_CONTEXTS[ctx];
       if (def) {
-        ctxDef = { label: def.label, endpoint: BASE + def.endpoint, cols: def.cols, sort: def.sort || null };
+        var endpointOverride = params.get('_endpoint');
+        ctxDef = {
+          label:    def.label,
+          endpoint: BASE + (endpointOverride || def.endpoint),
+          cols:     def.cols,
+          sort:     def.sort || null,
+        };
       }
 
       $('#breadcrumb').html('<span class="bc-item"><a href="' + (window.APP_BASE || '') + '/" style="color:inherit;text-decoration:none">← Вернуться</a></span>');
@@ -155,7 +161,7 @@ $basePath = $basePath ?? '';
       // Все параметры детализации заданы в WAGON_TABS[ctx].mapDetailParams на фронтенде.
       // Здесь просто прокидываем их дальше на бэкенд (кроме ctx и _bcpath).
       var apiParams = new URLSearchParams();
-      var skipKeys = { ctx: 1, _bcpath: 1 };
+      var skipKeys = { ctx: 1, _bcpath: 1, _endpoint: 1 };
       params.forEach(function (v, k) { if (!skipKeys[k] && v) { apiParams.set(k, v); } });
       apiParams.set('fields', ctxDef.cols.map(function (c) { return c.key; }).join(','));
 
