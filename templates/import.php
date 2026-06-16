@@ -187,8 +187,7 @@ $basePath = $basePath ?? '';
                 // небольшая пауза чтобы "Обработка" успела мигнуть
                 setTimeout(function () {
                   if (data.status === 'ok') {
-                    setBadge(item.badgeEl, 'ok',
-                      '✓ ' + (data.rows || 0) + ' строк · ' + (data.type || '') + ' ' + (data.report_dt || ''));
+                    setBadge(item.badgeEl, 'ok', '✓ ' + (data.type || 'ОК') + ' — ОК');
                     counts.ok++;
                   } else if (data.status === 'warn') {
                     setBadge(item.badgeEl, 'warn', '⚠ ' + (data.message || 'Уже загружено'));
