@@ -1,0 +1,16 @@
+RewriteEngine On
+
+# Если запрос идёт в корень /rjd/ — перенаправляем в public/
+
+RewriteRule ^$ public/ [L]
+
+# Если запрос не начинается с public/, public/index.php или реальных файлов — перенаправляем в public/
+
+RewriteCond %{REQUEST_URI} !^/rjd/public/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.\*)$ public/$1 [L]
+
+# Если запрос идёт напрямую к public/index.php или файлам в public — пропускаем
+
+RewriteRule ^public/ - [L]

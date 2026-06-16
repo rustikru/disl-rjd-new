@@ -538,7 +538,10 @@ var WAGON_TABS = {
 }
 
 /******** Вагон конфиг конец ********/
-
+/*
+  KPI_BOARDS  
+    dataUrl
+*/
 // Настройка KPI-карточек для дашборда и других блоков.
 var KPI_BOARDS = {
   // GET /api/dashboard — KPI-сводка
