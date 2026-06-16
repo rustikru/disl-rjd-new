@@ -458,10 +458,9 @@ class ApiController
 
         $gf = $this->groupFields($params['group_by'] ?? '', ['oper_road', 'oper_station'], ['idle_time_name']);
         $gfStr = implode(', ', $gf);
-        $colLabel = mb_substr(preg_replace('/[^\pL\pN\s.,\-]/u', '', $params['col_label'] ?? 'Кол-во'), 0, 40);
 
         $rows = $this->db->fetchAll(
-            "SELECT $gfStr, '$colLabel' AS wagon_type_code, COUNT(*) AS cnt
+            "SELECT $gfStr, 'Кол-во' AS wagon_type_code, COUNT(*) AS cnt
                     ,m_wagon_type_code
              FROM {$base['from']}
              GROUP BY idle_time_order_by, $gfStr, m_wagon_type_code

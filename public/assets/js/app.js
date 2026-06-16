@@ -611,7 +611,6 @@ var WAGON_TABS = {
     loadedKey: '_downtimeLoaded',
     loadedDetKey: '_downtimeDetLoaded',
     sumSubLabel: 'Вагонов с простоем',
-    colLabel: 'Кол-во', // метка единственного столбца сводной
     groupCols: [
       //{ key: 'oper_station', label: 'Станция' },
       { key: 'cargo_name', label: 'Груз' },
@@ -626,7 +625,6 @@ var WAGON_TABS = {
       var destStation = $('#fDowntimeDestStation').val()
       return {
         dest_station: destStation !== '' ? destStation : undefined,
-        col_label: this.colLabel,
       }
     },
     colDims: [
