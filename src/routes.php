@@ -52,6 +52,10 @@ return function (App $app, array $config): void {
             return (new \App\Controllers\ImportController($getDb(), $config))->handleUpload($req, $res);
         });
 
+        $group->post('/api/import/file', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\ImportController($getDb(), $config))->handleUploadJson($req, $res);
+        });
+
         // API эндпоинты
         $group->get('/api/dashboard', function ($req, $res) use ($getDb) {
             return (new \App\Controllers\ApiController($getDb()))->dashboard($req, $res);
