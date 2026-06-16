@@ -690,8 +690,7 @@ var WAGON_TABS = {
     loadedKey: '_analysisPeriodLoaded',
     loadedDetKey: '_analysisPeriodDetLoaded',
     applyBtnId: 'btnAnalysisPeriodApply',
-    csvFilename: 'анализ',
-
+    csvDetFilename: 'анализ-за-период',
     getParams: function () {
       return {
         wagon_no: $('#fAnalysisPeriodWagonNo').val().trim() || undefined,
@@ -931,6 +930,14 @@ function loadDetail(cfg) {
         showTable($table, data.rows, cols)
       }
       $sub.text('Строк: ' + (data.rows || []).length.toLocaleString('ru-RU'))
+      if (cfg.csvDetFilename) {
+        var $acts = $table.closest('.table-section').find('.table-acts')
+        if ($acts.length && !$acts.find('.btn-csv-det').length) {
+          var $btn = $('<button class="btn btn-ghost btn-sm btn-csv-det">Скачать CSV</button>')
+          $btn.on('click', function () { saveCSVfromVT(cfg.detTableId, cfg.csvDetFilename) })
+          $acts.append($btn)
+        }
+      }
     })
     .fail(function (jqXHR) {
       $table.html(
@@ -1479,6 +1486,27 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
 
   // Итоговый единый рендеринг в DOM
   $(selector).html(h.join(''))
+}
+
+// CSV-экспорт виртуальной таблицы (детализация) — берёт данные из _vtInline
+function saveCSVfromVT(tableId, filename) {
+  var vt = _vtInline[tableId]
+  if (!vt || !vt.all.length) return
+  var cols = vt.cols
+  var rows = [cols.map(function (c) { return '"' + c.label + '"' }).join(';')]
+  vt.all.forEach(function (row) {
+    var cells = cols.map(function (c) {
+      var v = c.fmt ? c.fmt(row[c.key]) : (row[c.key] == null ? '' : String(row[c.key]))
+      return '"' + String(v).replace(/"/g, '""') + '"'
+    })
+    rows.push(cells.join(';'))
+  })
+  var csv = '﻿' + rows.join('\n')
+  var a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  a.download = (filename || 'данные') + '_' + new Date().toISOString().slice(0, 10) + '.csv'
+  a.click()
+  URL.revokeObjectURL(a.href)
 }
 
 // CSV-экспорт таблицы по id и имени файла

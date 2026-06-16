@@ -386,6 +386,7 @@ $basePath = $basePath ?? '';
                 <span class="table-title">Анализ за период</span>
                 <span class="table-sub" id="analysisPeriodDetSub"></span>
               </div>
+              <div class="table-acts"></div>
             </div>
             <div id="analysisPeriodDetTable"></div>
           </section>
