@@ -548,16 +548,28 @@ var KPI_BOARDS = {
   dashboard: {
     dataUrl: BASE + '/api/dashboard',
     cards: function (data) {
-      const { grandTotal, tankTotal, commingToUgl, arrivedTodayUgl } =
-        data.sections.reduce(
-          (acc, x) => ({
-            grandTotal: acc.grandTotal + x.total,
-            tankTotal: acc.tankTotal + (x.tank_total || 0),
-            commingToUgl: acc.commingToUgl + x.comming_to_ugl,
-            arrivedTodayUgl: acc.arrivedTodayUgl + (x.arrived_today_ugl || 0),
-          }),
-          { grandTotal: 0, tankTotal: 0, commingToUgl: 0, arrivedTodayUgl: 0 },
-        )
+      const {
+        grandTotal,
+        tankTotal,
+        commingToUgl,
+        arrivedTodayUgl,
+        loadedTransit,
+      } = data.sections.reduce(
+        (acc, x) => ({
+          grandTotal: acc.grandTotal + x.total,
+          tankTotal: acc.tankTotal + (x.tank_total || 0),
+          commingToUgl: acc.commingToUgl + x.comming_to_ugl,
+          arrivedTodayUgl: acc.arrivedTodayUgl + (x.arrived_today_ugl || 0),
+          loadedTransit: acc.loadedTransit + (x.loaded_transit || 0),
+        }),
+        {
+          grandTotal: 0,
+          tankTotal: 0,
+          commingToUgl: 0,
+          arrivedTodayUgl: 0,
+          loadedTransit: 0,
+        },
+      )
 
       const tr = data.trends || {}
 
@@ -566,12 +578,12 @@ var KPI_BOARDS = {
 
       return [
         {
-          label: 'Всего вагонов',
-          value: grandTotal,
-          accent: true,
+          label: 'Груженые в пути c УГЛ',
+          value: loadedTransit,
+          //accent: true,
           variant: 'pill',
-          trend: makeTrend(tr.total, tr.total_dir),
-          detail: { ctx: 'dislocation' },
+          trend: makeTrend(tr.met_loaded_transit, tr.met_loaded_transit_dir),
+          //detail: { ctx: 'dislocation' },
         },
         {
           label: 'Цистерны',
@@ -589,13 +601,13 @@ var KPI_BOARDS = {
           label: 'В пути на УГЛ',
           value: commingToUgl,
           variant: 'pill',
-          trend: makeTrend(tr.ugl, tr.ugl_dir),
+          trend: makeTrend(tr.met_comming_to_ugl, tr.met_comming_to_ugl_dir),
         },
         {
           label: 'Прибыло сегодня (УГЛ)',
           value: arrivedTodayUgl,
           variant: 'pill',
-          trend: makeTrend(tr.arrived_ugl, tr.arrived_ugl_dir),
+          trend: makeTrend(tr.met_arrived_ugl, tr.met_arrived_ugl_dir),
         },
       ]
     },

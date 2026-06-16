@@ -200,6 +200,7 @@ class ApiController
                     'comming_to_ugl' => 0,
                     'arrived_today_ugl' => 0,
                     'arrived_ugl' => 0,
+                    'loaded_transit' => 0,
                 ];
             }
 
@@ -208,7 +209,7 @@ class ApiController
             $sections[$sectionName]['tank_total'] = (int) $r['tank_total'];
             $sections[$sectionName]['comming_to_ugl'] = (int) $r['comming_to_ugl'];
             $sections[$sectionName]['arrived_today_ugl'] = (int) $r['arrived_today_ugl'];
-            $sections[$sectionName]['arrived_ugl'] = (int) $r['arrived_ugl'];
+            $sections[$sectionName]['loaded_transit'] = (int) $r['loaded_transit'];
 
             /* Динамика изменения */
             $trends = [
@@ -218,10 +219,16 @@ class ApiController
                 'tank_dir' => null,
                 'other' => null,
                 'other_dir' => null,
-                'ugl' => null,
-                'ugl_dir' => null,
-                'arrived_ugl' => $r['arrived_ugl'],
-                'arrived_ugl_dir' => $r['arrived_ugl_dir'],
+                /* Прибыло сегодня на УГЛ*/
+                'met_arrived_ugl' => $r['met_arrived_ugl'],
+                'met_arrived_ugl_dir' => $r['met_arrived_ugl_dir'],
+                /* Груженые в Пути */
+                'met_loaded_transit' => $r['met_loaded_transit'],
+                'met_loaded_transit_dir' => $r['met_loaded_transit_dir'],
+                /* В пути на УГЛ */
+                'met_comming_to_ugl' => $r['met_comming_to_ugl'],
+                'met_comming_to_ugl_dir' => $r['met_comming_to_ugl_dir'],
+
             ];
         }
 
@@ -963,6 +970,7 @@ class ApiController
         $roadList = array_values($roads);
         $metrics = array_map(fn($r) => ['label' => $r[$roadKey], 'total' => $r['grand_total']], $roadList);
         $grandTotal = array_sum(array_column($metrics, 'total'));
+
 
         if (count($colFields) <= 1) {
             return ['cols' => $values[0], 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
