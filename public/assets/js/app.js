@@ -1945,6 +1945,7 @@ $(function () {
   initSidebar()
   initInnerTabs()
   loadDashboard()
+  initTab(WAGON_TABS.dislocation)
 
   Object.keys(WAGON_TABS).forEach(function (k) {
     var cfg = WAGON_TABS[k]
