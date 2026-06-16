@@ -30,7 +30,13 @@ var DETAIL_CONTEXTS = {
         formatData: 'DD.MM.YYYY HH24:MI:SS',
       },
       { key: 'idle_time_days', label: 'Простой (дн)', danger: true, w: 105 },
-      { key: 'asoup_arrive_dt', label: 'Приб. (АСОУП)', meta: true, w: 130 },
+      {
+        key: 'asoup_arrive_dt',
+        label: 'Приб. (АСОУП)',
+        meta: true,
+        w: 130,
+        formatData: 'DD.MM.YYYY HH24:MI:SS',
+      },
     ],
     sort: [{ field: 'wagon_no', type: 'number' }],
   },
@@ -121,7 +127,13 @@ var DETAIL_CONTEXTS = {
       { key: 'depart_road', label: 'Дорога', meta: true, w: 140 },
       { key: 'dest_station', label: 'Ст. назнач.', meta: true, w: 145 },
       { key: 'oper_mnemonic', label: 'Операция', meta: true, w: 90 },
-      { key: 'oper_dt', label: 'Дата опер.', meta: true, w: 110 },
+      {
+        key: 'oper_dt',
+        label: 'Дата опер.',
+        meta: true,
+        w: 110,
+        formatData: 'DD.MM.YYYY HH24:MI:SS',
+      },
     ],
   },
 
@@ -192,7 +204,12 @@ var DETAIL_CONTEXTS = {
       { key: 'dest_station', label: 'Станция назначения', meta: true },
       { key: 'oper_station', label: 'Текущая станция', meta: true },
 
-      { key: 'oper_dt', label: 'Дата операции', meta: true },
+      {
+        key: 'oper_dt',
+        label: 'Дата операции',
+        meta: true,
+        formatData: 'DD.MM.YYYY HH24:MI:SS',
+      },
       { key: 'operation', label: 'Операция', meta: true, w: 90 },
       { key: 'operation', label: 'Мнемоника операции', meta: true, w: 90 },
       { key: 'cargo_name', label: 'Груз', meta: true, w: 150 },
