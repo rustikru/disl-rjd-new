@@ -98,43 +98,63 @@ class ImportController
     {
         $uploadedFiles = $request->getUploadedFiles();
 
-        if (empty($uploadedFiles['xlsx_file'])) {
+        $files = $uploadedFiles['xlsx_files'] ?? [];
+        if (empty($files)) {
             return $this->redirect($response, '/import?error=' . urlencode('Файл не выбран'));
         }
-
-        /** @var UploadedFileInterface $file */
-        $file = $uploadedFiles['xlsx_file'];
-
-        if ($file->getError() !== UPLOAD_ERR_OK) {
-            return $this->redirect($response, '/import?error=' . urlencode('Ошибка загрузки файла (kod ' . $file->getError() . ')'));
+        if (!is_array($files)) {
+            $files = [$files];
         }
 
-        $ext = strtolower(pathinfo($file->getClientFilename(), PATHINFO_EXTENSION));
-        if (!in_array($ext, ['xlsx'], true)) {
-            return $this->redirect($response, '/import?error=' . urlencode('Допускаются только файлы .xlsx'));
-        }
+        $successes = [];
+        $warns     = [];
+        $errors    = [];
 
-        $tmpPath = sys_get_temp_dir() . '/rzd_import_' . uniqid() . '.' . $ext;
-        $file->moveTo($tmpPath);
+        foreach ($files as $file) {
+            /** @var UploadedFileInterface $file */
+            $name = $file->getClientFilename() ?: 'файл';
 
-        try {
-            $result = $this->importFile($tmpPath);
-        } catch (\Exception $e) {
+            if ($file->getError() !== UPLOAD_ERR_OK) {
+                $errors[] = '«' . $name . '»: ошибка загрузки (код ' . $file->getError() . ')';
+                continue;
+            }
+
+            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            if (!in_array($ext, ['xlsx'], true)) {
+                $errors[] = '«' . $name . '»: допускаются только файлы .xlsx';
+                continue;
+            }
+
+            $tmpPath = sys_get_temp_dir() . '/rzd_import_' . uniqid() . '.' . $ext;
+            $file->moveTo($tmpPath);
+
+            try {
+                $result = $this->importFile($tmpPath);
+            } catch (\Exception $e) {
+                @unlink($tmpPath);
+                $errors[] = '«' . $name . '»: ' . $e->getMessage();
+                continue;
+            }
+
             @unlink($tmpPath);
-            return $this->redirect($response, '/import?error=' . urlencode('Ошибка разбора файла: ' . $e->getMessage()));
+
+            if ($result['skipped']) {
+                $warns[] = '«' . $name . '»: справка «' . $result['type'] . '» на ' . $result['report_dt'] . ' уже загружена';
+            } else {
+                $successes[] = '«' . $name . '»: загружено ' . $result['rows'] . ' строк ('
+                    . $result['type'] . ', ' . $result['report_dt'] . ')';
+            }
         }
 
-        @unlink($tmpPath);
-
-        if ($result['skipped']) {
-            return $this->redirect($response, '/import?warn=' . urlencode(
-                'Справка «' . $result['type'] . '» на ' . $result['report_dt'] . ' уже была загружена ранее'
-            ));
+        if (!empty($errors)) {
+            $all = array_merge($successes, $warns, $errors);
+            return $this->redirect($response, '/import?error=' . urlencode(implode("\n", $all)));
         }
-
-        return $this->redirect($response, '/import?success=' . urlencode(
-            'Загружено ' . $result['rows'] . ' строк. Справка «' . $result['type'] . '»: ' . $result['report_dt']
-        ));
+        if (!empty($warns)) {
+            $all = array_merge($successes, $warns);
+            return $this->redirect($response, '/import?warn=' . urlencode(implode("\n", $all)));
+        }
+        return $this->redirect($response, '/import?success=' . urlencode(implode("\n", $successes)));
     }
 
     private function importFile(string $path): array

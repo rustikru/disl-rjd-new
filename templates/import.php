@@ -123,11 +123,11 @@ $success  = $_GET['success'] ?? '';
   <div class="import-wrap">
 
     <?php if ($error): ?>
-      <div class="alert alert-error"><?= htmlspecialchars($error ?? '') ?></div>
+      <div class="alert alert-error"><?= nl2br(htmlspecialchars($error ?? '')) ?></div>
     <?php elseif ($warn): ?>
-      <div class="alert alert-warn"><?= htmlspecialchars($warn ?? '') ?></div>
+      <div class="alert alert-warn"><?= nl2br(htmlspecialchars($warn ?? '')) ?></div>
     <?php elseif ($success): ?>
-      <div class="alert alert-ok"><?= htmlspecialchars($success ?? '') ?></div>
+      <div class="alert alert-ok"><?= nl2br(htmlspecialchars($success ?? '')) ?></div>
     <?php endif; ?>
 
     <section class="table-section" style="margin-bottom:28px">
@@ -139,21 +139,31 @@ $success  = $_GET['success'] ?? '';
       <div style="padding:20px 24px">
         <form method="POST" action="<?= htmlspecialchars($basePath) ?>/import" enctype="multipart/form-data">
           <div style="margin-bottom:18px">
-            <label class="filter-label" for="xlsx_file">Файл справки</label>
-            <input type="file" id="xlsx_file" name="xlsx_file" accept=".xlsx,.xls">
+            <label class="filter-label" for="xlsx_file">Файлы справок (можно выбрать несколько)</label>
+            <input type="file" id="xlsx_file" name="xlsx_files[]" accept=".xlsx,.xls" multiple>
+            <div class="upload-hint" id="fileCount"></div>
           </div>
           <button type="submit" id="btnUpload" class="btn btn-primary">Загрузить</button>
           <div class="upload-spinner" id="uploadSpinner">
             <div class="spinner-icon"></div>
-            <span>Идёт загрузка, пожалуйста подождите…</span>
+            <span id="uploadSpinnerText">Идёт загрузка, пожалуйста подождите…</span>
           </div>
         </form>
         <script>
+          var fileInput = document.getElementById('xlsx_file');
+          var fileCount = document.getElementById('fileCount');
+          fileInput.addEventListener('change', function () {
+            var n = fileInput.files.length;
+            fileCount.textContent = n > 0 ? 'Выбрано файлов: ' + n : '';
+          });
           document.querySelector('form').addEventListener('submit', function () {
+            var n = fileInput.files.length;
             var btn = document.getElementById('btnUpload');
             btn.textContent = 'Загружается…';
             btn.classList.add('btn-loading');
             btn.disabled = true;
+            document.getElementById('uploadSpinnerText').textContent =
+              'Загружается ' + n + ' ' + (n === 1 ? 'файл' : n < 5 ? 'файла' : 'файлов') + ', пожалуйста подождите…';
             document.getElementById('uploadSpinner').classList.add('visible');
           });
         </script>
