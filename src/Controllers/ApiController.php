@@ -691,6 +691,7 @@ class ApiController
                         ,XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days,'name') AS idle_time_name 
                         ,to_number(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days,'order_by')) AS idle_time_order_by
                         ,$wagExpr as m_wagon_type_code
+                        ,'Кол-во' AS fixed_col_label
                         FROM xx_dislocation_rjd xdr WHERE $innerWhere 
                         order by idle_time_order_by
                   )";

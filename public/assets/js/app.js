@@ -535,9 +535,7 @@ var WAGON_TABS = {
         dest_station: $('#fDestStation').val() || undefined,
       }
     },
-    colDims: [
-      { key: 'wagon_type_code', paramName: 'wagon_type' },
-    ],
+    colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
     fillFilters: function (data) {
       fillSelect('#fDepartureCargo', data.cargo || [])
       fillSelect('#fDestStation', data.dest_station || [])
@@ -592,9 +590,7 @@ var WAGON_TABS = {
     getParams: function () {
       return { cargo: $('#fLoadingCargo').val() || undefined }
     },
-    colDims: [
-      { key: 'wagon_type_code', paramName: 'wagon_type' },
-    ],
+    colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
     fillFilters: function (data) {
       fillSelect('#fLoadingCargo', data.cargo || [])
     },
@@ -634,7 +630,7 @@ var WAGON_TABS = {
       }
     },
     colDims: [
-      { key: 'wagon_type_code', synthetic: true },
+      { key: 'fixed_col_label', synthetic: true },
       { key: 'm_wagon_type_code', paramName: 'wagon_type' },
     ],
     resetFilters: function () {
@@ -683,9 +679,7 @@ var WAGON_TABS = {
     getParams: function () {
       return {}
     },
-    colDims: [
-      { key: 'wagon_type_code', paramName: 'wagon_type' },
-    ],
+    colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
   },
 }
 
@@ -737,7 +731,7 @@ function fillSelect(selector, values) {
     $sel.append($('<option>').val(v).text(v))
   })
 }
-
+/* Инициализация вкладки: загрузка сводной, KPI, фильтров и кнопки CSV  */
 function initTab(cfg) {
   window[cfg.loadedKey] = true
   if (cfg.csvFilename) {
@@ -757,7 +751,7 @@ function initTab(cfg) {
   loadFilters(cfg)
   loadSummary(cfg)
 }
-
+/* Загрузка и отображение фильтров, если они есть настроены */
 function loadFilters(cfg) {
   if (!cfg.filtersUrl) return
   $.getJSON(cfg.filtersUrl).done(function (data) {
@@ -820,7 +814,7 @@ function loadSummary(cfg) {
       $sub.text(msg)
     })
 }
-
+/* Загрузка и отображение детализации по клику на строке или колонке сводной таблицы */
 function loadDetail(cfg) {
   var $sub = $('#' + cfg.detSubId)
   var $table = $('#' + cfg.detTableId)
@@ -922,11 +916,11 @@ function vtMeasureCols(colDefs, data) {
   })
   return widths
 }
-
+/* Рендер таблицы с виртуальным скроллом. Рисует только видимую часть, рассчитывая её при скролле. */
 function showTable($container, rows, colDefs) {
   var id = $container.attr('id')
-  var ROW_H = 28
-  var BUFFER = 8
+  var ROW_H = 28 // высота строки, используется для расчёта виртуального скролла
+  var BUFFER = 8 // кол-во строк в буфере до и после видимой области, для предотвращения мерцания при скролле
   var allData = rows || []
 
   _vtInline[id] = { all: allData, filtered: allData.slice(), cols: colDefs }
@@ -1705,13 +1699,24 @@ function openDetail(ctx, road, station, col, groupBy, subs, extra) {
     var vi = 0
     cf.forEach(function (f) {
       var v = hdrVals[vi++]
-      if (!f.synthetic && f.paramName && v !== undefined && v !== null && v !== '')
+      if (
+        !f.synthetic &&
+        f.paramName &&
+        v !== undefined &&
+        v !== null &&
+        v !== ''
+      )
         p.set(f.paramName, v)
     })
   }
 
   Object.keys(extra || {}).forEach(function (k) {
-    if (!p.has(k) && extra[k] !== undefined && extra[k] !== null && extra[k] !== '')
+    if (
+      !p.has(k) &&
+      extra[k] !== undefined &&
+      extra[k] !== null &&
+      extra[k] !== ''
+    )
       p.set(k, extra[k])
   })
   navNewTab(BASE + '/detail?' + p.toString())
