@@ -628,7 +628,7 @@ var WAGON_TABS = {
       }
     },
     colDims: [
-      { key: 'fixed_col_label', paramName: 'fixed_col_label' },
+      { key: 'fixed_col_label', synthetic: true },
       { key: 'm_wagon_type_code', paramName: 'wagon_type' },
     ],
     resetFilters: function () {
