@@ -277,6 +277,7 @@ class ApiController
     }
 
     /** GET /api/dislocation/detail — Расширенная дислокация */
+
     public function dislDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();

@@ -119,6 +119,7 @@ return function (App $app, array $config): void {
         $group->get('/api/raw-material/summary', function ($req, $res) use ($getDb) {
             return (new \App\Controllers\ApiController($getDb()))->rawSummary($req, $res);
         });
+
         $group->get('/api/raw-material/detail', function ($req, $res) use ($getDb) {
             return (new \App\Controllers\ApiController($getDb()))->rawDetail($req, $res);
         });
