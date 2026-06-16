@@ -693,8 +693,8 @@ var WAGON_TABS = {
     getParams: function () {
       return {
         wagon_no:  $('#fAnalysisPeriodWagonNo').val().trim() || undefined,
-        date_from: $('#fAnalysisPeriodDateFrom').val() || undefined,
-        date_to:   $('#fAnalysisPeriodDateTo').val()   || undefined,
+        start_dt: $('#fAnalysisPeriodDateFrom').val() || undefined,
+        end_dt:   $('#fAnalysisPeriodDateTo').val()   || undefined,
       }
     },
   },
