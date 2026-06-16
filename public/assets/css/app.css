@@ -481,7 +481,7 @@ body {
   white-space: nowrap;
 }
 .data-table thead th {
-  background: #e4e8f0;
+  background: bisque;
   font-weight: bold;
   text-align: center !important;
   font-size: 12px;
@@ -495,7 +495,7 @@ body {
   user-select: none;
 }
 .data-table thead th.th-sortable:hover {
-  background: #d5dbe8;
+  background: #f0c990;
 }
 .data-table thead th.col-meta {
   text-align: left;
@@ -542,7 +542,7 @@ body {
   font-weight: 700;
 }
 .data-table thead th.col-total-col {
-  background: #e4e8f0;
+  background: bisque;
   text-align: center;
 }
 .data-table .row-data td.col-total-col {
@@ -550,7 +550,7 @@ body {
 }
 
 .data-table th.th-group {
-  background: #eceef1 !important;
+  background: bisque !important;
   color: #4b5563 !important;
   font-size: 11px;
   font-weight: 700;
@@ -753,6 +753,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   user-select: none;
+  background: bisque;
   border-right: 1px solid var(--border-lt);
 }
 .vt-th.col-meta {
