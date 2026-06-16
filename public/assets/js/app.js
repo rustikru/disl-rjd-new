@@ -392,11 +392,12 @@ function drawMain(sections, cols) {
   detPanelId — id панели с детализацией (для инициализации загрузки при открытии)
   loadedKey, loadedDetKey — ключи для отметки загрузки сводной и детализации (в window)
   sumSubLabel — шаблон для текста подвала сводной (используется как prefix + total)
-  groupCols — массив колонок для группировки (по ним строятся ссылки в сводной и фильтруется детализация)
-  getParams() — функция для получения дополнительных параметров для запросов сводной и детализации (по умолчанию {})
-  filtersUrl — URL для получения данных для заполнения фильтров (если не указано, фильтры не поддерживаются)
-  fillFilters(data) — функция для заполнения фильтров данными из filtersUrl (если не указано, данные не используются)
-  resetFilters() — функция для сброса фильтров (если не указано, фильтры не поддерживаются)
+  groupCols — поля GROUP BY для строк сводной (они же фильтры детализации по строке)
+  colDims   — поля GROUP BY для колонок сводной (они же фильтры детализации по шапке);
+              {key, paramName} — реальное поле → имя URL-параметра;
+              {key, synthetic:true} — синтетическое поле (метка), не передаётся как фильтр
+  getParams() — дополнительные параметры для запросов сводной и детализации (фильтры формы)
+  filtersUrl — URL для заполнения фильтров; fillFilters(data) — рендер; resetFilters() — сброс
 */
 var WAGON_TABS = {
   // Дислокация
@@ -420,7 +421,7 @@ var WAGON_TABS = {
     getParams: function () {
       return {}
     },
-    colFields: [
+    colDims: [
       { key: 'wagon_type_code', paramName: 'wagon_type' },
       { key: 'cargo_w_type', paramName: 'cargo_state' },
     ],
@@ -473,7 +474,7 @@ var WAGON_TABS = {
         prev_cargo: $('#fApproachPrevCargo').val() || undefined,
       }
     },
-    colFields: [
+    colDims: [
       { key: 'wagon_type_code', paramName: 'wagon_type' },
       { key: 'cargo_w_type', paramName: 'cargo_state' },
     ],
@@ -534,7 +535,7 @@ var WAGON_TABS = {
         dest_station: $('#fDestStation').val() || undefined,
       }
     },
-    colFields: [
+    colDims: [
       { key: 'wagon_type_code', paramName: 'wagon_type' },
     ],
     fillFilters: function (data) {
@@ -591,7 +592,7 @@ var WAGON_TABS = {
     getParams: function () {
       return { cargo: $('#fLoadingCargo').val() || undefined }
     },
-    colFields: [
+    colDims: [
       { key: 'wagon_type_code', paramName: 'wagon_type' },
     ],
     fillFilters: function (data) {
@@ -632,7 +633,7 @@ var WAGON_TABS = {
         col_label: this.colLabel,
       }
     },
-    colFields: [
+    colDims: [
       { key: 'wagon_type_code', synthetic: true },
       { key: 'm_wagon_type_code', paramName: 'wagon_type' },
     ],
@@ -682,7 +683,7 @@ var WAGON_TABS = {
     getParams: function () {
       return {}
     },
-    colFields: [
+    colDims: [
       { key: 'wagon_type_code', paramName: 'wagon_type' },
     ],
   },
@@ -1684,7 +1685,7 @@ function navNewTab(url) {
 
 // Drill-down: открыть страницу детализации в новой вкладке.
 // road/station → заголовок страницы + реальные поля groupCols[0]/groupCols[last].
-// col/subs → маппятся через colFields из WAGON_TABS (synthetic=true — не передаётся).
+// col/subs → маппятся через colDims из WAGON_TABS (synthetic=true — не передаётся).
 // extra — доп. фильтры из getParams(), не перетирают явно заданные.
 function openDetail(ctx, road, station, col, groupBy, subs, extra) {
   var p = new URLSearchParams()
@@ -1699,7 +1700,7 @@ function openDetail(ctx, road, station, col, groupBy, subs, extra) {
     if (road && gc[0]) p.set(gc[0].key, road)
     if (station && gc.length > 1) p.set(gc[gc.length - 1].key, station)
 
-    var cf = tabCfg.colFields || []
+    var cf = tabCfg.colDims || []
     var hdrVals = [col].concat(subs || [])
     var vi = 0
     cf.forEach(function (f) {

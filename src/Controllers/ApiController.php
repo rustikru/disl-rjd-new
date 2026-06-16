@@ -228,28 +228,13 @@ class ApiController
     public function dislDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $wagType = $params['wagon_type'] ?? null;
         $gf = $this->groupFields($params['group_by'] ?? '', ['dest_state', 'dest_road']);
         $gfStr = implode(', ', $gf);
 
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $bindings = $cond['params'];
-        $where = $this->applyGfFilters($gf, $params, $bindings);
-
-
-        $cargoState = $params['cargo_state'] ?? null;
-        if ($cargoState === 'ГР') {
-            $where .= ' AND CARGO_WEIGHT_KG > 0';
-        } elseif ($cargoState === 'ПОР') {
-            $where .= ' AND (CARGO_WEIGHT_KG IS NULL OR CARGO_WEIGHT_KG = 0)';
-        }
-
-        if ($wagType) {
-            $where .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
-            $bindings['wtype'] = $wagType;
-        }
-        //$where.= ' and rownum = 10';
+        $where = $this->applyDetailFilters($gf, $params, $bindings);
         $select = $this->selectFields($params['fields'] ?? '');
         $rows = $this->db->fetchAll(
             "SELECT $select
@@ -312,7 +297,6 @@ class ApiController
     public function approachDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $wagType = $params['wagon_type'] ?? null;
         $gf = $this->groupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
         $base = $this->approachFrom($params);
 
@@ -322,17 +306,7 @@ class ApiController
 
         $gfStr = implode(', ', $gf);
         $bindings = $base['bindings'];
-        $outerWhere = $this->applyGfFilters($gf, $params, $bindings);
-        if ($wagType) {
-            $outerWhere .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
-            $bindings['wtype'] = $wagType;
-        }
-        $cargoState = $params['cargo_state'] ?? null;
-        if ($cargoState === 'ГР') {
-            $outerWhere .= ' AND CARGO_WEIGHT_KG > 0';
-        } elseif ($cargoState === 'ПОР') {
-            $outerWhere .= ' AND (CARGO_WEIGHT_KG IS NULL OR CARGO_WEIGHT_KG = 0)';
-        }
+        $outerWhere = $this->applyDetailFilters($gf, $params, $bindings);
 
         $select = $this->selectFields($params['fields'] ?? '');
 
@@ -389,7 +363,6 @@ class ApiController
     public function departureDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $wagType = $params['wagon_type'] ?? null;
         $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $base = $this->departureFrom($params);
 
@@ -399,11 +372,7 @@ class ApiController
 
         $gfStr = implode(', ', $gf);
         $bindings = $base['bindings'];
-        $outerWhere = $this->applyGfFilters($gf, $params, $bindings);
-        if ($wagType) {
-            $outerWhere .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
-            $bindings['wtype'] = $wagType;
-        }
+        $outerWhere = $this->applyDetailFilters($gf, $params, $bindings);
 
         $select = $this->selectFields($params['fields'] ?? '');
 
@@ -435,7 +404,6 @@ class ApiController
     public function loadingDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $wagType = $params['wagon_type'] ?? null;
         $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $base = $this->loadingFrom($params);
 
@@ -445,11 +413,7 @@ class ApiController
 
         $gfStr = implode(', ', $gf);
         $bindings = $base['bindings'];
-        $outerWhere = $this->applyGfFilters($gf, $params, $bindings);
-        if ($wagType) {
-            $outerWhere .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
-            $bindings['wtype'] = $wagType;
-        }
+        $outerWhere = $this->applyDetailFilters($gf, $params, $bindings);
 
         $select = $this->selectFields($params['fields'] ?? '');
 
@@ -513,18 +477,13 @@ class ApiController
     {
         $params = $request->getQueryParams();
         $base = $this->downtimeFrom($params);
-        $wagType = $params['wagon_type'] ?? null;
         if (!$base['reportDt']) {
             return $this->json($response, ['rows' => []]);
         }
 
         $gf = $this->groupFields($params['group_by'] ?? '', ['idle_time_name']);
         $bindings = $base['bindings'];
-        $outerWhere = $this->applyGfFilters($gf, $params, $bindings);
-        if ($wagType) {
-            $outerWhere .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
-            $bindings['wtype'] = $wagType;
-        }
+        $outerWhere = $this->applyDetailFilters($gf, $params, $bindings);
         $wagExpr = self::WAG_TYPE_EXPR;
         $fields = array_values(array_filter(
             array_map('trim', explode(',', $params['fields'] ?? '')),
@@ -578,7 +537,6 @@ class ApiController
     public function rawDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $wagType = $params['wagon_type'] ?? null;
         $gf = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
         $base = $this->rawFrom($params);
 
@@ -588,11 +546,7 @@ class ApiController
 
         $gfStr = implode(', ', $gf);
         $bindings = $base['bindings'];
-        $outerWhere = $this->applyGfFilters($gf, $params, $bindings);
-        if ($wagType) {
-            $outerWhere .= ' AND ' . self::WAG_TYPE_EXPR . ' = :wtype';
-            $bindings['wtype'] = $wagType;
-        }
+        $outerWhere = $this->applyDetailFilters($gf, $params, $bindings);
 
         $select = $this->selectFields($params['fields'] ?? '');
         $rows = $this->db->fetchAll(
@@ -763,6 +717,31 @@ class ApiController
                 $bindings["gfv_$safe"] = $params[$k];
             }
         }
+        return $where;
+    }
+
+    /**
+     * Универсальный фильтр для детализации: строки (applyGfFilters) +
+     * колонки (wagon_type через WAG_TYPE_EXPR; cargo_state через CARGO_WEIGHT_KG).
+     * Все detail-хендлеры вызывают только этот метод — никаких исключений по вкладкам.
+     */
+    private function applyDetailFilters(array $gf, array $params, array &$bindings): string
+    {
+        $where = $this->applyGfFilters($gf, $params, $bindings);
+
+        $wagType = $params['wagon_type'] ?? null;
+        if ($wagType !== null && $wagType !== '') {
+            $where .= ' AND ' . self::WAG_TYPE_EXPR . ' = :col_wtype';
+            $bindings['col_wtype'] = $wagType;
+        }
+
+        $cargoState = $params['cargo_state'] ?? null;
+        if ($cargoState === 'ГР') {
+            $where .= ' AND CARGO_WEIGHT_KG > 0';
+        } elseif ($cargoState === 'ПОР') {
+            $where .= ' AND (CARGO_WEIGHT_KG IS NULL OR CARGO_WEIGHT_KG = 0)';
+        }
+
         return $where;
     }
 
