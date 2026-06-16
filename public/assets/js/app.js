@@ -692,9 +692,9 @@ var WAGON_TABS = {
     applyBtnId: 'btnAnalysisPeriodApply',
     getParams: function () {
       return {
-        wagon_no:  $('#fAnalysisPeriodWagonNo').val().trim() || undefined,
+        wagon_no: $('#fAnalysisPeriodWagonNo').val().trim() || undefined,
         start_dt: $('#fAnalysisPeriodDateFrom').val() || undefined,
-        end_dt:   $('#fAnalysisPeriodDateTo').val()   || undefined,
+        end_dt: $('#fAnalysisPeriodDateTo').val() || undefined,
       }
     },
   },
@@ -717,6 +717,10 @@ var KPI_BOARDS = {
       var commingToUgl = data.sections.reduce(function (s, x) {
         return s + x.comming_to_ugl
       }, 0)
+      var arrivedTodayUgl = data.sections.reduce(function (s, x) {
+        return s + x.arrived_today_ugl
+      }, 0)
+
       return [
         {
           label: 'Всего вагонов',
@@ -733,8 +737,12 @@ var KPI_BOARDS = {
           value: grandTotal - tankTotal,
         },
         {
-          label: 'Едут на УГЛ',
+          label: 'В пути на УГЛ',
           value: commingToUgl,
+        },
+        {
+          label: 'Прибыло сегодня (УГЛ)',
+          value: arrivedTodayUgl,
         },
       ]
     },
@@ -789,9 +797,17 @@ function loadSummary(cfg) {
     '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Загрузка...</td></tr></tbody>',
   )
   var summaryParams = Object.assign({}, cfg.getParams())
-  var gby = (cfg.groupCols || []).map(function (g) { return g.key }).join(',')
+  var gby = (cfg.groupCols || [])
+    .map(function (g) {
+      return g.key
+    })
+    .join(',')
   if (gby) summaryParams.group_by = gby
-  var cby = (cfg.colDims || []).map(function (f) { return f.key }).join(',')
+  var cby = (cfg.colDims || [])
+    .map(function (f) {
+      return f.key
+    })
+    .join(',')
   if (cby) summaryParams.col_by = cby
 
   /* Получаем сводную информацию  */

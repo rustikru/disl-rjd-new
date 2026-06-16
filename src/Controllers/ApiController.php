@@ -189,7 +189,8 @@ class ApiController
             "SELECT park_type, 
                     1 AS total, 
                     wagon_type_code,
-                    case when dest_station like '%УГЛ%' and oper_station!=dest_station then 1 else 0 end as comming_to_ugl
+                    case when dest_station like '%УГЛ%' and oper_station!=dest_station then 1 else 0 end as comming_to_ugl,
+                    case when dest_station like '%УГЛ%' and oper_station=dest_station and trunc(oper_dt) = trunc(sysdate) then 1 else 0 end as arrived_today_ugl
              FROM xx_dislocation_rjd xdr
              WHERE {$cond['sql']}
              /*GROUP BY park_type, wagon_type_code*/
@@ -202,14 +203,27 @@ class ApiController
         foreach ($rows as $r) {
             $sectionName = trim(explode(',', (string) ($r['park_type'] ?? ''))[0]);
             if (!isset($sections[$sectionName])) {
-                $sections[$sectionName] = ['id' => md5($sectionName), 'name' => $sectionName, 'comming_to_ugl' => 0, 'total' => 0, 'tank_total' => 0];
+                $sections[$sectionName] = [
+                    'id' => md5($sectionName),
+                    'name' => $sectionName,
+                    'comming_to_ugl' => 0,
+                    'total' => 0,
+                    'arrived_today_ugl' => 0,
+                    'tank_total' => 0
+                ];
             }
 
             $cnt = (int) $r['total'];
+            /* В пути на УГЛ*/
             $commingToUgl = (int) $r['comming_to_ugl'];
+            /* Прибыло сегодня на УГЛ*/
+            $arrivedTodayUgl = (int) $r['arrived_today_ugl'];
+            /* Всего вагонов по справке */
             $sections[$sectionName]['total'] += $cnt;
             $sections[$sectionName]['comming_to_ugl'] += $commingToUgl;
+            $sections[$sectionName]['arrived_today_ugl'] += $arrivedTodayUgl;
             if (mb_stripos((string) ($r['wagon_type_code'] ?? ''), 'цистерн') !== false) {
+                /* Всего вагонов (цистерны)*/
                 $sections[$sectionName]['tank_total'] += $cnt;
             }
         }
