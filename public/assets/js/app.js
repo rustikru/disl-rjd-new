@@ -727,7 +727,7 @@ var KPI_BOARDS = {
           value: grandTotal - tankTotal,
         },
         {
-          label: 'Едут на УГЛ',
+          label: 'В пути на УГЛ',
           value: commingToUgl,
         },
       ]
