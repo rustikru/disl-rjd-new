@@ -122,12 +122,12 @@ $basePath = $basePath ?? '';
                 <option value="">— Все —</option>
               </select>
             </div>
-            <div class="filter-item">
+            <!-- <div class="filter-item">
               <label class="filter-label" for="fApproachPrevCargo">Ранее выгружен</label>
               <select class="filter-input" id="fApproachPrevCargo">
                 <option value="">— Все —</option>
               </select>
-            </div>
+            </div> -->
             <div class="filter-actions">
               <button class="btn btn-primary btn-sm" id="btnApproachApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnApproachReset">Сбросить</button>

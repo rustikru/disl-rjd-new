@@ -473,7 +473,7 @@ var WAGON_TABS = {
     getParams: function () {
       return {
         cargo: $('#fApproachCargo').val() || undefined,
-        prev_cargo: $('#fApproachPrevCargo').val() || undefined,
+        //prev_cargo: $('#fApproachPrevCargo').val() || undefined,
       }
     },
     colDims: [
@@ -941,8 +941,12 @@ function loadDetail(cfg) {
       if (cfg.csvDetFilename) {
         var $acts = $table.closest('.table-section').find('.table-acts')
         if ($acts.length && !$acts.find('.btn-csv-det').length) {
-          var $btn = $('<button class="btn btn-ghost btn-sm btn-csv-det">Скачать CSV</button>')
-          $btn.on('click', function () { saveCSVfromVT(cfg.detTableId, cfg.csvDetFilename) })
+          var $btn = $(
+            '<button class="btn btn-ghost btn-sm btn-csv-det">Скачать CSV</button>',
+          )
+          $btn.on('click', function () {
+            saveCSVfromVT(cfg.detTableId, cfg.csvDetFilename)
+          })
           $acts.append($btn)
         }
       }
@@ -1501,18 +1505,34 @@ function saveCSVfromVT(tableId, filename) {
   var vt = _vtInline[tableId]
   if (!vt || !vt.all.length) return
   var cols = vt.cols
-  var rows = [cols.map(function (c) { return '"' + c.label + '"' }).join(';')]
+  var rows = [
+    cols
+      .map(function (c) {
+        return '"' + c.label + '"'
+      })
+      .join(';'),
+  ]
   vt.all.forEach(function (row) {
     var cells = cols.map(function (c) {
-      var v = c.fmt ? c.fmt(row[c.key]) : (row[c.key] == null ? '' : String(row[c.key]))
+      var v = c.fmt
+        ? c.fmt(row[c.key])
+        : row[c.key] == null
+          ? ''
+          : String(row[c.key])
       return '"' + String(v).replace(/"/g, '""') + '"'
     })
     rows.push(cells.join(';'))
   })
   var csv = '﻿' + rows.join('\n')
   var a = document.createElement('a')
-  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
-  a.download = (filename || 'данные') + '_' + new Date().toISOString().slice(0, 10) + '.csv'
+  a.href = URL.createObjectURL(
+    new Blob([csv], { type: 'text/csv;charset=utf-8' }),
+  )
+  a.download =
+    (filename || 'данные') +
+    '_' +
+    new Date().toISOString().slice(0, 10) +
+    '.csv'
   a.click()
   URL.revokeObjectURL(a.href)
 }
