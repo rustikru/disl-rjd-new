@@ -2,11 +2,11 @@
 /** @var string $appName */
 /** @var string $basePath */
 /** @var array  $reports  [['report_dt' => ..., 'cnt' => ...], ...] */
-$appName  = $appName  ?? 'Дислокация РЖД';
+$appName = $appName ?? 'Дислокация РЖД';
 $basePath = $basePath ?? '';
-$error    = $_GET['error']   ?? '';
-$warn     = $_GET['warn']    ?? '';
-$success  = $_GET['success'] ?? '';
+$error = $_GET['error'] ?? '';
+$warn = $_GET['warn'] ?? '';
+$success = $_GET['success'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -62,6 +62,7 @@ $success  = $_GET['success'] ?? '';
       width: 100%;
       font-size: 14px;
     }
+
     .btn-loading {
       opacity: 0.65;
       cursor: not-allowed;
@@ -82,7 +83,9 @@ $success  = $_GET['success'] ?? '';
     }
 
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     .spinner-icon {
@@ -139,7 +142,7 @@ $success  = $_GET['success'] ?? '';
       <div style="padding:20px 24px">
         <form method="POST" action="<?= htmlspecialchars($basePath) ?>/import" enctype="multipart/form-data">
           <div style="margin-bottom:18px">
-            <label class="filter-label" for="xlsx_file">Файлы справок (можно выбрать несколько)</label>
+            <label class="filter-label" for="xlsx_file">Файлы справок </label>
             <input type="file" id="xlsx_file" name="xlsx_files[]" accept=".xlsx,.xls" multiple>
             <div class="upload-hint" id="fileCount"></div>
           </div>
