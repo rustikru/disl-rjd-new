@@ -351,6 +351,25 @@ $basePath = $basePath ?? '';
           </section>
         </div>
       </div>
+      <!-- Анализ за период -->
+      <div id="panel-analysis-period" class="tab-panel">
+        <div class="kpi-grid" id="analysisPeriodMetrics" style="margin-bottom:16px"></div>
+        <div class="inner-tabs">
+          <button class="inner-tab active" data-inner="analysisPeriod-detail">Анализ за период</button>
+        </div>
+        <div id="analysisPeriod-detail" class="inner-panel">
+          <section class="table-section">
+            <div class="table-toolbar">
+              <div class="table-info">
+                <span class="table-title">Анализ за период</span>
+                <span class="table-sub" id="analysisPeriodDetSub"></span>
+              </div>
+            </div>
+            <div id="analysisPeriodDetTable"></div>
+          </section>
+        </div>
+      </div>
+
     </main>
   </div>
 

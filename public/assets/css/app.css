@@ -348,7 +348,9 @@ body {
 }
 .kpi-card--link {
   cursor: pointer;
-  transition: box-shadow 0.15s, border-color 0.15s;
+  transition:
+    box-shadow 0.15s,
+    border-color 0.15s;
 }
 .kpi-card--link:hover {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.13);
@@ -689,69 +691,111 @@ body {
   overflow: auto;
   position: relative;
 }
-.vt-content { position: relative; }
-.vt-head, .vt-filter { display: grid; }
+.vt-content {
+  position: relative;
+}
+.vt-head,
+.vt-filter {
+  display: grid;
+}
 .vt-head {
-  position: sticky; top: 0; z-index: 3;
+  position: sticky;
+  top: 0;
+  z-index: 3;
   background: #e4e8f0;
   border-bottom: 1px solid var(--border-lt);
 }
 .vt-filter {
-  position: sticky; top: 29px; z-index: 2;
+  position: sticky;
+  top: 29px;
+  z-index: 2;
   background: #fafbfc;
   border-bottom: 1px solid var(--border-lt);
 }
 .vt-th {
-  padding: 3px 6px; height: 29px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: bold;
+  padding: 3px 6px;
+  height: 29px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
   color: #3a4151;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   user-select: none;
   border-right: 1px solid var(--border-lt);
 }
-.vt-th.col-meta { justify-content: flex-start; }
-.vt-fc { padding: 2px 4px; border-right: 1px solid var(--border-lt); }
+.vt-th.col-meta {
+  justify-content: flex-start;
+}
+.vt-fc {
+  padding: 2px 4px;
+  border-right: 1px solid var(--border-lt);
+}
 .vt-fc input {
-  width: 100%; padding: 2px 4px;
+  width: 100%;
+  padding: 2px 4px;
   border: 1px solid var(--border);
-  border-radius: 3px; font-size: 11px;
+  border-radius: 3px;
+  font-size: 11px;
   background: var(--bg);
   color: var(--text-1);
 }
-.vt-row { display: grid; border-bottom: 1px solid var(--border-lt); }
-.vt-row:hover .vt-cell { background: var(--hover-green); }
+.vt-row {
+  display: grid;
+  border-bottom: 1px solid var(--border-lt);
+}
+.vt-row:hover .vt-cell {
+  background: var(--hover-green);
+}
 .vt-cell {
-  padding: 3px 6px; height: 27px;
-  display: flex; align-items: center; justify-content: flex-end;
+  padding: 3px 6px;
+  height: 27px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   font-size: 12px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   border-right: 1px solid var(--border-lt);
 }
-.vt-cell.col-meta { justify-content: flex-start; color: var(--text-2); }
-.vt-cell.vt-right { justify-content: flex-end; }
+.vt-cell.col-meta {
+  justify-content: flex-start;
+  color: var(--text-2);
+}
+.vt-cell.vt-right {
+  justify-content: flex-end;
+}
 .vt-empty {
-  padding: 40px; text-align: center;
-  color: var(--text-3); font-size: 14px;
+  padding: 40px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 14px;
 }
 
+/* Лоадер с сайта https://css-loaders.com */
 /* HTML: <div class="loader"></div> */
 .div-loader {
-  --d:22px;
+  --d: 22px;
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  color: #25b09b;
-  box-shadow: 
-    calc(1*var(--d))      calc(0*var(--d))     0 0,
-    calc(0.707*var(--d))  calc(0.707*var(--d)) 0 1px,
-    calc(0*var(--d))      calc(1*var(--d))     0 2px,
-    calc(-0.707*var(--d)) calc(0.707*var(--d)) 0 3px,
-    calc(-1*var(--d))     calc(0*var(--d))     0 4px,
-    calc(-0.707*var(--d)) calc(-0.707*var(--d))0 5px,
-    calc(0*var(--d))      calc(-1*var(--d))    0 6px;
+  color: #8a539c;
+  box-shadow:
+    calc(1 * var(--d)) calc(0 * var(--d)) 0 0,
+    calc(0.707 * var(--d)) calc(0.707 * var(--d)) 0 1px,
+    calc(0 * var(--d)) calc(1 * var(--d)) 0 2px,
+    calc(-0.707 * var(--d)) calc(0.707 * var(--d)) 0 3px,
+    calc(-1 * var(--d)) calc(0 * var(--d)) 0 4px,
+    calc(-0.707 * var(--d)) calc(-0.707 * var(--d)) 0 5px,
+    calc(0 * var(--d)) calc(-1 * var(--d)) 0 6px;
   animation: l27 1s infinite steps(8);
 }
 @keyframes l27 {
-  100% {transform: rotate(1turn)}
+  100% {
+    transform: rotate(1turn);
+  }
 }

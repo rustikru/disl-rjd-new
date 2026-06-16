@@ -21,10 +21,10 @@ var TAB_GROUPS = [
       { id: 'raw-material', label: 'Сырьё' },
     ],
   },
-  /*{
+  {
     label: 'Аналитика',
     tabs: [{ id: 'analysis', label: 'Анализ за период' }],
-  },*/
+  },
   {
     label: 'Простои и оборот',
     tabs: [{ id: 'downtime', label: 'Простои' }],
@@ -679,6 +679,19 @@ var WAGON_TABS = {
     },
     colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
   },
+  // Анализ за период
+  'analysis-period': {
+    ctx: 'analysis-period',
+    detailUrl: BASE + '/api/analysis/period/detail',
+    detTableId: 'analysisPeriodDetTable',
+    detSubId: 'analysisPeriodDetSub',
+    detPanelId: 'analysisPeriod-detail',
+    loadedKey: '_analysisPeriodLoaded',
+    loadedDetKey: '_analysisPeriodDetLoaded',
+    getParams: function () {
+      return {}
+    },
+  },
 }
 
 /******** Вагон конфиг конец ********/
@@ -762,9 +775,11 @@ function loadSummary(cfg) {
   var $table = $('#' + cfg.sumTableId)
   $sub.text('Загрузка...')
   $table.html(
-    '<tbody><tr><td colspan="10" style="text-align:center;padding:40px;color:#9DA5B0"><div class="div-loader"></div></td></tr></tbody>',
+    '<tbody><tr><td colspan="10" style="padding:40px; display:flex; justify-content:center; align-items:center;">' +
+      '<div class="div-loader"></div>' +
+      '</td></tr></tbody>',
   )
-  return
+  //return
   var summaryParams = Object.assign({}, cfg.getParams())
   var gby = (cfg.groupCols || [])
     .map(function (g) {

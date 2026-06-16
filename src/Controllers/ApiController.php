@@ -85,12 +85,12 @@ class ApiController
      */
     private function resolveColDims(string $colBy, array $defaultAliases): array
     {
-        $wagExpr  = self::WAG_TYPE_EXPR; 
-        $wagState  = self::WAG_STATE;
-        
+        $wagExpr = self::WAG_TYPE_EXPR;
+        $wagState = self::WAG_STATE;
+
         $registry = [
             'wagon_type_code' => ['alias' => 'wagon_type_code', 'expr' => $wagExpr],
-            'cargo_w_type'    => ['alias' => 'cargo_w_type',    'expr' => $wagState],
+            'cargo_w_type' => ['alias' => 'cargo_w_type', 'expr' => $wagState],
         ];
         $aliases = $this->groupFields($colBy, $defaultAliases);
         return array_values(array_filter(
@@ -102,11 +102,11 @@ class ApiController
     /* Строит и выполняет запрос для сводной таблицы, затем преобразует результат в roadTable-формат */
     private function summaryReport(array $base, array $rowDims, array $colDefs): array
     {
-        $rowSelect  = implode(', ', $rowDims);
-        $colSelect  = implode(', ', array_map(fn($c) => "{$c['expr']} AS {$c['alias']}", $colDefs));
+        $rowSelect = implode(', ', $rowDims);
+        $colSelect = implode(', ', array_map(fn($c) => "{$c['expr']} AS {$c['alias']}", $colDefs));
         $colGroupBy = implode(', ', array_map(fn($c) => $c['expr'], $colDefs));
-        $colFields  = array_column($colDefs, 'alias');
-        $colOrder   = implode(', ', $colFields);
+        $colFields = array_column($colDefs, 'alias');
+        $colOrder = implode(', ', $colFields);
 
         $rows = $this->db->fetchAll(
             "SELECT $rowSelect, $colSelect, COUNT(*) AS cnt
@@ -210,12 +210,12 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $colDefs    = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
-        $rowSelect  = implode(', ', $rowDims);
-        $colSelect  = implode(', ', array_map(fn($c) => "{$c['expr']} AS {$c['alias']}", $colDefs));
+        $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
+        $rowSelect = implode(', ', $rowDims);
+        $colSelect = implode(', ', array_map(fn($c) => "{$c['expr']} AS {$c['alias']}", $colDefs));
         $colGroupBy = implode(', ', array_map(fn($c) => $c['expr'], $colDefs));
-        $colFields  = array_column($colDefs, 'alias');
-        $colOrder   = implode(', ', $colFields);
+        $colFields = array_column($colDefs, 'alias');
+        $colOrder = implode(', ', $colFields);
 
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $rows = $this->db->fetchAll(
@@ -426,7 +426,7 @@ class ApiController
 
         return $this->json($response, ['rows' => $rows]);
     }
-    
+
     /** GET /api/downtime/filters — уникальные станции назначения для дропдауна */
     public function downtimeFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
@@ -457,11 +457,11 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $rowDims    = $this->groupFields($params['group_by'] ?? '', ['oper_road', 'oper_station'], ['idle_time_name']);
-        $colFields  = $this->groupFields($params['col_by'] ?? '', ['fixed_col_label', 'm_wagon_type_code']);
+        $rowDims = $this->groupFields($params['group_by'] ?? '', ['oper_road', 'oper_station'], ['idle_time_name']);
+        $colFields = $this->groupFields($params['col_by'] ?? '', ['fixed_col_label', 'm_wagon_type_code']);
 
-        $rowSelect  = implode(', ', $rowDims);
-        $colSelect  = implode(', ', $colFields);
+        $rowSelect = implode(', ', $rowDims);
+        $colSelect = implode(', ', $colFields);
         $colGroupBy = implode(', ', $colFields);
 
         $rows = $this->db->fetchAll(
@@ -512,14 +512,14 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0, 'max_idle' => 0]);
         }
 
-        $rowDims    = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
-        $colDefs    = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code']);
+        $rowDims = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
+        $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code']);
 
-        $rowSelect  = implode(', ', $rowDims);
-        $colSelect  = implode(', ', array_map(fn($c) => "{$c['expr']} AS {$c['alias']}", $colDefs));
+        $rowSelect = implode(', ', $rowDims);
+        $colSelect = implode(', ', array_map(fn($c) => "{$c['expr']} AS {$c['alias']}", $colDefs));
         $colGroupBy = implode(', ', array_map(fn($c) => $c['expr'], $colDefs));
-        $colFields  = array_column($colDefs, 'alias');
-        $colOrder   = implode(', ', $colFields);
+        $colFields = array_column($colDefs, 'alias');
+        $colOrder = implode(', ', $colFields);
 
         $rows = $this->db->fetchAll(
             "SELECT $rowSelect, $colSelect, COUNT(*) AS cnt
@@ -558,6 +558,25 @@ class ApiController
         $rows = $this->db->fetchAll(
             "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY {$this->orderClause($params, "$gfStr, idle_time_days DESC")}",
             $bindings
+        );
+
+        return $this->json($response, ['rows' => $rows]);
+    }
+
+    //Анализ за период
+    public function analysisPeriod(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params = $request->getQueryParams();
+        $rows = $this->db->fetchAll(
+            "SELECT *
+             FROM xx_dislocation_rjd
+             WHERE report_dt >= TO_DATE(:start_dt, 'YYYY-MM-DD HH24:MI:SS') AND report_dt <= TO_DATE(:end_dt, 'YYYY-MM-DD HH24:MI:SS')
+             GROUP BY report_dt, type_reference
+             ORDER BY report_dt DESC, type_reference",
+            [
+                'start_dt' => $params['start_dt'] ?? '',
+                'end_dt' => $params['end_dt'] ?? '',
+            ]
         );
 
         return $this->json($response, ['rows' => $rows]);

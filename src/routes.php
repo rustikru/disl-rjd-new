@@ -119,6 +119,13 @@ return function (App $app, array $config): void {
             return (new \App\Controllers\ApiController($getDb()))->rawDetail($req, $res);
         });
 
+        //Анализ за период
+        $group->get('/api/analysis/period/detail', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->analysisPeriod($req, $res);
+        });
+
+
+
         $group->get('/detail', function ($req, $res) use ($config) {
             $appName = $config['app_name'] ?? 'Метафракс';
             $basePath = $config['base_path'] ?? '';
