@@ -107,8 +107,8 @@ class ImportController
         }
 
         $successes = [];
-        $warns     = [];
-        $errors    = [];
+        $warns = [];
+        $errors = [];
 
         foreach ($files as $file) {
             /** @var UploadedFileInterface $file */
@@ -178,7 +178,7 @@ class ImportController
         $reportDate = substr($reportDt, 0, 10); // 'YYYY-MM-DD'
         $exists = $this->db->fetchOne(
             "SELECT COUNT(*) AS cnt FROM xx_dislocation_rjd
-             WHERE TRUNC(report_dt) = TO_DATE(:dt, 'YYYY-MM-DD') AND type_reference = :type",
+             WHERE (report_dt) = TO_DATE(:dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = :type",
             ['dt' => $reportDate, 'type' => $fileType]
         );
         if ((int) ($exists['cnt'] ?? 0) > 0) {
