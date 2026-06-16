@@ -1,0 +1,38 @@
+{
+  "imap_approach": {
+    "enabled": true,
+    "server": "imap.mail.ru",
+    "port": 993,
+    "username": "metafraxpodhod@mail.ru",
+    "password": "gWhlB89kJI22e28Yfyg9",
+    "mailbox": "approach",
+    "sender_filter": "cargolk@gvc.rzd.ru",
+    "subject_filter": "",
+    "attachment_name_contains": ".xlsx",
+    "auto_check_on_open": true,
+    "check_on_refresh": true,
+    "poll_interval_seconds": 60,
+    "subject_equals": "",
+    "attachment_name_equals": "",
+    "sender_equals": "",
+    "report_code": "125963"
+  },
+  "imap_departure": {
+    "enabled": true,
+    "server": "imap.mail.ru",
+    "port": 993,
+    "username": "metafraxpodhod@mail.ru",
+    "password": "gWhlB89kJI22e28Yfyg9",
+    "mailbox": "departure",
+    "sender_filter": "cargolk@gvc.rzd.ru",
+    "subject_filter": "",
+    "attachment_name_contains": ".xlsx",
+    "auto_check_on_open": true,
+    "check_on_refresh": true,
+    "poll_interval_seconds": 60,
+    "subject_equals": "",
+    "attachment_name_equals": "",
+    "sender_equals": "",
+    "report_code": "125962"
+  }
+}
