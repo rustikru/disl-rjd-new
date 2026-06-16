@@ -545,58 +545,55 @@ var KPI_BOARDS = {
   dashboard: {
     dataUrl: BASE + '/api/dashboard',
     cards: function (data) {
-      var grandTotal = data.sections.reduce(function (s, x) {
-        return s + x.total
-      }, 0)
-      var tankTotal = data.sections.reduce(function (s, x) {
-        return s + (x.tank_total || 0)
-      }, 0)
-      var commingToUgl = data.sections.reduce(function (s, x) {
-        return s + x.comming_to_ugl
-      }, 0)
-      var arrivedTodayUgl = data.sections.reduce(function (s, x) {
-        return s + (x.arrived_today_ugl || 0)
-      }, 0)
+      // Один проход вместо четырёх
+      const { grandTotal, tankTotal, commingToUgl, arrivedTodayUgl } =
+        data.sections.reduce(
+          (acc, x) => ({
+            grandTotal: acc.grandTotal + x.total,
+            tankTotal: acc.tankTotal + (x.tank_total || 0),
+            commingToUgl: acc.commingToUgl + x.comming_to_ugl,
+            arrivedTodayUgl: acc.arrivedTodayUgl + (x.arrived_today_ugl || 0),
+          }),
+          { grandTotal: 0, tankTotal: 0, commingToUgl: 0, arrivedTodayUgl: 0 },
+        )
 
-      /* tr — тренды из бэкенда (опционально).
-         Структура: { total: '-8.7%', total_dir: 'down', tank: '+12%', tank_dir: 'up', ... }
-         Когда бэкенд добавит поле trends, бейджи появятся автоматически. */
-      var tr = data.trends || {}
-      function trend(pct, dir) {
-        return pct ? { pct: pct, dir: dir || 'neutral' } : null
-      }
+      const tr = data.trends || {}
+
+      const makeTrend = (pct, dir) =>
+        pct ? { pct, dir: dir || 'neutral' } : null
+
       return [
         {
           label: 'Всего вагонов',
           value: grandTotal,
           accent: true,
           variant: 'pill',
-          trend: trend(tr.total, tr.total_dir),
+          trend: makeTrend(tr.total, tr.total_dir),
           detail: { ctx: 'dislocation' },
         },
         {
           label: 'Цистерны',
           value: tankTotal,
           variant: 'pill',
-          trend: trend(tr.tank, tr.tank_dir),
+          trend: makeTrend(tr.tank, tr.tank_dir),
         },
         {
           label: 'Прочие вагоны',
           value: grandTotal - tankTotal,
           variant: 'pill',
-          trend: trend(tr.other, tr.other_dir),
+          trend: makeTrend(tr.other, tr.other_dir),
         },
         {
           label: 'В пути на УГЛ',
           value: commingToUgl,
           variant: 'pill',
-          trend: trend(tr.ugl, tr.ugl_dir),
+          trend: makeTrend(tr.ugl, tr.ugl_dir),
         },
         {
           label: 'Прибыло сегодня (УГЛ)',
           value: arrivedTodayUgl,
           variant: 'pill',
-          trend: trend(tr.arrived_ugl, tr.arrived_ugl_dir),
+          trend: makeTrend(tr.arrived_ugl, tr.arrived_ugl_dir),
         },
       ]
     },
