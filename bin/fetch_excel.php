@@ -10,7 +10,7 @@
 
 define('EXCEL_EXTS', ['xlsx', 'xls', 'xlsm', 'xltx', 'xltm']);
 define('OUTPUT_DIR', __DIR__ . '/');
-define('DAYS_BACK', 14);
+define('DAYS_BACK', 1);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  IMAP-клиент на чистых сокетах (не требует php-imap)
