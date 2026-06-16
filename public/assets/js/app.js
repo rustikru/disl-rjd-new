@@ -771,6 +771,7 @@ function loadFilters(cfg) {
 }
 /* Загрузка сводной таблицы и KPI, если они есть настроены */
 function loadSummary(cfg) {
+  if (!cfg.summaryUrl) return // Если нет сводной, то и не грузим
   var $sub = $('#' + cfg.sumSubId)
   var $table = $('#' + cfg.sumTableId)
   $sub.text('Загрузка...')
