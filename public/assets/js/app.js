@@ -5,13 +5,6 @@ var BASE = window.APP_BASE || ''
 // наивигация (Боковое меню)
 var TAB_GROUPS = [
   {
-    label: '',
-    tabs: [
-      //{ id: 'main', label: 'Главная' },
-      { id: 'dashboard', label: 'Дашборд' },
-    ],
-  },
-  {
     label: 'Движение вагонов',
     tabs: [
       { id: 'dislocation', label: 'Дислокация' },
@@ -51,7 +44,7 @@ function initSidebar() {
 
     group.tabs.forEach(function (tab) {
       var btn = document.createElement('button')
-      btn.className = 'nav-item' + (tab.id === 'dashboard' ? ' active' : '')
+      btn.className = 'nav-item' + (tab.id === 'dislocation' ? ' active' : '')
       btn.textContent = tab.label
       btn.dataset.tab = tab.id
       if (tab.url) {

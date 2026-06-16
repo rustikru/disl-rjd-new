@@ -47,26 +47,12 @@ $basePath = $basePath ?? '';
 
     <main class="main-content">
 
-      <!-- Dashboard -->
-      <div id="panel-dashboard" class="tab-panel active">
-        <div style="margin-bottom:16px">
-          <div style="font-size:20px;font-weight:700;letter-spacing:-.02em">Дашборд</div>
-        </div>
-        <div class="kpi-grid" id="kpiGrid"></div>
-        <!-- <section class="analytics-grid">
-          <div class="chart-card">
-            <div class="chart-title">Распределение по типам парка</div>
-            <div id="sectionsChart"></div>
-          </div>
-          <div class="chart-card">
-            <div class="chart-title">Цистерны / Прочие</div>
-            <div id="typesChart"></div>
-          </div>
-        </section> -->
-      </div>
+      <!-- Dashboard (скрыт — KPI перенесены на вкладку Дислокация) -->
+      <div id="panel-dashboard" class="tab-panel"></div>
 
       <!-- Дислокация -->
-      <div id="panel-dislocation" class="tab-panel">
+      <div id="panel-dislocation" class="tab-panel active">
+        <div class="kpi-grid" id="kpiGrid" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="disl-summary">Сводная дислокация</button>
           <button class="inner-tab" data-inner="disl-extended">Расширенная</button>
