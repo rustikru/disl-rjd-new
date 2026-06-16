@@ -15,14 +15,14 @@ use App\Database\DbInterface;
 class AuthService
 {
     private DbInterface $db;
-    private LdapAuth    $ldap;
-    private bool        $adEnabled;
+    private LdapAuth $ldap;
+    private bool $adEnabled;
 
     public function __construct(DbInterface $db, array $config)
     {
-        $this->db        = $db;
+        $this->db = $db;
         $this->adEnabled = $config['ad_enabled'];
-        $this->ldap      = new LdapAuth($config);
+        $this->ldap = new LdapAuth($config);
     }
 
     /**
@@ -42,7 +42,7 @@ class AuthService
             }
         }
 
-        // Шаг 2: Локальный пароль из БД
+
         $user = $this->db->fetchOne(
             'SELECT id, username, display_name, email, password_hash, is_active
              FROM xx_users_rjd WHERE username = :username',
@@ -58,24 +58,21 @@ class AuthService
         }
 
         return [
-            'id'           => $user['id'],
-            'username'     => $user['username'],
+            'id' => $user['id'],
+            'username' => $user['username'],
             'display_name' => $user['display_name'],
-            'email'        => $user['email'],
-            'auth_source'  => 'local',
+            'email' => $user['email'],
+            'auth_source' => 'local',
         ];
     }
 
-    /**
-     * Установить или сменить локальный пароль пользователя.
-     * Вызывается из интерфейса смены пароля.
-     */
+
     public function setPassword(string $username, string $newPassword): void
     {
         $this->db->execute(
             'UPDATE xx_users_rjd SET password_hash = :hash WHERE username = :username',
             [
-                'hash'     => password_hash($newPassword, PASSWORD_BCRYPT),
+                'hash' => password_hash($newPassword, PASSWORD_BCRYPT),
                 'username' => $username,
             ]
         );
@@ -99,10 +96,10 @@ class AuthService
             'INSERT INTO xx_users_rjd (username, display_name, email, password_hash, is_active)
              VALUES (:username, :display_name, :email, :hash, 1)',
             [
-                'username'     => $username,
+                'username' => $username,
                 'display_name' => $displayName,
-                'email'        => $email,
-                'hash'         => '',
+                'email' => $email,
+                'hash' => '',
             ]
         );
     }

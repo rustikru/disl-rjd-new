@@ -68,7 +68,7 @@ class ImportController
 
     public function __construct(DbInterface $db, array $config = [])
     {
-        $this->db     = $db;
+        $this->db = $db;
         $this->config = $config;
     }
 
@@ -82,7 +82,7 @@ class ImportController
              ORDER BY (report_dt) DESC, type_reference"
         );
 
-        $appName  = $this->config['app_name']  ?? 'Дислокация РЖД';
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
 
         ob_start();
@@ -110,8 +110,8 @@ class ImportController
         }
 
         $ext = strtolower(pathinfo($file->getClientFilename(), PATHINFO_EXTENSION));
-        if (!in_array($ext, ['xlsx', 'xls'], true)) {
-            return $this->redirect($response, '/import?error=' . urlencode('Допускаются только файлы .xlsx / .xls'));
+        if (!in_array($ext, ['xlsx'], true)) {
+            return $this->redirect($response, '/import?error=' . urlencode('Допускаются только файлы .xlsx'));
         }
 
         $tmpPath = sys_get_temp_dir() . '/rzd_import_' . uniqid() . '.' . $ext;

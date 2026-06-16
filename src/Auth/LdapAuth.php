@@ -5,7 +5,7 @@ namespace App\Auth;
 
 /**
  * Аутентификация через Active Directory по протоколу LDAP.
- * Требуется PHP-расширение ldap (php-ldap).
+ * PHP-расширение ldap (php-ldap).
  */
 class LdapAuth
 {
@@ -18,8 +18,6 @@ class LdapAuth
 
     /**
      * Пробуем войти в AD с указанными логином и паролем.
-     * При успехе возвращаем массив с атрибутами пользователя.
-     * При неудаче возвращаем null.
      */
     public function authenticate(string $username, string $password): ?array
     {
@@ -45,7 +43,7 @@ class LdapAuth
         }
 
         // Получаем атрибуты пользователя
-        $search  = @ldap_search(
+        $search = @ldap_search(
             $connection,
             $this->config['ad_base_dn'],
             '(sAMAccountName=' . ldap_escape($username, '', LDAP_ESCAPE_FILTER) . ')',
@@ -53,23 +51,23 @@ class LdapAuth
         );
 
         $displayName = $username;
-        $email       = '';
+        $email = '';
 
         if ($search) {
             $entries = ldap_get_entries($connection, $search);
             if ($entries['count'] > 0) {
                 $displayName = $entries[0]['displayname'][0] ?? $username;
-                $email       = $entries[0]['mail'][0] ?? '';
+                $email = $entries[0]['mail'][0] ?? '';
             }
         }
 
         ldap_close($connection);
 
         return [
-            'username'     => $username,
+            'username' => $username,
             'display_name' => $displayName,
-            'email'        => $email,
-            'auth_source'  => 'active_directory',
+            'email' => $email,
+            'auth_source' => 'active_directory',
         ];
     }
 }
