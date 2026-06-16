@@ -481,7 +481,7 @@ body {
   white-space: nowrap;
 }
 .data-table thead th {
-  background: bisque;
+  background: #d0d0d0;;
   font-weight: bold;
   text-align: center !important;
   font-size: 12px;
@@ -542,7 +542,7 @@ body {
   font-weight: 700;
 }
 .data-table thead th.col-total-col {
-  background: bisque;
+  background: #d0d0d0;
   text-align: center;
 }
 .data-table .row-data td.col-total-col {
@@ -550,7 +550,7 @@ body {
 }
 
 .data-table th.th-group {
-  background: bisque !important;
+  background: #d0d0d0; !important;
   color: #4b5563 !important;
   font-size: 11px;
   font-weight: 700;
@@ -753,7 +753,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   user-select: none;
-  background: bisque;
+  background: #d0d0d0;;
   border-right: 1px solid var(--border-lt);
 }
 .vt-th.col-meta {
