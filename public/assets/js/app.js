@@ -573,12 +573,21 @@ function loadSummary(cfg) {
         return
       }
       /* Итоги по таблице */
+      var subtotalDepth = null
+      if (cfg.totalColDims && cfg.totalColDims.length && cfg.colDims && cfg.colDims.length) {
+        var colDimKeys = cfg.colDims.map(function (c) { return c.key })
+        cfg.totalColDims.forEach(function (key) {
+          var idx = colDimKeys.indexOf(key)
+          if (idx !== -1 && (subtotalDepth === null || idx < subtotalDepth)) subtotalDepth = idx
+        })
+      }
       drawSummary(
         '#' + cfg.sumTableId,
         data.roads,
         data,
         cfg.ctx,
         cfg.groupCols,
+        subtotalDepth,
       )
       $sub.text(
         cfg.sumSubLabel +
@@ -939,7 +948,7 @@ function showTable($container, rows, colDefs) {
 
 /******** Сводная и KPI ********/
 
-function drawSummary(selector, roads, data, ctx, groupCols) {
+function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth) {
   if (!roads || !roads.length) {
     $(selector).html(
       '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных по данным параметрам.</td></tr></tbody>',
@@ -981,6 +990,44 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     })
   }
   var depth = levels.length
+
+  // Build displayCells (flatCells + optional Σ entries) and displayLevels
+  var displayCells = []
+  var displayLevels = []
+  var hasSubtotals = (subtotalDepth !== null && subtotalDepth !== undefined && depth > subtotalDepth + 1)
+
+  if (hasSubtotals) {
+    var dlvl
+    for (dlvl = 0; dlvl < depth; dlvl++) { displayLevels.push([]) }
+    var flatIdx = 0
+    var subLvlIdx = 0
+    levels[subtotalDepth].forEach(function (grp) {
+      var span = grp.span
+      displayLevels[subtotalDepth].push({ label: grp.label, span: span + 1 })
+      displayLevels[subtotalDepth + 1].push({ label: 'Σ', span: 1, isSubtotal: true })
+      for (var j = 0; j < span; j++) {
+        displayLevels[subtotalDepth + 1].push(levels[subtotalDepth + 1][subLvlIdx + j])
+      }
+      displayCells.push({ isSubtotal: true, col: grp.label, dataFrom: flatIdx, dataTo: flatIdx + span - 1 })
+      for (var fi = flatIdx; fi < flatIdx + span; fi++) {
+        displayCells.push({ isSubtotal: false, col: flatCells[fi].col, subs: flatCells[fi].subs, dataIdx: fi })
+      }
+      flatIdx += span
+      subLvlIdx += span
+    })
+    for (dlvl = 0; dlvl < depth; dlvl++) {
+      if (dlvl !== subtotalDepth && dlvl !== subtotalDepth + 1) {
+        displayLevels[dlvl] = levels[dlvl].slice()
+      }
+    }
+  } else {
+    flatCells.forEach(function (fc, fi) {
+      displayCells.push({ isSubtotal: false, col: fc.col, subs: fc.subs, dataIdx: fi })
+    })
+    for (var dlvl2 = 0; dlvl2 < depth; dlvl2++) {
+      displayLevels.push(levels[dlvl2].slice())
+    }
+  }
 
   var nGroup = groupCols.length
   var groupBy = groupCols
@@ -1050,6 +1097,25 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     )
   }
 
+  function getDisplayVal(dc, valArray) {
+    if (dc.isSubtotal) {
+      var s = 0
+      for (var si = dc.dataFrom; si <= dc.dataTo; si++) { s += valArray[si] || 0 }
+      return s
+    }
+    return valArray[dc.dataIdx]
+  }
+
+  function subtotalCell(v) {
+    var disp = typeof v === 'number' ? v.toLocaleString('ru-RU') : (v || '')
+    return '<td class="col-subtotal">' + disp + '</td>'
+  }
+
+  function renderDisplayCell(dc, v, dataCtx, dataRoad, dataSt, dataExtra) {
+    if (dc.isSubtotal) return subtotalCell(v)
+    return cellLink(v, dataCtx, dataRoad, dataSt, { col: dc.col, subs: dc.subs }, dataExtra)
+  }
+
   // Переходим на массив строк вместо конкатенации строк
   var h = []
   var rowspan = depth > 1 ? ' rowspan="' + depth + '"' : ''
@@ -1060,11 +1126,12 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
   h.push('<th class="col-meta" style="min-width:200px"' + rowspan + '>' + groupHeader + '</th>')
   h.push('<th class="col-total-col"' + rowspan + '>Итого</th>')
 
-  levels[0].forEach(function (c) {
+  displayLevels[0].forEach(function (c) {
     h.push(
       '<th' +
         (c.span > 1 ? ' colspan="' + c.span + '"' : '') +
         (depth > 1 ? ' style="text-align:center"' : '') +
+        (c.isSubtotal ? ' class="col-subtotal-hd"' : '') +
         '>' +
         esc(c.label) +
         '</th>',
@@ -1074,11 +1141,13 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
 
   for (var d = 1; d < depth; d++) {
     h.push('<tr>')
-    levels[d].forEach(function (c) {
+    displayLevels[d].forEach(function (c) {
       h.push(
         '<th' +
           (c.span > 1 ? ' colspan="' + c.span + '"' : '') +
-          ' style="text-align:center">' +
+          ' style="text-align:center"' +
+          (c.isSubtotal ? ' class="col-subtotal-hd"' : '') +
+          '>' +
           esc(c.label) +
           '</th>',
       )
@@ -1087,7 +1156,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
   }
   h.push('</thead>')
 
-  var grandTotals = flatCells.map(function () { return 0 })
+  var grandTotals = displayCells.map(function () { return 0 })
   var grandSum = 0
   var bodyH = []
 
@@ -1106,9 +1175,10 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
         '</td>',
     )
     bodyH.push(totalLink(road.grand_total || 0, ctx, roadVal, ''))
-    ;(road.total || []).forEach(function (v, i) {
-      grandTotals[i] += v || 0
-      bodyH.push(cellLink(v, ctx, roadVal, '', flatCells[i]))
+    displayCells.forEach(function (dc, di) {
+      var v = getDisplayVal(dc, road.total || [])
+      grandTotals[di] += v || 0
+      bodyH.push(renderDisplayCell(dc, v, ctx, roadVal, '', null))
     })
     bodyH.push('</tr>')
 
@@ -1140,8 +1210,8 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
             )
             out.push('<td class="col-meta col-meta--l' + level + '">' + esc(stVal) + '</td>')
             out.push(totalLink(rowSum, ctx, roadVal, stVal, leafExtra))
-            ;(st.v || []).forEach(function (v, i) {
-              out.push(cellLink(v, ctx, roadVal, stVal, flatCells[i], leafExtra))
+            displayCells.forEach(function (dc) {
+              out.push(renderDisplayCell(dc, getDisplayVal(dc, st.v || []), ctx, roadVal, stVal, leafExtra))
             })
             out.push('</tr>')
           })
@@ -1180,8 +1250,8 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
                 '<span class="toggle-icon">▼</span>' + esc(groupVal) + '</td>',
             )
             out.push(totalLink(subSum, ctx, '', '', curFiltersWithPath))
-            subTotal.forEach(function (v, i) {
-              out.push(cellLink(v, ctx, '', '', flatCells[i], curFiltersWithPath))
+            displayCells.forEach(function (dc) {
+              out.push(renderDisplayCell(dc, getDisplayVal(dc, subTotal), ctx, '', '', curFiltersWithPath))
             })
             out.push('</tr>')
 
@@ -1216,15 +1286,18 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     )
   }
 
-  grandTotals.forEach(function (v, i) {
-    if (v && ctx) {
+  displayCells.forEach(function (dc, di) {
+    var v = grandTotals[di]
+    if (dc.isSubtotal) {
+      totalH.push(subtotalCell(v))
+    } else if (v && ctx) {
       totalH.push(
         '<td class="cell-link" data-ctx="' +
           esc(ctx) +
           '" data-road="" data-station="" data-col="' +
-          esc(flatCells[i].col) +
+          esc(dc.col) +
           '"' +
-          subAttrs(flatCells[i].subs) +
+          subAttrs(dc.subs) +
           '>' +
           v +
           '</td>',
