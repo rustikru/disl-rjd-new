@@ -59,7 +59,7 @@ $basePath = $basePath ?? '';
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item">
+            <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fDislocationWagonNo">№ вагона</label>
               <input class="filter-input" type="text" id="fDislocationWagonNo" placeholder="52345678; 52345679; ...">
             </div>
@@ -114,7 +114,7 @@ $basePath = $basePath ?? '';
         <!-- Фильтры -->
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item">
+            <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fApproachWagonNo">№ вагона</label>
               <input class="filter-input" type="text" id="fApproachWagonNo" placeholder="52345678; 52345679; ...">
             </div>
@@ -179,7 +179,7 @@ $basePath = $basePath ?? '';
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item">
+            <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fDepartureWagonNo">№ вагона</label>
               <input class="filter-input" type="text" id="fDepartureWagonNo" placeholder="52345678; 52345679; ...">
             </div>
@@ -241,7 +241,7 @@ $basePath = $basePath ?? '';
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item">
+            <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fLoadingWagonNo">№ вагона</label>
               <input class="filter-input" type="text" id="fLoadingWagonNo" placeholder="52345678; 52345679; ...">
             </div>
@@ -296,7 +296,7 @@ $basePath = $basePath ?? '';
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item">
+            <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fDowntimeWagonNo">№ вагона</label>
               <input class="filter-input" type="text" id="fDowntimeWagonNo" placeholder="52345678; 52345679; ...">
             </div>
@@ -351,7 +351,7 @@ $basePath = $basePath ?? '';
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item">
+            <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fRawWagonNo">№ вагона</label>
               <input class="filter-input" type="text" id="fRawWagonNo" placeholder="52345678; 52345679; ...">
             </div>
