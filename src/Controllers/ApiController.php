@@ -10,7 +10,7 @@ use Psr\Http\Message\ServerRequestInterface;
 class ApiController
 {
     private const WAG_TYPE_EXPR = "xx_etw.xx_rjd_dislocation_new_pkg.fnc_mapping_wag_type(wagon_type_code)";
-    private const WAG_STATE     = "xx_etw.xx_rjd_dislocation_new_pkg.fnc_get_state_wagon(cargo_weight_kg)";
+    private const WAG_STATE = "xx_etw.xx_rjd_dislocation_new_pkg.fnc_get_state_wagon(cargo_weight_kg)";
 
     private DbInterface $db;
 
@@ -20,7 +20,7 @@ class ApiController
     }
 
     // =========================================================================
-    // Публичные эндпоинты
+    // Публичные endpoint
     // =========================================================================
 
     /** GET /api/dislocation/filters */
@@ -41,10 +41,10 @@ class ApiController
                 $label = $dt;
             }
             return [
-                'report_dt'      => $dt,
+                'report_dt' => $dt,
                 'type_reference' => (string) ($r['type_reference'] ?? ''),
-                'label'          => $label . ($r['type_reference'] ? ' (' . $r['type_reference'] . ')' : ''),
-                'cnt'            => (int) $r['cnt'],
+                'label' => $label . ($r['type_reference'] ? ' (' . $r['type_reference'] . ')' : ''),
+                'cnt' => (int) $r['cnt'],
             ];
         }, $rows);
 
@@ -66,38 +66,38 @@ class ApiController
         $dt = max($dtsByType);
 
         $sections = [];
-        $trends   = [];
+        $trends = [];
 
         foreach ($rows as $r) {
             $sectionName = trim(explode(',', (string) ($r['id'] ?? ''))[0]);
             if (!isset($sections[$sectionName])) {
                 $sections[$sectionName] = [
-                    'total'             => 0,
-                    'tank_total'        => 0,
-                    'comming_to_ugl'    => 0,
+                    'total' => 0,
+                    'tank_total' => 0,
+                    'comming_to_ugl' => 0,
                     'arrived_today_ugl' => 0,
-                    'arrived_ugl'       => 0,
-                    'loaded_transit'    => 0,
+                    'arrived_ugl' => 0,
+                    'loaded_transit' => 0,
                 ];
             }
-            $sections[$sectionName]['total']             = (int) $r['total'];
-            $sections[$sectionName]['tank_total']        = (int) $r['tank_total'];
-            $sections[$sectionName]['comming_to_ugl']    = (int) $r['comming_to_ugl'];
+            $sections[$sectionName]['total'] = (int) $r['total'];
+            $sections[$sectionName]['tank_total'] = (int) $r['tank_total'];
+            $sections[$sectionName]['comming_to_ugl'] = (int) $r['comming_to_ugl'];
             $sections[$sectionName]['arrived_today_ugl'] = (int) $r['arrived_today_ugl'];
-            $sections[$sectionName]['loaded_transit']    = (int) $r['loaded_transit'];
+            $sections[$sectionName]['loaded_transit'] = (int) $r['loaded_transit'];
 
             $trends = [
-                'total'                  => null,
-                'total_dir'              => null,
-                'tank'                   => null,
-                'tank_dir'               => null,
-                'other'                  => null,
-                'other_dir'              => null,
-                'met_arrived_ugl'        => $r['met_arrived_ugl'],
-                'met_arrived_ugl_dir'    => $r['met_arrived_ugl_dir'],
-                'met_loaded_transit'     => $r['met_loaded_transit'],
+                'total' => null,
+                'total_dir' => null,
+                'tank' => null,
+                'tank_dir' => null,
+                'other' => null,
+                'other_dir' => null,
+                'met_arrived_ugl' => $r['met_arrived_ugl'],
+                'met_arrived_ugl_dir' => $r['met_arrived_ugl_dir'],
+                'met_loaded_transit' => $r['met_loaded_transit'],
                 'met_loaded_transit_dir' => $r['met_loaded_transit_dir'],
-                'met_comming_to_ugl'     => $r['met_comming_to_ugl'],
+                'met_comming_to_ugl' => $r['met_comming_to_ugl'],
                 'met_comming_to_ugl_dir' => $r['met_comming_to_ugl_dir'],
             ];
         }
@@ -110,26 +110,26 @@ class ApiController
 
         return $this->json($response, [
             'updated_at' => $dtLabel,
-            'sections'   => array_values($sections),
-            'trends'     => $trends,
+            'sections' => array_values($sections),
+            'trends' => $trends,
         ]);
     }
 
     /** GET /api/dislocation/summary */
     public function dislSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params    = $request->getQueryParams();
+        $params = $request->getQueryParams();
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
-        $rowDims   = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state', 'dest_road']);
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state', 'dest_road']);
 
         if (empty($dtsByType)) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
         $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
-        $cond    = $this->latestDtCondition($dtsByType);
-        $source  = [
-            'from'     => "(SELECT * FROM xx_dislocation_rjd WHERE {$cond['sql']})",
+        $cond = $this->latestDtCondition($dtsByType);
+        $source = [
+            'from' => "(SELECT * FROM xx_dislocation_rjd WHERE {$cond['sql']})",
             'bindings' => $cond['params'],
         ];
 
@@ -139,14 +139,14 @@ class ApiController
     /** GET /api/dislocation/detail */
     public function dislDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params    = $request->getQueryParams();
-        $rowDims   = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state']);
+        $params = $request->getQueryParams();
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state']);
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
-        $cond      = $this->latestDtCondition($dtsByType, 'xdr');
-        $bindings  = $cond['params'];
+        $cond = $this->latestDtCondition($dtsByType, 'xdr');
+        $bindings = $cond['params'];
         $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
         $selectCols = $this->selectFields($params['fields'] ?? '');
-        $orderBy    = $this->orderBY($params, implode(', ', $rowDims) . ', oper_station');
+        $orderBy = $this->orderBY($params, implode(', ', $rowDims) . ', oper_station');
 
         $rows = $this->db->fetchAll(
             "SELECT $selectCols
@@ -183,7 +183,7 @@ class ApiController
         );
 
         return $this->json($response, [
-            'cargo'      => array_column($cargo, 'cargo_name'),
+            'cargo' => array_column($cargo, 'cargo_name'),
             'prev_cargo' => array_column($prevCargo, 'prev_cargo'),
         ]);
     }
@@ -191,8 +191,8 @@ class ApiController
     /** GET /api/approach/summary */
     public function approachSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params  = $request->getQueryParams();
-        $source  = $this->approachFrom($params);
+        $params = $request->getQueryParams();
+        $source = $this->approachFrom($params);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
@@ -206,18 +206,18 @@ class ApiController
     /** GET /api/approach/detail */
     public function approachDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params  = $request->getQueryParams();
+        $params = $request->getQueryParams();
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_road', 'dest_station']);
-        $source  = $this->approachFrom($params);
+        $source = $this->approachFrom($params);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['rows' => []]);
         }
 
-        $bindings   = $source['bindings'];
-        $whereCond  = $this->applyDetailFilters($rowDims, $params, $bindings);
+        $bindings = $source['bindings'];
+        $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
         $selectCols = $this->selectFields($params['fields'] ?? '');
-        $orderBy    = $this->orderBY($params, implode(', ', $rowDims));
+        $orderBy = $this->orderBY($params, implode(', ', $rowDims));
 
         $rows = $this->db->fetchAll(
             "SELECT $selectCols FROM {$source['from']} WHERE 1=1 $whereCond ORDER BY $orderBy",
@@ -247,7 +247,7 @@ class ApiController
         );
 
         return $this->json($response, [
-            'cargo'        => array_column($cargo, 'cargo_name'),
+            'cargo' => array_column($cargo, 'cargo_name'),
             'dest_station' => array_column($destStation, 'dest_station'),
         ]);
     }
@@ -255,8 +255,8 @@ class ApiController
     /** GET /api/departure/summary */
     public function departureSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params  = $request->getQueryParams();
-        $source  = $this->departureFrom($params);
+        $params = $request->getQueryParams();
+        $source = $this->departureFrom($params);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
@@ -270,18 +270,18 @@ class ApiController
     /** GET /api/departure/detail */
     public function departureDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params  = $request->getQueryParams();
+        $params = $request->getQueryParams();
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['depart_road', 'depart_station']);
-        $source  = $this->departureFrom($params);
+        $source = $this->departureFrom($params);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['rows' => []]);
         }
 
-        $bindings   = $source['bindings'];
-        $whereCond  = $this->applyDetailFilters($rowDims, $params, $bindings);
+        $bindings = $source['bindings'];
+        $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
         $selectCols = $this->selectFields($params['fields'] ?? '');
-        $orderBy    = $this->orderBY($params, implode(', ', $rowDims));
+        $orderBy = $this->orderBY($params, implode(', ', $rowDims));
 
         $rows = $this->db->fetchAll(
             "SELECT $selectCols FROM {$source['from']} WHERE 1=1 $whereCond ORDER BY $orderBy",
@@ -316,8 +316,8 @@ class ApiController
     /** GET /api/loading/summary */
     public function loadingSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params  = $request->getQueryParams();
-        $source  = $this->loadingFrom($params);
+        $params = $request->getQueryParams();
+        $source = $this->loadingFrom($params);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
@@ -331,18 +331,18 @@ class ApiController
     /** GET /api/loading/detail */
     public function loadingDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params  = $request->getQueryParams();
+        $params = $request->getQueryParams();
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['depart_road', 'depart_station']);
-        $source  = $this->loadingFrom($params);
+        $source = $this->loadingFrom($params);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['rows' => []]);
         }
 
-        $bindings   = $source['bindings'];
-        $whereCond  = $this->applyDetailFilters($rowDims, $params, $bindings);
+        $bindings = $source['bindings'];
+        $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
         $selectCols = $this->selectFields($params['fields'] ?? '');
-        $orderBy    = $this->orderBY($params, implode(', ', $rowDims));
+        $orderBy = $this->orderBY($params, implode(', ', $rowDims));
 
         $rows = $this->db->fetchAll(
             "SELECT $selectCols FROM {$source['from']} WHERE 1=1 $whereCond ORDER BY $orderBy",
@@ -374,8 +374,8 @@ class ApiController
     /** GET /api/downtime/summary */
     public function downtimeSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params  = $request->getQueryParams();
-        $source  = $this->downtimeFrom($params);
+        $params = $request->getQueryParams();
+        $source = $this->downtimeFrom($params);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
@@ -383,9 +383,9 @@ class ApiController
 
         // Простои используют предвычисленные колонки из подзапроса (downtimeFrom),
         // поэтому здесь нет resolveColDims — просто имена полей из подзапроса.
-        $rowDims    = $this->parseGroupBy($params['group_by'] ?? '', ['oper_road', 'oper_station']);
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['oper_road', 'oper_station']);
         $colAliases = $this->parseGroupBy($params['col_by'] ?? '', ['fixed_col_label', 'm_wagon_type_code']);
-        $selectRow  = implode(', ', $rowDims);
+        $selectRow = implode(', ', $rowDims);
         $selectCols = implode(', ', $colAliases);
 
         $rows = $this->db->fetchAll(
@@ -402,19 +402,19 @@ class ApiController
     /** GET /api/downtime/detail */
     public function downtimeDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params  = $request->getQueryParams();
+        $params = $request->getQueryParams();
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['idle_time_name']);
-        $source  = $this->downtimeFrom($params);
+        $source = $this->downtimeFrom($params);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['rows' => []]);
         }
 
-        $bindings  = $source['bindings'];
+        $bindings = $source['bindings'];
         $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
 
-        // wagon_type_code в подзапросе — сырой код; подменяем на отображаемое имя через функцию.
-        $rawFields   = array_values(array_filter(
+        // wagon_type_code использует функцию из пакета
+        $rawFields = array_values(array_filter(
             array_map('trim', explode(',', $params['fields'] ?? '')),
             fn($f) => self::isSafeField($f)
         ));
@@ -423,7 +423,7 @@ class ApiController
             $rawFields
         );
         $selectCols = $selectParts ? implode(', ', $selectParts) : 'wagon_no';
-        $orderBy    = $this->orderBY($params, 'idle_time_days DESC');
+        $orderBy = $this->orderBY($params, 'idle_time_days DESC');
 
         $rows = $this->db->fetchAll(
             "SELECT $selectCols FROM {$source['from']} WHERE 1=1 $whereCond ORDER BY $orderBy",
@@ -436,8 +436,8 @@ class ApiController
     /** GET /api/raw-material/summary */
     public function rawSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params  = $request->getQueryParams();
-        $source  = $this->rawFrom($params);
+        $params = $request->getQueryParams();
+        $source = $this->rawFrom($params);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0, 'max_idle' => 0]);
@@ -445,9 +445,9 @@ class ApiController
 
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['cargo_name']);
         $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code']);
-        $result  = $this->summaryReport($source, $rowDims, $colDefs);
+        $result = $this->summaryReport($source, $rowDims, $colDefs);
 
-        $maxIdleRow         = $this->db->fetchOne("SELECT MAX(idle_time_days) AS max_idle FROM {$source['from']}", $source['bindings']);
+        $maxIdleRow = $this->db->fetchOne("SELECT MAX(idle_time_days) AS max_idle FROM {$source['from']}", $source['bindings']);
         $result['max_idle'] = (float) ($maxIdleRow['max_idle'] ?? 0);
 
         return $this->json($response, $result);
@@ -456,18 +456,18 @@ class ApiController
     /** GET /api/raw-material/detail */
     public function rawDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params  = $request->getQueryParams();
+        $params = $request->getQueryParams();
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['cargo_name']);
-        $source  = $this->rawFrom($params);
+        $source = $this->rawFrom($params);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['rows' => []]);
         }
 
-        $bindings   = $source['bindings'];
-        $whereCond  = $this->applyDetailFilters($rowDims, $params, $bindings);
+        $bindings = $source['bindings'];
+        $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
         $selectCols = $this->selectFields($params['fields'] ?? '');
-        $orderBy    = $this->orderBY($params, implode(', ', $rowDims) . ', idle_time_days DESC');
+        $orderBy = $this->orderBY($params, implode(', ', $rowDims) . ', idle_time_days DESC');
 
         $rows = $this->db->fetchAll(
             "SELECT $selectCols FROM {$source['from']} WHERE 1=1 $whereCond ORDER BY $orderBy",
@@ -480,7 +480,7 @@ class ApiController
     /** GET /api/analysis/period/detail */
     public function analysisPeriod(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params   = $request->getQueryParams();
+        $params = $request->getQueryParams();
         $bindings = [];
         $whereCond = '1=1';
 
@@ -527,7 +527,7 @@ class ApiController
             return ['from' => '', 'bindings' => [], 'reportDt' => null];
         }
 
-        $bindings  = ['report_dt' => $reportDt];
+        $bindings = ['report_dt' => $reportDt];
         $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Подход' AND dist_remain_km IS NOT NULL AND dist_remain_km != 0";
 
         $cargo = $params['cargo'] ?? null;
@@ -552,7 +552,7 @@ class ApiController
             return ['from' => '', 'bindings' => [], 'reportDt' => null];
         }
 
-        $bindings  = ['report_dt' => $reportDt];
+        $bindings = ['report_dt' => $reportDt];
         $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
 
         $cargo = $params['cargo'] ?? null;
@@ -577,7 +577,7 @@ class ApiController
             return ['from' => '', 'bindings' => [], 'reportDt' => null];
         }
 
-        $bindings  = ['report_dt' => $reportDt];
+        $bindings = ['report_dt' => $reportDt];
         $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
 
         $cargo = $params['cargo'] ?? null;
@@ -608,8 +608,8 @@ class ApiController
     private function downtimeFrom(array $params): array
     {
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null);
-        $cond      = $this->latestDtCondition($dtsByType, 'xdr');
-        $bindings  = $cond['params'];
+        $cond = $this->latestDtCondition($dtsByType, 'xdr');
+        $bindings = $cond['params'];
         $whereCond = "{$cond['sql']} AND idle_time_days IS NOT NULL AND nvl(idle_time_days,0) != 0";
 
         $minDays = max(0, (int) ($params['min_days'] ?? 1));
@@ -647,7 +647,7 @@ class ApiController
 
     /**
      * Строит и выполняет запрос сводной таблицы.
-     * Единый метод для всех разделов (кроме простоев с их кастомным GROUP BY).
+     * Единый метод для всех разделов 
      *
      * $source   — источник данных из *From(): ['from', 'bindings']
      * $rowDims  — поля строк сводной (GROUP BY строки)
@@ -655,10 +655,10 @@ class ApiController
      */
     private function summaryReport(array $source, array $rowDims, array $colDefs): array
     {
-        $selectRow   = implode(', ', $rowDims);
-        $selectCols  = implode(', ', array_map(fn($c) => $this->applyFormat($c) . " AS {$c['alias']}", $colDefs));
+        $selectRow = implode(', ', $rowDims);
+        $selectCols = implode(', ', array_map(fn($c) => $this->applyFormat($c) . " AS {$c['alias']}", $colDefs));
         $groupByCols = implode(', ', array_map(fn($c) => $this->applyFormat($c), $colDefs));
-        $colAliases  = array_column($colDefs, 'alias');
+        $colAliases = array_column($colDefs, 'alias');
         $orderByCols = implode(', ', $colAliases);
 
         $rows = $this->db->fetchAll(
@@ -705,22 +705,22 @@ class ApiController
     }
 
     // =========================================================================
-    // Реестры и вспомогательные SQL-строители
+    // Реестры и вспомогательные SQL-шаблоны
     // =========================================================================
 
     /**
-     * Единый реестр вычисляемых колонок сводной.
-     * Источник правды для summaryReport (expr в SELECT/GROUP BY)
+     * Единый подход вычисляемых колонок сводной.
+     * Источник для summaryReport (expr в SELECT/GROUP BY)
      * и для applyDetailFilters (expr в WHERE, param — имя URL-параметра).
      *
-     * Добавить новую вычисляемую колонку = одна запись здесь.
+     * Добавить новую вычисляемую колонку
      * param должен совпадать с colDims[].paramName в app.js.
      */
     private function colDimRegistry(): array
     {
         return [
             'wagon_type_code' => ['expr' => self::WAG_TYPE_EXPR, 'param' => 'wagon_type'],
-            'cargo_w_type'    => ['expr' => self::WAG_STATE,     'param' => 'cargo_state'],
+            'cargo_w_type' => ['expr' => self::WAG_STATE, 'param' => 'cargo_state'],
         ];
     }
 
@@ -731,7 +731,7 @@ class ApiController
     private function resolveColDims(string $colBy, array $defaultAliases): array
     {
         $registry = $this->colDimRegistry();
-        $aliases  = $this->parseGroupBy($colBy, $defaultAliases);
+        $aliases = $this->parseGroupBy($colBy, $defaultAliases);
         return array_values(array_filter(
             array_map(
                 fn($a) => isset($registry[$a]) ? ['alias' => $a, 'expr' => $registry[$a]['expr']] : null,
@@ -781,15 +781,15 @@ class ApiController
             return $default;
         }
         $fields = array_map('trim', explode(',', $sortRaw));
-        $dirs   = array_map('trim', explode(',', $params['sort_dir'] ?? ''));
-        $types  = array_map('trim', explode(',', $params['sort_type'] ?? ''));
+        $dirs = array_map('trim', explode(',', $params['sort_dir'] ?? ''));
+        $types = array_map('trim', explode(',', $params['sort_type'] ?? ''));
 
         $parts = [];
         foreach ($fields as $i => $field) {
             if ($field === '' || !self::isSafeField($field)) {
                 continue;
             }
-            $dir  = strtoupper($dirs[$i] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
+            $dir = strtoupper($dirs[$i] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
             $expr = strtolower($types[$i] ?? '') === 'number' ? "TO_NUMBER($field)" : $field;
             $parts[] = "$expr $dir";
         }
@@ -829,7 +829,7 @@ class ApiController
         if ($dt) {
             return $dt;
         }
-        $sql    = 'SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd';
+        $sql = 'SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd';
         $params = [];
         if ($typeRef !== null) {
             $sql .= ' WHERE type_reference = :type_ref';
@@ -845,7 +845,7 @@ class ApiController
         if ($types !== null && count($types) === 0) {
             return [];
         }
-        $sql    = 'SELECT type_reference, MAX(report_dt) AS dt FROM xx_dislocation_rjd';
+        $sql = 'SELECT type_reference, MAX(report_dt) AS dt FROM xx_dislocation_rjd';
         $params = [];
         if ($types !== null) {
             $placeholders = implode(',', array_map(fn($i) => ":t$i", array_keys($types)));
@@ -856,7 +856,7 @@ class ApiController
         }
         $sql .= ' GROUP BY type_reference';
         $rows = $this->db->fetchAll($sql, $params);
-        $map  = [];
+        $map = [];
         foreach ($rows as $r) {
             $map[(string) $r['type_reference']] = $dt ?? (string) $r['dt'];
         }
@@ -872,14 +872,14 @@ class ApiController
         if (empty($dtsByType)) {
             return ['sql' => '1=0', 'params' => []];
         }
-        $col    = fn(string $c) => $alias !== '' ? "$alias.$c" : $c;
-        $parts  = [];
+        $col = fn(string $c) => $alias !== '' ? "$alias.$c" : $c;
+        $parts = [];
         $params = [];
-        $i      = 0;
+        $i = 0;
         foreach ($dtsByType as $type => $dt) {
-            $parts[]            = "({$col('type_reference')} = :ldt_type_{$i} AND {$col('report_dt')} = TO_DATE(:ldt_dt_{$i}, 'YYYY-MM-DD HH24:MI:SS'))";
+            $parts[] = "({$col('type_reference')} = :ldt_type_{$i} AND {$col('report_dt')} = TO_DATE(:ldt_dt_{$i}, 'YYYY-MM-DD HH24:MI:SS'))";
             $params["ldt_type_{$i}"] = $type;
-            $params["ldt_dt_{$i}"]   = $dt;
+            $params["ldt_dt_{$i}"] = $dt;
             $i++;
         }
         return ['sql' => '(' . implode(' OR ', $parts) . ')', 'params' => $params];
@@ -899,31 +899,31 @@ class ApiController
      */
     private function roadTable(array $rows, array $rowDims, array $colAliases): array
     {
-        $topKey     = $rowDims[0];
-        $subKeys    = array_slice($rowDims, 1);
+        $topKey = $rowDims[0];
+        $subKeys = array_slice($rowDims, 1);
         $nColLevels = count($colAliases);
 
         // Собираем все уникальные значения по каждому уровню колонок
         $colValues = array_fill(0, $nColLevels, []);
-        $colIndex  = array_fill(0, $nColLevels, []);
+        $colIndex = array_fill(0, $nColLevels, []);
         foreach ($rows as $r) {
             foreach ($colAliases as $k => $alias) {
                 $v = (string) ($r[$alias] ?? '');
                 if ($v !== '' && !isset($colIndex[$k][$v])) {
                     $colIndex[$k][$v] = count($colValues[$k]);
-                    $colValues[$k][]  = $v;
+                    $colValues[$k][] = $v;
                 }
             }
         }
 
         $colDims = array_map(fn($vals) => max(1, count($vals)), $colValues);
-        $nFlat   = (int) array_product($colDims);
-        $roads   = [];
+        $nFlat = (int) array_product($colDims);
+        $roads = [];
 
         foreach ($rows as $r) {
-            $topVal      = (string) ($r[$topKey] ?? 'Не указана');
+            $topVal = (string) ($r[$topKey] ?? 'Не указана');
             $subComposite = implode('|', array_map(fn($k) => (string) ($r[$k] ?? ''), $subKeys)) ?: 'Не указана';
-            $cnt         = (int) $r['cnt'];
+            $cnt = (int) $r['cnt'];
 
             if (!isset($roads[$topVal])) {
                 $roads[$topVal] = [$topKey => $topVal, 'stations' => [], 'total' => array_fill(0, $nFlat, 0), 'grand_total' => 0];
@@ -943,13 +943,13 @@ class ApiController
 
             $flatIdx = 0;
             foreach ($colAliases as $k => $alias) {
-                $v       = (string) ($r[$alias] ?? '');
+                $v = (string) ($r[$alias] ?? '');
                 $flatIdx = $flatIdx * $colDims[$k] + ($colIndex[$k][$v] ?? 0);
             }
 
             $roads[$topVal]['stations'][$subComposite]['v'][$flatIdx] += $cnt;
-            $roads[$topVal]['total'][$flatIdx]                        += $cnt;
-            $roads[$topVal]['grand_total']                            += $cnt;
+            $roads[$topVal]['total'][$flatIdx] += $cnt;
+            $roads[$topVal]['grand_total'] += $cnt;
         }
 
         foreach ($roads as &$road) {
@@ -957,8 +957,8 @@ class ApiController
         }
         unset($road);
 
-        $roadList   = array_values($roads);
-        $metrics    = array_map(fn($r) => ['label' => $r[$topKey], 'total' => $r['grand_total']], $roadList);
+        $roadList = array_values($roads);
+        $metrics = array_map(fn($r) => ['label' => $r[$topKey], 'total' => $r['grand_total']], $roadList);
         $grandTotal = array_sum(array_column($metrics, 'total'));
 
         if ($nColLevels <= 1) {
@@ -967,7 +967,7 @@ class ApiController
 
         $buildColTree = function (int $level) use (&$buildColTree, $colValues, $nColLevels) {
             $isLeaf = $level === $nColLevels - 1;
-            $out    = [];
+            $out = [];
             foreach ($colValues[$level] as $v) {
                 $out[] = $isLeaf ? $v : ['label' => $v, 'subs' => $buildColTree($level + 1)];
             }

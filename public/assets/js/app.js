@@ -16,7 +16,10 @@ var TAB_GROUPS = [
   },
   {
     label: 'Аналитика',
-    tabs: [{ id: 'analysis-period', label: 'Анализ за период' }],
+    tabs: [
+      { id: 'analysis-period', label: 'Анализ за период' },
+      { id: 'maps', label: 'Карта' },
+    ],
   },
   {
     label: 'Простои и оборот',
@@ -238,10 +241,23 @@ function drawBar(sections) {
 
 // Общий построитель KPI для табов с группировкой по дороге
 function makeRoadKpi(cfg, data, mainLabel) {
-  var groupBy = cfg.groupCols.map(function (g) { return g.key }).join(',')
-  var main = { label: mainLabel, value: data.total, accent: true, detail: { ctx: cfg.ctx } }
+  var groupBy = cfg.groupCols
+    .map(function (g) {
+      return g.key
+    })
+    .join(',')
+  var main = {
+    label: mainLabel,
+    value: data.total,
+    accent: true,
+    detail: { ctx: cfg.ctx },
+  }
   var rows = (data.metrics || []).map(function (m) {
-    return { label: m.label, value: m.total, detail: { ctx: cfg.ctx, road: m.label, groupBy: groupBy } }
+    return {
+      label: m.label,
+      value: m.total,
+      detail: { ctx: cfg.ctx, road: m.label, groupBy: groupBy },
+    }
   })
   return [main].concat(rows)
 }
@@ -250,54 +266,58 @@ var WAGON_TABS = {
   // Дислокация
   dislocation: {
     ctx: 'dislocation',
-    summaryUrl:     BASE + '/api/dislocation/summary',
-    detailUrl:      BASE + '/api/dislocation/detail',
-    csvFilename:    'дислокация',
+    summaryUrl: BASE + '/api/dislocation/summary',
+    detailUrl: BASE + '/api/dislocation/detail',
+    csvFilename: 'дислокация',
     csvDetFilename: 'дислокация-расширенная',
-    sumTableId:  'mainTable',
-    sumSubId:    'mainTableSub',
+    sumTableId: 'mainTable',
+    sumSubId: 'mainTableSub',
     sumSubLabel: 'Итого по дислокации',
-    detTableId:  'dislExtTable',
-    detPanelId:  'disl-extended',
-    loadedKey:    '_dislLoaded',
+    detTableId: 'dislExtTable',
+    detPanelId: 'disl-extended',
+    loadedKey: '_dislLoaded',
     loadedDetKey: '_extLoaded',
     groupCols: [
-      { key: 'dest_state',   label: 'Страна назначения' },
-      { key: 'dest_road',    label: 'Дорога назначения' },
+      { key: 'dest_state', label: 'Страна назначения' },
+      { key: 'dest_road', label: 'Дорога назначения' },
       { key: 'dest_station', label: 'Станция назначения' },
     ],
     colDims: [
       { key: 'wagon_type_code', paramName: 'wagon_type' },
-      { key: 'cargo_w_type',    paramName: 'cargo_state' },
+      { key: 'cargo_w_type', paramName: 'cargo_state' },
     ],
-    getParams: function () { return {} },
+    getParams: function () {
+      return {}
+    },
   },
 
   // Подход
   approach: {
     ctx: 'approach',
-    summaryUrl:     BASE + '/api/approach/summary',
-    detailUrl:      BASE + '/api/approach/detail',
-    filtersUrl:     BASE + '/api/approach/filters',
+    summaryUrl: BASE + '/api/approach/summary',
+    detailUrl: BASE + '/api/approach/detail',
+    filtersUrl: BASE + '/api/approach/filters',
     metricsId: 'approachMetrics',
-    kpi: function (data) { return makeRoadKpi(this, data, 'Всего в подходе') },
-    csvFilename:    'подход',
+    kpi: function (data) {
+      return makeRoadKpi(this, data, 'Всего в подходе')
+    },
+    csvFilename: 'подход',
     csvDetFilename: 'подход-расширенная',
-    sumTableId:  'approachSumTable',
-    sumSubId:    'approachSumSub',
+    sumTableId: 'approachSumTable',
+    sumSubId: 'approachSumSub',
     sumSubLabel: 'Всего в подходе',
-    detTableId:  'approachDetTable',
-    detSubId:    'approachDetSub',
-    detPanelId:  'approach-detail',
-    loadedKey:    '_approachLoaded',
+    detTableId: 'approachDetTable',
+    detSubId: 'approachDetSub',
+    detPanelId: 'approach-detail',
+    loadedKey: '_approachLoaded',
     loadedDetKey: '_approachDetLoaded',
     groupCols: [
-      { key: 'oper_road',    label: 'Дорога операции' },
+      { key: 'oper_road', label: 'Дорога операции' },
       { key: 'oper_station', label: 'Станция операции' },
     ],
     colDims: [
       { key: 'wagon_type_code', paramName: 'wagon_type' },
-      { key: 'cargo_w_type',    paramName: 'cargo_state' },
+      { key: 'cargo_w_type', paramName: 'cargo_state' },
     ],
     getParams: function () {
       return {
@@ -318,29 +338,31 @@ var WAGON_TABS = {
   // Отправление
   departure: {
     ctx: 'departure',
-    summaryUrl:     BASE + '/api/departure/summary',
-    detailUrl:      BASE + '/api/departure/detail',
-    filtersUrl:     BASE + '/api/departure/filters',
+    summaryUrl: BASE + '/api/departure/summary',
+    detailUrl: BASE + '/api/departure/detail',
+    filtersUrl: BASE + '/api/departure/filters',
     metricsId: 'departureMetrics',
-    kpi: function (data) { return makeRoadKpi(this, data, 'Всего отправлено') },
-    csvFilename:    'отправление',
+    kpi: function (data) {
+      return makeRoadKpi(this, data, 'Всего отправлено')
+    },
+    csvFilename: 'отправление',
     csvDetFilename: 'отправление-расширенная',
-    sumTableId:  'departureSumTable',
-    sumSubId:    'departureSumSub',
+    sumTableId: 'departureSumTable',
+    sumSubId: 'departureSumSub',
     sumSubLabel: 'Всего',
-    detTableId:  'departureDetTable',
-    detSubId:    'departureDetSub',
-    detPanelId:  'departure-detail',
-    loadedKey:    '_departureLoaded',
+    detTableId: 'departureDetTable',
+    detSubId: 'departureDetSub',
+    detPanelId: 'departure-detail',
+    loadedKey: '_departureLoaded',
     loadedDetKey: '_departureDetLoaded',
     groupCols: [
-      { key: 'dest_road',    label: 'Дорога назначения' },
+      { key: 'dest_road', label: 'Дорога назначения' },
       { key: 'dest_station', label: 'Станция назначения' },
     ],
     colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
     getParams: function () {
       return {
-        cargo:        $('#fDepartureCargo').val() || undefined,
+        cargo: $('#fDepartureCargo').val() || undefined,
         dest_station: $('#fDestStation').val() || undefined,
       }
     },
@@ -357,23 +379,25 @@ var WAGON_TABS = {
   // Погрузка
   loading: {
     ctx: 'loading',
-    summaryUrl:     BASE + '/api/loading/summary',
-    detailUrl:      BASE + '/api/loading/detail',
-    filtersUrl:     BASE + '/api/loading/filters',
+    summaryUrl: BASE + '/api/loading/summary',
+    detailUrl: BASE + '/api/loading/detail',
+    filtersUrl: BASE + '/api/loading/filters',
     metricsId: 'loadingMetrics',
-    kpi: function (data) { return makeRoadKpi(this, data, 'Всего погружено') },
-    csvFilename:    'погрузка',
+    kpi: function (data) {
+      return makeRoadKpi(this, data, 'Всего погружено')
+    },
+    csvFilename: 'погрузка',
     csvDetFilename: 'погрузка-расширенная',
-    sumTableId:  'loadingSumTable',
-    sumSubId:    'loadingSumSub',
+    sumTableId: 'loadingSumTable',
+    sumSubId: 'loadingSumSub',
     sumSubLabel: 'Всего',
-    detTableId:  'loadingDetTable',
-    detSubId:    'loadingDetSub',
-    detPanelId:  'loading-detail',
-    loadedKey:    '_loadingLoaded',
+    detTableId: 'loadingDetTable',
+    detSubId: 'loadingDetSub',
+    detPanelId: 'loading-detail',
+    loadedKey: '_loadingLoaded',
     loadedDetKey: '_loadingDetLoaded',
     groupCols: [
-      { key: 'depart_road',    label: 'Дорога' },
+      { key: 'depart_road', label: 'Дорога' },
       { key: 'depart_station', label: 'Станция' },
     ],
     colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
@@ -391,27 +415,27 @@ var WAGON_TABS = {
   // Простои
   downtime: {
     ctx: 'downtime',
-    summaryUrl:     BASE + '/api/downtime/summary',
-    detailUrl:      BASE + '/api/downtime/detail',
-    filtersUrl:     BASE + '/api/downtime/filters',
-    csvFilename:    'простои',
+    summaryUrl: BASE + '/api/downtime/summary',
+    detailUrl: BASE + '/api/downtime/detail',
+    filtersUrl: BASE + '/api/downtime/filters',
+    csvFilename: 'простои',
     csvDetFilename: 'простои-расширенная',
-    sumTableId:  'downtimeSumTable',
-    sumSubId:    'downtimeSumSub',
+    sumTableId: 'downtimeSumTable',
+    sumSubId: 'downtimeSumSub',
     sumSubLabel: 'Вагонов с простоем',
-    detTableId:  'downtimeDetTable',
-    detSubId:    'downtimeDetSub',
-    detPanelId:  'downtime-detail',
-    loadedKey:    '_downtimeLoaded',
+    detTableId: 'downtimeDetTable',
+    detSubId: 'downtimeDetSub',
+    detPanelId: 'downtime-detail',
+    loadedKey: '_downtimeLoaded',
     loadedDetKey: '_downtimeDetLoaded',
     applyBtnId: 'btnDowntimeApply',
     groupCols: [
       //{ key: 'oper_station', label: 'Станция' },
-      { key: 'cargo_name',    label: 'Груз' },
+      { key: 'cargo_name', label: 'Груз' },
       { key: 'idle_time_name', label: 'Простой' },
     ],
     colDims: [
-      { key: 'fixed_col_label',  synthetic: true },
+      { key: 'fixed_col_label', synthetic: true },
       { key: 'm_wagon_type_code', paramName: 'wagon_type' },
     ],
     getParams: function () {
@@ -429,44 +453,48 @@ var WAGON_TABS = {
   // Сырьё
   'raw-material': {
     ctx: 'raw-material',
-    summaryUrl:     BASE + '/api/raw-material/summary',
-    detailUrl:      BASE + '/api/raw-material/detail',
+    summaryUrl: BASE + '/api/raw-material/summary',
+    detailUrl: BASE + '/api/raw-material/detail',
     metricsId: 'rawMetrics',
-    kpi: function (data) { return makeRoadKpi(this, data, 'Гружёных вагонов') },
-    csvFilename:    'сырьё',
+    kpi: function (data) {
+      return makeRoadKpi(this, data, 'Гружёных вагонов')
+    },
+    csvFilename: 'сырьё',
     csvDetFilename: 'сырьё-расширенная',
-    sumTableId:  'rawSumTable',
-    sumSubId:    'rawSumSub',
+    sumTableId: 'rawSumTable',
+    sumSubId: 'rawSumSub',
     sumSubLabel: 'Гружёных вагонов',
-    detTableId:  'rawDetTable',
-    detSubId:    'rawDetSub',
-    detPanelId:  'raw-detail',
-    loadedKey:    '_rawLoaded',
+    detTableId: 'rawDetTable',
+    detSubId: 'rawDetSub',
+    detPanelId: 'raw-detail',
+    loadedKey: '_rawLoaded',
     loadedDetKey: '_rawDetLoaded',
     groupCols: [
       { key: 'cargo_name', label: 'Груз' },
       //{ key: 'consignee', label: 'Грузополучатель' },
     ],
     colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
-    getParams: function () { return {} },
+    getParams: function () {
+      return {}
+    },
   },
 
   // Анализ за период
   'analysis-period': {
     ctx: 'analysis-period',
-    detailUrl:      BASE + '/api/analysis/period/detail',
+    detailUrl: BASE + '/api/analysis/period/detail',
     csvDetFilename: 'анализ-за-период',
-    detTableId:  'analysisPeriodDetTable',
-    detSubId:    'analysisPeriodDetSub',
-    detPanelId:  'analysisPeriod-detail',
-    loadedKey:    '_analysisPeriodLoaded',
+    detTableId: 'analysisPeriodDetTable',
+    detSubId: 'analysisPeriodDetSub',
+    detPanelId: 'analysisPeriod-detail',
+    loadedKey: '_analysisPeriodLoaded',
     loadedDetKey: '_analysisPeriodDetLoaded',
     applyBtnId: 'btnAnalysisPeriodApply',
     getParams: function () {
       return {
-        wagon_no:  $('#fAnalysisPeriodWagonNo').val().trim() || undefined,
+        wagon_no: $('#fAnalysisPeriodWagonNo').val().trim() || undefined,
         date_from: $('#fAnalysisPeriodDateFrom').val() || undefined,
-        date_to:   $('#fAnalysisPeriodDateTo').val() || undefined,
+        date_to: $('#fAnalysisPeriodDateTo').val() || undefined,
       }
     },
   },
@@ -478,17 +506,23 @@ var KPI_BOARDS = {
   dashboard: {
     dataUrl: BASE + '/api/dashboard',
     cards: function (data) {
-      var grandTotal = 0, tankTotal = 0, commingToUgl = 0, arrivedTodayUgl = 0, loadedTransit = 0
+      var grandTotal = 0,
+        tankTotal = 0,
+        commingToUgl = 0,
+        arrivedTodayUgl = 0,
+        loadedTransit = 0
       ;(data.sections || []).forEach(function (x) {
-        grandTotal      += x.total || 0
-        tankTotal       += x.tank_total || 0
-        commingToUgl    += x.comming_to_ugl || 0
+        grandTotal += x.total || 0
+        tankTotal += x.tank_total || 0
+        commingToUgl += x.comming_to_ugl || 0
         arrivedTodayUgl += x.arrived_today_ugl || 0
-        loadedTransit   += x.loaded_transit || 0
+        loadedTransit += x.loaded_transit || 0
       })
 
       var tr = data.trends || {}
-      function makeTrend(pct, dir) { return pct ? { pct: pct, dir: dir || 'neutral' } : null }
+      function makeTrend(pct, dir) {
+        return pct ? { pct: pct, dir: dir || 'neutral' } : null
+      }
 
       return [
         {
@@ -525,7 +559,6 @@ var KPI_BOARDS = {
     },
   },
 }
-
 
 function fillSelect(selector, values) {
   var $sel = $(selector)
@@ -1168,8 +1201,14 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
             // При 3+ уровнях ancestorFilters содержит промежуточные ключи (напр. dest_road).
             // Передаём их через data-extra, чтобы openDetail добавил их в URL и бэкенд
             // применил в WHERE. gc[0] и gc[last] попадают через road/station как обычно.
-            var bcVals = Object.keys(ancestorFilters).map(function (k) { return ancestorFilters[k] }).concat([stVal])
-            var leafExtra = Object.assign({}, ancestorFilters, { _bcpath: JSON.stringify(bcVals) })
+            var bcVals = Object.keys(ancestorFilters)
+              .map(function (k) {
+                return ancestorFilters[k]
+              })
+              .concat([stVal])
+            var leafExtra = Object.assign({}, ancestorFilters, {
+              _bcpath: JSON.stringify(bcVals),
+            })
 
             out.push(
               '<tr class="row-data row-child" data-parent-id="' +
@@ -1181,7 +1220,9 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
               out.push('<td class="col-meta"></td>')
             out.push('<td class="col-meta">' + esc(stVal) + '</td>')
             ;(st.v || []).forEach(function (v, i) {
-              out.push(cellLink(v, ctx, roadVal, stVal, flatCells[i], leafExtra))
+              out.push(
+                cellLink(v, ctx, roadVal, stVal, flatCells[i], leafExtra),
+              )
             })
             out.push(totalLink(rowSum, ctx, roadVal, stVal, leafExtra))
             out.push('</tr>')
