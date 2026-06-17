@@ -127,8 +127,8 @@ function loadDashboard() {
 
 // KPI карточки дашборда
 function showDashKpi(data) {
-  var cards = KPI_BOARDS.dashboard.cards(data)
-  $('#kpiGrid').html(cards.map(kpiCard).join(''))
+  var cfg = KPI_BOARDS.dashboard
+  $('#' + cfg.containerId).html(cfg.cards(data).map(kpiCard).join(''))
 }
 
 // SVG
@@ -467,63 +467,64 @@ var WAGON_TABS = {
   },
 }
 
+// Бейдж тренда: { pct, dir }
+function makeTrend(pct, dir) {
+  return pct ? { pct: pct, dir: dir || 'neutral' } : null
+}
+
+// Стандартный набор карточек: одна акцентная (total) + по одной на каждый metrics[].
+// Если ctx задан — карточки кликабельны (drill-down по дороге).
+function metricsCards(data, mainLabel, ctx, groupBy) {
+  return [{ label: mainLabel, value: data.total, accent: true, detail: ctx ? { ctx: ctx } : null }].concat(
+    (data.metrics || []).map(function (m) {
+      return {
+        label:  m.label,
+        value:  m.total,
+        detail: ctx ? { ctx: ctx, road: m.label, groupBy: groupBy } : null,
+      }
+    }),
+  )
+}
+
+// Карточки дашборда — агрегируют несколько секций и добавляют тренды.
+function dashboardCards(data) {
+  var grandTotal = 0, tankTotal = 0, commingToUgl = 0, arrivedTodayUgl = 0, loadedTransit = 0
+  ;(data.sections || []).forEach(function (x) {
+    grandTotal      += x.total || 0
+    tankTotal       += x.tank_total || 0
+    commingToUgl    += x.comming_to_ugl || 0
+    arrivedTodayUgl += x.arrived_today_ugl || 0
+    loadedTransit   += x.loaded_transit || 0
+  })
+  var tr = data.trends || {}
+  return [
+    { label: 'Груженые в пути c УГЛ', value: loadedTransit,         variant: 'pill', trend: makeTrend(tr.met_loaded_transit,  tr.met_loaded_transit_dir) },
+    { label: 'Цистерны',              value: tankTotal,              variant: 'pill', trend: makeTrend(tr.tank,                tr.tank_dir) },
+    { label: 'Прочие вагоны',         value: grandTotal - tankTotal, variant: 'pill', trend: makeTrend(tr.other,               tr.other_dir) },
+    { label: 'В пути на УГЛ',         value: commingToUgl,           variant: 'pill', trend: makeTrend(tr.met_comming_to_ugl, tr.met_comming_to_ugl_dir) },
+    { label: 'Прибыло сегодня (УГЛ)', value: arrivedTodayUgl,        variant: 'pill', trend: makeTrend(tr.met_arrived_ugl,    tr.met_arrived_ugl_dir) },
+  ]
+}
+
+// Универсальный загрузчик KPI-блока.
+// cfg.cards(data) — кастомный построитель карточек; если не задан — используется metricsCards
+// с полями cfg.mainLabel / cfg.ctx / cfg.groupBy.
+function loadKpi(cfg) {
+  $.getJSON(cfg.dataUrl, cfg.params ? cfg.params() : {}).done(function (data) {
+    var items = cfg.cards
+      ? cfg.cards(data)
+      : metricsCards(data, cfg.mainLabel, cfg.ctx, cfg.groupBy)
+    $('#' + cfg.containerId).html(items.map(kpiCard).join(''))
+  })
+}
+
 // KPI-карточки для дашборда и отдельных блоков
 var KPI_BOARDS = {
   // GET /api/dashboard
   dashboard: {
-    dataUrl: BASE + '/api/dashboard',
-    cards: function (data) {
-      var grandTotal = 0,
-        tankTotal = 0,
-        commingToUgl = 0,
-        arrivedTodayUgl = 0,
-        loadedTransit = 0
-      ;(data.sections || []).forEach(function (x) {
-        grandTotal += x.total || 0
-        tankTotal += x.tank_total || 0
-        commingToUgl += x.comming_to_ugl || 0
-        arrivedTodayUgl += x.arrived_today_ugl || 0
-        loadedTransit += x.loaded_transit || 0
-      })
-
-      var tr = data.trends || {}
-      function makeTrend(pct, dir) {
-        return pct ? { pct: pct, dir: dir || 'neutral' } : null
-      }
-
-      return [
-        {
-          label: 'Груженые в пути c УГЛ',
-          value: loadedTransit,
-          variant: 'pill',
-          trend: makeTrend(tr.met_loaded_transit, tr.met_loaded_transit_dir),
-        },
-        {
-          label: 'Цистерны',
-          value: tankTotal,
-          variant: 'pill',
-          trend: makeTrend(tr.tank, tr.tank_dir),
-        },
-        {
-          label: 'Прочие вагоны',
-          value: grandTotal - tankTotal,
-          variant: 'pill',
-          trend: makeTrend(tr.other, tr.other_dir),
-        },
-        {
-          label: 'В пути на УГЛ',
-          value: commingToUgl,
-          variant: 'pill',
-          trend: makeTrend(tr.met_comming_to_ugl, tr.met_comming_to_ugl_dir),
-        },
-        {
-          label: 'Прибыло сегодня (УГЛ)',
-          value: arrivedTodayUgl,
-          variant: 'pill',
-          trend: makeTrend(tr.met_arrived_ugl, tr.met_arrived_ugl_dir),
-        },
-      ]
-    },
+    containerId: 'kpiGrid',
+    dataUrl:     BASE + '/api/dashboard',
+    cards:       dashboardCards,
   },
 }
 
