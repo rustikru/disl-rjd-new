@@ -1085,26 +1085,25 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     })
     h.push('</tr>')
   }
-  h.push('</thead><tbody>')
+  h.push('</thead>')
 
-  var grandTotals = flatCells.map(function () {
-    return 0
-  })
+  var grandTotals = flatCells.map(function () { return 0 })
   var grandSum = 0
+  var bodyH = []
 
   ;(roads || []).forEach(function (road, ri) {
     var roadVal = road[groupCols[0].key] || ''
     var stations = road.stations || [] // жесткая привязка к .stations
     var hasChildren = nGroup > 1 && stations.length > 0
 
-    h.push(
+    bodyH.push(
       '<tr class="row-road-parent" data-road-id="' +
         ri +
         '" data-node-id="' +
         ri +
         '">',
     )
-    h.push(
+    bodyH.push(
       '<td class="col-meta" colspan="' +
         nGroup +
         '">' +
@@ -1114,10 +1113,10 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     )
     ;(road.total || []).forEach(function (v, i) {
       grandTotals[i] += v || 0
-      h.push(cellLink(v, ctx, roadVal, '', flatCells[i]))
+      bodyH.push(cellLink(v, ctx, roadVal, '', flatCells[i]))
     })
-    h.push(totalLink(road.grand_total || 0, ctx, roadVal, ''))
-    h.push('</tr>')
+    bodyH.push(totalLink(road.grand_total || 0, ctx, roadVal, ''))
+    bodyH.push('</tr>')
 
     grandSum += road.grand_total || 0
 
@@ -1235,19 +1234,20 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
 
       var rootFilters = {}
       rootFilters[groupCols[0].key] = roadVal
-      h.push(buildRows(1, stations, '' + ri, rootFilters))
+      bodyH.push(buildRows(1, stations, '' + ri, rootFilters))
     }
   })
 
-  h.push(
+  // Строка «Общий итог» — первая в tbody
+  var totalH = [
     '<tr class="row-total row-grand"><td class="col-meta" colspan="' +
       nGroup +
       '">Общий итог</td>',
-  )
+  ]
 
   grandTotals.forEach(function (v, i) {
     if (v && ctx) {
-      h.push(
+      totalH.push(
         '<td class="cell-link" data-ctx="' +
           esc(ctx) +
           '" data-road="" data-station="" data-col="' +
@@ -1259,12 +1259,12 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
           '</td>',
       )
     } else {
-      h.push('<td>' + (v || '') + '</td>')
+      totalH.push('<td>' + (v || '') + '</td>')
     }
   })
 
   if (grandSum && ctx) {
-    h.push(
+    totalH.push(
       '<td class="col-total-col cell-link" data-ctx="' +
         esc(ctx) +
         '" data-road="" data-station="" data-col="">' +
@@ -1272,14 +1272,14 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
         '</td>',
     )
   } else {
-    h.push(
+    totalH.push(
       '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>',
     )
   }
-  h.push('</tr></tbody>')
+  totalH.push('</tr>')
 
   // Итоговый единый рендеринг в DOM
-  $(selector).html(h.join(''))
+  $(selector).html(h.join('') + '<tbody>' + totalH.join('') + bodyH.join('') + '</tbody>')
 }
 
 // CSV-экспорт виртуальной таблицы (детализация) — берёт данные из _vtInline
