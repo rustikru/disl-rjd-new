@@ -1252,6 +1252,12 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
               return a + b
             }, 0)
 
+            // При 3+ уровнях ancestorFilters содержит промежуточные ключи (напр. dest_road).
+            // Передаём их через data-extra, чтобы openDetail добавил их в URL и бэкенд
+            // применил в WHERE. gc[0] и gc[last] попадают через road/station как обычно.
+            var bcVals = Object.keys(ancestorFilters).map(function (k) { return ancestorFilters[k] }).concat([stVal])
+            var leafExtra = Object.assign({}, ancestorFilters, { _bcpath: JSON.stringify(bcVals) })
+
             out.push(
               '<tr class="row-data row-child" data-parent-id="' +
                 esc(parentNodeId) +
@@ -1262,9 +1268,9 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
               out.push('<td class="col-meta"></td>')
             out.push('<td class="col-meta">' + esc(stVal) + '</td>')
             ;(st.v || []).forEach(function (v, i) {
-              out.push(cellLink(v, ctx, roadVal, stVal, flatCells[i]))
+              out.push(cellLink(v, ctx, roadVal, stVal, flatCells[i], leafExtra))
             })
-            out.push(totalLink(rowSum, ctx, roadVal, stVal))
+            out.push(totalLink(rowSum, ctx, roadVal, stVal, leafExtra))
             out.push('</tr>')
           })
         } else {
