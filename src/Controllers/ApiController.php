@@ -51,6 +51,8 @@ class ApiController
         return $this->json($response, ['reports' => $reports]);
     }
 
+
+
     /** GET /api/dashboard */
     public function dashboard(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
@@ -857,7 +859,7 @@ class ApiController
     }
 
     /** [type_reference => MAX(report_dt)] для всех указанных типов. */
-    private function getLatestDtsByType(?string $dt = null, ?array $types = null): array
+    public function getLatestDtsByType(?string $dt = null, ?array $types = null): array
     {
         if ($types !== null && count($types) === 0) {
             return [];
@@ -884,7 +886,7 @@ class ApiController
      * Строит WHERE-фрагмент для фильтрации по нескольким report_dt (один на тип справки).
      * $alias — псевдоним таблицы, например 'xdr' → 'xdr.type_reference'.
      */
-    private function latestDtCondition(array $dtsByType, string $alias = ''): array
+    public function latestDtCondition(array $dtsByType, string $alias = ''): array
     {
         if (empty($dtsByType)) {
             return ['sql' => '1=0', 'params' => []];

@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Database\DbInterface;
+// 1. Исправили namespace и добавили точку с запятой
+use App\Controllers\ApiController;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -20,7 +22,26 @@ class MapsController
 
     public function showMaps(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        // Включаем буферизацию, так как ниже используется ob_get_clean()
+        $apiController = new ApiController($this->db);
+        $dtsByType = $apiController->getLatestDtsByType(null, ['Подход', 'Отправка']);
+
+        // Получаем условия для SQL-запроса
+        $cond = $apiController->latestDtCondition($dtsByType, 'xdr');
+        $params = $cond['params'] ?? [];
+        // 3. Сначала делаем запрос к базе данных, чтобы переменная $reports была готова
+        $reports = $this->db->fetchAll(
+            "SELECT xdr.wagon_no, 
+                         rs.esr_code, 
+                         rs.STATION_NAME,
+                         rs.LATITUDE,
+                         rs.LONGITUDE
+             FROM xx_dislocation_rjd xdr left join xx_rjd_stations rs on xdr.dest_station_esr_code = rs.esr_code
+             WHERE {$cond['sql']}  
+            ",
+            $params
+        );
+
+        // 4. Только ПОСЛЕ получения данных включаем буфер и подключаем шаблон
         ob_start();
         include __DIR__ . '/../../templates/maps.php';
         $html = ob_get_clean();
