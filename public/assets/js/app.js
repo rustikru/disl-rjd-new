@@ -31,7 +31,7 @@ var TAB_GROUPS = [
       {
         id: 'import',
         label: ' Загрузка справки РЖД ',
-        url: BASE + '/import-file',
+        url: BASE + '/import',
       },
     ],
   },
