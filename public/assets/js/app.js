@@ -541,7 +541,7 @@ function initTab(cfg) {
       .find('.table-acts')
     if ($acts.length && !$acts.find('.btn-csv-tab').length) {
       var $btn = $(
-        '<button class="btn btn-ghost btn-sm btn-csv-tab">Скачать CSV</button>',
+        '<button class="btn btn-ghost btn-sm btn-csv-tab">Выгрузить в Excel</button>',
       )
       $btn.on('click', function () {
         saveCSV(cfg.sumTableId, cfg.csvFilename)
