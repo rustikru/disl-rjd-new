@@ -392,7 +392,7 @@ var WAGON_TABS = {
     colDims: [
       //{ key: 'fixed_col_label', synthetic: true },
       { key: 'm_wagon_type_code', paramName: 'wagon_type' },
-      { key: 'm_wag_state', paramName: 'wag_state' },
+      { key: 'm_wag_state', paramName: 'cargo_state' },
     ],
     totalColDims: ['m_wagon_type_code'], // Итог по строке в разрезе (пор. / гр.)
     getParams: function () {
