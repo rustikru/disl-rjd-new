@@ -836,10 +836,9 @@ class ApiController
         }
 
         $cargoState = $params['cargo_state'] ?? null;
-        if ($cargoState === 'ГР') {
-            $where .= ' AND CARGO_WEIGHT_KG > 0';
-        } elseif ($cargoState === 'ПОР') {
-            $where .= ' AND (CARGO_WEIGHT_KG IS NULL OR CARGO_WEIGHT_KG = 0)';
+        if ($cargoState !== null && $cargoState !== '') {
+            $where .= ' AND ' . self::WAG_STATE . ' = :col_cargo_state';
+            $bindings['col_cargo_state'] = $cargoState;
         }
 
         return $where;
