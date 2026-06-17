@@ -8,17 +8,12 @@
     <title>404 — Страница не найдена</title>
     <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f4f6f9;
-            /* Мягкий фон вашего дашборда */
-            color: #2d3748;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: #f4f3f8;
+            color: #1c2128;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -26,52 +21,45 @@
             text-align: center;
         }
 
-        .container {
-            padding: 20px;
-        }
+        .container { padding: 20px; }
 
         .error-code {
             font-size: 140px;
             font-weight: 700;
             line-height: 1;
-            color: #2b4c7e;
-            /* Спокойный, глубокий приглушенный синий */
-            letter-spacing: -3px;
+            color: #4f328e;
+            letter-spacing: -4px;
             margin-bottom: 8px;
-            opacity: 0.85;
+            opacity: 0.15;
         }
 
         .error-title {
             font-size: 20px;
-            font-weight: 500;
-            color: #1a202c;
-            margin-bottom: 10px;
+            font-weight: 600;
+            color: #1c2128;
+            margin-bottom: 8px;
+            margin-top: -20px;
         }
 
         .error-message {
             font-size: 14px;
-            color: #718096;
-            /* Приглушенный серый для текста */
+            color: #7c7e86;
             margin-bottom: 28px;
         }
 
         .btn {
             display: inline-block;
-            padding: 10px 20px;
+            padding: 10px 22px;
             font-size: 13px;
-            font-weight: 500;
-            color: #ffffff;
-            background-color: #2b4c7e;
-            /* Цвет кнопки в тон цифрам */
-            border-radius: 5px;
+            font-weight: 600;
+            color: #fff;
+            background: #4f328e;
+            border-radius: 7px;
             text-decoration: none;
-            transition: background-color 0.15s ease;
+            transition: background 0.15s;
         }
 
-        .btn:hover {
-            background-color: #1e3a61;
-            /* Чуть темнее при наведении */
-        }
+        .btn:hover { background: #3a226b; }
     </style>
 </head>
 
@@ -79,7 +67,7 @@
     <div class="container">
         <div class="error-code">404</div>
         <h1 class="error-title">Страница не найдена</h1>
-        <p class="error-message">Запрашиваемый адрес не существует или был перемещен.</p>
+        <p class="error-message">Запрашиваемый адрес не существует или был перемещён.</p>
         <a href="<?= htmlspecialchars($basePath) ?>/" class="btn">Вернуться на главную</a>
     </div>
 </body>
