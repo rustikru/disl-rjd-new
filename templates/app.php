@@ -141,7 +141,7 @@ $basePath = $basePath ?? '';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title">Подход вагонов — сводная</span>
+                <span class="table-title">Подход вагонов к ст.Углеуральская (сводная)</span>
                 <span class="table-sub" id="approachSumSub"></span>
               </div>
               <div class="table-acts">
