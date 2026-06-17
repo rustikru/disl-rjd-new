@@ -103,22 +103,39 @@ class ApiController
     }
 
     /**
-     * Реестр вычисляемых колонок сводной: alias → SQL-выражение.
-     * col_by посылает ключи (alias), бэкенд подставляет выражение.
+     * Единый реестр вычисляемых колонок сводной (alias → выражение + URL-параметр).
+     * Источник правды и для построения колонок сводной (resolveColDims),
+     * и для фильтра детализации по выбранной колонке (applyDetailFilters).
+     * Добавление новой колонки = одна запись здесь.
+     *
+     *   alias  — ключ, приходит в col_by; одновременно имя колонки результата
+     *   expr   — SQL-выражение, разворачивается в SELECT/GROUP BY и в WHERE
+     *   param  — имя URL-параметра drill-down (совпадает с colDims[].paramName на фронте)
+     *
+     * @return array<string, array{expr: string, param: string}>
+     */
+    private function colDimRegistry(): array
+    {
+        return [
+            'wagon_type_code' => ['expr' => self::WAG_TYPE_EXPR, 'param' => 'wagon_type'],
+            'cargo_w_type'    => ['expr' => self::WAG_STATE,     'param' => 'cargo_state'],
+        ];
+    }
+
+    /**
+     * Раскрывает col_by (ключи-алиасы) в определения колонок сводной.
+     * col_by посылает ключи (alias), бэкенд подставляет выражение из реестра.
      * [['alias' => 'wagon_type_code', 'expr' => "..."], ...]
      */
     private function resolveColDims(string $colBy, array $defaultAliases): array
     {
-        $wagExpr = self::WAG_TYPE_EXPR;
-        $wagState = self::WAG_STATE;
-
-        $registry = [
-            'wagon_type_code' => ['alias' => 'wagon_type_code', 'expr' => $wagExpr],
-            'cargo_w_type' => ['alias' => 'cargo_w_type', 'expr' => $wagState],
-        ];
+        $registry = $this->colDimRegistry();
         $aliases = $this->groupFields($colBy, $defaultAliases);
         return array_values(array_filter(
-            array_map(fn($a) => $registry[$a] ?? null, $aliases),
+            array_map(
+                fn($a) => isset($registry[$a]) ? ['alias' => $a, 'expr' => $registry[$a]['expr']] : null,
+                $aliases
+            ),
             fn($c) => $c !== null
         ));
     }
@@ -822,23 +839,22 @@ class ApiController
 
     /**
      * Универсальный фильтр для детализации: строки (applyGfFilters) +
-     * колонки (wagon_type через WAG_TYPE_EXPR; cargo_state через CARGO_WEIGHT_KG).
+     * колонки сводной из единого реестра colDimRegistry().
+     * Для каждой колонки: если её URL-параметр (param) пришёл — добавляет
+     * AND <expr> = :value, используя то же выражение, что и в сводной.
      * Все detail-хендлеры вызывают только этот метод — никаких исключений по вкладкам.
      */
     private function applyDetailFilters(array $gf, array $params, array &$bindings): string
     {
         $where = $this->applyGfFilters($gf, $params, $bindings);
 
-        $wagType = $params['wagon_type'] ?? null;
-        if ($wagType !== null && $wagType !== '') {
-            $where .= ' AND ' . self::WAG_TYPE_EXPR . ' = :col_wtype';
-            $bindings['col_wtype'] = $wagType;
-        }
-
-        $cargoState = $params['cargo_state'] ?? null;
-        if ($cargoState !== null && $cargoState !== '') {
-            $where .= ' AND ' . self::WAG_STATE . ' = :col_cargo_state';
-            $bindings['col_cargo_state'] = $cargoState;
+        foreach ($this->colDimRegistry() as $alias => $def) {
+            $value = $params[$def['param']] ?? null;
+            if ($value !== null && $value !== '') {
+                $bind = 'col_' . $alias;
+                $where .= " AND {$def['expr']} = :$bind";
+                $bindings[$bind] = $value;
+            }
         }
 
         return $where;
