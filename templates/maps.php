@@ -364,7 +364,7 @@ $user = $user ?? ['display_name' => 'Пользователь'];
                 return '<div class="station-item' + (isActive ? ' active' : '') + '" onclick="selectStation(\'' + s.code + '\')">' +
                     '<div class="station-info">' +
                     '<div class="station-name">' + s.name + '</div>' +
-                    '<div class="station-meta">' + s.road + ' ж.д.</div>' +
+                    '<div class="station-meta">' + s.road + '</div>' +
                     '</div>' +
                     '<div class="station-count">' + cnt + '</div>' +
                     '</div>';
@@ -422,7 +422,7 @@ $user = $user ?? ['display_name' => 'Пользователь'];
                 marker.bindPopup(
                     '<div>' +
                     '<div class="popup-title">' + s.name + '</div>' +
-                    '<div class="popup-sub">' + s.road + ' ж.д. · Вагонов: <strong>' + cnt + '</strong></div>' +
+                    '<div class="popup-sub">' + s.road + ' Вагонов: <strong>' + cnt + '</strong></div>' +
                     '<div class="popup-scroll" style="max-height: 160px; overflow-y: auto; padding-right: 4px;">' +
                     wagonsListHtml +
                     '</div>' +
