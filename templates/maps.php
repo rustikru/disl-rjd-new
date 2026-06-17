@@ -355,18 +355,19 @@ $user = $user ?? ['display_name' => 'Пользователь'];
             visible.sort(function (a, b) { return b.wagons.length - a.wagons.length; });
 
             var totalWagons = visible.reduce(function (acc, x) { return acc + x.wagons.length; }, 0);
-            summary.innerHTML = 'Станций: <strong>' + visible.length + '</strong> · Вагонов: <strong>' + totalWagons + '</strong>';
+            //summary.innerHTML = 'Станций: <strong>' + visible.length + '</strong> · Вагонов: <strong>' + totalWagons + '</strong>';
+            summary.innerHTML = 'всего вагонов: <strong>' + totalWagons + '</strong>';
 
             var html = visible.map(function (x) {
                 var s = x.s, cnt = x.wagons.length;
                 var isActive = activeStation && activeStation.code === s.code;
                 return '<div class="station-item' + (isActive ? ' active' : '') + '" onclick="selectStation(\'' + s.code + '\')">' +
                     '<div class="station-info">' +
-                        '<div class="station-name">' + s.name + '</div>' +
-                        '<div class="station-meta">' + s.road + ' ж.д.</div>' +
+                    '<div class="station-name">' + s.name + '</div>' +
+                    '<div class="station-meta">' + s.road + ' ж.д.</div>' +
                     '</div>' +
                     '<div class="station-count">' + cnt + '</div>' +
-                '</div>';
+                    '</div>';
             }).join('');
 
             list.innerHTML = html || '<div class="no-results">Ничего не найдено</div>';
@@ -408,12 +409,12 @@ $user = $user ?? ['display_name' => 'Пользователь'];
                     return '<div style="border-bottom: 1px solid #e2e1e7; padding: 5px 0; font-size: 11px; line-height: 1.4;">' +
                         '<strong style="color: var(--primary); font-family: var(--mono); font-size: 12px;">№ ' + w.wagon_num + '</strong> — ' + w.wagon_type + '<br>' +
                         '<span style="color: ' + (w.ld ? 'var(--loaded)' : 'var(--empty)') + '; font-weight: 600;">' +
-                            (w.ld ? 'Гружёный' : 'Порожний') +
+                        (w.ld ? 'Гружёный' : 'Порожний') +
                         '</span>' +
                         (w.cargo ? '<span style="color: #555;"> (' + w.cargo + ')</span>' : '') +
                         (w.dest_station ? '<br><span style="color: #7c7e86; font-size: 10px;">→ Назначение: ' + w.dest_station + '</span>' : '') +
                         (w.days_no_move > 0 ? '<br><small style="color: var(--empty);">Без движения: ' + w.days_no_move + ' дн.</small>' : '') +
-                    '</div>';
+                        '</div>';
                 }).join('');
 
                 var marker = L.marker([s.lat, s.lng], { icon: icon });
@@ -423,7 +424,7 @@ $user = $user ?? ['display_name' => 'Пользователь'];
                     '<div class="popup-title">' + s.name + '</div>' +
                     '<div class="popup-sub">' + s.road + ' ж.д. · Вагонов: <strong>' + cnt + '</strong></div>' +
                     '<div class="popup-scroll" style="max-height: 160px; overflow-y: auto; padding-right: 4px;">' +
-                        wagonsListHtml +
+                    wagonsListHtml +
                     '</div>' +
                     '</div>',
                     { maxWidth: 300 }

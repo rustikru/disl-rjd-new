@@ -22,12 +22,12 @@ class MapsController
     public function showMaps(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $basePath = $this->config['base_path'] ?? '';
-        $appName  = $this->config['app_name']  ?? 'Дислокация';
-        $user     = $_SESSION['user'] ?? ['display_name' => '', 'username' => '', 'auth_source' => ''];
+        $appName = $this->config['app_name'] ?? 'Дислокация';
+        $user = $_SESSION['user'] ?? ['display_name' => '', 'username' => '', 'auth_source' => ''];
 
         $apiController = new ApiController($this->db);
         $dtsByType = $apiController->getLatestDtsByType(null, ['Подход', 'Отправка']);
-        $cond      = $apiController->latestDtCondition($dtsByType, 'xdr');
+        $cond = $apiController->latestDtCondition($dtsByType, 'xdr');
 
         $rows = $this->db->fetchAll(
             "SELECT xdr.wagon_no,
@@ -47,8 +47,7 @@ class MapsController
              FROM xx_dislocation_rjd xdr
              LEFT JOIN xx_rjd_stations rs ON xdr.dest_station_esr_code = rs.esr_code
              WHERE {$cond['sql']}
-               AND rs.latitude  IS NOT NULL
-               AND rs.longitude IS NOT NULL",
+               ",
             $cond['params']
         );
 
@@ -60,24 +59,24 @@ class MapsController
             }
             if (!isset($stationsMap[$code])) {
                 $stationsMap[$code] = [
-                    'code'   => $code,
-                    'name'   => (string) ($r['station_name'] ?? $r['oper_station'] ?? ''),
-                    'road'   => (string) ($r['oper_road'] ?? ''),
-                    'lat'    => (float)  $r['latitude'],
-                    'lng'    => (float)  $r['longitude'],
-                    'count'  => 0,
+                    'code' => $code,
+                    'name' => (string) ($r['station_name'] ?? $r['oper_station'] ?? ''),
+                    'road' => (string) ($r['oper_road'] ?? ''),
+                    'lat' => (float) $r['latitude'],
+                    'lng' => (float) $r['longitude'],
+                    'count' => 0,
                     'wagons' => [],
                 ];
             }
             $stationsMap[$code]['count']++;
             $stationsMap[$code]['wagons'][] = [
-                'wagon_num'    => (string) ($r['wagon_no']        ?? ''),
-                'wagon_type'   => (string) ($r['wagon_type_code'] ?? ''),
-                'ld'           => isset($r['cargo_weight_kg']) && (float) $r['cargo_weight_kg'] != 0.0,
-                'cargo'        => (string) ($r['cargo_name']      ?? ''),
-                'dest_station' => (string) ($r['dest_station']    ?? ''),
-                'wagon_state'  => (string) ($r['wagon_state']     ?? ''),
-                'days_no_move' => (int)    ($r['idle_time_days']  ?? 0),
+                'wagon_num' => (string) ($r['wagon_no'] ?? ''),
+                'wagon_type' => (string) ($r['wagon_type_code'] ?? ''),
+                'ld' => isset($r['cargo_weight_kg']) && (float) $r['cargo_weight_kg'] != 0.0,
+                'cargo' => (string) ($r['cargo_name'] ?? ''),
+                'dest_station' => (string) ($r['dest_station'] ?? ''),
+                'wagon_state' => (string) ($r['wagon_state'] ?? ''),
+                'days_no_move' => (int) ($r['idle_time_days'] ?? 0),
             ];
         }
 
