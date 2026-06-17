@@ -1605,8 +1605,10 @@ function attachFloatScrollbar(scrollEl) {
       floater.style.left = rect.left + 'px'
       floater.style.width = rect.width + 'px'
       inner.style.width = scrollEl.scrollWidth + 'px'
+      scrollEl.style.overflowX = 'hidden'
     } else {
       floater.style.display = 'none'
+      scrollEl.style.overflowX = 'auto'
     }
   }
 
