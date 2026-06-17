@@ -313,7 +313,7 @@ $user = $user ?? ['display_name' => 'Пользователь'];
     <script>
         'use strict';
 
-        var STATIONS = [];
+        var STATIONS = <?= $stationsJson ?? '[]' ?>;
         var activeFilter = 'all', activeStation = null, markerGroup = null;
 
         var map = L.map('map', { center: [57.5, 60.0], zoom: 4, zoomControl: true, attributionControl: false });
@@ -444,13 +444,8 @@ $user = $user ?? ['display_name' => 'Пользователь'];
             });
         });
 
-        fetch(window.APP_BASE + '/api/map/stations')
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                STATIONS = data;
-                renderSidebar();
-                buildMarkers();
-            });
+        renderSidebar();
+        buildMarkers();
     </script>
 </body>
 
