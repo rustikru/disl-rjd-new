@@ -169,13 +169,13 @@ class ImportController
 
         if ($file->getError() !== UPLOAD_ERR_OK) {
             return $this->jsonResponse($response, 422, [
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Ошибка загрузки (код ' . $file->getError() . ')',
             ]);
         }
 
         $name = $file->getClientFilename() ?: 'file';
-        $ext  = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
         if (!in_array($ext, ['xlsx'], true)) {
             return $this->jsonResponse($response, 422, ['status' => 'error', 'message' => 'Допускаются только .xlsx']);
         }
@@ -194,19 +194,19 @@ class ImportController
 
         if ($result['skipped']) {
             return $this->jsonResponse($response, 200, [
-                'status'    => 'warn',
-                'message'   => 'Справка «' . $result['type'] . '» на ' . $result['report_dt'] . ' уже загружена',
+                'status' => 'warn',
+                'message' => 'Справка «' . $result['type'] . '» на ' . $result['report_dt'] . ' уже загружена',
                 'report_dt' => $result['report_dt'],
-                'type'      => $result['type'],
+                'type' => $result['type'],
             ]);
         }
 
         return $this->jsonResponse($response, 200, [
-            'status'    => 'ok',
-            'message'   => 'Загружено ' . $result['rows'] . ' строк',
-            'rows'      => $result['rows'],
+            'status' => 'ok',
+            'message' => 'Загружено ' . $result['rows'] . ' строк',
+            'rows' => $result['rows'],
             'report_dt' => $result['report_dt'],
-            'type'      => $result['type'],
+            'type' => $result['type'],
         ]);
     }
 
@@ -234,11 +234,11 @@ class ImportController
         // Определяем тип справки по dest_station (кол. 12) первой непустой строки
         $fileType = $this->detectFileType($sheet, $highestRow);
 
-        $reportDate = substr($reportDt, 0, 10); // 'YYYY-MM-DD HH24:MI:SS'
+        $reportDate = substr($reportDt, 0, 10); // 'YYYY-MM-DD'
         $exists = $this->db->fetchOne(
             "SELECT COUNT(*) AS cnt FROM xx_dislocation_rjd
-             WHERE (report_dt) = TO_DATE(:dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = :type",
-            ['dt' => $reportDate, 'type' => $fileType]
+             WHERE report_dt = TO_DATE(:dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = :type",
+            ['dt' => $reportDt, 'type' => $fileType]
         );
         if ((int) ($exists['cnt'] ?? 0) > 0) {
             return ['skipped' => true, 'report_dt' => $rawDt, 'type' => $fileType, 'rows' => 0];

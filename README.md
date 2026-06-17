@@ -331,6 +331,7 @@ URL страницы детализации будет:
 | `fillFilters(data)` | function | Заполняет `<select>` элементы данными из `filtersUrl`                                             |
 | `resetFilters()`    | function | Сбрасывает фильтры в исходное состояние                                                           |
 | `applyBtnId`        | string   | `id` кнопки «Применить» (если задан — загрузка данных только по нажатию, не при открытии вкладки) |
+| `resetBtnId`        | string   | `id` кнопки «Сбросить». Если не задан — вычисляется автоматически как `btn{TabId}Reset`           |
 | `metricsId`         | string   | `id` контейнера KPI-карточек. Если не задан — KPI не рендерятся на вкладке                       |
 | `metricsLabel`      | string   | Подпись главной KPI-карточки (если `kpi` не задан)                                               |
 | `kpi(data)`         | function | Генерирует массив `[{label, value, accent?, detail?}]` из ответа сводного API                    |

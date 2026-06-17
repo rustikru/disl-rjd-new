@@ -7,13 +7,10 @@ use App\Database\DbInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
-/**
- * JSON API 
- */
 class ApiController
 {
-    private const WAG_TYPE_EXPR = "xx_etw.xx_rjd_dislocation_new_pkg.fnc_mapping_wag_type(wagon_type_code)"; // краткое название типа вагона для сводных таблиц
-    private const WAG_STATE = "xx_etw.xx_rjd_dislocation_new_pkg.fnc_get_state_wagon(cargo_weight_kg)"; // краткое состояние вагона (пор. / гр. )
+    private const WAG_TYPE_EXPR = "xx_etw.xx_rjd_dislocation_new_pkg.fnc_mapping_wag_type(wagon_type_code)";
+    private const WAG_STATE = "xx_etw.xx_rjd_dislocation_new_pkg.fnc_get_state_wagon(cargo_weight_kg)";
 
     private DbInterface $db;
 
@@ -22,137 +19,11 @@ class ApiController
         $this->db = $db;
     }
 
-    /** Допускает только безопасные имена полей: буквы, цифры, _ (без точки и пробелов) */
-    private static function isSafeField(string $f): bool
-    {
-        return $f !== '' && (bool) preg_match('/^[a-z_][a-z0-9_]*$/iD', $f);
-    }
+    // =========================================================================
+    // Публичные endpoint
+    // =========================================================================
 
-    /** Строит строку SELECT из переданных полей. */
-    private function selectFields(string $raw): string
-    {
-        $fields = array_values(array_filter(
-            array_map('trim', explode(',', $raw)),
-            fn($f) => self::isSafeField($f)
-        ));
-        return $fields ? implode(', ', $fields) : 'wagon_no';
-    }
-    /* Подготавливает данные для SQL-оператора IN.
-     *
-     * @param string $string Исходная строка (например, "234234;234234")
-     * @param string $delimiter Разделитель (например, ";")
-     * @param string $paramName Базовое имя для плейсхолдеров (например, "wagon_no")
-     * @param array $bindings Ссылка на массив с биндами PDO
-     * @return string Строка плейсхолдеров для SQL (например, ":wagon_no_0, :wagon_no_1")
-     */
-    private function parserInValues(string $string, string $delimiter, string $paramName, array &$bindings): string
-    {
-        $items = array_filter(array_map('trim', explode($delimiter, $string)));
-        if (empty($items)) {
-            return '';
-        }
-
-        $placeholders = [];
-        foreach ($items as $index => $value) {
-            $key = "{$paramName}_{$index}";
-            $placeholders[] = ':' . $key;
-            $bindings[$key] = $value;
-        }
-
-        return implode(', ', $placeholders);
-    }
-
-    /**
-     * Парсит group_by=field1,field2,...
-     */
-    private function groupFields(string $raw, array $defaults, array $extra = []): array
-    {
-        $fields = array_values(array_filter(
-            array_map('trim', explode(',', $raw)),
-            fn($f) => self::isSafeField($f)
-        ));
-        return $fields ?: $defaults;
-    }
-
-    /**
-     * Строит ORDER BY из параметров sort/sort_dir/sort_type 
-     */
-    private function orderClause(array $params, string $default): string
-    {
-        $sortRaw = trim($params['sort'] ?? '');
-        if ($sortRaw === '') {
-            return $default;
-        }
-        $fields = array_map('trim', explode(',', $sortRaw));
-        $dirs = array_map('trim', explode(',', $params['sort_dir'] ?? ''));
-        $types = array_map('trim', explode(',', $params['sort_type'] ?? ''));
-
-        $parts = [];
-        foreach ($fields as $i => $field) {
-            if ($field === '' || !self::isSafeField($field)) {
-                continue;
-            }
-            $dir = strtoupper($dirs[$i] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
-            $expr = strtolower($types[$i] ?? '') === 'number'
-                ? "TO_NUMBER($field)"
-                : $field;
-            $parts[] = "$expr $dir";
-        }
-
-        return $parts ? implode(', ', $parts) : $default;
-    }
-
-    /**
-     * Реестр вычисляемых колонок сводной: alias → SQL-выражение.
-     * col_by посылает ключи (alias), бэкенд подставляет выражение.
-     * [['alias' => 'wagon_type_code', 'expr' => "..."], ...]
-     */
-    private function resolveColDims(string $colBy, array $defaultAliases): array
-    {
-        $wagExpr = self::WAG_TYPE_EXPR;
-        $wagState = self::WAG_STATE;
-
-        $registry = [
-            'wagon_type_code' => ['alias' => 'wagon_type_code', 'expr' => $wagExpr],
-            'cargo_w_type' => ['alias' => 'cargo_w_type', 'expr' => $wagState],
-        ];
-        $aliases = $this->groupFields($colBy, $defaultAliases);
-        return array_values(array_filter(
-            array_map(fn($a) => $registry[$a] ?? null, $aliases),
-            fn($c) => $c !== null
-        ));
-    }
-
-    /** Если у определения колонки задан formatData — оборачивает выражение в TO_CHAR. */
-    private function applyFormat(array $def): string
-    {
-        if (!empty($def['formatData'])) {
-            return "TO_CHAR({$def['expr']}, '{$def['formatData']}')";
-        }
-        return $def['expr'];
-    }
-
-    /* Строит и выполняет запрос для сводной таблицы, затем преобразует результат в roadTable-формат */
-    private function summaryReport(array $base, array $rowDims, array $colDefs): array
-    {
-        $rowSelect  = implode(', ', $rowDims);
-        $colSelect  = implode(', ', array_map(fn($c) => $this->applyFormat($c) . " AS {$c['alias']}", $colDefs));
-        $colGroupBy = implode(', ', array_map(fn($c) => $this->applyFormat($c), $colDefs));
-        $colFields  = array_column($colDefs, 'alias');
-        $colOrder   = implode(', ', $colFields);
-
-        $rows = $this->db->fetchAll(
-            "SELECT $rowSelect, $colSelect, COUNT(*) AS cnt
-             FROM {$base['from']}
-             GROUP BY $rowSelect, $colGroupBy
-             ORDER BY $rowSelect, $colOrder",
-            $base['bindings']
-        );
-
-        return $this->roadTable($rows, $rowDims, $colFields);
-    }
-
-    /** GET /api/dislocation/filters — список загруженных справок */
+    /** GET /api/dislocation/filters */
     public function dislFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $rows = $this->db->fetchAll(
@@ -164,11 +35,10 @@ class ApiController
 
         $reports = array_map(function (array $r) {
             $dt = (string) ($r['report_date'] ?? '');
-            $label = $dt;
             try {
-                $d = new \DateTime($dt);
-                $label = $d->format('d.m.Y');
+                $label = (new \DateTime($dt))->format('d.m.Y');
             } catch (\Exception $e) {
+                $label = $dt;
             }
             return [
                 'report_dt' => $dt,
@@ -181,10 +51,7 @@ class ApiController
         return $this->json($response, ['reports' => $reports]);
     }
 
-    /** GET /api/dashboard — KPI-сводка */
-    /*
-        Страница дашборда
-     */
+    /** GET /api/dashboard */
     public function dashboard(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $dtsByType = $this->getLatestDtsByType(null, ['Подход', 'Отправка']);
@@ -199,6 +66,7 @@ class ApiController
         $dt = max($dtsByType);
 
         $sections = [];
+        $trends = [];
 
         foreach ($rows as $r) {
             $sectionName = trim(explode(',', (string) ($r['id'] ?? ''))[0]);
@@ -212,15 +80,12 @@ class ApiController
                     'loaded_transit' => 0,
                 ];
             }
-
-
             $sections[$sectionName]['total'] = (int) $r['total'];
             $sections[$sectionName]['tank_total'] = (int) $r['tank_total'];
             $sections[$sectionName]['comming_to_ugl'] = (int) $r['comming_to_ugl'];
             $sections[$sectionName]['arrived_today_ugl'] = (int) $r['arrived_today_ugl'];
             $sections[$sectionName]['loaded_transit'] = (int) $r['loaded_transit'];
 
-            /* Динамика изменения */
             $trends = [
                 'total' => null,
                 'total_dir' => null,
@@ -228,16 +93,12 @@ class ApiController
                 'tank_dir' => null,
                 'other' => null,
                 'other_dir' => null,
-                /* Прибыло сегодня на УГЛ*/
                 'met_arrived_ugl' => $r['met_arrived_ugl'],
                 'met_arrived_ugl_dir' => $r['met_arrived_ugl_dir'],
-                /* Груженые в Пути */
                 'met_loaded_transit' => $r['met_loaded_transit'],
                 'met_loaded_transit_dir' => $r['met_loaded_transit_dir'],
-                /* В пути на УГЛ */
                 'met_comming_to_ugl' => $r['met_comming_to_ugl'],
                 'met_comming_to_ugl_dir' => $r['met_comming_to_ugl_dir'],
-
             ];
         }
 
@@ -254,82 +115,73 @@ class ApiController
         ]);
     }
 
-    /** GET /api/dislocation/summary — Сводная таблица */
+    /** GET /api/dislocation/summary */
     public function dislSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
-        $rowDims = $this->groupFields($params['group_by'] ?? '', ['dest_state', 'dest_road']);
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state', 'dest_road']);
 
         if (empty($dtsByType)) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $colDefs    = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
-        $rowSelect  = implode(', ', $rowDims);
-        $colSelect  = implode(', ', array_map(fn($c) => $this->applyFormat($c) . " AS {$c['alias']}", $colDefs));
-        $colGroupBy = implode(', ', array_map(fn($c) => $this->applyFormat($c), $colDefs));
-        $colFields  = array_column($colDefs, 'alias');
-        $colOrder   = implode(', ', $colFields);
+        $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
+        $cond = $this->latestDtCondition($dtsByType);
+        $bindings = $cond['params'];
+        $source = [
+            'from' => "(SELECT * FROM xx_dislocation_rjd WHERE {$cond['sql']}" . $this->wagonNoCond($params, $bindings) . ")",
+            'bindings' => $bindings,
+        ];
 
-        $cond = $this->latestDtCondition($dtsByType, 'xdr');
-        $rows = $this->db->fetchAll(
-            "SELECT $rowSelect, $colSelect, COUNT(*) AS cnt
-             FROM xx_dislocation_rjd xdr
-             WHERE {$cond['sql']}
-             GROUP BY $rowSelect, $colGroupBy
-             ORDER BY $rowSelect, $colOrder",
-            $cond['params']
-        );
-
-        return $this->json($response, $this->roadTable($rows, $rowDims, $colFields));
+        return $this->json($response, $this->summaryReport($source, $rowDims, $colDefs));
     }
 
-    /** GET /api/dislocation/detail — Расширенная дислокация */
-
+    /** GET /api/dislocation/detail */
     public function dislDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $gf = $this->groupFields($params['group_by'] ?? '', ['dest_state', 'dest_road']);
-        $gfStr = implode(', ', $gf);
-
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state']);
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $bindings = $cond['params'];
-        $where = $this->applyDetailFilters($gf, $params, $bindings);
-        $select = $this->selectFields($params['fields'] ?? '');
+        $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
+        $whereCond .= $this->wagonNoCond($params, $bindings);
+        $selectCols = $this->selectFields($params['fields'] ?? '');
+        $orderBy = $this->orderBY($params, implode(', ', $rowDims) . ', oper_station');
+
         $rows = $this->db->fetchAll(
-            "SELECT $select
+            "SELECT $selectCols
              FROM xx_dislocation_rjd xdr
-             WHERE {$cond['sql']} {$where}
-             ORDER BY {$this->orderClause($params, "$gfStr, oper_station")}",
+             WHERE {$cond['sql']} $whereCond
+             ORDER BY $orderBy",
             $bindings
         );
 
         return $this->json($response, ['rows' => $rows]);
     }
 
-    /** GET /api/approach/filters — Уникальные значения для фильтров */
+    /** GET /api/approach/filters */
     public function approachFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $base = $this->approachFrom(['report_dt' => $params['report_dt'] ?? null]);
+        $source = $this->approachFrom(['report_dt' => $params['report_dt'] ?? null]);
 
-        if (!$base['reportDt']) {
+        if (!$source['reportDt']) {
             return $this->json($response, ['cargo' => [], 'prev_cargo' => []]);
         }
 
         $cargo = $this->db->fetchAll(
-            "SELECT DISTINCT cargo_name FROM {$base['from']}
+            "SELECT DISTINCT cargo_name FROM {$source['from']}
              WHERE cargo_name IS NOT NULL AND nvl(prev_cargo,'*') != '*'
              ORDER BY cargo_name",
-            $base['bindings']
+            $source['bindings']
         );
         $prevCargo = $this->db->fetchAll(
-            "SELECT DISTINCT prev_cargo FROM {$base['from']}
+            "SELECT DISTINCT prev_cargo FROM {$source['from']}
              WHERE prev_cargo IS NOT NULL AND nvl(prev_cargo,'*') != '*'
              ORDER BY prev_cargo",
-            $base['bindings']
+            $source['bindings']
         );
 
         return $this->json($response, [
@@ -338,63 +190,62 @@ class ApiController
         ]);
     }
 
-    /** GET /api/approach/summary — Сводная подход: Дорога→Станция, колонки=тип вагона */
+    /** GET /api/approach/summary */
     public function approachSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $base = $this->approachFrom($params);
+        $source = $this->approachFrom($params);
 
-        if (!$base['reportDt']) {
+        if (!$source['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $rowDims = $this->groupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_road', 'dest_station']);
         $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
-        return $this->json($response, $this->summaryReport($base, $rowDims, $colDefs));
+        return $this->json($response, $this->summaryReport($source, $rowDims, $colDefs));
     }
 
-    /** GET /api/approach/detail — Список вагонов подхода */
+    /** GET /api/approach/detail */
     public function approachDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $gf = $this->groupFields($params['group_by'] ?? '', ['dest_road', 'dest_station']);
-        $base = $this->approachFrom($params);
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_road', 'dest_station']);
+        $source = $this->approachFrom($params);
 
-        if (!$base['reportDt']) {
+        if (!$source['reportDt']) {
             return $this->json($response, ['rows' => []]);
         }
 
-        $gfStr = implode(', ', $gf);
-        $bindings = $base['bindings'];
-        $outerWhere = $this->applyDetailFilters($gf, $params, $bindings);
-
-        $select = $this->selectFields($params['fields'] ?? '');
+        $bindings = $source['bindings'];
+        $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
+        $selectCols = $this->selectFields($params['fields'] ?? '');
+        $orderBy = $this->orderBY($params, implode(', ', $rowDims));
 
         $rows = $this->db->fetchAll(
-            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY {$this->orderClause($params, $gfStr)}",
+            "SELECT $selectCols FROM {$source['from']} WHERE 1=1 $whereCond ORDER BY $orderBy",
             $bindings
         );
 
         return $this->json($response, ['rows' => $rows]);
     }
 
-    /** GET /api/departure/filters — значения для фильтров вкладки «Отправление» */
+    /** GET /api/departure/filters */
     public function departureFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $base = $this->departureFrom(['report_dt' => $params['report_dt'] ?? null]);
+        $source = $this->departureFrom(['report_dt' => $params['report_dt'] ?? null]);
 
-        if (!$base['reportDt']) {
+        if (!$source['reportDt']) {
             return $this->json($response, ['cargo' => [], 'dest_station' => []]);
         }
 
         $cargo = $this->db->fetchAll(
-            "SELECT DISTINCT cargo_name FROM {$base['from']} WHERE cargo_name IS NOT NULL ORDER BY cargo_name",
-            $base['bindings']
+            "SELECT DISTINCT cargo_name FROM {$source['from']} WHERE cargo_name IS NOT NULL ORDER BY cargo_name",
+            $source['bindings']
         );
         $destStation = $this->db->fetchAll(
-            "SELECT DISTINCT dest_station FROM {$base['from']} WHERE dest_station IS NOT NULL ORDER BY dest_station " . $this->db->limit(300),
-            $base['bindings']
+            "SELECT DISTINCT dest_station FROM {$source['from']} WHERE dest_station IS NOT NULL ORDER BY dest_station " . $this->db->limit(300),
+            $source['bindings']
         );
 
         return $this->json($response, [
@@ -403,268 +254,273 @@ class ApiController
         ]);
     }
 
-    /** GET /api/departure/summary — Сводная отправление: Дорога→Станция, колонки=тип вагона */
+    /** GET /api/departure/summary */
     public function departureSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $base = $this->departureFrom($params);
+        $source = $this->departureFrom($params);
 
-        if (!$base['reportDt']) {
+        if (!$source['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $rowDims = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code']);
-        return $this->json($response, $this->summaryReport($base, $rowDims, $colDefs));
+        return $this->json($response, $this->summaryReport($source, $rowDims, $colDefs));
     }
 
-    /** GET /api/departure/detail — Список отправленных вагонов */
+    /** GET /api/departure/detail */
     public function departureDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
-        $base = $this->departureFrom($params);
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+        $source = $this->departureFrom($params);
 
-        if (!$base['reportDt']) {
+        if (!$source['reportDt']) {
             return $this->json($response, ['rows' => []]);
         }
 
-        $gfStr = implode(', ', $gf);
-        $bindings = $base['bindings'];
-        $outerWhere = $this->applyDetailFilters($gf, $params, $bindings);
-
-        $select = $this->selectFields($params['fields'] ?? '');
+        $bindings = $source['bindings'];
+        $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
+        $selectCols = $this->selectFields($params['fields'] ?? '');
+        $orderBy = $this->orderBY($params, implode(', ', $rowDims));
 
         $rows = $this->db->fetchAll(
-            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY {$this->orderClause($params, $gfStr)}",
+            "SELECT $selectCols FROM {$source['from']} WHERE 1=1 $whereCond ORDER BY $orderBy",
             $bindings
         );
 
         return $this->json($response, ['rows' => $rows]);
     }
 
-    /** GET /api/loading/summary — Погруженные вагоны по станциям отправления */
+    /** GET /api/loading/filters */
+    public function loadingFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params = $request->getQueryParams();
+        $source = $this->loadingFrom(['report_dt' => $params['report_dt'] ?? null]);
+
+        if (!$source['reportDt']) {
+            return $this->json($response, ['cargo' => []]);
+        }
+
+        $cargo = $this->db->fetchAll(
+            "SELECT DISTINCT cargo_name FROM {$source['from']}
+             WHERE cargo_name IS NOT NULL
+             ORDER BY cargo_name",
+            $source['bindings']
+        );
+
+        return $this->json($response, [
+            'cargo' => array_column($cargo, 'cargo_name'),
+        ]);
+    }
+
+    /** GET /api/loading/summary */
     public function loadingSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $base = $this->loadingFrom($params);
+        $source = $this->loadingFrom($params);
 
-        if (!$base['reportDt']) {
+        if (!$source['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $rowDims = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code']);
-        return $this->json($response, $this->summaryReport($base, $rowDims, $colDefs));
+        return $this->json($response, $this->summaryReport($source, $rowDims, $colDefs));
     }
 
-    /** GET /api/loading/detail — Список погруженных вагонов */
+    /** GET /api/loading/detail */
     public function loadingDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $gf = $this->groupFields($params['group_by'] ?? '', ['depart_road', 'depart_station']);
-        $base = $this->loadingFrom($params);
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['depart_road', 'depart_station']);
+        $source = $this->loadingFrom($params);
 
-        if (!$base['reportDt']) {
+        if (!$source['reportDt']) {
             return $this->json($response, ['rows' => []]);
         }
 
-        $gfStr = implode(', ', $gf);
-        $bindings = $base['bindings'];
-        $outerWhere = $this->applyDetailFilters($gf, $params, $bindings);
-
-        $select = $this->selectFields($params['fields'] ?? '');
+        $bindings = $source['bindings'];
+        $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
+        $selectCols = $this->selectFields($params['fields'] ?? '');
+        $orderBy = $this->orderBY($params, implode(', ', $rowDims));
 
         $rows = $this->db->fetchAll(
-            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY {$this->orderClause($params, $gfStr)}",
+            "SELECT $selectCols FROM {$source['from']} WHERE 1=1 $whereCond ORDER BY $orderBy",
             $bindings
         );
 
         return $this->json($response, ['rows' => $rows]);
     }
 
-    /** GET /api/downtime/filters — уникальные станции назначения для дропдауна */
+    /** GET /api/downtime/filters */
     public function downtimeFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $base = $this->downtimeFrom($request->getQueryParams());
+        $source = $this->downtimeFrom($request->getQueryParams());
 
-        if (!$base['reportDt']) {
+        if (!$source['reportDt']) {
             return $this->json($response, ['dest_station' => []]);
         }
 
         $rows = $this->db->fetchAll(
-            "SELECT DISTINCT dest_station FROM {$base['from']}
+            "SELECT DISTINCT dest_station FROM {$source['from']}
              WHERE dest_station IS NOT NULL
              ORDER BY dest_station",
-            $base['bindings']
+            $source['bindings']
         );
 
-        return $this->json($response, [
-            'dest_station' => array_column($rows, 'dest_station'),
-        ]);
+        return $this->json($response, ['dest_station' => array_column($rows, 'dest_station')]);
     }
-    /** GET /api/downtime/summary — Сводная простоев */
+
+    /** GET /api/downtime/summary */
     public function downtimeSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $base = $this->downtimeFrom($params);
+        $source = $this->downtimeFrom($params);
 
-        if (!$base['reportDt']) {
+        if (!$source['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $rowDims = $this->groupFields($params['group_by'] ?? '', ['oper_road', 'oper_station'], ['idle_time_name']);
-        $colFields = $this->groupFields($params['col_by'] ?? '', ['fixed_col_label', 'm_wagon_type_code']);
-
-        $rowSelect = implode(', ', $rowDims);
-        $colSelect = implode(', ', $colFields);
-        $colGroupBy = implode(', ', $colFields);
+        // Простои используют колонки из подзапроса (downtimeFrom)
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['oper_road', 'oper_station']);
+        $colAliases = $this->parseGroupBy($params['col_by'] ?? '', ['fixed_col_label', 'm_wagon_type_code']);
+        $selectRow = implode(', ', $rowDims);
+        $selectCols = implode(', ', $colAliases);
 
         $rows = $this->db->fetchAll(
-            "SELECT $rowSelect, $colSelect, COUNT(*) AS cnt
-             FROM {$base['from']}
-             GROUP BY idle_time_order_by, $rowSelect, $colGroupBy
-             ORDER BY idle_time_order_by ASC, $rowSelect",
-            $base['bindings']
+            "SELECT $selectRow, $selectCols, COUNT(*) AS cnt
+             FROM {$source['from']}
+             GROUP BY idle_time_order_by, $selectRow, $selectCols
+             ORDER BY idle_time_order_by ASC, $selectRow",
+            $source['bindings']
         );
 
-        return $this->json($response, $this->roadTable($rows, $rowDims, $colFields));
+        return $this->json($response, $this->roadTable($rows, $rowDims, $colAliases));
     }
 
-    /** GET /api/downtime/detail — Список простаивающих вагонов */
+    /** GET /api/downtime/detail */
     public function downtimeDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $base = $this->downtimeFrom($params);
-        if (!$base['reportDt']) {
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['idle_time_name']);
+        $source = $this->downtimeFrom($params);
+
+        if (!$source['reportDt']) {
             return $this->json($response, ['rows' => []]);
         }
 
-        $gf = $this->groupFields($params['group_by'] ?? '', ['idle_time_name']);
-        $bindings = $base['bindings'];
-        $outerWhere = $this->applyDetailFilters($gf, $params, $bindings);
-        $wagExpr = self::WAG_TYPE_EXPR;
-        $fields = array_values(array_filter(
+        $bindings = $source['bindings'];
+        $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
+
+        // wagon_type_code использует функцию из пакета (xx_dislocation_rjd_pkg)
+        $rawFields = array_values(array_filter(
             array_map('trim', explode(',', $params['fields'] ?? '')),
             fn($f) => self::isSafeField($f)
         ));
-        $selectParts = array_map(fn($f) => $f === 'wagon_type_code' ? "$wagExpr AS wagon_type_code" : $f, $fields);
-        $select = $selectParts ? implode(', ', $selectParts) : 'wagon_no';
+        $selectParts = array_map(
+            fn($f) => $f === 'wagon_type_code' ? self::WAG_TYPE_EXPR . ' AS wagon_type_code' : $f,
+            $rawFields
+        );
+        $selectCols = $selectParts ? implode(', ', $selectParts) : 'wagon_no';
+        $orderBy = $this->orderBY($params, 'idle_time_days DESC');
+
         $rows = $this->db->fetchAll(
-            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY {$this->orderClause($params, 'idle_time_days DESC')}",
+            "SELECT $selectCols FROM {$source['from']} WHERE 1=1 $whereCond ORDER BY $orderBy",
             $bindings
         );
 
         return $this->json($response, ['rows' => $rows]);
     }
 
-    /** GET /api/raw-material/summary — Сводная сырья */
+    /** GET /api/raw-material/summary */
     public function rawSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $base = $this->rawFrom($params);
+        $source = $this->rawFrom($params);
 
-        if (!$base['reportDt']) {
+        if (!$source['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0, 'max_idle' => 0]);
         }
 
-        $rowDims = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['cargo_name']);
         $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code']);
+        $result = $this->summaryReport($source, $rowDims, $colDefs);
 
-        $rowSelect  = implode(', ', $rowDims);
-        $colSelect  = implode(', ', array_map(fn($c) => $this->applyFormat($c) . " AS {$c['alias']}", $colDefs));
-        $colGroupBy = implode(', ', array_map(fn($c) => $this->applyFormat($c), $colDefs));
-        $colFields  = array_column($colDefs, 'alias');
-        $colOrder   = implode(', ', $colFields);
-
-        $rows = $this->db->fetchAll(
-            "SELECT $rowSelect, $colSelect, COUNT(*) AS cnt
-             FROM {$base['from']}
-             GROUP BY $rowSelect, $colGroupBy
-             ORDER BY $rowSelect, $colOrder",
-            $base['bindings']
-        );
-
-        $maxIdleRow = $this->db->fetchOne(
-            "SELECT MAX(idle_time_days) AS max_idle FROM {$base['from']}",
-            $base['bindings']
-        );
-
-        $result = $this->roadTable($rows, $rowDims, $colFields);
+        $maxIdleRow = $this->db->fetchOne("SELECT MAX(idle_time_days) AS max_idle FROM {$source['from']}", $source['bindings']);
         $result['max_idle'] = (float) ($maxIdleRow['max_idle'] ?? 0);
+
         return $this->json($response, $result);
     }
 
-    /** GET /api/raw-material/detail — Список вагонов с сырьём */
+    /** GET /api/raw-material/detail */
     public function rawDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $gf = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
-        $base = $this->rawFrom($params);
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['cargo_name']);
+        $source = $this->rawFrom($params);
 
-        if (!$base['reportDt']) {
+        if (!$source['reportDt']) {
             return $this->json($response, ['rows' => []]);
         }
 
-        $gfStr = implode(', ', $gf);
-        $bindings = $base['bindings'];
-        $outerWhere = $this->applyDetailFilters($gf, $params, $bindings);
+        $bindings = $source['bindings'];
+        $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
+        $selectCols = $this->selectFields($params['fields'] ?? '');
+        $orderBy = $this->orderBY($params, implode(', ', $rowDims) . ', idle_time_days DESC');
 
-        $select = $this->selectFields($params['fields'] ?? '');
         $rows = $this->db->fetchAll(
-            "SELECT $select FROM {$base['from']} WHERE 1=1 $outerWhere ORDER BY {$this->orderClause($params, "$gfStr, idle_time_days DESC")}",
+            "SELECT $selectCols FROM {$source['from']} WHERE 1=1 $whereCond ORDER BY $orderBy",
             $bindings
         );
 
         return $this->json($response, ['rows' => $rows]);
     }
 
-    //Анализ за период
+    /** GET /api/analysis/period/detail */
     public function analysisPeriod(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
         $bindings = [];
-        $where = '1=1';
+        $whereCond = '1=1';
 
         $wagonNo = trim($params['wagon_no'] ?? '');
         if ($wagonNo !== '') {
-            $where .= ' AND wagon_no IN (' . $this->parserInValues($wagonNo, ';', 'wagon_no', $bindings) . ')';
+            $whereCond .= ' AND wagon_no IN (' . $this->parserInValues($wagonNo, ';', 'wagon_no', $bindings) . ')';
         }
 
         $dateFrom = $params['date_from'] ?? '';
         if ($dateFrom !== '') {
-            $where .= " AND TRUNC(oper_dt) >= TO_DATE(:date_from, 'YYYY-MM-DD')";
+            $whereCond .= " AND TRUNC(oper_dt) >= TO_DATE(:date_from, 'YYYY-MM-DD')";
             $bindings['date_from'] = $dateFrom;
         }
 
         $dateTo = $params['date_to'] ?? '';
         if ($dateTo !== '') {
-            $where .= " AND TRUNC(oper_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
+            $whereCond .= " AND TRUNC(oper_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
             $bindings['date_to'] = $dateTo;
         }
 
-        $select = $this->selectFields($params['fields'] ?? '');
+        $selectCols = $this->selectFields($params['fields'] ?? '');
 
         $rows = $this->db->fetchAll(
-            "SELECT distinct $select
+            "SELECT DISTINCT $selectCols
              FROM xx_dislocation_rjd
-             WHERE $where
-             ORDER BY oper_dt desc, wagon_no",
+             WHERE $whereCond
+             ORDER BY oper_dt DESC, wagon_no",
             $bindings
         );
 
         return $this->json($response, ['rows' => $rows]);
     }
 
-
     // =========================================================================
-    // Базовые подзапросы(FROM и т.д): каждый возвращает ['from' => $subquery, 'bindings' => [...], 'reportDt' => $dt|null]
+    // Источники данных (FROM + базовый WHERE каждого раздела)
+    // Каждый возвращает: ['from' => <subquery>, 'bindings' => [...], 'reportDt' => string|null]
     // =========================================================================
 
-    /**
-     * Базовый подзапрос для «Подход»: вагоны с ненулевым остатком пути.
-     * Фильтрует по type_reference='Подход', dist_remain_km, опционально cargo и prev_cargo.
-     */
+    /** Подход: вагоны с ненулевым остатком пути (type_reference='Подход'). */
     private function approachFrom(array $params): array
     {
         $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Подход');
@@ -672,27 +528,25 @@ class ApiController
             return ['from' => '', 'bindings' => [], 'reportDt' => null];
         }
 
-        $cargo = $params['cargo'] ?? null;
-        $prevCargo = $params['prev_cargo'] ?? null;
-
-        $innerWhere = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Подход' AND dist_remain_km IS NOT NULL AND dist_remain_km != 0";
         $bindings = ['report_dt' => $reportDt];
+        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Подход' and upper(dest_station) like '%УГЛ%'";
+
+        $cargo = $params['cargo'] ?? null;
         if ($cargo) {
-            $innerWhere .= " AND UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е')) = UPPER(REPLACE(:cargo_f, 'Ё', 'Е'))";
+            $whereCond .= " AND UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е')) = UPPER(REPLACE(:cargo_f, 'Ё', 'Е'))";
             $bindings['cargo_f'] = $cargo;
         }
+        $prevCargo = $params['prev_cargo'] ?? null;
         if ($prevCargo) {
-            $innerWhere .= " AND UPPER(REPLACE(COALESCE(prev_cargo,''), 'Ё', 'Е')) = UPPER(REPLACE(:prev_cargo_f, 'Ё', 'Е'))";
+            $whereCond .= " AND UPPER(REPLACE(COALESCE(prev_cargo,''), 'Ё', 'Е')) = UPPER(REPLACE(:prev_cargo_f, 'Ё', 'Е'))";
             $bindings['prev_cargo_f'] = $prevCargo;
         }
+        $whereCond .= $this->wagonNoCond($params, $bindings);
 
-        return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $innerWhere)", 'bindings' => $bindings, 'reportDt' => $reportDt];
+        return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
 
-    /**
-     * Базовый подзапрос для «Отправка»: отправленные вагоны (oper_mnemonic='ОТПР').
-     * Опционально фильтрует по cargo и dest_station.
-     */
+    /** Отправление: вагоны с oper_mnemonic='ОТПР' (type_reference='Отправка'). */
     private function departureFrom(array $params): array
     {
         $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Отправка');
@@ -700,27 +554,25 @@ class ApiController
             return ['from' => '', 'bindings' => [], 'reportDt' => null];
         }
 
-        $cargo = $params['cargo'] ?? null;
-        $destStation = $params['dest_station'] ?? null;
-
-        $innerWhere = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
         $bindings = ['report_dt' => $reportDt];
+        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР' and upper(dest_station) not like '%УГЛ%'";
+
+        $cargo = $params['cargo'] ?? null;
         if ($cargo) {
-            $innerWhere .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
+            $whereCond .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
             $bindings['cargo_f'] = $cargo;
         }
+        $destStation = $params['dest_station'] ?? null;
         if ($destStation) {
-            $innerWhere .= ' AND dest_station = :dest_station';
+            $whereCond .= ' AND dest_station = :dest_station';
             $bindings['dest_station'] = $destStation;
         }
+        $whereCond .= $this->wagonNoCond($params, $bindings);
 
-        return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $innerWhere)", 'bindings' => $bindings, 'reportDt' => $reportDt];
+        return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
 
-    /**
-     * Базовый подзапрос для «Погрузка»: вагоны с грузом (cargo_weight_kg > 0).
-     * Опционально фильтрует по cargo.
-     */
+    /** Погрузка: вагоны с грузом (cargo_weight_kg > 0). */
     private function loadingFrom(array $params): array
     {
         $reportDt = $this->getReportDt($params['report_dt'] ?? null);
@@ -728,22 +580,20 @@ class ApiController
             return ['from' => '', 'bindings' => [], 'reportDt' => null];
         }
 
-        $cargo = $params['cargo'] ?? null;
-
-        $innerWhere = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $bindings = ['report_dt' => $reportDt];
+        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
+
+        $cargo = $params['cargo'] ?? null;
         if ($cargo) {
-            $innerWhere .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
+            $whereCond .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
             $bindings['cargo_f'] = $cargo;
         }
+        $whereCond .= $this->wagonNoCond($params, $bindings);
 
-        return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $innerWhere)", 'bindings' => $bindings, 'reportDt' => $reportDt];
+        return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
 
-    /**
-     * Базовый подзапрос для «Сырьё»: гружёные вагоны с ненулевым простоем.
-     * Оба метода (summary и detail) работают с одной и той же базой.
-     */
+    /** Сырьё: гружёные вагоны с ненулевым простоем. */
     private function rawFrom(array $params): array
     {
         $reportDt = $this->getReportDt($params['report_dt'] ?? null);
@@ -751,107 +601,251 @@ class ApiController
             return ['from' => '', 'bindings' => [], 'reportDt' => null];
         }
 
-        $innerWhere = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')"
+        $bindings = ['report_dt' => $reportDt];
+        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')"
             . " AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0"
             . " AND idle_time_days IS NOT NULL AND idle_time_days != 0";
+        $whereCond .= $this->wagonNoCond($params, $bindings);
 
-        return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $innerWhere)", 'bindings' => ['report_dt' => $reportDt], 'reportDt' => $reportDt];
+        return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
 
-    /**
-     * Базовый подзапрос для «Простои»: вычисляет idle_time_name и фильтрует по актуальным датам
-     * справок (через latestDtCondition), idle_time_days, min_days, max_days.
-     */
+    /** Простои: добавляет вычисляемые колонки (idle_time_name, m_wagon_type_code) в подзапрос. */
     private function downtimeFrom(array $params): array
     {
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null);
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
-        $minDays = max(0, (int) ($params['min_days'] ?? 1));
-        $maxDays = isset($params['max_days']) && $params['max_days'] !== '' ? (int) $params['max_days'] : null;
-
-        $innerWhere = "{$cond['sql']} AND idle_time_days IS NOT NULL AND nvl(idle_time_days,0) != 0";
         $bindings = $cond['params'];
+        $whereCond = "{$cond['sql']} AND idle_time_days IS NOT NULL AND nvl(idle_time_days,0) != 0";
+
+        $minDays = max(0, (int) ($params['min_days'] ?? 1));
         if ($minDays > 0) {
-            $innerWhere .= ' AND idle_time_days >= :min_days';
+            $whereCond .= ' AND idle_time_days >= :min_days';
             $bindings['min_days'] = $minDays;
         }
+        $maxDays = isset($params['max_days']) && $params['max_days'] !== '' ? (int) $params['max_days'] : null;
         if ($maxDays !== null) {
-            $innerWhere .= ' AND idle_time_days <= :max_days';
+            $whereCond .= ' AND idle_time_days <= :max_days';
             $bindings['max_days'] = $maxDays;
         }
         $destStation = trim($params['dest_station'] ?? '');
         if ($destStation !== '') {
-            $innerWhere .= ' AND dest_station = :dest_station';
+            $whereCond .= ' AND dest_station = :dest_station';
             $bindings['dest_station'] = $destStation;
         }
-        $wagExpr = self::WAG_TYPE_EXPR;
+        $whereCond .= $this->wagonNoCond($params, $bindings);
+
         $reportDt = !empty($dtsByType) ? max($dtsByType) : null;
         $from = "(SELECT xdr.*
-                        ,XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days,'name') AS idle_time_name 
-                        ,to_number(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days,'order_by')) AS idle_time_order_by
-                        ,$wagExpr as m_wagon_type_code
-                        ,'Кол-во' AS fixed_col_label
-                        FROM xx_dislocation_rjd xdr WHERE $innerWhere 
-                        order by idle_time_order_by
-                  )";
+                        , XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days,'name')     AS idle_time_name
+                        , TO_NUMBER(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days,'order_by')) AS idle_time_order_by
+                        , " . self::WAG_TYPE_EXPR . " AS m_wagon_type_code
+                        , " . self::WAG_STATE . " AS m_wag_state
+                        /*, 'Кол-во' AS fixed_col_label*/
+                   FROM xx_dislocation_rjd xdr
+                   WHERE $whereCond
+                   ORDER BY idle_time_order_by)";
 
         return ['from' => $from, 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
 
-
     // =========================================================================
-    // Утилиты
+    // Построители SQL-запросов (общие)
     // =========================================================================
 
     /**
-     * Строит outerWhere по groupFields: для каждого поля ищет одноимённый параметр
-     * в $params и добавляет AND field = :gfv_field.
+     * Строит и выполняет запрос сводной таблицы.
+     * Единый метод для всех разделов 
+     *
+     * $source   — источник данных из *From(): ['from', 'bindings']
+     * $rowDims  — поля строк сводной (GROUP BY строки)
+     * $colDefs  — колонки сводной: [['alias' => ..., 'expr' => ...], ...]
      */
-    private function applyGfFilters(array $gf, array $params, array &$bindings): string
+    private function summaryReport(array $source, array $rowDims, array $colDefs): array
     {
-        $where = '';
-        foreach ($gf as $k) {
-            if (isset($params[$k]) && $params[$k] !== '') {
-                $safe = preg_replace('/[^a-z0-9_]/i', '', $k);
-                $where .= " AND $k = :gfv_$safe";
-                $bindings["gfv_$safe"] = $params[$k];
+        $selectRow = implode(', ', $rowDims);
+        $selectCols = implode(', ', array_map(fn($c) => $this->applyFormat($c) . " AS {$c['alias']}", $colDefs));
+        $groupByCols = implode(', ', array_map(fn($c) => $this->applyFormat($c), $colDefs));
+        $colAliases = array_column($colDefs, 'alias');
+        $orderByCols = implode(', ', $colAliases);
+
+        $rows = $this->db->fetchAll(
+            "SELECT $selectRow, $selectCols, COUNT(*) AS cnt
+             FROM {$source['from']}
+             GROUP BY $selectRow, $groupByCols
+             ORDER BY $selectRow, $orderByCols",
+            $source['bindings']
+        );
+
+        return $this->roadTable($rows, $rowDims, $colAliases);
+    }
+
+    /**
+     * WHERE для детализации: фильтр по строкам сводной + фильтр по колонкам сводной.
+     *
+     * $rowDims — поля GROUP BY строк (из group_by параметра)
+     * $params  — все URL-параметры запроса
+     * $bindings — биндинги, пополняются по ссылке
+     */
+    private function applyDetailFilters(array $rowDims, array $params, array &$bindings): string
+    {
+        // Фильтр по строкам: для каждого поля из rowDims ищет одноимённый параметр в URL
+        $whereCond = '';
+        foreach ($rowDims as $field) {
+            if (isset($params[$field]) && $params[$field] !== '') {
+                $safe = preg_replace('/[^a-z0-9_]/i', '', $field);
+                $whereCond .= " AND $field = :row_$safe";
+                $bindings["row_$safe"] = $params[$field];
             }
         }
-        return $where;
+
+        // Фильтр по колонкам: берёт выражения из единого реестра colDimRegistry
+        foreach ($this->colDimRegistry() as $alias => $def) {
+            $value = $params[$def['param']] ?? null;
+            if ($value !== null && $value !== '') {
+                $bind = 'col_' . $alias;
+                $whereCond .= " AND {$def['expr']} = :$bind";
+                $bindings[$bind] = $value;
+            }
+        }
+
+        return $whereCond;
     }
 
+    // =========================================================================
+    // Реестры и вспомогательные SQL-шаблоны
+    // =========================================================================
+
     /**
-     * Универсальный фильтр для детализации: строки (applyGfFilters) +
-     * колонки (wagon_type через WAG_TYPE_EXPR; cargo_state через CARGO_WEIGHT_KG).
-     * Все detail-хендлеры вызывают только этот метод — никаких исключений по вкладкам.
+     * Единый подход вычисляемых колонок сводной.
+     * Источник для summaryReport (expr в SELECT/GROUP BY)
+     * и для applyDetailFilters (expr в WHERE, param — имя URL-параметра).
+     *
+     * Добавить новую вычисляемую колонку
+     * param должен совпадать с colDims[].paramName в app.js.
      */
-    private function applyDetailFilters(array $gf, array $params, array &$bindings): string
+    private function colDimRegistry(): array
     {
-        $where = $this->applyGfFilters($gf, $params, $bindings);
-
-        $wagType = $params['wagon_type'] ?? null;
-        if ($wagType !== null && $wagType !== '') {
-            $where .= ' AND ' . self::WAG_TYPE_EXPR . ' = :col_wtype';
-            $bindings['col_wtype'] = $wagType;
-        }
-
-        $cargoState = $params['cargo_state'] ?? null;
-        if ($cargoState === 'ГР') {
-            $where .= ' AND CARGO_WEIGHT_KG > 0';
-        } elseif ($cargoState === 'ПОР') {
-            $where .= ' AND (CARGO_WEIGHT_KG IS NULL OR CARGO_WEIGHT_KG = 0)';
-        }
-
-        return $where;
+        return [
+            'wagon_type_code' => ['expr' => self::WAG_TYPE_EXPR, 'param' => 'wagon_type'],
+            'cargo_w_type' => ['expr' => self::WAG_STATE, 'param' => 'cargo_state'],
+        ];
     }
 
     /**
-     * Возвращает переданный report_dt или MAX(report_dt) для указанного типа справки.
+     * Раскрывает col_by (алиасы через запятую) в определения колонок для summaryReport.
+     * Возвращает [['alias' => ..., 'expr' => ...], ...].
      */
+    private function resolveColDims(string $colBy, array $defaultAliases): array
+    {
+        $registry = $this->colDimRegistry();
+        $aliases = $this->parseGroupBy($colBy, $defaultAliases);
+        return array_values(array_filter(
+            array_map(
+                fn($a) => isset($registry[$a]) ? ['alias' => $a, 'expr' => $registry[$a]['expr']] : null,
+                $aliases
+            ),
+            fn($c) => $c !== null
+        ));
+    }
+
+    /** Если у колонки задан formatData — оборачивает expr в TO_CHAR(expr, 'mask'). */
+    private function applyFormat(array $colDef): string
+    {
+        if (!empty($colDef['formatData'])) {
+            return "TO_CHAR({$colDef['expr']}, '{$colDef['formatData']}')";
+        }
+        return $colDef['expr'];
+    }
+
+    /**
+     * Парсит строку «field1,field2,...» в массив безопасных имён полей.
+     * Если строка пуста или содержит только небезопасные имена — возвращает $defaults.
+     */
+    private function parseGroupBy(string $raw, array $defaults): array
+    {
+        $fields = array_values(array_filter(
+            array_map('trim', explode(',', $raw)),
+            fn($f) => self::isSafeField($f)
+        ));
+        return $fields ?: $defaults;
+    }
+
+    /** Строит SELECT-список из переданных полей; fallback — wagon_no. */
+    private function selectFields(string $raw): string
+    {
+        $fields = array_values(array_filter(
+            array_map('trim', explode(',', $raw)),
+            fn($f) => self::isSafeField($f)
+        ));
+        return $fields ? implode(', ', $fields) : 'wagon_no';
+    }
+
+    /** Строит ORDER BY из параметров sort/sort_dir/sort_type; fallback — $default. */
+    private function orderBY(array $params, string $default): string
+    {
+        $sortRaw = trim($params['sort'] ?? '');
+        if ($sortRaw === '') {
+            return $default;
+        }
+        $fields = array_map('trim', explode(',', $sortRaw));
+        $dirs = array_map('trim', explode(',', $params['sort_dir'] ?? ''));
+        $types = array_map('trim', explode(',', $params['sort_type'] ?? ''));
+
+        $parts = [];
+        foreach ($fields as $i => $field) {
+            if ($field === '' || !self::isSafeField($field)) {
+                continue;
+            }
+            $dir = strtoupper($dirs[$i] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
+            $expr = strtolower($types[$i] ?? '') === 'number' ? "TO_NUMBER($field)" : $field;
+            $parts[] = "$expr $dir";
+        }
+
+        return $parts ? implode(', ', $parts) : $default;
+    }
+
+    /** Добавляет фильтр wagon_no IN (...) если передан параметр wagon_no (через ';'). */
+    private function wagonNoCond(array $params, array &$bindings): string
+    {
+        $wagonNo = trim($params['wagon_no'] ?? '');
+        if ($wagonNo === '')
+            return '';
+        return ' AND wagon_no IN (' . $this->parserInValues($wagonNo, ';', 'wagon_no', $bindings) . ')';
+    }
+
+    /** Строит плейсхолдеры для SQL IN из строки с разделителем. */
+    private function parserInValues(string $raw, string $delimiter, string $paramPrefix, array &$bindings): string
+    {
+        $items = array_filter(array_map('trim', explode($delimiter, $raw)));
+        if (empty($items)) {
+            return '';
+        }
+        $placeholders = [];
+        foreach ($items as $i => $value) {
+            $key = "{$paramPrefix}_{$i}";
+            $placeholders[] = ':' . $key;
+            $bindings[$key] = $value;
+        }
+        return implode(', ', $placeholders);
+    }
+
+    /** Допускает только безопасные имена полей: буквы, цифры, _ */
+    private static function isSafeField(string $f): bool
+    {
+        return $f !== '' && (bool) preg_match('/^[a-z_][a-z0-9_]*$/iD', $f);
+    }
+
+    // =========================================================================
+    // Вспомогательные методы для работы с датами справок
+    // =========================================================================
+
+    /** MAX(report_dt) для указанного типа справки; если $dt передан — возвращает его сразу. */
     private function getReportDt(?string $dt, ?string $typeRef = null): ?string
     {
-        if ($dt)
+        if ($dt) {
             return $dt;
+        }
         $sql = 'SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd';
         $params = [];
         if ($typeRef !== null) {
@@ -862,14 +856,12 @@ class ApiController
         return $row['dt'] ?? null;
     }
 
-    /**
-     * Возвращает [type_reference => MAX(report_dt)] для всех типов.
-     * Если передан $dt — возвращает его для всех типов без запроса к БД.
-     */
+    /** [type_reference => MAX(report_dt)] для всех указанных типов. */
     private function getLatestDtsByType(?string $dt = null, ?array $types = null): array
     {
-        if ($types !== null && count($types) === 0)
+        if ($types !== null && count($types) === 0) {
             return [];
+        }
         $sql = 'SELECT type_reference, MAX(report_dt) AS dt FROM xx_dislocation_rjd';
         $params = [];
         if ($types !== null) {
@@ -889,13 +881,14 @@ class ApiController
     }
 
     /**
-     * Строит SQL-фрагмент WHERE 
-     * $alias — префикс таблицы, например 'xdr' → 'xdr.type_reference'
+     * Строит WHERE-фрагмент для фильтрации по нескольким report_dt (один на тип справки).
+     * $alias — псевдоним таблицы, например 'xdr' → 'xdr.type_reference'.
      */
     private function latestDtCondition(array $dtsByType, string $alias = ''): array
     {
-        if (empty($dtsByType))
+        if (empty($dtsByType)) {
             return ['sql' => '1=0', 'params' => []];
+        }
         $col = fn(string $c) => $alias !== '' ? "$alias.$c" : $c;
         $parts = [];
         $params = [];
@@ -909,67 +902,71 @@ class ApiController
         return ['sql' => '(' . implode(' OR ', $parts) . ')', 'params' => $params];
     }
 
+    // =========================================================================
+    // Построитель иерархической структуры для сводных таблиц
+    // =========================================================================
+
     /**
-     * Строит иерархическую структуру groupKeys[0]→groupKeys[last]
-     * 
-     * @param array $rows
-     * @param array $groupKeys
-     * @param array $colFields
-     * @return array{cols: array, metrics: array, roads: array, total: float|int|array{col_groups: array, metrics: array, roads: array, total: float|int}}
+     * Преобразует плоский результат SELECT (строки × колонки) в структуру для фронтенда:
+     * { roads: [{road, stations: [{...v[]}], total: [], grand_total}, ...], col_groups/cols, metrics, total }
+     *
+     * $rows      — строки из БД
+     * $rowDims   — поля строк (groupKeys[0] = верхний уровень, последний = нижний)
+     * $colAliases — алиасы колонок в порядке, соответствующем flat-индексу
      */
-    private function roadTable(array $rows, array $groupKeys, array $colFields): array
+    private function roadTable(array $rows, array $rowDims, array $colAliases): array
     {
-        $roadKey = $groupKeys[0];
-        $axisFields = $colFields;
-        $nLevels = count($axisFields);
+        $topKey = $rowDims[0];
+        $subKeys = array_slice($rowDims, 1);
+        $nColLevels = count($colAliases);
 
-        $values = array_fill(0, $nLevels, []);
-        $index = array_fill(0, $nLevels, []);
-
+        // Собираем все уникальные значения по каждому уровню колонок
+        $colValues = array_fill(0, $nColLevels, []);
+        $colIndex = array_fill(0, $nColLevels, []);
         foreach ($rows as $r) {
-            foreach ($axisFields as $k => $f) {
-                $v = (string) ($r[$f] ?? '');
-                if ($v !== '' && !isset($index[$k][$v])) {
-                    $index[$k][$v] = count($values[$k]);
-                    $values[$k][] = $v;
+            foreach ($colAliases as $k => $alias) {
+                $v = (string) ($r[$alias] ?? '');
+                if ($v !== '' && !isset($colIndex[$k][$v])) {
+                    $colIndex[$k][$v] = count($colValues[$k]);
+                    $colValues[$k][] = $v;
                 }
             }
         }
 
-        $dims = array_map(fn($vals) => max(1, count($vals)), $values);
-        $nFlat = (int) array_product($dims);
-        $stationParts = array_slice($groupKeys, 1);
+        $colDims = array_map(fn($vals) => max(1, count($vals)), $colValues);
+        $nFlat = (int) array_product($colDims);
         $roads = [];
 
         foreach ($rows as $r) {
-            $road = (string) ($r[$roadKey] ?? 'Не указана');
-            $stComposite = implode('|', array_map(fn($k) => (string) ($r[$k] ?? ''), $stationParts)) ?: 'Не указана';
+            $topVal = (string) ($r[$topKey] ?? 'Не указана');
+            $subComposite = implode('|', array_map(fn($k) => (string) ($r[$k] ?? ''), $subKeys)) ?: 'Не указана';
             $cnt = (int) $r['cnt'];
 
-            if (!isset($roads[$road])) {
-                $roads[$road] = [$roadKey => $road, 'stations' => [], 'total' => array_fill(0, $nFlat, 0), 'grand_total' => 0];
+            if (!isset($roads[$topVal])) {
+                $roads[$topVal] = [$topKey => $topVal, 'stations' => [], 'total' => array_fill(0, $nFlat, 0), 'grand_total' => 0];
             }
-            if (!isset($roads[$road]['stations'][$stComposite])) {
+            if (!isset($roads[$topVal]['stations'][$subComposite])) {
                 $stData = ['v' => array_fill(0, $nFlat, 0)];
-                foreach ($stationParts as $k) {
+                foreach ($subKeys as $k) {
                     $stData[$k] = (string) ($r[$k] ?? '');
                 }
-                $roads[$road]['stations'][$stComposite] = $stData;
+                $roads[$topVal]['stations'][$subComposite] = $stData;
             }
 
-            $t = (string) ($r[$axisFields[0]] ?? '');
-            if ($t === '' || !isset($index[0][$t]))
+            $firstColVal = (string) ($r[$colAliases[0]] ?? '');
+            if ($firstColVal === '' || !isset($colIndex[0][$firstColVal])) {
                 continue;
-
-            $fi = 0;
-            foreach ($axisFields as $k => $f) {
-                $v = (string) ($r[$f] ?? '');
-                $fi = $fi * $dims[$k] + ($index[$k][$v] ?? 0);
             }
 
-            $roads[$road]['stations'][$stComposite]['v'][$fi] += $cnt;
-            $roads[$road]['total'][$fi] += $cnt;
-            $roads[$road]['grand_total'] += $cnt;
+            $flatIdx = 0;
+            foreach ($colAliases as $k => $alias) {
+                $v = (string) ($r[$alias] ?? '');
+                $flatIdx = $flatIdx * $colDims[$k] + ($colIndex[$k][$v] ?? 0);
+            }
+
+            $roads[$topVal]['stations'][$subComposite]['v'][$flatIdx] += $cnt;
+            $roads[$topVal]['total'][$flatIdx] += $cnt;
+            $roads[$topVal]['grand_total'] += $cnt;
         }
 
         foreach ($roads as &$road) {
@@ -978,24 +975,23 @@ class ApiController
         unset($road);
 
         $roadList = array_values($roads);
-        $metrics = array_map(fn($r) => ['label' => $r[$roadKey], 'total' => $r['grand_total']], $roadList);
+        $metrics = array_map(fn($r) => ['label' => $r[$topKey], 'total' => $r['grand_total']], $roadList);
         $grandTotal = array_sum(array_column($metrics, 'total'));
 
-
-        if (count($colFields) <= 1) {
-            return ['cols' => $values[0], 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
+        if ($nColLevels <= 1) {
+            return ['cols' => $colValues[0], 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
         }
 
-        $buildTree = function (int $level) use (&$buildTree, $values, $nLevels) {
-            $leaf = $level === $nLevels - 1;
+        $buildColTree = function (int $level) use (&$buildColTree, $colValues, $nColLevels) {
+            $isLeaf = $level === $nColLevels - 1;
             $out = [];
-            foreach ($values[$level] as $v) {
-                $out[] = $leaf ? $v : ['label' => $v, 'subs' => $buildTree($level + 1)];
+            foreach ($colValues[$level] as $v) {
+                $out[] = $isLeaf ? $v : ['label' => $v, 'subs' => $buildColTree($level + 1)];
             }
             return $out;
         };
 
-        return ['col_groups' => $buildTree(0), 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
+        return ['col_groups' => $buildColTree(0), 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
     }
 
     private function json(ResponseInterface $response, $data): ResponseInterface

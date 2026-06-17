@@ -16,7 +16,10 @@ var TAB_GROUPS = [
   },
   {
     label: 'Аналитика',
-    tabs: [{ id: 'analysis-period', label: 'Анализ за период' }],
+    tabs: [
+      { id: 'analysis-period', label: 'Анализ за период' },
+      { id: 'maps', label: 'Карта', url: BASE + '/maps' },
+    ],
   },
   {
     label: 'Простои и оборот',
@@ -25,7 +28,11 @@ var TAB_GROUPS = [
   {
     label: 'Импорт',
     tabs: [
-      { id: 'import', label: ' Загрузка справки РЖД ', url: BASE + '/import' },
+      {
+        id: 'import',
+        label: ' Загрузка справки РЖД ',
+        url: BASE + '/import',
+      },
     ],
   },
 ]
@@ -135,98 +142,62 @@ var BAR_COLORS = [
   '#E8A530',
 ]
 
-function drawBar(sections) {
-  if (!sections.length) {
-    $('#sectionsChart').html(
-      '<p style="color:#9DA5B0;padding:20px">Нет данных</p>',
-    )
-    return
+// Конфиг вкладок: сводные таблицы и детализации
+/*
+  Структура WAGON_TABS — поля в стандартном порядке:
+
+  Обязательные:
+    ctx            — ключ контекста (data-ctx в ссылках, ключ в DETAIL_CONTEXTS)
+    summaryUrl     — URL сводной таблицы (отсутствует у detail-only вкладок)
+    detailUrl      — URL расширенной/детализации
+    csvFilename    — префикс CSV сводной (кнопка не появится, если не задан)
+    csvDetFilename — префикс CSV расширенной
+    sumTableId     — id <table> сводной
+    sumSubId       — id подписи «Итого: N» под сводной
+    sumSubLabel    — текст-префикс подписи
+    detTableId     — id <table> расширенной
+    detSubId       — id подписи «Строк: N» под расширенной (опционально)
+    detPanelId     — id панели расширенной (для ленивой загрузки при открытии)
+    loadedKey      — ключ window[...] — флаг загрузки сводной
+    loadedDetKey   — ключ window[...] — флаг загрузки расширенной
+    groupCols[]    — измерения строк сводной: [{key, label}]
+    colDims[]      — измерения колонок: [{key, paramName}] или [{key, synthetic:true}]
+    getParams()    — доп. параметры из формы фильтров → передаются в оба URL
+
+  Опциональные:
+    filtersUrl     — URL для заполнения <select> фильтров
+    fillFilters(d) — заполняет <select> данными из filtersUrl
+    resetFilters() — сбрасывает фильтры
+    applyBtnId     — id кнопки «Применить» (без неё загрузка при открытии вкладки)
+    resetBtnId     — id кнопки «Сбросить» (если не задан — вычисляется как btn{TabId}Reset)
+    metricsId      — id контейнера KPI-карточек
+    metricsLabel   — подпись главной KPI-карточки (если kpi() не задан)
+    kpi(data)      — генерирует [{label, value, accent?, detail?}] из ответа сводной
+*/
+
+// Общий построитель KPI для табов с группировкой по дороге
+function makeRoadKpi(cfg, data, mainLabel) {
+  var groupBy = cfg.groupCols
+    .map(function (g) {
+      return g.key
+    })
+    .join(',')
+  var main = {
+    label: mainLabel,
+    value: data.total,
+    accent: true,
+    detail: { ctx: cfg.ctx },
   }
-  var values = sections.map(function (s) {
-    return s.total
+  var rows = (data.metrics || []).map(function (m) {
+    return {
+      label: m.label,
+      value: m.total,
+      detail: { ctx: cfg.ctx, road: m.label, groupBy: groupBy },
+    }
   })
-  var labels = sections.map(function (s) {
-    return s.name
-  })
-  var max = Math.max.apply(null, values) || 1
-  var barH = 28,
-    gap = 9,
-    lw = 190,
-    vw = 56,
-    bw = 290
-  var svgH = sections.length * (barH + gap) - gap
-
-  var svg =
-    '<svg width="100%" height="' +
-    svgH +
-    '" viewBox="0 0 ' +
-    (lw + bw + vw) +
-    ' ' +
-    svgH +
-    '" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible">'
-
-  values.forEach(function (v, i) {
-    var y = i * (barH + gap)
-    var barPx = Math.max(4, Math.round((v / max) * bw))
-    var color = BAR_COLORS[i % BAR_COLORS.length]
-    svg +=
-      '<text x="' +
-      (lw - 8) +
-      '" y="' +
-      (y + barH / 2 + 4) +
-      '" font-family="PT Sans,sans-serif" font-size="11" fill="#5C6370" text-anchor="end">' +
-      esc(labels[i]) +
-      '</text>'
-    svg +=
-      '<rect x="' +
-      lw +
-      '" y="' +
-      y +
-      '" width="' +
-      barPx +
-      '" height="' +
-      barH +
-      '" rx="3" fill="' +
-      color +
-      '"/>'
-    svg +=
-      '<text x="' +
-      (lw + barPx + 6) +
-      '" y="' +
-      (y + barH / 2 + 4) +
-      '" font-family="PT Sans,sans-serif" font-size="12" font-weight="700" fill="#1C2128">' +
-      v.toLocaleString('ru-RU') +
-      '</text>'
-  })
-
-  svg += '</svg>'
-  $('#sectionsChart').html(svg)
+  return [main].concat(rows)
 }
 
-// Конфиг для общео построения сводных вкладок и детализаций
-// Подход / Отправление / Погрузка — описание всех полей
-
-/******** Вагон конфиг начало ********/
-/* 
-Структура WAGON_TABS:
-  ctx — контекст для детализации (параметр data-ctx в ссылках)
-  summaryUrl — URL для получения данных сводной таблицы
-  detailUrl — URL для получения данных детализации
-  metricsId — id элемента для отображения KPI (если нет, KPI не отображаются)
-  kpi(data) — функция для генерации массива KPI карточек из данных сводной (если не указано, используется всего один KPI с total)
-  csvFilename — имя для скачиваемого CSV (если не указано, CSV не поддерживается)
-  sumTableId, sumSubId — id таблицы и элемента для отображения подвала со сводной
-  detTableId, detSubId — id таблицы и элемента для отображения подвала с детализацией
-  detPanelId — id панели с детализацией (для инициализации загрузки при открытии)
-  loadedKey, loadedDetKey — ключи для отметки загрузки сводной и детализации (в window)
-  sumSubLabel — шаблон для текста подвала сводной (используется как prefix + total)
-  groupCols — поля GROUP BY для строк сводной (они же фильтры детализации по строке)
-  colDims   — поля GROUP BY для колонок сводной (они же фильтры детализации по шапке);
-              {key, paramName} — реальное поле → имя URL-параметра;
-              {key, synthetic:true} — синтетическое поле (метка), не передаётся как фильтр
-  getParams() — дополнительные параметры для запросов сводной и детализации (фильтры формы)
-  filtersUrl — URL для заполнения фильтров; fillFilters(data) — рендер; resetFilters() — сброс
-*/
 var WAGON_TABS = {
   // Дислокация
   dislocation: {
@@ -235,84 +206,75 @@ var WAGON_TABS = {
     detailUrl: BASE + '/api/dislocation/detail',
     csvFilename: 'дислокация',
     csvDetFilename: 'дислокация-расширенная',
+    totalText: 'Общий итог',
     sumTableId: 'mainTable',
     sumSubId: 'mainTableSub',
+    sumSubLabel: 'Итого по дислокации',
     detTableId: 'dislExtTable',
     detPanelId: 'disl-extended',
     loadedKey: '_dislLoaded',
     loadedDetKey: '_extLoaded',
-    sumSubLabel: 'Итого по дислокации',
+    applyBtnId: 'btnDislocationApply',
     groupCols: [
       { key: 'dest_state', label: 'Страна назначения' },
       { key: 'dest_road', label: 'Дорога назначения' },
       { key: 'dest_station', label: 'Станция назначения' },
     ],
-    getParams: function () {
-      return {}
-    },
     colDims: [
       { key: 'wagon_type_code', paramName: 'wagon_type' },
       { key: 'cargo_w_type', paramName: 'cargo_state' },
     ],
+    getParams: function () {
+      return { wagon_no: $('#fDislocationWagonNo').val().trim() || undefined }
+    },
+    resetFilters: function () {
+      $('#fDislocationWagonNo').val('')
+    },
   },
 
   // Подход
   approach: {
     ctx: 'approach',
-    filtersUrl: BASE + '/api/approach/filters',
     summaryUrl: BASE + '/api/approach/summary',
     detailUrl: BASE + '/api/approach/detail',
+    filtersUrl: BASE + '/api/approach/filters',
     metricsId: 'approachMetrics',
     kpi: function (data) {
-      var groupBy = this.groupCols
-        .map(function (g) {
-          return g.key
-        })
-        .join(',')
-      var main = {
-        label: 'Всего в подходе',
-        value: data.total,
-        accent: true,
-        detail: { ctx: 'approach' },
-      }
-      var rows = (data.metrics || []).map(function (m) {
-        return {
-          label: m.label,
-          value: m.total,
-          detail: { ctx: 'approach', road: m.label, groupBy: groupBy },
-        }
-      })
-      return [main].concat(rows)
+      return makeRoadKpi(this, data, 'Всего в подходе')
     },
     csvFilename: 'подход',
     csvDetFilename: 'подход-расширенная',
+    totalText: 'Общий итог - ст.Углеуральская',
     sumTableId: 'approachSumTable',
     sumSubId: 'approachSumSub',
+    sumSubLabel: 'Всего в подходе',
     detTableId: 'approachDetTable',
     detSubId: 'approachDetSub',
     detPanelId: 'approach-detail',
     loadedKey: '_approachLoaded',
     loadedDetKey: '_approachDetLoaded',
-    sumSubLabel: 'Всего в подходе',
     groupCols: [
       { key: 'oper_road', label: 'Дорога операции' },
       { key: 'oper_station', label: 'Станция операции' },
     ],
-    getParams: function () {
-      return {
-        cargo: $('#fApproachCargo').val() || undefined,
-        //prev_cargo: $('#fApproachPrevCargo').val() || undefined,
-      }
-    },
     colDims: [
       { key: 'wagon_type_code', paramName: 'wagon_type' },
       { key: 'cargo_w_type', paramName: 'cargo_state' },
     ],
+    totalColDims: ['wagon_type_code'], // Итог по строке в разрезе (пор. / гр.)
+    getParams: function () {
+      return {
+        wagon_no: $('#fApproachWagonNo').val().trim() || undefined,
+        cargo: $('#fApproachCargo').val() || undefined,
+        //prev_cargo: $('#fApproachPrevCargo').val() || undefined,
+      }
+    },
     fillFilters: function (data) {
       fillSelect('#fApproachCargo', data.cargo || [])
       fillSelect('#fApproachPrevCargo', data.prev_cargo || [])
     },
     resetFilters: function () {
+      $('#fApproachWagonNo').val('')
       $('#fApproachCargo').val('')
       $('#fApproachPrevCargo').val('')
     },
@@ -321,57 +283,42 @@ var WAGON_TABS = {
   // Отправление
   departure: {
     ctx: 'departure',
-    filtersUrl: BASE + '/api/departure/filters',
     summaryUrl: BASE + '/api/departure/summary',
     detailUrl: BASE + '/api/departure/detail',
+    filtersUrl: BASE + '/api/departure/filters',
     metricsId: 'departureMetrics',
     kpi: function (data) {
-      var groupBy = this.groupCols
-        .map(function (g) {
-          return g.key
-        })
-        .join(',')
-      var main = {
-        label: 'Всего отправлено',
-        value: data.total,
-        accent: true,
-        detail: { ctx: 'departure' },
-      }
-      var rows = (data.metrics || []).map(function (m) {
-        return {
-          label: m.label,
-          value: m.total,
-          detail: { ctx: 'departure', road: m.label, groupBy: groupBy },
-        }
-      })
-      return [main].concat(rows)
+      return makeRoadKpi(this, data, 'Всего отправлено')
     },
     csvFilename: 'отправление',
     csvDetFilename: 'отправление-расширенная',
+    totalText: 'Всего отправлено',
     sumTableId: 'departureSumTable',
     sumSubId: 'departureSumSub',
+    sumSubLabel: 'Всего',
     detTableId: 'departureDetTable',
     detSubId: 'departureDetSub',
     detPanelId: 'departure-detail',
     loadedKey: '_departureLoaded',
     loadedDetKey: '_departureDetLoaded',
-    sumSubLabel: 'Всего',
     groupCols: [
       { key: 'dest_road', label: 'Дорога назначения' },
       { key: 'dest_station', label: 'Станция назначения' },
     ],
+    colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
     getParams: function () {
       return {
+        wagon_no: $('#fDepartureWagonNo').val().trim() || undefined,
         cargo: $('#fDepartureCargo').val() || undefined,
         dest_station: $('#fDestStation').val() || undefined,
       }
     },
-    colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
     fillFilters: function (data) {
       fillSelect('#fDepartureCargo', data.cargo || [])
       fillSelect('#fDestStation', data.dest_station || [])
     },
     resetFilters: function () {
+      $('#fDepartureWagonNo').val('')
       $('#fDepartureCargo').val('')
       $('#fDestStation').val('')
     },
@@ -380,95 +327,88 @@ var WAGON_TABS = {
   // Погрузка
   loading: {
     ctx: 'loading',
-    filtersUrl: BASE + '/api/approach/filters',
     summaryUrl: BASE + '/api/loading/summary',
     detailUrl: BASE + '/api/loading/detail',
+    filtersUrl: BASE + '/api/loading/filters',
     metricsId: 'loadingMetrics',
     kpi: function (data) {
-      var groupBy = this.groupCols
-        .map(function (g) {
-          return g.key
-        })
-        .join(',')
-      var main = {
-        label: 'Всего погружено',
-        value: data.total,
-        accent: true,
-        detail: { ctx: 'loading' },
-      }
-      var rows = (data.metrics || []).map(function (m) {
-        return {
-          label: m.label,
-          value: m.total,
-          detail: { ctx: 'loading', road: m.label, groupBy: groupBy },
-        }
-      })
-      return [main].concat(rows)
+      return makeRoadKpi(this, data, 'Всего погружено')
     },
     csvFilename: 'погрузка',
     csvDetFilename: 'погрузка-расширенная',
+    totalText: 'Всего погружено',
     sumTableId: 'loadingSumTable',
     sumSubId: 'loadingSumSub',
+    sumSubLabel: 'Всего',
     detTableId: 'loadingDetTable',
     detSubId: 'loadingDetSub',
     detPanelId: 'loading-detail',
     loadedKey: '_loadingLoaded',
     loadedDetKey: '_loadingDetLoaded',
-    sumSubLabel: 'Всего',
     groupCols: [
       { key: 'depart_road', label: 'Дорога' },
       { key: 'depart_station', label: 'Станция' },
     ],
-    getParams: function () {
-      return { cargo: $('#fLoadingCargo').val() || undefined }
-    },
     colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
+    getParams: function () {
+      return {
+        wagon_no: $('#fLoadingWagonNo').val().trim() || undefined,
+        cargo: $('#fLoadingCargo').val() || undefined,
+      }
+    },
     fillFilters: function (data) {
       fillSelect('#fLoadingCargo', data.cargo || [])
     },
     resetFilters: function () {
+      $('#fLoadingWagonNo').val('')
       $('#fLoadingCargo').val('')
     },
   },
+
   // Простои
   downtime: {
     ctx: 'downtime',
     summaryUrl: BASE + '/api/downtime/summary',
     detailUrl: BASE + '/api/downtime/detail',
+    filtersUrl: BASE + '/api/downtime/filters',
     csvFilename: 'простои',
     csvDetFilename: 'простои-расширенная',
+    totalText: 'Вагонов с простоем',
     sumTableId: 'downtimeSumTable',
     sumSubId: 'downtimeSumSub',
+    sumSubLabel: 'Вагонов с простоем',
     detTableId: 'downtimeDetTable',
     detSubId: 'downtimeDetSub',
     detPanelId: 'downtime-detail',
     loadedKey: '_downtimeLoaded',
     loadedDetKey: '_downtimeDetLoaded',
-    sumSubLabel: 'Вагонов с простоем',
+    applyBtnId: 'btnDowntimeApply',
     groupCols: [
-      //{ key: 'oper_station', label: 'Станция' },
       { key: 'cargo_name', label: 'Груз' },
       { key: 'idle_time_name', label: 'Простой' },
     ],
-    applyBtnId: 'btnDowntimeApply',
-    filtersUrl: BASE + '/api/downtime/filters',
-    fillFilters: function (data) {
-      fillSelect('#fDowntimeDestStation', data.dest_station || [])
-    },
+    colDims: [
+      //{ key: 'fixed_col_label', synthetic: true },
+      { key: 'm_wagon_type_code', paramName: 'wagon_type' },
+      { key: 'm_wag_state', paramName: 'wag_state' },
+    ],
+    totalColDims: ['m_wagon_type_code'], // Итог по строке в разрезе (пор. / гр.)
     getParams: function () {
       var destStation = $('#fDowntimeDestStation').val()
       return {
+        wagon_no: $('#fDowntimeWagonNo').val().trim() || undefined,
         dest_station: destStation !== '' ? destStation : undefined,
       }
     },
-    colDims: [
-      { key: 'fixed_col_label', synthetic: true },
-      { key: 'm_wagon_type_code', paramName: 'wagon_type' },
-    ],
+    fillFilters: function (data) {
+      fillSelect('#fDowntimeDestStation', data.dest_station || [])
+    },
     resetFilters: function () {
+      $('#fDowntimeWagonNo').val('')
       $('#fDowntimeDestStation').val('')
     },
   },
+
   // Сырьё
   'raw-material': {
     ctx: 'raw-material',
@@ -476,57 +416,45 @@ var WAGON_TABS = {
     detailUrl: BASE + '/api/raw-material/detail',
     metricsId: 'rawMetrics',
     kpi: function (data) {
-      var groupBy = this.groupCols
-        .map(function (g) {
-          return g.key
-        })
-        .join(',')
-      var main = {
-        label: 'Гружёных вагонов',
-        value: data.total,
-        accent: true,
-        detail: { ctx: 'raw-material' },
-      }
-      var rows = (data.metrics || []).map(function (m) {
-        return {
-          label: m.label,
-          value: m.total,
-          detail: { ctx: 'raw-material', road: m.label, groupBy: groupBy },
-        }
-      })
-      return [main].concat(rows)
+      return makeRoadKpi(this, data, 'Гружёных вагонов')
     },
     csvFilename: 'сырьё',
     csvDetFilename: 'сырьё-расширенная',
+    totalText: 'Гружёных вагонов',
     sumTableId: 'rawSumTable',
     sumSubId: 'rawSumSub',
+    sumSubLabel: 'Гружёных вагонов',
     detTableId: 'rawDetTable',
     detSubId: 'rawDetSub',
     detPanelId: 'raw-detail',
     loadedKey: '_rawLoaded',
     loadedDetKey: '_rawDetLoaded',
-    sumSubLabel: 'Гружёных вагонов',
+    applyBtnId: 'btnRawApply',
+    resetBtnId: 'btnRawReset',
     groupCols: [
       { key: 'cargo_name', label: 'Груз' },
       //{ key: 'consignee', label: 'Грузополучатель' },
     ],
-    getParams: function () {
-      return {}
-    },
     colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
+    getParams: function () {
+      return { wagon_no: $('#fRawWagonNo').val().trim() || undefined }
+    },
+    resetFilters: function () {
+      $('#fRawWagonNo').val('')
+    },
   },
 
   // Анализ за период
   'analysis-period': {
     ctx: 'analysis-period',
     detailUrl: BASE + '/api/analysis/period/detail',
+    csvDetFilename: 'анализ-за-период',
     detTableId: 'analysisPeriodDetTable',
     detSubId: 'analysisPeriodDetSub',
     detPanelId: 'analysisPeriod-detail',
     loadedKey: '_analysisPeriodLoaded',
     loadedDetKey: '_analysisPeriodDetLoaded',
     applyBtnId: 'btnAnalysisPeriodApply',
-    csvDetFilename: 'анализ-за-период',
     getParams: function () {
       return {
         wagon_no: $('#fAnalysisPeriodWagonNo').val().trim() || undefined,
@@ -537,53 +465,36 @@ var WAGON_TABS = {
   },
 }
 
-/******** Вагон конфиг конец ********/
-/*
-  KPI_BOARDS  
-    dataUrl
-*/
-// Настройка KPI-карточек для дашборда и других блоков.
+// KPI-карточки для дашборда и отдельных блоков
 var KPI_BOARDS = {
-  // GET /api/dashboard — KPI-сводка
+  // GET /api/dashboard
   dashboard: {
     dataUrl: BASE + '/api/dashboard',
     cards: function (data) {
-      const {
-        grandTotal,
-        tankTotal,
-        commingToUgl,
-        arrivedTodayUgl,
-        loadedTransit,
-      } = data.sections.reduce(
-        (acc, x) => ({
-          grandTotal: acc.grandTotal + x.total,
-          tankTotal: acc.tankTotal + (x.tank_total || 0),
-          commingToUgl: acc.commingToUgl + x.comming_to_ugl,
-          arrivedTodayUgl: acc.arrivedTodayUgl + (x.arrived_today_ugl || 0),
-          loadedTransit: acc.loadedTransit + (x.loaded_transit || 0),
-        }),
-        {
-          grandTotal: 0,
-          tankTotal: 0,
-          commingToUgl: 0,
-          arrivedTodayUgl: 0,
-          loadedTransit: 0,
-        },
-      )
+      var grandTotal = 0,
+        tankTotal = 0,
+        commingToUgl = 0,
+        arrivedTodayUgl = 0,
+        loadedTransit = 0
+      ;(data.sections || []).forEach(function (x) {
+        grandTotal += x.total || 0
+        tankTotal += x.tank_total || 0
+        commingToUgl += x.comming_to_ugl || 0
+        arrivedTodayUgl += x.arrived_today_ugl || 0
+        loadedTransit += x.loaded_transit || 0
+      })
 
-      const tr = data.trends || {}
-
-      const makeTrend = (pct, dir) =>
-        pct ? { pct, dir: dir || 'neutral' } : null
+      var tr = data.trends || {}
+      function makeTrend(pct, dir) {
+        return pct ? { pct: pct, dir: dir || 'neutral' } : null
+      }
 
       return [
         {
           label: 'Груженые в пути c УГЛ',
           value: loadedTransit,
-          //accent: true,
           variant: 'pill',
           trend: makeTrend(tr.met_loaded_transit, tr.met_loaded_transit_dir),
-          //detail: { ctx: 'dislocation' },
         },
         {
           label: 'Цистерны',
@@ -630,7 +541,7 @@ function initTab(cfg) {
       .find('.table-acts')
     if ($acts.length && !$acts.find('.btn-csv-tab').length) {
       var $btn = $(
-        '<button class="btn btn-ghost btn-sm btn-csv-tab">Скачать CSV</button>',
+        '<button class="btn btn-ghost btn-sm btn-csv-tab">Выгрузить в Excel</button>',
       )
       $btn.on('click', function () {
         saveCSV(cfg.sumTableId, cfg.csvFilename)
@@ -691,12 +602,30 @@ function loadSummary(cfg) {
         return
       }
       /* Итоги по таблице */
+      var subtotalDepth = null
+      if (
+        cfg.totalColDims &&
+        cfg.totalColDims.length &&
+        cfg.colDims &&
+        cfg.colDims.length
+      ) {
+        var colDimKeys = cfg.colDims.map(function (c) {
+          return c.key
+        })
+        cfg.totalColDims.forEach(function (key) {
+          var idx = colDimKeys.indexOf(key)
+          if (idx !== -1 && (subtotalDepth === null || idx < subtotalDepth))
+            subtotalDepth = idx
+        })
+      }
       drawSummary(
         '#' + cfg.sumTableId,
         data.roads,
         data,
         cfg.ctx,
         cfg.groupCols,
+        subtotalDepth,
+        cfg.totalText,
       )
       $sub.text(
         cfg.sumSubLabel +
@@ -802,19 +731,39 @@ function loadDetail(cfg) {
 var _vtInline = {}
 
 function oracleMaskFmt(v, mask) {
-  if (v == null || v === '') return '';
-  var s = String(v);
-  var d = null;
-  var m = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):?(\d{2})?/);
-  if (m) d = { DD: m[3], MM: m[2], YYYY: m[1], HH24: m[4], MI: m[5], SS: m[6] || '00' };
+  if (v == null || v === '') return ''
+  var s = String(v)
+  var d = null
+  var m = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):?(\d{2})?/)
+  if (m)
+    d = {
+      DD: m[3],
+      MM: m[2],
+      YYYY: m[1],
+      HH24: m[4],
+      MI: m[5],
+      SS: m[6] || '00',
+    }
   if (!d) {
-    m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})[T ](\d{2}):(\d{2}):?(\d{2})?/);
-    if (m) d = { DD: m[1], MM: m[2], YYYY: m[3], HH24: m[4], MI: m[5], SS: m[6] || '00' };
+    m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})[T ](\d{2}):(\d{2}):?(\d{2})?/)
+    if (m)
+      d = {
+        DD: m[1],
+        MM: m[2],
+        YYYY: m[3],
+        HH24: m[4],
+        MI: m[5],
+        SS: m[6] || '00',
+      }
   }
-  if (!d) return s;
-  return mask.replace('HH24', d.HH24).replace('YYYY', d.YYYY)
-             .replace('MM', d.MM).replace('DD', d.DD)
-             .replace('MI', d.MI).replace('SS', d.SS);
+  if (!d) return s
+  return mask
+    .replace('HH24', d.HH24)
+    .replace('YYYY', d.YYYY)
+    .replace('MM', d.MM)
+    .replace('DD', d.DD)
+    .replace('MI', d.MI)
+    .replace('SS', d.SS)
 }
 
 function vtMeasureCols(colDefs, data) {
@@ -849,11 +798,15 @@ function vtMeasureCols(colDefs, data) {
 function showTable($container, rows, colDefs) {
   colDefs = colDefs.map(function (c) {
     if (c.formatData && !c.fmt) {
-      var mask = c.formatData;
-      return Object.assign({}, c, { fmt: function (v) { return oracleMaskFmt(v, mask); } });
+      var mask = c.formatData
+      return Object.assign({}, c, {
+        fmt: function (v) {
+          return oracleMaskFmt(v, mask)
+        },
+      })
     }
-    return c;
-  });
+    return c
+  })
   var id = $container.attr('id')
   var ROW_H = 28 // высота строки, используется для расчёта виртуального скролла
   var BUFFER = 8 // кол-во строк в буфере до и после видимой области, для предотвращения мерцания при скролле
@@ -1033,7 +986,15 @@ function showTable($container, rows, colDefs) {
 
 /******** Сводная и KPI ********/
 
-function drawSummary(selector, roads, data, ctx, groupCols) {
+function drawSummary(
+  selector,
+  roads,
+  data,
+  ctx,
+  groupCols,
+  subtotalDepth,
+  totalText,
+) {
   if (!roads || !roads.length) {
     $(selector).html(
       '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных по данным параметрам.</td></tr></tbody>',
@@ -1075,6 +1036,91 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     })
   }
   var depth = levels.length
+
+  // Build displayCells (flatCells + optional Σ entries) and displayLevels
+  var displayCells = []
+  var displayLevels = []
+  var hasSubtotals =
+    subtotalDepth !== null &&
+    subtotalDepth !== undefined &&
+    depth > subtotalDepth + 1
+
+  if (hasSubtotals) {
+    // Prepend an 'Итого' group at the left that sums across all top-level groups,
+    // keeping the sub-column breakdown (e.g. гр./пор. per cargo state)
+    var subColCount = levels[subtotalDepth][0].span
+    var topGroupCount = levels[subtotalDepth].length
+    var dlvl
+
+    for (dlvl = 0; dlvl < depth; dlvl++) {
+      displayLevels.push([])
+    }
+
+    // Level subtotalDepth: prepend 'Итого' group, then original groups
+    displayLevels[subtotalDepth].push({
+      label: 'Итого',
+      span: subColCount,
+      isSubtotal: true,
+    })
+    levels[subtotalDepth].forEach(function (g) {
+      displayLevels[subtotalDepth].push(g)
+    })
+
+    // Level subtotalDepth+1: prepend sub-column labels from first group, then all original
+    for (var j = 0; j < subColCount; j++) {
+      displayLevels[subtotalDepth + 1].push({
+        label: levels[subtotalDepth + 1][j].label,
+        span: 1,
+        isSubtotal: true,
+      })
+    }
+    levels[subtotalDepth + 1].forEach(function (c) {
+      displayLevels[subtotalDepth + 1].push(c)
+    })
+
+    // displayCells: subtotal entries (one per sub-column position), then regular cells
+    for (var si = 0; si < subColCount; si++) {
+      var idxs = []
+      for (var gi = 0; gi < topGroupCount; gi++) {
+        idxs.push(gi * subColCount + si)
+      }
+      var stSubs = flatCells[si].subs.slice()
+      if (subtotalDepth > 0) stSubs[subtotalDepth - 1] = ''
+      displayCells.push({
+        isSubtotal: true,
+        col: 'Итого',
+        subs: stSubs,
+        indices: idxs,
+      })
+    }
+    flatCells.forEach(function (fc, fi) {
+      displayCells.push({
+        isSubtotal: false,
+        col: fc.col,
+        subs: fc.subs,
+        dataIdx: fi,
+      })
+    })
+
+    // Copy other levels unchanged
+    for (dlvl = 0; dlvl < depth; dlvl++) {
+      if (dlvl !== subtotalDepth && dlvl !== subtotalDepth + 1) {
+        displayLevels[dlvl] = levels[dlvl].slice()
+      }
+    }
+  } else {
+    flatCells.forEach(function (fc, fi) {
+      displayCells.push({
+        isSubtotal: false,
+        col: fc.col,
+        subs: fc.subs,
+        dataIdx: fi,
+      })
+    })
+    for (var dlvl2 = 0; dlvl2 < depth; dlvl2++) {
+      displayLevels.push(levels[dlvl2].slice())
+    }
+  }
 
   var nGroup = groupCols.length
   var groupBy = groupCols
@@ -1144,74 +1190,140 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     )
   }
 
+  function getDisplayVal(dc, valArray) {
+    if (dc.isSubtotal) {
+      var s = 0
+      ;(dc.indices || []).forEach(function (i) {
+        s += valArray[i] || 0
+      })
+      return s
+    }
+    return valArray[dc.dataIdx]
+  }
+
+  function subtotalCell(v, dataCtx, dataRoad, dataSt, subs, dataExtra) {
+    var disp = typeof v === 'number' ? v.toLocaleString('ru-RU') : v || ''
+    if (!v || !dataCtx) return '<td class="col-subtotal">' + disp + '</td>'
+    var extra = dataExtra
+      ? ' data-extra="' + esc(JSON.stringify(dataExtra)) + '"'
+      : ''
+    return (
+      '<td class="col-subtotal cell-link" data-ctx="' +
+      esc(dataCtx) +
+      '" data-road="' +
+      esc(dataRoad) +
+      '" data-station="' +
+      esc(dataSt) +
+      '" data-col=""' +
+      ' data-group-by="' +
+      esc(groupBy) +
+      '"' +
+      subAttrs(subs) +
+      extra +
+      '>' +
+      disp +
+      '</td>'
+    )
+  }
+
+  function renderDisplayCell(dc, v, dataCtx, dataRoad, dataSt, dataExtra) {
+    if (dc.isSubtotal)
+      return subtotalCell(v, dataCtx, dataRoad, dataSt, dc.subs, dataExtra)
+    return cellLink(
+      v,
+      dataCtx,
+      dataRoad,
+      dataSt,
+      { col: dc.col, subs: dc.subs },
+      dataExtra,
+    )
+  }
+
   // Переходим на массив строк вместо конкатенации строк
   var h = []
   var rowspan = depth > 1 ? ' rowspan="' + depth + '"' : ''
 
+  // Один заголовочный столбец иерархии: «Страна / Дорога / Станция»
+  var groupHeader = groupCols
+    .map(function (gc) {
+      return esc(gc.label)
+    })
+    .join(' / ')
   h.push('<thead><tr>')
-  groupCols.forEach(function (gc, i) {
-    var w = i === 0 ? ' style="min-width:160px"' : ' style="min-width:180px"'
-    h.push('<th class="col-meta"' + rowspan + w + '>' + esc(gc.label) + '</th>')
-  })
+  h.push(
+    '<th class="col-meta" style="min-width:200px"' +
+      rowspan +
+      '>' +
+      groupHeader +
+      '</th>',
+  )
+  if (!hasSubtotals)
+    h.push('<th class="col-total-col"' + rowspan + '>Итого</th>')
 
-  levels[0].forEach(function (c) {
+  displayLevels[0].forEach(function (c) {
     h.push(
       '<th' +
         (c.span > 1 ? ' colspan="' + c.span + '"' : '') +
         (depth > 1 ? ' style="text-align:center"' : '') +
+        //(c.isSubtotal ? ' class="col-subtotal-hd"' : '') +
+        (c.isSubtotal ? '' : '') +
         '>' +
         esc(c.label) +
         '</th>',
     )
   })
-  h.push('<th class="col-total-col"' + rowspan + '>Итого</th></tr>')
+  h.push('</tr>')
 
   for (var d = 1; d < depth; d++) {
     h.push('<tr>')
-    levels[d].forEach(function (c) {
+    displayLevels[d].forEach(function (c) {
       h.push(
         '<th' +
           (c.span > 1 ? ' colspan="' + c.span + '"' : '') +
-          ' style="text-align:center">' +
+          ' style="text-align:center"' +
+          //(c.isSubtotal ? ' class="col-subtotal-hd"' : '') +
+          (c.isSubtotal ? '' : '') +
+          '>' +
           esc(c.label) +
           '</th>',
       )
     })
     h.push('</tr>')
   }
-  h.push('</thead><tbody>')
+  h.push('</thead>')
 
-  var grandTotals = flatCells.map(function () {
+  var grandTotals = displayCells.map(function () {
     return 0
   })
   var grandSum = 0
+  var bodyH = []
 
   ;(roads || []).forEach(function (road, ri) {
     var roadVal = road[groupCols[0].key] || ''
-    var stations = road.stations || [] // жесткая привязка к .stations
+    var stations = road.stations || []
     var hasChildren = nGroup > 1 && stations.length > 0
 
-    h.push(
+    bodyH.push(
       '<tr class="row-road-parent" data-road-id="' +
         ri +
         '" data-node-id="' +
         ri +
         '">',
     )
-    h.push(
-      '<td class="col-meta" colspan="' +
-        nGroup +
-        '">' +
+    bodyH.push(
+      '<td class="col-meta col-meta--l0">' +
         (hasChildren ? '<span class="toggle-icon">▼</span>' : '') +
         esc(roadVal) +
         '</td>',
     )
-    ;(road.total || []).forEach(function (v, i) {
-      grandTotals[i] += v || 0
-      h.push(cellLink(v, ctx, roadVal, '', flatCells[i]))
+    if (!hasSubtotals)
+      bodyH.push(totalLink(road.grand_total || 0, ctx, roadVal, ''))
+    displayCells.forEach(function (dc, di) {
+      var v = getDisplayVal(dc, road.total || [])
+      grandTotals[di] += v || 0
+      bodyH.push(renderDisplayCell(dc, v, ctx, roadVal, '', null))
     })
-    h.push(totalLink(road.grand_total || 0, ctx, roadVal, ''))
-    h.push('</tr>')
+    bodyH.push('</tr>')
 
     grandSum += road.grand_total || 0
 
@@ -1228,19 +1340,44 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
               return a + b
             }, 0)
 
+            // При 3+ уровнях ancestorFilters содержит промежуточные ключи (напр. dest_road).
+            // Передаём их через data-extra, чтобы openDetail добавил их в URL и бэкенд
+            // применил в WHERE. gc[0] и gc[last] попадают через road/station как обычно.
+            var bcVals = Object.keys(ancestorFilters)
+              .map(function (k) {
+                return ancestorFilters[k]
+              })
+              .concat([stVal])
+            var leafExtra = Object.assign({}, ancestorFilters, {
+              _bcpath: JSON.stringify(bcVals),
+            })
+
             out.push(
               '<tr class="row-data row-child" data-parent-id="' +
                 esc(parentNodeId) +
                 '">',
             )
-            out.push('<td class="col-meta"></td>')
-            for (var j = 1; j < nGroup - 1; j++)
-              out.push('<td class="col-meta"></td>')
-            out.push('<td class="col-meta">' + esc(stVal) + '</td>')
-            ;(st.v || []).forEach(function (v, i) {
-              out.push(cellLink(v, ctx, roadVal, stVal, flatCells[i]))
+            out.push(
+              '<td class="col-meta col-meta--l' +
+                level +
+                '">' +
+                esc(stVal) +
+                '</td>',
+            )
+            if (!hasSubtotals)
+              out.push(totalLink(rowSum, ctx, roadVal, stVal, leafExtra))
+            displayCells.forEach(function (dc) {
+              out.push(
+                renderDisplayCell(
+                  dc,
+                  getDisplayVal(dc, st.v || []),
+                  ctx,
+                  roadVal,
+                  stVal,
+                  leafExtra,
+                ),
+              )
             })
-            out.push(totalLink(rowSum, ctx, roadVal, stVal))
             out.push('</tr>')
           })
         } else {
@@ -1288,23 +1425,28 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
                 esc(nodeId) +
                 '">',
             )
-            out.push('<td class="col-meta"></td>')
-            for (var j = 1; j < level; j++)
-              out.push('<td class="col-meta"></td>')
             out.push(
-              '<td class="col-meta"><span class="toggle-icon">▼</span>' +
+              '<td class="col-meta col-meta--l' +
+                level +
+                '">' +
+                '<span class="toggle-icon">▼</span>' +
                 esc(groupVal) +
                 '</td>',
             )
-            for (var j = level + 1; j < nGroup; j++)
-              out.push('<td class="col-meta"></td>')
-
-            subTotal.forEach(function (v, i) {
+            if (!hasSubtotals)
+              out.push(totalLink(subSum, ctx, '', '', curFiltersWithPath))
+            displayCells.forEach(function (dc) {
               out.push(
-                cellLink(v, ctx, '', '', flatCells[i], curFiltersWithPath),
+                renderDisplayCell(
+                  dc,
+                  getDisplayVal(dc, subTotal),
+                  ctx,
+                  '',
+                  '',
+                  curFiltersWithPath,
+                ),
               )
             })
-            out.push(totalLink(subSum, ctx, '', '', curFiltersWithPath))
             out.push('</tr>')
 
             out.push(buildRows(level + 1, gItems, nodeId, curFilters))
@@ -1315,51 +1457,45 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
 
       var rootFilters = {}
       rootFilters[groupCols[0].key] = roadVal
-      h.push(buildRows(1, stations, '' + ri, rootFilters))
+      bodyH.push(buildRows(1, stations, '' + ri, rootFilters))
     }
   })
 
-  h.push(
-    '<tr class="row-total row-grand"><td class="col-meta" colspan="' +
-      nGroup +
-      '">Общий итог</td>',
-  )
+  // Строка «Общий итог» — первая в tbody
+  var totalH = [
+    '<tr class="row-total row-grand"><td class="col-meta col-meta--l0">' +
+      esc(totalText || 'Общий итог') +
+      '</td>',
+  ]
 
-  grandTotals.forEach(function (v, i) {
-    if (v && ctx) {
-      h.push(
-        '<td class="cell-link" data-ctx="' +
+  if (!hasSubtotals) {
+    if (grandSum && ctx) {
+      totalH.push(
+        '<td class="col-total-col cell-link" data-ctx="' +
           esc(ctx) +
-          '" data-road="" data-station="" data-col="' +
-          esc(flatCells[i].col) +
-          '"' +
-          subAttrs(flatCells[i].subs) +
-          '>' +
-          v +
+          '" data-road="" data-station="" data-col="">' +
+          grandSum.toLocaleString('ru-RU') +
           '</td>',
       )
     } else {
-      h.push('<td>' + (v || '') + '</td>')
+      totalH.push(
+        '<td class="col-total-col">' +
+          grandSum.toLocaleString('ru-RU') +
+          '</td>',
+      )
     }
+  }
+
+  displayCells.forEach(function (dc, di) {
+    totalH.push(renderDisplayCell(dc, grandTotals[di], ctx, '', '', null))
   })
 
-  if (grandSum && ctx) {
-    h.push(
-      '<td class="col-total-col cell-link" data-ctx="' +
-        esc(ctx) +
-        '" data-road="" data-station="" data-col="">' +
-        grandSum.toLocaleString('ru-RU') +
-        '</td>',
-    )
-  } else {
-    h.push(
-      '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>',
-    )
-  }
-  h.push('</tr></tbody>')
+  totalH.push('</tr>')
 
   // Итоговый единый рендеринг в DOM
-  $(selector).html(h.join(''))
+  $(selector).html(
+    h.join('') + '<tbody>' + totalH.join('') + bodyH.join('') + '</tbody>',
+  )
 }
 
 // CSV-экспорт виртуальной таблицы (детализация) — берёт данные из _vtInline
@@ -1472,8 +1608,10 @@ function attachFloatScrollbar(scrollEl) {
       floater.style.left = rect.left + 'px'
       floater.style.width = rect.width + 'px'
       inner.style.width = scrollEl.scrollWidth + 'px'
+      scrollEl.style.overflowX = 'hidden'
     } else {
       floater.style.display = 'none'
+      scrollEl.style.overflowX = 'auto'
     }
   }
 

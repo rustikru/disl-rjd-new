@@ -55,7 +55,19 @@ $basePath = $basePath ?? '';
         <div class="kpi-grid" id="kpiGrid" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="disl-summary">Сводная дислокация</button>
-          <button class="inner-tab" data-inner="disl-extended">Расширенная</button>
+          <button class="inner-tab" data-inner="disl-extended">Детализация</button>
+        </div>
+        <div class="filters-bar">
+          <div class="filters-inner">
+            <div class="filter-item" style="flex-basis:100%">
+              <label class="filter-label" for="fDislocationWagonNo">№ вагона</label>
+              <input class="filter-input" type="text" id="fDislocationWagonNo" placeholder="52345678; 52345679; ...">
+            </div>
+            <div class="filter-actions">
+              <button class="btn btn-primary btn-sm" id="btnDislocationApply">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="btnDislocationReset">Сбросить</button>
+            </div>
+          </div>
         </div>
 
         <div id="disl-summary" class="inner-panel active">
@@ -79,7 +91,7 @@ $basePath = $basePath ?? '';
         <div id="disl-extended" class="inner-panel">
           <section class="table-section">
             <div class="table-toolbar">
-              <div class="table-info"><span class="table-title">Расширенная дислокация</span></div>
+              <div class="table-info"><span class="table-title">Детализация дислокация</span></div>
               <div class="table-acts"></div>
             </div>
             <div id="dislExtTable"></div>
@@ -96,12 +108,16 @@ $basePath = $basePath ?? '';
         <!-- Внутренние вкладки -->
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="approach-summary">Сводная</button>
-          <button class="inner-tab" data-inner="approach-detail">Расширенная</button>
+          <button class="inner-tab" data-inner="approach-detail">Детализация</button>
         </div>
 
         <!-- Фильтры -->
         <div class="filters-bar">
           <div class="filters-inner">
+            <div class="filter-item" style="flex-basis:100%">
+              <label class="filter-label" for="fApproachWagonNo">№ вагона</label>
+              <input class="filter-input" type="text" id="fApproachWagonNo" placeholder="52345678; 52345679; ...">
+            </div>
             <div class="filter-item">
               <label class="filter-label" for="fApproachCargo">Груз</label>
               <select class="filter-input" id="fApproachCargo">
@@ -125,7 +141,7 @@ $basePath = $basePath ?? '';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title">Подход вагонов — сводная</span>
+                <span class="table-title">Подход вагонов к ст.Углеуральская (сводная)</span>
                 <span class="table-sub" id="approachSumSub"></span>
               </div>
               <div class="table-acts">
@@ -143,7 +159,7 @@ $basePath = $basePath ?? '';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title">Расширенная в подходе</span>
+                <span class="table-title">Детализация в подходе</span>
                 <span class="table-sub" id="approachDetSub"></span>
               </div>
               <div class="table-acts"></div>
@@ -159,10 +175,14 @@ $basePath = $basePath ?? '';
         <div class="kpi-grid" id="departureMetrics" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="departure-summary">Сводная</button>
-          <button class="inner-tab" data-inner="departure-detail">Расширенная</button>
+          <button class="inner-tab" data-inner="departure-detail">Детализация</button>
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
+            <div class="filter-item" style="flex-basis:100%">
+              <label class="filter-label" for="fDepartureWagonNo">№ вагона</label>
+              <input class="filter-input" type="text" id="fDepartureWagonNo" placeholder="52345678; 52345679; ...">
+            </div>
             <div class="filter-item">
               <label class="filter-label" for="fDepartureCargo">Груз</label>
               <select class="filter-input" id="fDepartureCargo">
@@ -217,10 +237,14 @@ $basePath = $basePath ?? '';
         <div class="kpi-grid" id="loadingMetrics" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="loading-summary">Сводная</button>
-          <button class="inner-tab" data-inner="loading-detail">Расширенная</button>
+          <button class="inner-tab" data-inner="loading-detail">Детализация</button>
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
+            <div class="filter-item" style="flex-basis:100%">
+              <label class="filter-label" for="fLoadingWagonNo">№ вагона</label>
+              <input class="filter-input" type="text" id="fLoadingWagonNo" placeholder="52345678; 52345679; ...">
+            </div>
             <div class="filter-item">
               <label class="filter-label" for="fLoadingCargo">Груз</label>
               <select class="filter-input" id="fLoadingCargo">
@@ -268,10 +292,14 @@ $basePath = $basePath ?? '';
       <div id="panel-downtime" class="tab-panel">
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="downtime-summary">Сводная по станциям</button>
-          <button class="inner-tab" data-inner="downtime-detail">Расширенная</button>
+          <button class="inner-tab" data-inner="downtime-detail">Детализация</button>
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
+            <div class="filter-item" style="flex-basis:100%">
+              <label class="filter-label" for="fDowntimeWagonNo">№ вагона</label>
+              <input class="filter-input" type="text" id="fDowntimeWagonNo" placeholder="52345678; 52345679; ...">
+            </div>
             <div class="filter-item">
               <label class="filter-label">Ст. назначения</label>
               <select class="filter-select" id="fDowntimeDestStation" style="width:220px">
@@ -319,7 +347,19 @@ $basePath = $basePath ?? '';
         <div class="kpi-grid" id="rawMetrics" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="raw-summary">Сводная по грузам</button>
-          <button class="inner-tab" data-inner="raw-detail">Расширенная</button>
+          <button class="inner-tab" data-inner="raw-detail">Детализация</button>
+        </div>
+        <div class="filters-bar">
+          <div class="filters-inner">
+            <div class="filter-item" style="flex-basis:100%">
+              <label class="filter-label" for="fRawWagonNo">№ вагона</label>
+              <input class="filter-input" type="text" id="fRawWagonNo" placeholder="52345678; 52345679; ...">
+            </div>
+            <div class="filter-actions">
+              <button class="btn btn-primary btn-sm" id="btnRawApply">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="btnRawReset">Сбросить</button>
+            </div>
+          </div>
         </div>
         <div id="raw-summary" class="inner-panel active">
           <section class="table-section">
@@ -339,7 +379,7 @@ $basePath = $basePath ?? '';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title">Расширенная с сырьём</span>
+                <span class="table-title">Детализация с сырьём</span>
                 <span class="table-sub" id="rawDetSub"></span>
               </div>
               <div class="table-acts"></div>

@@ -505,6 +505,10 @@ body {
   text-align: left;
   color: var(--text-2);
 }
+.data-table td.col-meta--l0 { padding-left: 10px; }
+.data-table td.col-meta--l1 { padding-left: 24px; }
+.data-table td.col-meta--l2 { padding-left: 40px; }
+.data-table td.col-meta--l3 { padding-left: 56px; }
 .data-table .cell-section {
   font-weight: 700;
   font-style: italic;
@@ -548,6 +552,17 @@ body {
 }
 .data-table .row-data td.col-total-col {
   background: #f4f7fb;
+}
+
+.data-table td.col-subtotal {
+  background: #eef2f8;
+  font-weight: 700;
+  text-align: right;
+}
+.data-table thead th.col-subtotal-hd {
+  background: #dce3ef;
+  text-align: center;
+  font-style: italic;
 }
 
 .data-table th.th-group {
