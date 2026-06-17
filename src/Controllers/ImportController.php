@@ -234,11 +234,11 @@ class ImportController
         // Определяем тип справки по dest_station (кол. 12) первой непустой строки
         $fileType = $this->detectFileType($sheet, $highestRow);
 
-        $reportDate = substr($reportDt, 0, 10); // 'YYYY-MM-DD HH24:MI:SS'
+        $reportDate = substr($reportDt, 0, 10); // 'YYYY-MM-DD'
         $exists = $this->db->fetchOne(
             "SELECT COUNT(*) AS cnt FROM xx_dislocation_rjd
-             WHERE (report_dt) = TO_DATE(:dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = :type",
-            ['dt' => $reportDate, 'type' => $fileType]
+             WHERE report_dt = TO_DATE(:dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = :type",
+            ['dt' => $reportDt, 'type' => $fileType]
         );
         if ((int) ($exists['cnt'] ?? 0) > 0) {
             return ['skipped' => true, 'report_dt' => $rawDt, 'type' => $fileType, 'rows' => 0];
