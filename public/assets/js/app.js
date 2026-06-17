@@ -1054,11 +1054,10 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
   var h = []
   var rowspan = depth > 1 ? ' rowspan="' + depth + '"' : ''
 
+  // Один заголовочный столбец иерархии: «Страна / Дорога / Станция»
+  var groupHeader = groupCols.map(function (gc) { return esc(gc.label) }).join(' / ')
   h.push('<thead><tr>')
-  groupCols.forEach(function (gc, i) {
-    var w = i === 0 ? ' style="min-width:160px"' : ' style="min-width:180px"'
-    h.push('<th class="col-meta"' + rowspan + w + '>' + esc(gc.label) + '</th>')
-  })
+  h.push('<th class="col-meta" style="min-width:200px"' + rowspan + '>' + groupHeader + '</th>')
   h.push('<th class="col-total-col"' + rowspan + '>Итого</th>')
 
   levels[0].forEach(function (c) {
@@ -1094,20 +1093,14 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
 
   ;(roads || []).forEach(function (road, ri) {
     var roadVal = road[groupCols[0].key] || ''
-    var stations = road.stations || [] // жесткая привязка к .stations
+    var stations = road.stations || []
     var hasChildren = nGroup > 1 && stations.length > 0
 
     bodyH.push(
-      '<tr class="row-road-parent" data-road-id="' +
-        ri +
-        '" data-node-id="' +
-        ri +
-        '">',
+      '<tr class="row-road-parent" data-road-id="' + ri + '" data-node-id="' + ri + '">',
     )
     bodyH.push(
-      '<td class="col-meta" colspan="' +
-        nGroup +
-        '">' +
+      '<td class="col-meta col-meta--l0">' +
         (hasChildren ? '<span class="toggle-icon">▼</span>' : '') +
         esc(roadVal) +
         '</td>',
@@ -1130,100 +1123,65 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
         if (isLeaf) {
           items.forEach(function (st) {
             var stVal = st[levelKey] || ''
-            var rowSum = (st.v || []).reduce(function (a, b) {
-              return a + b
-            }, 0)
+            var rowSum = (st.v || []).reduce(function (a, b) { return a + b }, 0)
 
             // При 3+ уровнях ancestorFilters содержит промежуточные ключи (напр. dest_road).
             // Передаём их через data-extra, чтобы openDetail добавил их в URL и бэкенд
             // применил в WHERE. gc[0] и gc[last] попадают через road/station как обычно.
             var bcVals = Object.keys(ancestorFilters)
-              .map(function (k) {
-                return ancestorFilters[k]
-              })
+              .map(function (k) { return ancestorFilters[k] })
               .concat([stVal])
             var leafExtra = Object.assign({}, ancestorFilters, {
               _bcpath: JSON.stringify(bcVals),
             })
 
             out.push(
-              '<tr class="row-data row-child" data-parent-id="' +
-                esc(parentNodeId) +
-                '">',
+              '<tr class="row-data row-child" data-parent-id="' + esc(parentNodeId) + '">',
             )
-            out.push('<td class="col-meta"></td>')
-            for (var j = 1; j < nGroup - 1; j++)
-              out.push('<td class="col-meta"></td>')
-            out.push('<td class="col-meta">' + esc(stVal) + '</td>')
+            out.push('<td class="col-meta col-meta--l' + level + '">' + esc(stVal) + '</td>')
             out.push(totalLink(rowSum, ctx, roadVal, stVal, leafExtra))
             ;(st.v || []).forEach(function (v, i) {
-              out.push(
-                cellLink(v, ctx, roadVal, stVal, flatCells[i], leafExtra),
-              )
+              out.push(cellLink(v, ctx, roadVal, stVal, flatCells[i], leafExtra))
             })
             out.push('</tr>')
           })
         } else {
-          var groups = {},
-            order = []
+          var groups = {}, order = []
           items.forEach(function (st) {
             var val = st[levelKey] || ''
-            if (!groups[val]) {
-              groups[val] = []
-              order.push(val)
-            }
+            if (!groups[val]) { groups[val] = []; order.push(val) }
             groups[val].push(st)
           })
 
           order.forEach(function (groupVal, gi) {
             var nodeId = parentNodeId + ':' + gi
             var gItems = groups[groupVal]
-            var subTotal = flatCells.map(function () {
-              return 0
-            })
+            var subTotal = flatCells.map(function () { return 0 })
             var subSum = 0
 
             gItems.forEach(function (st) {
-              ;(st.v || []).forEach(function (v, i) {
-                subTotal[i] += v || 0
-              })
-              subSum += (st.v || []).reduce(function (a, b) {
-                return a + b
-              }, 0)
+              ;(st.v || []).forEach(function (v, i) { subTotal[i] += v || 0 })
+              subSum += (st.v || []).reduce(function (a, b) { return a + b }, 0)
             })
 
             var curFilters = Object.assign({}, ancestorFilters)
             curFilters[levelKey] = groupVal
-            var bcVals = Object.keys(curFilters).map(function (k) {
-              return curFilters[k]
-            })
+            var bcVals = Object.keys(curFilters).map(function (k) { return curFilters[k] })
             var curFiltersWithPath = Object.assign({}, curFilters, {
               _bcpath: JSON.stringify(bcVals),
             })
 
             out.push(
               '<tr class="row-data row-child row-sub-parent" data-parent-id="' +
-                esc(parentNodeId) +
-                '" data-node-id="' +
-                esc(nodeId) +
-                '">',
+                esc(parentNodeId) + '" data-node-id="' + esc(nodeId) + '">',
             )
-            out.push('<td class="col-meta"></td>')
-            for (var j = 1; j < level; j++)
-              out.push('<td class="col-meta"></td>')
             out.push(
-              '<td class="col-meta"><span class="toggle-icon">▼</span>' +
-                esc(groupVal) +
-                '</td>',
+              '<td class="col-meta col-meta--l' + level + '">' +
+                '<span class="toggle-icon">▼</span>' + esc(groupVal) + '</td>',
             )
-            for (var j = level + 1; j < nGroup; j++)
-              out.push('<td class="col-meta"></td>')
-
             out.push(totalLink(subSum, ctx, '', '', curFiltersWithPath))
             subTotal.forEach(function (v, i) {
-              out.push(
-                cellLink(v, ctx, '', '', flatCells[i], curFiltersWithPath),
-              )
+              out.push(cellLink(v, ctx, '', '', flatCells[i], curFiltersWithPath))
             })
             out.push('</tr>')
 
@@ -1241,9 +1199,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
 
   // Строка «Общий итог» — первая в tbody
   var totalH = [
-    '<tr class="row-total row-grand"><td class="col-meta" colspan="' +
-      nGroup +
-      '">Общий итог</td>',
+    '<tr class="row-total row-grand"><td class="col-meta col-meta--l0">Общий итог</td>',
   ]
 
   if (grandSum && ctx) {
