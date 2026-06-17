@@ -132,6 +132,11 @@ return function (App $app, array $config): void {
             return (new \App\Controllers\ApiController($getDb()))->analysisPeriod($req, $res);
         });
 
+        // Страница импорта XLSX
+        $group->get('/maps', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\MapsController($getDb(), $config))->showMaps($req, $res);
+        });
+
 
 
         $group->get('/detail', function ($req, $res) use ($config) {

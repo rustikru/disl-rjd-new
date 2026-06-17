@@ -712,7 +712,7 @@ function loadDetail(cfg) {
         var $acts = $table.closest('.table-section').find('.table-acts')
         if ($acts.length && !$acts.find('.btn-csv-det').length) {
           var $btn = $(
-            '<button class="btn btn-ghost btn-sm btn-csv-det">Скачать CSV</button>',
+            '<button class="btn btn-ghost btn-sm btn-csv-det">Выгрузить в Excel</button>',
           )
           $btn.on('click', function () {
             saveCSVfromVT(cfg.detTableId, cfg.csvDetFilename)
