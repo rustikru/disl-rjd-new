@@ -126,11 +126,11 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $colDefs  = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
-        $cond     = $this->latestDtCondition($dtsByType);
+        $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
+        $cond = $this->latestDtCondition($dtsByType);
         $bindings = $cond['params'];
-        $source   = [
-            'from'     => "(SELECT * FROM xx_dislocation_rjd WHERE {$cond['sql']}" . $this->wagonNoCond($params, $bindings) . ")",
+        $source = [
+            'from' => "(SELECT * FROM xx_dislocation_rjd WHERE {$cond['sql']}" . $this->wagonNoCond($params, $bindings) . ")",
             'bindings' => $bindings,
         ];
 
@@ -144,11 +144,11 @@ class ApiController
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state']);
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
-        $bindings   = $cond['params'];
-        $whereCond  = $this->applyDetailFilters($rowDims, $params, $bindings);
+        $bindings = $cond['params'];
+        $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
         $whereCond .= $this->wagonNoCond($params, $bindings);
         $selectCols = $this->selectFields($params['fields'] ?? '');
-        $orderBy    = $this->orderBY($params, implode(', ', $rowDims) . ', oper_station');
+        $orderBy = $this->orderBY($params, implode(', ', $rowDims) . ', oper_station');
 
         $rows = $this->db->fetchAll(
             "SELECT $selectCols
@@ -601,7 +601,7 @@ class ApiController
             return ['from' => '', 'bindings' => [], 'reportDt' => null];
         }
 
-        $bindings  = ['report_dt' => $reportDt];
+        $bindings = ['report_dt' => $reportDt];
         $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')"
             . " AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0"
             . " AND idle_time_days IS NOT NULL AND idle_time_days != 0";
@@ -641,7 +641,7 @@ class ApiController
                         , TO_NUMBER(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days,'order_by')) AS idle_time_order_by
                         , " . self::WAG_TYPE_EXPR . " AS m_wagon_type_code
                         , " . self::WAG_STATE . " AS m_wag_state
-                        , 'Кол-во' AS fixed_col_label
+                        /*, 'Кол-во' AS fixed_col_label*/
                    FROM xx_dislocation_rjd xdr
                    WHERE $whereCond
                    ORDER BY idle_time_order_by)";
@@ -809,7 +809,8 @@ class ApiController
     private function wagonNoCond(array $params, array &$bindings): string
     {
         $wagonNo = trim($params['wagon_no'] ?? '');
-        if ($wagonNo === '') return '';
+        if ($wagonNo === '')
+            return '';
         return ' AND wagon_no IN (' . $this->parserInValues($wagonNo, ';', 'wagon_no', $bindings) . ')';
     }
 

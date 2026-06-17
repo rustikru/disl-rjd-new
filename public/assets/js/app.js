@@ -388,10 +388,11 @@ var WAGON_TABS = {
       { key: 'idle_time_name', label: 'Простой' },
     ],
     colDims: [
-      { key: 'fixed_col_label', synthetic: true },
+      //{ key: 'fixed_col_label', synthetic: true },
       { key: 'm_wagon_type_code', paramName: 'wagon_type' },
       { key: 'm_wag_state', paramName: 'wag_state' },
     ],
+    totalColDims: ['m_wagon_type_code'], // Итог по строке в разрезе (пор. / гр.)
     getParams: function () {
       var destStation = $('#fDowntimeDestStation').val()
       return {
