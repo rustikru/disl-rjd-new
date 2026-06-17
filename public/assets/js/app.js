@@ -1162,13 +1162,22 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth) {
     return valArray[dc.dataIdx]
   }
 
-  function subtotalCell(v) {
+  function subtotalCell(v, dataCtx, dataRoad, dataSt, subs, dataExtra) {
     var disp = typeof v === 'number' ? v.toLocaleString('ru-RU') : v || ''
-    return '<td class="col-subtotal">' + disp + '</td>'
+    if (!v || !dataCtx) return '<td class="col-subtotal">' + disp + '</td>'
+    var extra = dataExtra ? ' data-extra="' + esc(JSON.stringify(dataExtra)) + '"' : ''
+    return (
+      '<td class="col-subtotal cell-link" data-ctx="' + esc(dataCtx) +
+      '" data-road="' + esc(dataRoad) +
+      '" data-station="' + esc(dataSt) +
+      '" data-col=""' +
+      ' data-group-by="' + esc(groupBy) + '"' +
+      subAttrs(subs) + extra + '>' + disp + '</td>'
+    )
   }
 
   function renderDisplayCell(dc, v, dataCtx, dataRoad, dataSt, dataExtra) {
-    if (dc.isSubtotal) return subtotalCell(v)
+    if (dc.isSubtotal) return subtotalCell(v, dataCtx, dataRoad, dataSt, dc.subs, dataExtra)
     return cellLink(
       v,
       dataCtx,
@@ -1197,7 +1206,7 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth) {
       groupHeader +
       '</th>',
   )
-  h.push('<th class="col-total-col"' + rowspan + '>Итого</th>')
+  if (!hasSubtotals) h.push('<th class="col-total-col"' + rowspan + '>Итого</th>')
 
   displayLevels[0].forEach(function (c) {
     h.push(
@@ -1253,7 +1262,7 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth) {
         esc(roadVal) +
         '</td>',
     )
-    bodyH.push(totalLink(road.grand_total || 0, ctx, roadVal, ''))
+    if (!hasSubtotals) bodyH.push(totalLink(road.grand_total || 0, ctx, roadVal, ''))
     displayCells.forEach(function (dc, di) {
       var v = getDisplayVal(dc, road.total || [])
       grandTotals[di] += v || 0
@@ -1300,7 +1309,7 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth) {
                 esc(stVal) +
                 '</td>',
             )
-            out.push(totalLink(rowSum, ctx, roadVal, stVal, leafExtra))
+            if (!hasSubtotals) out.push(totalLink(rowSum, ctx, roadVal, stVal, leafExtra))
             displayCells.forEach(function (dc) {
               out.push(
                 renderDisplayCell(
@@ -1368,7 +1377,7 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth) {
                 esc(groupVal) +
                 '</td>',
             )
-            out.push(totalLink(subSum, ctx, '', '', curFiltersWithPath))
+            if (!hasSubtotals) out.push(totalLink(subSum, ctx, '', '', curFiltersWithPath))
             displayCells.forEach(function (dc) {
               out.push(
                 renderDisplayCell(
@@ -1400,39 +1409,24 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth) {
     '<tr class="row-total row-grand"><td class="col-meta col-meta--l0">Общий итог</td>',
   ]
 
-  if (grandSum && ctx) {
-    totalH.push(
-      '<td class="col-total-col cell-link" data-ctx="' +
-        esc(ctx) +
-        '" data-road="" data-station="" data-col="">' +
-        grandSum.toLocaleString('ru-RU') +
-        '</td>',
-    )
-  } else {
-    totalH.push(
-      '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>',
-    )
-  }
-
-  displayCells.forEach(function (dc, di) {
-    var v = grandTotals[di]
-    if (dc.isSubtotal) {
-      totalH.push(subtotalCell(v))
-    } else if (v && ctx) {
+  if (!hasSubtotals) {
+    if (grandSum && ctx) {
       totalH.push(
-        '<td class="cell-link" data-ctx="' +
+        '<td class="col-total-col cell-link" data-ctx="' +
           esc(ctx) +
-          '" data-road="" data-station="" data-col="' +
-          esc(dc.col) +
-          '"' +
-          subAttrs(dc.subs) +
-          '>' +
-          v +
+          '" data-road="" data-station="" data-col="">' +
+          grandSum.toLocaleString('ru-RU') +
           '</td>',
       )
     } else {
-      totalH.push('<td>' + (v || '') + '</td>')
+      totalH.push(
+        '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>',
+      )
     }
+  }
+
+  displayCells.forEach(function (dc, di) {
+    totalH.push(renderDisplayCell(dc, grandTotals[di], ctx, '', '', null))
   })
 
   totalH.push('</tr>')
