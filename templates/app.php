@@ -22,6 +22,7 @@ $basePath = $basePath ?? '';
     <div class="header-inner">
       <div class="brand">
         <div class="brand-icon">
+          <img src="<?= htmlspecialchars($basePath) ?>/assets/img/meta-logo.png" alt="" class="brand-logo">
         </div>
         <div class="brand-text">
           <div class="brand-name"><?= htmlspecialchars($appName) ?></div>
