@@ -1059,6 +1059,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     var w = i === 0 ? ' style="min-width:160px"' : ' style="min-width:180px"'
     h.push('<th class="col-meta"' + rowspan + w + '>' + esc(gc.label) + '</th>')
   })
+  h.push('<th class="col-total-col"' + rowspan + '>Итого</th>')
 
   levels[0].forEach(function (c) {
     h.push(
@@ -1070,7 +1071,7 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
         '</th>',
     )
   })
-  h.push('<th class="col-total-col"' + rowspan + '>Итого</th></tr>')
+  h.push('</tr>')
 
   for (var d = 1; d < depth; d++) {
     h.push('<tr>')
@@ -1111,11 +1112,11 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
         esc(roadVal) +
         '</td>',
     )
+    bodyH.push(totalLink(road.grand_total || 0, ctx, roadVal, ''))
     ;(road.total || []).forEach(function (v, i) {
       grandTotals[i] += v || 0
       bodyH.push(cellLink(v, ctx, roadVal, '', flatCells[i]))
     })
-    bodyH.push(totalLink(road.grand_total || 0, ctx, roadVal, ''))
     bodyH.push('</tr>')
 
     grandSum += road.grand_total || 0
@@ -1154,12 +1155,12 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
             for (var j = 1; j < nGroup - 1; j++)
               out.push('<td class="col-meta"></td>')
             out.push('<td class="col-meta">' + esc(stVal) + '</td>')
+            out.push(totalLink(rowSum, ctx, roadVal, stVal, leafExtra))
             ;(st.v || []).forEach(function (v, i) {
               out.push(
                 cellLink(v, ctx, roadVal, stVal, flatCells[i], leafExtra),
               )
             })
-            out.push(totalLink(rowSum, ctx, roadVal, stVal, leafExtra))
             out.push('</tr>')
           })
         } else {
@@ -1218,12 +1219,12 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
             for (var j = level + 1; j < nGroup; j++)
               out.push('<td class="col-meta"></td>')
 
+            out.push(totalLink(subSum, ctx, '', '', curFiltersWithPath))
             subTotal.forEach(function (v, i) {
               out.push(
                 cellLink(v, ctx, '', '', flatCells[i], curFiltersWithPath),
               )
             })
-            out.push(totalLink(subSum, ctx, '', '', curFiltersWithPath))
             out.push('</tr>')
 
             out.push(buildRows(level + 1, gItems, nodeId, curFilters))
@@ -1245,6 +1246,20 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
       '">Общий итог</td>',
   ]
 
+  if (grandSum && ctx) {
+    totalH.push(
+      '<td class="col-total-col cell-link" data-ctx="' +
+        esc(ctx) +
+        '" data-road="" data-station="" data-col="">' +
+        grandSum.toLocaleString('ru-RU') +
+        '</td>',
+    )
+  } else {
+    totalH.push(
+      '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>',
+    )
+  }
+
   grandTotals.forEach(function (v, i) {
     if (v && ctx) {
       totalH.push(
@@ -1263,19 +1278,6 @@ function drawSummary(selector, roads, data, ctx, groupCols) {
     }
   })
 
-  if (grandSum && ctx) {
-    totalH.push(
-      '<td class="col-total-col cell-link" data-ctx="' +
-        esc(ctx) +
-        '" data-road="" data-station="" data-col="">' +
-        grandSum.toLocaleString('ru-RU') +
-        '</td>',
-    )
-  } else {
-    totalH.push(
-      '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>',
-    )
-  }
   totalH.push('</tr>')
 
   // Итоговый единый рендеринг в DOM
