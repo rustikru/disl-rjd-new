@@ -126,11 +126,12 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
-        $cond = $this->latestDtCondition($dtsByType);
-        $source = [
-            'from' => "(SELECT * FROM xx_dislocation_rjd WHERE {$cond['sql']})",
-            'bindings' => $cond['params'],
+        $colDefs  = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
+        $cond     = $this->latestDtCondition($dtsByType);
+        $bindings = $cond['params'];
+        $source   = [
+            'from'     => "(SELECT * FROM xx_dislocation_rjd WHERE {$cond['sql']}" . $this->wagonNoCond($params, $bindings) . ")",
+            'bindings' => $bindings,
         ];
 
         return $this->json($response, $this->summaryReport($source, $rowDims, $colDefs));
@@ -143,10 +144,11 @@ class ApiController
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state']);
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
-        $bindings = $cond['params'];
-        $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
+        $bindings   = $cond['params'];
+        $whereCond  = $this->applyDetailFilters($rowDims, $params, $bindings);
+        $whereCond .= $this->wagonNoCond($params, $bindings);
         $selectCols = $this->selectFields($params['fields'] ?? '');
-        $orderBy = $this->orderBY($params, implode(', ', $rowDims) . ', oper_station');
+        $orderBy    = $this->orderBY($params, implode(', ', $rowDims) . ', oper_station');
 
         $rows = $this->db->fetchAll(
             "SELECT $selectCols
@@ -539,6 +541,7 @@ class ApiController
             $whereCond .= " AND UPPER(REPLACE(COALESCE(prev_cargo,''), 'Ё', 'Е')) = UPPER(REPLACE(:prev_cargo_f, 'Ё', 'Е'))";
             $bindings['prev_cargo_f'] = $prevCargo;
         }
+        $whereCond .= $this->wagonNoCond($params, $bindings);
 
         return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
@@ -564,6 +567,7 @@ class ApiController
             $whereCond .= ' AND dest_station = :dest_station';
             $bindings['dest_station'] = $destStation;
         }
+        $whereCond .= $this->wagonNoCond($params, $bindings);
 
         return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
@@ -584,6 +588,7 @@ class ApiController
             $whereCond .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
             $bindings['cargo_f'] = $cargo;
         }
+        $whereCond .= $this->wagonNoCond($params, $bindings);
 
         return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
@@ -596,11 +601,13 @@ class ApiController
             return ['from' => '', 'bindings' => [], 'reportDt' => null];
         }
 
+        $bindings  = ['report_dt' => $reportDt];
         $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')"
             . " AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0"
             . " AND idle_time_days IS NOT NULL AND idle_time_days != 0";
+        $whereCond .= $this->wagonNoCond($params, $bindings);
 
-        return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => ['report_dt' => $reportDt], 'reportDt' => $reportDt];
+        return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
 
     /** Простои: добавляет вычисляемые колонки (idle_time_name, m_wagon_type_code) в подзапрос. */
@@ -626,6 +633,7 @@ class ApiController
             $whereCond .= ' AND dest_station = :dest_station';
             $bindings['dest_station'] = $destStation;
         }
+        $whereCond .= $this->wagonNoCond($params, $bindings);
 
         $reportDt = !empty($dtsByType) ? max($dtsByType) : null;
         $from = "(SELECT xdr.*
@@ -795,6 +803,14 @@ class ApiController
         }
 
         return $parts ? implode(', ', $parts) : $default;
+    }
+
+    /** Добавляет фильтр wagon_no IN (...) если передан параметр wagon_no (через ';'). */
+    private function wagonNoCond(array $params, array &$bindings): string
+    {
+        $wagonNo = trim($params['wagon_no'] ?? '');
+        if ($wagonNo === '') return '';
+        return ' AND wagon_no IN (' . $this->parserInValues($wagonNo, ';', 'wagon_no', $bindings) . ')';
     }
 
     /** Строит плейсхолдеры для SQL IN из строки с разделителем. */

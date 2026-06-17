@@ -202,28 +202,32 @@ var WAGON_TABS = {
   // Дислокация
   dislocation: {
     ctx: 'dislocation',
-    summaryUrl: BASE + '/api/dislocation/summary',
-    detailUrl: BASE + '/api/dislocation/detail',
-    csvFilename: 'дислокация',
+    summaryUrl:     BASE + '/api/dislocation/summary',
+    detailUrl:      BASE + '/api/dislocation/detail',
+    csvFilename:    'дислокация',
     csvDetFilename: 'дислокация-расширенная',
-    sumTableId: 'mainTable',
-    sumSubId: 'mainTableSub',
+    sumTableId:  'mainTable',
+    sumSubId:    'mainTableSub',
     sumSubLabel: 'Итого по дислокации',
-    detTableId: 'dislExtTable',
-    detPanelId: 'disl-extended',
-    loadedKey: '_dislLoaded',
+    detTableId:  'dislExtTable',
+    detPanelId:  'disl-extended',
+    loadedKey:    '_dislLoaded',
     loadedDetKey: '_extLoaded',
+    applyBtnId:   'btnDislocationApply',
     groupCols: [
-      { key: 'dest_state', label: 'Страна назначения' },
-      { key: 'dest_road', label: 'Дорога назначения' },
+      { key: 'dest_state',   label: 'Страна назначения' },
+      { key: 'dest_road',    label: 'Дорога назначения' },
       { key: 'dest_station', label: 'Станция назначения' },
     ],
     colDims: [
       { key: 'wagon_type_code', paramName: 'wagon_type' },
-      { key: 'cargo_w_type', paramName: 'cargo_state' },
+      { key: 'cargo_w_type',    paramName: 'cargo_state' },
     ],
     getParams: function () {
-      return {}
+      return { wagon_no: $('#fDislocationWagonNo').val().trim() || undefined }
+    },
+    resetFilters: function () {
+      $('#fDislocationWagonNo').val('')
     },
   },
 
@@ -258,7 +262,8 @@ var WAGON_TABS = {
     totalColDims: ['wagon_type_code'], // Итог по строке в разрезе (пор. / гр.)
     getParams: function () {
       return {
-        cargo: $('#fApproachCargo').val() || undefined,
+        wagon_no:  $('#fApproachWagonNo').val().trim() || undefined,
+        cargo:     $('#fApproachCargo').val() || undefined,
         //prev_cargo: $('#fApproachPrevCargo').val() || undefined,
       }
     },
@@ -267,6 +272,7 @@ var WAGON_TABS = {
       fillSelect('#fApproachPrevCargo', data.prev_cargo || [])
     },
     resetFilters: function () {
+      $('#fApproachWagonNo').val('')
       $('#fApproachCargo').val('')
       $('#fApproachPrevCargo').val('')
     },
@@ -299,7 +305,8 @@ var WAGON_TABS = {
     colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
     getParams: function () {
       return {
-        cargo: $('#fDepartureCargo').val() || undefined,
+        wagon_no:     $('#fDepartureWagonNo').val().trim() || undefined,
+        cargo:        $('#fDepartureCargo').val() || undefined,
         dest_station: $('#fDestStation').val() || undefined,
       }
     },
@@ -308,6 +315,7 @@ var WAGON_TABS = {
       fillSelect('#fDestStation', data.dest_station || [])
     },
     resetFilters: function () {
+      $('#fDepartureWagonNo').val('')
       $('#fDepartureCargo').val('')
       $('#fDestStation').val('')
     },
@@ -339,12 +347,16 @@ var WAGON_TABS = {
     ],
     colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
     getParams: function () {
-      return { cargo: $('#fLoadingCargo').val() || undefined }
+      return {
+        wagon_no: $('#fLoadingWagonNo').val().trim() || undefined,
+        cargo:    $('#fLoadingCargo').val() || undefined,
+      }
     },
     fillFilters: function (data) {
       fillSelect('#fLoadingCargo', data.cargo || [])
     },
     resetFilters: function () {
+      $('#fLoadingWagonNo').val('')
       $('#fLoadingCargo').val('')
     },
   },
@@ -377,12 +389,16 @@ var WAGON_TABS = {
     ],
     getParams: function () {
       var destStation = $('#fDowntimeDestStation').val()
-      return { dest_station: destStation !== '' ? destStation : undefined }
+      return {
+        wagon_no:     $('#fDowntimeWagonNo').val().trim() || undefined,
+        dest_station: destStation !== '' ? destStation : undefined,
+      }
     },
     fillFilters: function (data) {
       fillSelect('#fDowntimeDestStation', data.dest_station || [])
     },
     resetFilters: function () {
+      $('#fDowntimeWagonNo').val('')
       $('#fDowntimeDestStation').val('')
     },
   },
@@ -390,29 +406,34 @@ var WAGON_TABS = {
   // Сырьё
   'raw-material': {
     ctx: 'raw-material',
-    summaryUrl: BASE + '/api/raw-material/summary',
-    detailUrl: BASE + '/api/raw-material/detail',
+    summaryUrl:     BASE + '/api/raw-material/summary',
+    detailUrl:      BASE + '/api/raw-material/detail',
     metricsId: 'rawMetrics',
     kpi: function (data) {
       return makeRoadKpi(this, data, 'Гружёных вагонов')
     },
-    csvFilename: 'сырьё',
+    csvFilename:    'сырьё',
     csvDetFilename: 'сырьё-расширенная',
-    sumTableId: 'rawSumTable',
-    sumSubId: 'rawSumSub',
+    sumTableId:  'rawSumTable',
+    sumSubId:    'rawSumSub',
     sumSubLabel: 'Гружёных вагонов',
-    detTableId: 'rawDetTable',
-    detSubId: 'rawDetSub',
-    detPanelId: 'raw-detail',
-    loadedKey: '_rawLoaded',
+    detTableId:  'rawDetTable',
+    detSubId:    'rawDetSub',
+    detPanelId:  'raw-detail',
+    loadedKey:    '_rawLoaded',
     loadedDetKey: '_rawDetLoaded',
+    applyBtnId:   'btnRawApply',
+    resetBtnId:   'btnRawReset',
     groupCols: [
       { key: 'cargo_name', label: 'Груз' },
       //{ key: 'consignee', label: 'Грузополучатель' },
     ],
     colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
     getParams: function () {
-      return {}
+      return { wagon_no: $('#fRawWagonNo').val().trim() || undefined }
+    },
+    resetFilters: function () {
+      $('#fRawWagonNo').val('')
     },
   },
 
