@@ -1084,10 +1084,12 @@ function drawSummary(
       for (var gi = 0; gi < topGroupCount; gi++) {
         idxs.push(gi * subColCount + si)
       }
+      var stSubs = flatCells[si].subs.slice()
+      if (subtotalDepth > 0) stSubs[subtotalDepth - 1] = ''
       displayCells.push({
         isSubtotal: true,
         col: 'Итого',
-        subs: flatCells[si].subs,
+        subs: stSubs,
         indices: idxs,
       })
     }
