@@ -291,6 +291,28 @@ class ApiController
         return $this->json($response, ['rows' => $rows]);
     }
 
+    /** GET /api/loading/filters */
+    public function loadingFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params = $request->getQueryParams();
+        $source = $this->loadingFrom(['report_dt' => $params['report_dt'] ?? null]);
+
+        if (!$source['reportDt']) {
+            return $this->json($response, ['cargo' => []]);
+        }
+
+        $cargo = $this->db->fetchAll(
+            "SELECT DISTINCT cargo_name FROM {$source['from']}
+             WHERE cargo_name IS NOT NULL
+             ORDER BY cargo_name",
+            $source['bindings']
+        );
+
+        return $this->json($response, [
+            'cargo' => array_column($cargo, 'cargo_name'),
+        ]);
+    }
+
     /** GET /api/loading/summary */
     public function loadingSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {

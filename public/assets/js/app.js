@@ -380,7 +380,7 @@ var WAGON_TABS = {
   // Погрузка
   loading: {
     ctx: 'loading',
-    filtersUrl: BASE + '/api/approach/filters',
+    filtersUrl: BASE + '/api/loading/filters',
     summaryUrl: BASE + '/api/loading/summary',
     detailUrl: BASE + '/api/loading/detail',
     metricsId: 'loadingMetrics',

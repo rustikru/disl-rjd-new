@@ -97,6 +97,9 @@ return function (App $app, array $config): void {
         });
 
         // Погрузка
+        $group->get('/api/loading/filters', function ($req, $res) use ($getDb) {
+            return (new \App\Controllers\ApiController($getDb()))->loadingFilters($req, $res);
+        });
         $group->get('/api/loading/summary', function ($req, $res) use ($getDb) {
             return (new \App\Controllers\ApiController($getDb()))->loadingSummary($req, $res);
         });
