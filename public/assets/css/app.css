@@ -647,6 +647,9 @@ body {
 .data-table td.col-meta {
   text-align: left;
   color: var(--text-1);
+  white-space: normal;
+  word-break: break-word;
+  max-width: 320px;
 }
 
 .data-table td.dash {
