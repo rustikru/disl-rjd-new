@@ -260,42 +260,173 @@ disl-rjd-new/
 
 ## Конфигурация KPI-карточек
 
-KPI-карточки рендерятся в `#kpiGrid` (вкладка Дислокация). Данные берутся из `GET /api/dashboard`.
+KPI-карточки рендерятся через универсальную функцию `loadKpi(cfg)`.  
+Все блоки KPI описываются в объекте `KPI_BOARDS` в `app.js`.
+
+---
 
 ### Объект карточки
 
 ```js
 {
   label:   'Всего вагонов',  // подпись
-  value:   1234,             // значение
-  accent:  true,             // синяя рамка (выделение главного показателя)
-  detail: {                  // клик → открыть детализацию (опционально)
-    ctx:       'dislocation',       // контекст (ключ DETAIL_CONTEXTS)
-    road:      'ГОРЬКОВСКАЯ',       // фильтр по дороге (опционально)
-    kpi_type:  'idle',              // произвольный параметр для бэкенда (опционально)
-    _endpoint: '/api/custom/detail' // переопределить URL, сохранив колонки ctx (опционально)
+  value:   1234,             // числовое значение
+  accent:  true,             // фиолетовая рамка — главный показатель
+  variant: 'pill',           // альтернативный стиль (таблеточка)
+  trend: {                   // стрелка тренда (опционально)
+    pct: 5.2,                // процент изменения
+    dir: 'up'                // 'up' | 'down' | 'neutral'
+  },
+  detail: {                  // клик → открыть страницу /detail (опционально)
+    ctx:       'dislocation',        // контекст (ключ DETAIL_CONTEXTS)
+    road:      'ГОРЬКОВСКАЯ',        // фильтр по дороге (опционально)
+    _endpoint: '/api/custom/detail'  // переопределить URL API (опционально)
   }
 }
 ```
 
-### Переопределение эндпоинта для KPI (`_endpoint`)
+---
 
-Если на стороне Oracle данные считаются в пакете и требуют отдельного API, но структура колонок совпадает с существующим контекстом — используйте `_endpoint`:
+### Вспомогательные функции
+
+#### `makeTrend(pct, dir)`
+
+Создаёт объект тренда или `null` если `pct` пустой:
 
 ```js
-// В kpi(data) функции WAGON_TABS или KPI_BOARDS:
+makeTrend(5.2, 'up')      // → { pct: 5.2, dir: 'up' }
+makeTrend(null)            // → null  (карточка без стрелки)
+makeTrend(tr.tank, tr.tank_dir)  // из ответа API
+```
+
+#### `metricsCards(data, mainLabel, ctx, groupBy)`
+
+Стандартный билдер для API, которые возвращают `{ total, metrics: [{label, total}] }`:
+
+```js
+// API возвращает: { total: 500, metrics: [{ label: 'СВЕРДЛОВСКАЯ', total: 120 }, ...] }
+metricsCards(data, 'Всего вагонов', 'dislocation', 'dest_road')
+// Генерирует:
+// [
+//   { label: 'Всего вагонов', value: 500, accent: true, detail: { ctx: 'dislocation' } },
+//   { label: 'СВЕРДЛОВСКАЯ',  value: 120, detail: { ctx: 'dislocation', road: 'СВЕРДЛОВСКАЯ', groupBy: 'dest_road' } },
+//   ...
+// ]
+```
+
+---
+
+### Как добавить произвольный блок KPI
+
+#### Вариант 1 — стандартный API (`total` + `metrics[]`)
+
+Если API возвращает `{ total, metrics: [{label, total}] }`, достаточно добавить запись в `KPI_BOARDS`:
+
+```js
+var KPI_BOARDS = {
+  // ...
+  myBlock: {
+    containerId: 'myKpiGrid',          // id HTML-контейнера
+    dataUrl:     BASE + '/api/my/kpi', // GET-эндпоинт
+    mainLabel:   'Всего вагонов',      // подпись главной карточки
+    ctx:         'dislocation',        // контекст для drill-down
+    groupBy:     'dest_road',          // параметр группировки для detail
+  },
+}
+```
+
+Запустить вручную:
+
+```js
+loadKpi(KPI_BOARDS.myBlock)
+```
+
+#### Вариант 2 — произвольный формат ответа
+
+Если API возвращает нестандартную структуру — добавьте функцию `cards`:
+
+```js
+myBlock: {
+  containerId: 'myKpiGrid',
+  dataUrl:     BASE + '/api/my/kpi',
+  cards: function (data) {
+    return [
+      { label: 'Груженые',  value: data.loaded,  accent: true },
+      { label: 'Порожние',  value: data.empty,   trend: makeTrend(data.empty_pct, data.empty_dir) },
+      { label: 'Простой >5', value: data.idle,   detail: { ctx: 'downtime', _endpoint: '/api/downtime/detail' } },
+    ]
+  },
+}
+```
+
+#### Вариант 3 — динамические параметры запроса
+
+Если нужно передавать параметры из формы (фильтры, дата):
+
+```js
+myBlock: {
+  containerId: 'myKpiGrid',
+  dataUrl:     BASE + '/api/my/kpi',
+  params: function () {
+    return { report_dt: $('#fDate').val() }
+  },
+  mainLabel: 'Показатель',
+  ctx:       'dislocation',
+}
+```
+
+#### Вариант 4 — KPI на вкладке (через `WAGON_TABS`)
+
+Если KPI нужен внутри вкладки раздела (рендерится при загрузке сводной), задайте `metricsId` и `kpi` в `WAGON_TABS`:
+
+```js
+mySection: {
+  // ...обязательные поля вкладки...
+  metricsId: 'mySectionMetrics',   // id контейнера в HTML
+  kpi: function (data) {           // data — ответ summaryUrl
+    return [
+      { label: 'Всего',    value: data.total, accent: true },
+      { label: 'Цистерны', value: data.tank,  trend: makeTrend(data.tank_pct, 'up') },
+    ]
+  },
+}
+```
+
+> Если `kpi` не задан, но задан `metricsId` и `metricsLabel`, KPI строится автоматически через `metricsCards`.
+
+---
+
+### Поля `KPI_BOARDS[key]`
+
+| Поле          | Тип      | Обязательно | Описание                                                                        |
+| ------------- | -------- | ----------- | ------------------------------------------------------------------------------- |
+| `containerId` | string   | да          | `id` HTML-контейнера (`<div id="...">`)                                         |
+| `dataUrl`     | string   | да          | URL GET-запроса                                                                 |
+| `cards`       | function | нет         | `function(data) → [{label,value,...}]`. Если задана — `mainLabel/ctx/groupBy` игнорируются |
+| `params`      | function | нет         | `function() → {param: value}` — параметры запроса                               |
+| `mainLabel`   | string   | нет         | Подпись главной карточки при использовании `metricsCards`                       |
+| `ctx`         | string   | нет         | Контекст drill-down (`DETAIL_CONTEXTS`)                                         |
+| `groupBy`     | string   | нет         | `groupBy` для строк детализации из `metrics[]`                                  |
+
+---
+
+### Переопределение эндпоинта для drill-down (`_endpoint`)
+
+Если данные считаются в Oracle-пакете и нужен отдельный API, но колонки детализации совпадают с существующим контекстом:
+
+```js
 {
   label: 'Нестандартный показатель',
   value: data.custom_value,
   detail: {
-    ctx: 'dislocation',              // берём колонки из DETAIL_CONTEXTS['dislocation']
-    _endpoint: '/api/custom/detail', // но данные запрашиваем отсюда
-    kpi_type: 'my_type'             // произвольный доп. параметр
+    ctx:       'dislocation',              // берём колонки из DETAIL_CONTEXTS['dislocation']
+    _endpoint: '/api/custom/detail',       // данные запрашиваем отсюда
+    kpi_type:  'my_type'                   // произвольный доп. параметр для бэкенда
   }
 }
 ```
 
-URL страницы детализации будет:
+URL страницы детализации:
 ```
 /detail?ctx=dislocation&_endpoint=/api/custom/detail&kpi_type=my_type
 ```
