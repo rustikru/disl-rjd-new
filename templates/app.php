@@ -62,7 +62,8 @@ $basePath = $basePath ?? '';
           <div class="filters-inner">
             <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fDislocationWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fDislocationWagonNo" placeholder="52345678; 52345679; ...">
+              <input class="filter-input" type="text" id="fDislocationWagonNo"
+                placeholder="Номер вагона1; Номер вагона2; ...">
             </div>
             <div class="filter-actions">
               <button class="btn btn-primary btn-sm" id="btnDislocationApply">Применить</button>
@@ -117,7 +118,8 @@ $basePath = $basePath ?? '';
           <div class="filters-inner">
             <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fApproachWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fApproachWagonNo" placeholder="52345678; 52345679; ...">
+              <input class="filter-input" type="text" id="fApproachWagonNo"
+                placeholder="Номер вагона1; Номер вагона2; ...">
             </div>
             <div class="filter-item">
               <label class="filter-label" for="fApproachCargo">Груз</label>
@@ -182,7 +184,8 @@ $basePath = $basePath ?? '';
           <div class="filters-inner">
             <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fDepartureWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fDepartureWagonNo" placeholder="52345678; 52345679; ...">
+              <input class="filter-input" type="text" id="fDepartureWagonNo"
+                placeholder="Номер вагона1; Номер вагона2; ...">
             </div>
             <div class="filter-item">
               <label class="filter-label" for="fDepartureCargo">Груз</label>
@@ -244,7 +247,8 @@ $basePath = $basePath ?? '';
           <div class="filters-inner">
             <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fLoadingWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fLoadingWagonNo" placeholder="52345678; 52345679; ...">
+              <input class="filter-input" type="text" id="fLoadingWagonNo"
+                placeholder="Номер вагона1; Номер вагона2; ...">
             </div>
             <div class="filter-item">
               <label class="filter-label" for="fLoadingCargo">Груз</label>
@@ -299,7 +303,8 @@ $basePath = $basePath ?? '';
           <div class="filters-inner">
             <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fDowntimeWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fDowntimeWagonNo" placeholder="52345678; 52345679; ...">
+              <input class="filter-input" type="text" id="fDowntimeWagonNo"
+                placeholder="Номер вагона1; Номер вагона2; ...">
             </div>
             <div class="filter-item">
               <label class="filter-label">Ст. назначения</label>
@@ -354,7 +359,7 @@ $basePath = $basePath ?? '';
           <div class="filters-inner">
             <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fRawWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fRawWagonNo" placeholder="52345678; 52345679; ...">
+              <input class="filter-input" type="text" id="fRawWagonNo" placeholder="Номер вагона1; Номер вагона2; ...">
             </div>
             <div class="filter-actions">
               <button class="btn btn-primary btn-sm" id="btnRawApply">Применить</button>
@@ -396,7 +401,8 @@ $basePath = $basePath ?? '';
           <div class="filters-inner" style="flex-wrap:wrap;gap:8px 16px">
             <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label">№ вагона</label>
-              <input class="filter-input" type="text" id="fAnalysisPeriodWagonNo" placeholder="52345678; 52345679; ..."">
+              <input class="filter-input" type="text" id="fAnalysisPeriodWagonNo"
+                placeholder="Номер вагона1; Номер вагона2; ..."">
             </div>
             <div class=" filter-item">
               <label class="filter-label">Операция с</label>
