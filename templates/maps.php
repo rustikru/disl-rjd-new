@@ -244,6 +244,18 @@ $user = $user ?? ['display_name' => 'Пользователь'];
             padding-bottom: 6px;
         }
 
+        .sidebar-summary {
+            padding: 2px 16px 10px;
+            font-size: 12px;
+            color: var(--muted);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-summary strong {
+            color: var(--primary);
+            font-family: var(--mono);
+        }
+
         .no-results {
             padding: 20px;
             text-align: center;
@@ -293,14 +305,9 @@ $user = $user ?? ['display_name' => 'Пользователь'];
     <div class="app-container">
         <div class="sidebar">
             <div class="sidebar-search">
-                <input type="text" id="station-search" placeholder="Поиск станции">
+                <input type="text" id="station-search" placeholder="Станция или № вагона">
             </div>
-            <!-- <div class="sidebar-filters">
-                <button class="filter-btn active" data-filter="all">Все</button>
-                <button class="filter-btn" data-filter="loaded">Гружёные</button>
-                <button class="filter-btn" data-filter="empty">Порожние</button>
-                <button class="filter-btn" data-filter="idle">Простой &gt;5 дней</button>
-            </div> -->
+            <div class="sidebar-summary" id="sidebar-summary"></div>
             <div class="station-list" id="station-list"></div>
         </div>
 
@@ -337,15 +344,22 @@ $user = $user ?? ['display_name' => 'Пользователь'];
         function renderSidebar() {
             var search = document.getElementById('station-search').value.toLowerCase().trim();
             var list = document.getElementById('station-list');
+            var summary = document.getElementById('sidebar-summary');
 
-            var html = STATIONS.map(function (s) {
-                var wagons = getFilteredWagons(s);
-                var cnt = wagons.length;
+            var visible = STATIONS.map(function (s) {
+                return { s: s, wagons: getFilteredWagons(s) };
+            }).filter(function (x) {
+                return x.wagons.length > 0 && isStationMatchSearch(x.s, search);
+            });
 
-                if (cnt === 0 || !isStationMatchSearch(s, search)) return '';
+            visible.sort(function (a, b) { return b.wagons.length - a.wagons.length; });
 
+            var totalWagons = visible.reduce(function (acc, x) { return acc + x.wagons.length; }, 0);
+            summary.innerHTML = 'Станций: <strong>' + visible.length + '</strong> · Вагонов: <strong>' + totalWagons + '</strong>';
+
+            var html = visible.map(function (x) {
+                var s = x.s, cnt = x.wagons.length;
                 var isActive = activeStation && activeStation.code === s.code;
-
                 return '<div class="station-item' + (isActive ? ' active' : '') + '" onclick="selectStation(\'' + s.code + '\')">' +
                     '<div class="station-info">' +
                         '<div class="station-name">' + s.name + '</div>' +
