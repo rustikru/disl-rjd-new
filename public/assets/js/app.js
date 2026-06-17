@@ -467,13 +467,10 @@ var WAGON_TABS = {
   },
 }
 
-// Бейдж тренда: { pct, dir }
 function makeTrend(pct, dir) {
   return pct ? { pct: pct, dir: dir || 'neutral' } : null
 }
 
-// Стандартный набор карточек: одна акцентная (total) + по одной на каждый metrics[].
-// Если ctx задан — карточки кликабельны (drill-down по дороге).
 function metricsCards(data, mainLabel, ctx, groupBy) {
   return [{ label: mainLabel, value: data.total, accent: true, detail: ctx ? { ctx: ctx } : null }].concat(
     (data.metrics || []).map(function (m) {
@@ -486,7 +483,6 @@ function metricsCards(data, mainLabel, ctx, groupBy) {
   )
 }
 
-// Карточки дашборда — агрегируют несколько секций и добавляют тренды.
 function dashboardCards(data) {
   var grandTotal = 0, tankTotal = 0, commingToUgl = 0, arrivedTodayUgl = 0, loadedTransit = 0
   ;(data.sections || []).forEach(function (x) {
@@ -506,9 +502,6 @@ function dashboardCards(data) {
   ]
 }
 
-// Универсальный загрузчик KPI-блока.
-// cfg.cards(data) — кастомный построитель карточек; если не задан — используется metricsCards
-// с полями cfg.mainLabel / cfg.ctx / cfg.groupBy.
 function loadKpi(cfg) {
   $.getJSON(cfg.dataUrl, cfg.params ? cfg.params() : {}).done(function (data) {
     var items = cfg.cards
