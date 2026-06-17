@@ -381,8 +381,7 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        // Простои используют предвычисленные колонки из подзапроса (downtimeFrom),
-        // поэтому здесь нет resolveColDims — просто имена полей из подзапроса.
+        // Простои используют колонки из подзапроса (downtimeFrom)
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['oper_road', 'oper_station']);
         $colAliases = $this->parseGroupBy($params['col_by'] ?? '', ['fixed_col_label', 'm_wagon_type_code']);
         $selectRow = implode(', ', $rowDims);
@@ -413,7 +412,7 @@ class ApiController
         $bindings = $source['bindings'];
         $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
 
-        // wagon_type_code использует функцию из пакета
+        // wagon_type_code использует функцию из пакета (xx_dislocation_rjd_pkg)
         $rawFields = array_values(array_filter(
             array_map('trim', explode(',', $params['fields'] ?? '')),
             fn($f) => self::isSafeField($f)
@@ -633,6 +632,7 @@ class ApiController
                         , XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days,'name')     AS idle_time_name
                         , TO_NUMBER(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_get_downtime_wagon(idle_time_days,'order_by')) AS idle_time_order_by
                         , " . self::WAG_TYPE_EXPR . " AS m_wagon_type_code
+                        , " . self::WAG_STATE . " AS m_wag_state
                         , 'Кол-во' AS fixed_col_label
                    FROM xx_dislocation_rjd xdr
                    WHERE $whereCond

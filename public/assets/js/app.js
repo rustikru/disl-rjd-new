@@ -362,13 +362,13 @@ var WAGON_TABS = {
     loadedDetKey: '_downtimeDetLoaded',
     applyBtnId: 'btnDowntimeApply',
     groupCols: [
-      //{ key: 'oper_station', label: 'Станция' },
       { key: 'cargo_name', label: 'Груз' },
       { key: 'idle_time_name', label: 'Простой' },
     ],
     colDims: [
       { key: 'fixed_col_label', synthetic: true },
       { key: 'm_wagon_type_code', paramName: 'wagon_type' },
+      { key: 'm_wag_state', paramName: 'wag_state' },
     ],
     getParams: function () {
       var destStation = $('#fDowntimeDestStation').val()

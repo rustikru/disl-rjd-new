@@ -3,10 +3,9 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL & ~E_DEPRECATED);
 set_time_limit(0);
 
-// Имя итогового файла
+// Имя файла
 $jsonFile = 'railway_stations.json';
 
-// ИСПРАВЛЕНО: Базовый URL теперь СРАЗУ содержит GET-фильтры из твоей ссылки
 $url = 'https://raillogistic.ru/stations.php?q=&railway=&region=&type=станция';
 
 echo "=== Запуск точечного парсинга ЖД станций (GET-фильтр + POST-пагинация) ===\n";
@@ -16,7 +15,7 @@ function getPageHtml($url, $page)
 {
 
     $ch = curl_init();
-    // Передаем URL вместе с GET-параметрами фильтра
+
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
@@ -24,7 +23,7 @@ function getPageHtml($url, $page)
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
 
-    // Номер страницы по-прежнему передаем через POST
+
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
         'page' => $page
@@ -41,7 +40,6 @@ function getPageHtml($url, $page)
     return $html;
 }
 
-// Шаг 1. Получаем первую страницу отфильтрованного списка
 echo "Проверяем количество страниц для фильтра... ";
 $firstPageHtml = getPageHtml($url, 1);
 
@@ -55,7 +53,6 @@ $dom->loadHTML('<?xml encoding="UTF-8">' . $firstPageHtml);
 libxml_clear_errors();
 $xpath = new DOMXPath($dom);
 
-// Вычисляем количество страниц именно для этой выборки
 $totalPages = 1;
 $paginationLinks = $xpath->query("//ul[contains(@class, 'pagination')]//a");
 if ($paginationLinks->length > 0) {
@@ -69,8 +66,8 @@ if ($paginationLinks->length > 0) {
 echo "Найдено страниц: $totalPages\n";
 
 $allStations = [];
-$totalPages = 109;
-// Шаг 2. Погнали по страницам
+//$totalPages = 109;
+
 for ($page = 1; $page <= $totalPages; $page++) {
     echo "[Страница $page/$totalPages] Получение данных... ";
 
