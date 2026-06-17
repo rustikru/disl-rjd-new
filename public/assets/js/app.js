@@ -206,6 +206,7 @@ var WAGON_TABS = {
     detailUrl:      BASE + '/api/dislocation/detail',
     csvFilename:    'дислокация',
     csvDetFilename: 'дислокация-расширенная',
+    totalText:   'Общий итог',
     sumTableId:  'mainTable',
     sumSubId:    'mainTableSub',
     sumSubLabel: 'Итого по дислокации',
@@ -241,10 +242,11 @@ var WAGON_TABS = {
     kpi: function (data) {
       return makeRoadKpi(this, data, 'Всего в подходе')
     },
-    csvFilename: 'подход',
+    csvFilename:    'подход',
     csvDetFilename: 'подход-расширенная',
-    sumTableId: 'approachSumTable',
-    sumSubId: 'approachSumSub',
+    totalText:      'Всего в подходе',
+    sumTableId:  'approachSumTable',
+    sumSubId:    'approachSumSub',
     sumSubLabel: 'Всего в подходе',
     detTableId: 'approachDetTable',
     detSubId: 'approachDetSub',
@@ -288,10 +290,11 @@ var WAGON_TABS = {
     kpi: function (data) {
       return makeRoadKpi(this, data, 'Всего отправлено')
     },
-    csvFilename: 'отправление',
+    csvFilename:    'отправление',
     csvDetFilename: 'отправление-расширенная',
-    sumTableId: 'departureSumTable',
-    sumSubId: 'departureSumSub',
+    totalText:   'Всего отправлено',
+    sumTableId:  'departureSumTable',
+    sumSubId:    'departureSumSub',
     sumSubLabel: 'Всего',
     detTableId: 'departureDetTable',
     detSubId: 'departureDetSub',
@@ -331,10 +334,11 @@ var WAGON_TABS = {
     kpi: function (data) {
       return makeRoadKpi(this, data, 'Всего погружено')
     },
-    csvFilename: 'погрузка',
+    csvFilename:    'погрузка',
     csvDetFilename: 'погрузка-расширенная',
-    sumTableId: 'loadingSumTable',
-    sumSubId: 'loadingSumSub',
+    totalText:   'Всего погружено',
+    sumTableId:  'loadingSumTable',
+    sumSubId:    'loadingSumSub',
     sumSubLabel: 'Всего',
     detTableId: 'loadingDetTable',
     detSubId: 'loadingDetSub',
@@ -367,10 +371,11 @@ var WAGON_TABS = {
     summaryUrl: BASE + '/api/downtime/summary',
     detailUrl: BASE + '/api/downtime/detail',
     filtersUrl: BASE + '/api/downtime/filters',
-    csvFilename: 'простои',
+    csvFilename:    'простои',
     csvDetFilename: 'простои-расширенная',
-    sumTableId: 'downtimeSumTable',
-    sumSubId: 'downtimeSumSub',
+    totalText:   'Вагонов с простоем',
+    sumTableId:  'downtimeSumTable',
+    sumSubId:    'downtimeSumSub',
     sumSubLabel: 'Вагонов с простоем',
     detTableId: 'downtimeDetTable',
     detSubId: 'downtimeDetSub',
@@ -414,6 +419,7 @@ var WAGON_TABS = {
     },
     csvFilename:    'сырьё',
     csvDetFilename: 'сырьё-расширенная',
+    totalText:   'Гружёных вагонов',
     sumTableId:  'rawSumTable',
     sumSubId:    'rawSumSub',
     sumSubLabel: 'Гружёных вагонов',
@@ -618,6 +624,7 @@ function loadSummary(cfg) {
         cfg.ctx,
         cfg.groupCols,
         subtotalDepth,
+        cfg.totalText,
       )
       $sub.text(
         cfg.sumSubLabel +
@@ -978,7 +985,7 @@ function showTable($container, rows, colDefs) {
 
 /******** Сводная и KPI ********/
 
-function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth) {
+function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth, totalText) {
   if (!roads || !roads.length) {
     $(selector).html(
       '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных по данным параметрам.</td></tr></tbody>',
@@ -1427,7 +1434,7 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth) {
 
   // Строка «Общий итог» — первая в tbody
   var totalH = [
-    '<tr class="row-total row-grand"><td class="col-meta col-meta--l0">Общий итог</td>',
+    '<tr class="row-total row-grand"><td class="col-meta col-meta--l0">' + esc(totalText || 'Общий итог') + '</td>',
   ]
 
   if (!hasSubtotals) {
