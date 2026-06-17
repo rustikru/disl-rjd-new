@@ -135,11 +135,11 @@ class ApiController
     /* Строит и выполняет запрос для сводной таблицы, затем преобразует результат в roadTable-формат */
     private function summaryReport(array $base, array $rowDims, array $colDefs): array
     {
-        $rowSelect  = implode(', ', $rowDims);
-        $colSelect  = implode(', ', array_map(fn($c) => $this->applyFormat($c) . " AS {$c['alias']}", $colDefs));
+        $rowSelect = implode(', ', $rowDims);
+        $colSelect = implode(', ', array_map(fn($c) => $this->applyFormat($c) . " AS {$c['alias']}", $colDefs));
         $colGroupBy = implode(', ', array_map(fn($c) => $this->applyFormat($c), $colDefs));
-        $colFields  = array_column($colDefs, 'alias');
-        $colOrder   = implode(', ', $colFields);
+        $colFields = array_column($colDefs, 'alias');
+        $colOrder = implode(', ', $colFields);
 
         $rows = $this->db->fetchAll(
             "SELECT $rowSelect, $colSelect, COUNT(*) AS cnt
@@ -265,12 +265,12 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        $colDefs    = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
-        $rowSelect  = implode(', ', $rowDims);
-        $colSelect  = implode(', ', array_map(fn($c) => $this->applyFormat($c) . " AS {$c['alias']}", $colDefs));
+        $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
+        $rowSelect = implode(', ', $rowDims);
+        $colSelect = implode(', ', array_map(fn($c) => $this->applyFormat($c) . " AS {$c['alias']}", $colDefs));
         $colGroupBy = implode(', ', array_map(fn($c) => $this->applyFormat($c), $colDefs));
-        $colFields  = array_column($colDefs, 'alias');
-        $colOrder   = implode(', ', $colFields);
+        $colFields = array_column($colDefs, 'alias');
+        $colOrder = implode(', ', $colFields);
 
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $rows = $this->db->fetchAll(
@@ -290,7 +290,7 @@ class ApiController
     public function dislDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $gf = $this->groupFields($params['group_by'] ?? '', ['dest_state', 'dest_road']);
+        $gf = $this->groupFields($params['group_by'] ?? '', ['dest_state']);
         $gfStr = implode(', ', $gf);
 
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
@@ -571,11 +571,11 @@ class ApiController
         $rowDims = $this->groupFields($params['group_by'] ?? '', ['cargo_name']);
         $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code']);
 
-        $rowSelect  = implode(', ', $rowDims);
-        $colSelect  = implode(', ', array_map(fn($c) => $this->applyFormat($c) . " AS {$c['alias']}", $colDefs));
+        $rowSelect = implode(', ', $rowDims);
+        $colSelect = implode(', ', array_map(fn($c) => $this->applyFormat($c) . " AS {$c['alias']}", $colDefs));
         $colGroupBy = implode(', ', array_map(fn($c) => $this->applyFormat($c), $colDefs));
-        $colFields  = array_column($colDefs, 'alias');
-        $colOrder   = implode(', ', $colFields);
+        $colFields = array_column($colDefs, 'alias');
+        $colOrder = implode(', ', $colFields);
 
         $rows = $this->db->fetchAll(
             "SELECT $rowSelect, $colSelect, COUNT(*) AS cnt
