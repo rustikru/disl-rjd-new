@@ -997,24 +997,35 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth) {
   var hasSubtotals = (subtotalDepth !== null && subtotalDepth !== undefined && depth > subtotalDepth + 1)
 
   if (hasSubtotals) {
+    // Prepend an 'Итого' group at the left that sums across all top-level groups,
+    // keeping the sub-column breakdown (e.g. гр./пор. per cargo state)
+    var subColCount = levels[subtotalDepth][0].span
+    var topGroupCount = levels[subtotalDepth].length
     var dlvl
+
     for (dlvl = 0; dlvl < depth; dlvl++) { displayLevels.push([]) }
-    var flatIdx = 0
-    var subLvlIdx = 0
-    levels[subtotalDepth].forEach(function (grp) {
-      var span = grp.span
-      displayLevels[subtotalDepth].push({ label: grp.label, span: span + 1 })
-      displayLevels[subtotalDepth + 1].push({ label: 'Σ', span: 1, isSubtotal: true })
-      for (var j = 0; j < span; j++) {
-        displayLevels[subtotalDepth + 1].push(levels[subtotalDepth + 1][subLvlIdx + j])
-      }
-      displayCells.push({ isSubtotal: true, col: grp.label, dataFrom: flatIdx, dataTo: flatIdx + span - 1 })
-      for (var fi = flatIdx; fi < flatIdx + span; fi++) {
-        displayCells.push({ isSubtotal: false, col: flatCells[fi].col, subs: flatCells[fi].subs, dataIdx: fi })
-      }
-      flatIdx += span
-      subLvlIdx += span
+
+    // Level subtotalDepth: prepend 'Итого' group, then original groups
+    displayLevels[subtotalDepth].push({ label: 'Итого', span: subColCount, isSubtotal: true })
+    levels[subtotalDepth].forEach(function (g) { displayLevels[subtotalDepth].push(g) })
+
+    // Level subtotalDepth+1: prepend sub-column labels from first group, then all original
+    for (var j = 0; j < subColCount; j++) {
+      displayLevels[subtotalDepth + 1].push({ label: levels[subtotalDepth + 1][j].label, span: 1, isSubtotal: true })
+    }
+    levels[subtotalDepth + 1].forEach(function (c) { displayLevels[subtotalDepth + 1].push(c) })
+
+    // displayCells: subtotal entries (one per sub-column position), then regular cells
+    for (var si = 0; si < subColCount; si++) {
+      var idxs = []
+      for (var gi = 0; gi < topGroupCount; gi++) { idxs.push(gi * subColCount + si) }
+      displayCells.push({ isSubtotal: true, col: 'Итого', subs: flatCells[si].subs, indices: idxs })
+    }
+    flatCells.forEach(function (fc, fi) {
+      displayCells.push({ isSubtotal: false, col: fc.col, subs: fc.subs, dataIdx: fi })
     })
+
+    // Copy other levels unchanged
     for (dlvl = 0; dlvl < depth; dlvl++) {
       if (dlvl !== subtotalDepth && dlvl !== subtotalDepth + 1) {
         displayLevels[dlvl] = levels[dlvl].slice()
@@ -1100,7 +1111,7 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth) {
   function getDisplayVal(dc, valArray) {
     if (dc.isSubtotal) {
       var s = 0
-      for (var si = dc.dataFrom; si <= dc.dataTo; si++) { s += valArray[si] || 0 }
+      ;(dc.indices || []).forEach(function (i) { s += valArray[i] || 0 })
       return s
     }
     return valArray[dc.dataIdx]
