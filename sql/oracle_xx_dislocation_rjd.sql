@@ -1,14 +1,23 @@
--- ================================================================
--- Таблица дислокации вагонов РЖД — Oracle
--- Типы основаны на анализе реальных данных из Excel-выгрузки
--- ID управляется через XX_DISLOCATION_RJD_SEQ + триггер
--- Номера столбцов (кол. N) — позиция в Excel-файле выгрузки РЖД
---
--- ЗАПУСК: DBeaver / sqlcl — разделитель ";"
---   (без отдельных "/" — это только для SQL*Plus)
+
 -- ================================================================
 
-CREATE TABLE IF NOT EXISTS xx_dislocation_rjd (
+CREATE TABLE xx_users_rjd (
+    id            NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    username      VARCHAR2(100) UNIQUE NOT NULL,
+    display_name  VARCHAR2(255) NOT NULL,
+    email         VARCHAR2(255) DEFAULT '',
+    password_hash VARCHAR2(255) DEFAULT '',
+    is_active     NUMBER(1) DEFAULT 1 NOT NULL,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+-- администратор (пароль user)
+INSERT INTO xx_users_rjd (username, display_name, email, password_hash)
+  VALUES ('user', 'Пользователь', 'user@local.ru',
+          '$2y$10$1scGJYlRMvoeTRWdI2GH4.ubyq9Z7LoSNeJNffvGbDISeCZ/z1FzC');
+COMMIT;
+/
+
+CREATE TABLE xx_dislocation_rjd (
     id                     NUMBER         NOT NULL PRIMARY KEY,
     report_dt              TIMESTAMP      NOT NULL,  -- дата справки из ячейки A2
     type_reference         VARCHAR2(50),   -- тип справки: 'Подход' / 'Отправка' (вычисляется при импорте по dest_station)
