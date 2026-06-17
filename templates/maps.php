@@ -133,52 +133,23 @@ $user = $user ?? ['display_name' => 'Пользователь'];
         }
 
         .station-item {
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 4px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            margin-bottom: 2px;
             cursor: pointer;
-            transition: all .12s ease;
+            transition: background .1s ease;
             display: flex;
             align-items: center;
-            gap: 12px;
-            border: 1px solid transparent;
+            justify-content: space-between;
+            gap: 8px;
         }
 
         .station-item:hover {
-            background: #faf9fc;
+            background: #f0eef4;
         }
 
         .station-item.active {
             background: var(--primary-light);
-            border-color: rgba(79, 50, 142, 0.15);
-        }
-
-        .station-count {
-            min-width: 38px;
-            height: 38px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: var(--mono);
-            font-size: 13px;
-            font-weight: 600;
-            flex-shrink: 0;
-        }
-
-        .station-count.big {
-            background: var(--primary);
-            color: #fff;
-        }
-
-        .station-count.mid {
-            background: var(--primary-light);
-            color: var(--primary);
-        }
-
-        .station-count.small {
-            background: #f0eef4;
-            color: var(--muted);
         }
 
         .station-info {
@@ -188,10 +159,11 @@ $user = $user ?? ['display_name' => 'Пользователь'];
 
         .station-name {
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 500;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            color: var(--ink);
         }
 
         .station-meta {
@@ -203,27 +175,12 @@ $user = $user ?? ['display_name' => 'Пользователь'];
             text-overflow: ellipsis;
         }
 
-        .station-badges {
-            display: flex;
-            gap: 4px;
-            margin-top: 5px;
-        }
-
-        .badge {
-            font-size: 10px;
-            font-weight: 500;
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-
-        .badge.loaded {
-            background: #e6f4ea;
-            color: var(--loaded);
-        }
-
-        .badge.empty {
-            background: #fef7e0;
-            color: var(--empty);
+        .station-count {
+            font-family: var(--mono);
+            font-size: 13px;
+            font-weight: 600;
+            flex-shrink: 0;
+            color: var(--primary);
         }
 
         /* ── MAP & FIXES FOR MARKERS ── */
@@ -387,20 +344,14 @@ $user = $user ?? ['display_name' => 'Пользователь'];
 
                 if (cnt === 0 || !isStationMatchSearch(s, search)) return '';
 
-                var cls = cnt >= 100 ? 'big' : cnt >= 10 ? 'mid' : 'small';
                 var isActive = activeStation && activeStation.code === s.code;
-                var loaded = wagons.filter(function (w) { return w.ld; }).length;
 
                 return '<div class="station-item' + (isActive ? ' active' : '') + '" onclick="selectStation(\'' + s.code + '\')">' +
-                    '<div class="station-count ' + cls + '">' + cnt + '</div>' +
                     '<div class="station-info">' +
                         '<div class="station-name">' + s.name + '</div>' +
-                        '<div class="station-meta">' + s.road + ' ж.д. · ' + s.code + '</div>' +
-                        '<div class="station-badges">' +
-                            (loaded > 0 ? '<span class="badge loaded">' + loaded + ' груж</span>' : '') +
-                            (cnt - loaded > 0 ? '<span class="badge empty">' + (cnt - loaded) + ' пор</span>' : '') +
-                        '</div>' +
+                        '<div class="station-meta">' + s.road + ' ж.д.</div>' +
                     '</div>' +
+                    '<div class="station-count">' + cnt + '</div>' +
                 '</div>';
             }).join('');
 
