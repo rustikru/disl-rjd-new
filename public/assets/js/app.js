@@ -202,27 +202,27 @@ var WAGON_TABS = {
   // Дислокация
   dislocation: {
     ctx: 'dislocation',
-    summaryUrl:     BASE + '/api/dislocation/summary',
-    detailUrl:      BASE + '/api/dislocation/detail',
-    csvFilename:    'дислокация',
+    summaryUrl: BASE + '/api/dislocation/summary',
+    detailUrl: BASE + '/api/dislocation/detail',
+    csvFilename: 'дислокация',
     csvDetFilename: 'дислокация-расширенная',
-    totalText:   'Общий итог',
-    sumTableId:  'mainTable',
-    sumSubId:    'mainTableSub',
+    totalText: 'Общий итог',
+    sumTableId: 'mainTable',
+    sumSubId: 'mainTableSub',
     sumSubLabel: 'Итого по дислокации',
-    detTableId:  'dislExtTable',
-    detPanelId:  'disl-extended',
-    loadedKey:    '_dislLoaded',
+    detTableId: 'dislExtTable',
+    detPanelId: 'disl-extended',
+    loadedKey: '_dislLoaded',
     loadedDetKey: '_extLoaded',
-    applyBtnId:   'btnDislocationApply',
+    applyBtnId: 'btnDislocationApply',
     groupCols: [
-      { key: 'dest_state',   label: 'Страна назначения' },
-      { key: 'dest_road',    label: 'Дорога назначения' },
+      { key: 'dest_state', label: 'Страна назначения' },
+      { key: 'dest_road', label: 'Дорога назначения' },
       { key: 'dest_station', label: 'Станция назначения' },
     ],
     colDims: [
       { key: 'wagon_type_code', paramName: 'wagon_type' },
-      { key: 'cargo_w_type',    paramName: 'cargo_state' },
+      { key: 'cargo_w_type', paramName: 'cargo_state' },
     ],
     getParams: function () {
       return { wagon_no: $('#fDislocationWagonNo').val().trim() || undefined }
@@ -242,11 +242,11 @@ var WAGON_TABS = {
     kpi: function (data) {
       return makeRoadKpi(this, data, 'Всего в подходе')
     },
-    csvFilename:    'подход',
+    csvFilename: 'подход',
     csvDetFilename: 'подход-расширенная',
-    totalText:      'Всего в подходе',
-    sumTableId:  'approachSumTable',
-    sumSubId:    'approachSumSub',
+    totalText: 'Общий итог - ст.Углеуральская',
+    sumTableId: 'approachSumTable',
+    sumSubId: 'approachSumSub',
     sumSubLabel: 'Всего в подходе',
     detTableId: 'approachDetTable',
     detSubId: 'approachDetSub',
@@ -264,8 +264,8 @@ var WAGON_TABS = {
     totalColDims: ['wagon_type_code'], // Итог по строке в разрезе (пор. / гр.)
     getParams: function () {
       return {
-        wagon_no:  $('#fApproachWagonNo').val().trim() || undefined,
-        cargo:     $('#fApproachCargo').val() || undefined,
+        wagon_no: $('#fApproachWagonNo').val().trim() || undefined,
+        cargo: $('#fApproachCargo').val() || undefined,
         //prev_cargo: $('#fApproachPrevCargo').val() || undefined,
       }
     },
@@ -290,11 +290,11 @@ var WAGON_TABS = {
     kpi: function (data) {
       return makeRoadKpi(this, data, 'Всего отправлено')
     },
-    csvFilename:    'отправление',
+    csvFilename: 'отправление',
     csvDetFilename: 'отправление-расширенная',
-    totalText:   'Всего отправлено',
-    sumTableId:  'departureSumTable',
-    sumSubId:    'departureSumSub',
+    totalText: 'Всего отправлено',
+    sumTableId: 'departureSumTable',
+    sumSubId: 'departureSumSub',
     sumSubLabel: 'Всего',
     detTableId: 'departureDetTable',
     detSubId: 'departureDetSub',
@@ -308,8 +308,8 @@ var WAGON_TABS = {
     colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
     getParams: function () {
       return {
-        wagon_no:     $('#fDepartureWagonNo').val().trim() || undefined,
-        cargo:        $('#fDepartureCargo').val() || undefined,
+        wagon_no: $('#fDepartureWagonNo').val().trim() || undefined,
+        cargo: $('#fDepartureCargo').val() || undefined,
         dest_station: $('#fDestStation').val() || undefined,
       }
     },
@@ -334,11 +334,11 @@ var WAGON_TABS = {
     kpi: function (data) {
       return makeRoadKpi(this, data, 'Всего погружено')
     },
-    csvFilename:    'погрузка',
+    csvFilename: 'погрузка',
     csvDetFilename: 'погрузка-расширенная',
-    totalText:   'Всего погружено',
-    sumTableId:  'loadingSumTable',
-    sumSubId:    'loadingSumSub',
+    totalText: 'Всего погружено',
+    sumTableId: 'loadingSumTable',
+    sumSubId: 'loadingSumSub',
     sumSubLabel: 'Всего',
     detTableId: 'loadingDetTable',
     detSubId: 'loadingDetSub',
@@ -353,7 +353,7 @@ var WAGON_TABS = {
     getParams: function () {
       return {
         wagon_no: $('#fLoadingWagonNo').val().trim() || undefined,
-        cargo:    $('#fLoadingCargo').val() || undefined,
+        cargo: $('#fLoadingCargo').val() || undefined,
       }
     },
     fillFilters: function (data) {
@@ -371,11 +371,11 @@ var WAGON_TABS = {
     summaryUrl: BASE + '/api/downtime/summary',
     detailUrl: BASE + '/api/downtime/detail',
     filtersUrl: BASE + '/api/downtime/filters',
-    csvFilename:    'простои',
+    csvFilename: 'простои',
     csvDetFilename: 'простои-расширенная',
-    totalText:   'Вагонов с простоем',
-    sumTableId:  'downtimeSumTable',
-    sumSubId:    'downtimeSumSub',
+    totalText: 'Вагонов с простоем',
+    sumTableId: 'downtimeSumTable',
+    sumSubId: 'downtimeSumSub',
     sumSubLabel: 'Вагонов с простоем',
     detTableId: 'downtimeDetTable',
     detSubId: 'downtimeDetSub',
@@ -395,7 +395,7 @@ var WAGON_TABS = {
     getParams: function () {
       var destStation = $('#fDowntimeDestStation').val()
       return {
-        wagon_no:     $('#fDowntimeWagonNo').val().trim() || undefined,
+        wagon_no: $('#fDowntimeWagonNo').val().trim() || undefined,
         dest_station: destStation !== '' ? destStation : undefined,
       }
     },
@@ -411,25 +411,25 @@ var WAGON_TABS = {
   // Сырьё
   'raw-material': {
     ctx: 'raw-material',
-    summaryUrl:     BASE + '/api/raw-material/summary',
-    detailUrl:      BASE + '/api/raw-material/detail',
+    summaryUrl: BASE + '/api/raw-material/summary',
+    detailUrl: BASE + '/api/raw-material/detail',
     metricsId: 'rawMetrics',
     kpi: function (data) {
       return makeRoadKpi(this, data, 'Гружёных вагонов')
     },
-    csvFilename:    'сырьё',
+    csvFilename: 'сырьё',
     csvDetFilename: 'сырьё-расширенная',
-    totalText:   'Гружёных вагонов',
-    sumTableId:  'rawSumTable',
-    sumSubId:    'rawSumSub',
+    totalText: 'Гружёных вагонов',
+    sumTableId: 'rawSumTable',
+    sumSubId: 'rawSumSub',
     sumSubLabel: 'Гружёных вагонов',
-    detTableId:  'rawDetTable',
-    detSubId:    'rawDetSub',
-    detPanelId:  'raw-detail',
-    loadedKey:    '_rawLoaded',
+    detTableId: 'rawDetTable',
+    detSubId: 'rawDetSub',
+    detPanelId: 'raw-detail',
+    loadedKey: '_rawLoaded',
     loadedDetKey: '_rawDetLoaded',
-    applyBtnId:   'btnRawApply',
-    resetBtnId:   'btnRawReset',
+    applyBtnId: 'btnRawApply',
+    resetBtnId: 'btnRawReset',
     groupCols: [
       { key: 'cargo_name', label: 'Груз' },
       //{ key: 'consignee', label: 'Грузополучатель' },
@@ -985,7 +985,15 @@ function showTable($container, rows, colDefs) {
 
 /******** Сводная и KPI ********/
 
-function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth, totalText) {
+function drawSummary(
+  selector,
+  roads,
+  data,
+  ctx,
+  groupCols,
+  subtotalDepth,
+  totalText,
+) {
   if (!roads || !roads.length) {
     $(selector).html(
       '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Нет данных по данным параметрам.</td></tr></tbody>',
@@ -1193,19 +1201,31 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth, total
   function subtotalCell(v, dataCtx, dataRoad, dataSt, subs, dataExtra) {
     var disp = typeof v === 'number' ? v.toLocaleString('ru-RU') : v || ''
     if (!v || !dataCtx) return '<td class="col-subtotal">' + disp + '</td>'
-    var extra = dataExtra ? ' data-extra="' + esc(JSON.stringify(dataExtra)) + '"' : ''
+    var extra = dataExtra
+      ? ' data-extra="' + esc(JSON.stringify(dataExtra)) + '"'
+      : ''
     return (
-      '<td class="col-subtotal cell-link" data-ctx="' + esc(dataCtx) +
-      '" data-road="' + esc(dataRoad) +
-      '" data-station="' + esc(dataSt) +
+      '<td class="col-subtotal cell-link" data-ctx="' +
+      esc(dataCtx) +
+      '" data-road="' +
+      esc(dataRoad) +
+      '" data-station="' +
+      esc(dataSt) +
       '" data-col=""' +
-      ' data-group-by="' + esc(groupBy) + '"' +
-      subAttrs(subs) + extra + '>' + disp + '</td>'
+      ' data-group-by="' +
+      esc(groupBy) +
+      '"' +
+      subAttrs(subs) +
+      extra +
+      '>' +
+      disp +
+      '</td>'
     )
   }
 
   function renderDisplayCell(dc, v, dataCtx, dataRoad, dataSt, dataExtra) {
-    if (dc.isSubtotal) return subtotalCell(v, dataCtx, dataRoad, dataSt, dc.subs, dataExtra)
+    if (dc.isSubtotal)
+      return subtotalCell(v, dataCtx, dataRoad, dataSt, dc.subs, dataExtra)
     return cellLink(
       v,
       dataCtx,
@@ -1234,14 +1254,16 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth, total
       groupHeader +
       '</th>',
   )
-  if (!hasSubtotals) h.push('<th class="col-total-col"' + rowspan + '>Итого</th>')
+  if (!hasSubtotals)
+    h.push('<th class="col-total-col"' + rowspan + '>Итого</th>')
 
   displayLevels[0].forEach(function (c) {
     h.push(
       '<th' +
         (c.span > 1 ? ' colspan="' + c.span + '"' : '') +
         (depth > 1 ? ' style="text-align:center"' : '') +
-        (c.isSubtotal ? ' class="col-subtotal-hd"' : '') +
+        //(c.isSubtotal ? ' class="col-subtotal-hd"' : '') +
+        (c.isSubtotal ? '' : '') +
         '>' +
         esc(c.label) +
         '</th>',
@@ -1256,7 +1278,8 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth, total
         '<th' +
           (c.span > 1 ? ' colspan="' + c.span + '"' : '') +
           ' style="text-align:center"' +
-          (c.isSubtotal ? ' class="col-subtotal-hd"' : '') +
+          //(c.isSubtotal ? ' class="col-subtotal-hd"' : '') +
+          (c.isSubtotal ? '' : '') +
           '>' +
           esc(c.label) +
           '</th>',
@@ -1290,7 +1313,8 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth, total
         esc(roadVal) +
         '</td>',
     )
-    if (!hasSubtotals) bodyH.push(totalLink(road.grand_total || 0, ctx, roadVal, ''))
+    if (!hasSubtotals)
+      bodyH.push(totalLink(road.grand_total || 0, ctx, roadVal, ''))
     displayCells.forEach(function (dc, di) {
       var v = getDisplayVal(dc, road.total || [])
       grandTotals[di] += v || 0
@@ -1337,7 +1361,8 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth, total
                 esc(stVal) +
                 '</td>',
             )
-            if (!hasSubtotals) out.push(totalLink(rowSum, ctx, roadVal, stVal, leafExtra))
+            if (!hasSubtotals)
+              out.push(totalLink(rowSum, ctx, roadVal, stVal, leafExtra))
             displayCells.forEach(function (dc) {
               out.push(
                 renderDisplayCell(
@@ -1405,7 +1430,8 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth, total
                 esc(groupVal) +
                 '</td>',
             )
-            if (!hasSubtotals) out.push(totalLink(subSum, ctx, '', '', curFiltersWithPath))
+            if (!hasSubtotals)
+              out.push(totalLink(subSum, ctx, '', '', curFiltersWithPath))
             displayCells.forEach(function (dc) {
               out.push(
                 renderDisplayCell(
@@ -1434,7 +1460,9 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth, total
 
   // Строка «Общий итог» — первая в tbody
   var totalH = [
-    '<tr class="row-total row-grand"><td class="col-meta col-meta--l0">' + esc(totalText || 'Общий итог') + '</td>',
+    '<tr class="row-total row-grand"><td class="col-meta col-meta--l0">' +
+      esc(totalText || 'Общий итог') +
+      '</td>',
   ]
 
   if (!hasSubtotals) {
@@ -1448,7 +1476,9 @@ function drawSummary(selector, roads, data, ctx, groupCols, subtotalDepth, total
       )
     } else {
       totalH.push(
-        '<td class="col-total-col">' + grandSum.toLocaleString('ru-RU') + '</td>',
+        '<td class="col-total-col">' +
+          grandSum.toLocaleString('ru-RU') +
+          '</td>',
       )
     }
   }
