@@ -22,6 +22,7 @@ class MapsController
     {
         $basePath = $this->config['base_path'] ?? '';
         $appName  = $this->config['app_name']  ?? 'Дислокация';
+        $user     = $_SESSION['user'] ?? ['display_name' => '', 'username' => '', 'auth_source' => ''];
 
         ob_start();
         include __DIR__ . '/../../templates/maps.php';

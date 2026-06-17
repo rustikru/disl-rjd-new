@@ -167,13 +167,13 @@ class ApiController
             }
             $stationsMap[$code]['count']++;
             $stationsMap[$code]['wagons'][] = [
-                'n'  => (string) ($r['wagon_no']       ?? ''),
-                'wt' => (string) ($r['wagon_type_code'] ?? ''),
-                'ld' => isset($r['cargo_weight_kg']) && (float) $r['cargo_weight_kg'] != 0.0,
-                'cg' => (string) ($r['cargo_name']     ?? ''),
-                'ds' => (string) ($r['dest_station']   ?? ''),
-                'ws' => (string) ($r['wagon_state']    ?? ''),
-                'dm' => (int)    ($r['idle_time_days'] ?? 0),
+                'wagon_num'    => (string) ($r['wagon_no']        ?? ''),
+                'wagon_type'   => (string) ($r['wagon_type_code'] ?? ''),
+                'ld'           => isset($r['cargo_weight_kg']) && (float) $r['cargo_weight_kg'] != 0.0,
+                'cargo'        => (string) ($r['cargo_name']      ?? ''),
+                'dest_station' => (string) ($r['dest_station']    ?? ''),
+                'wagon_state'  => (string) ($r['wagon_state']     ?? ''),
+                'days_no_move' => (int)    ($r['idle_time_days']  ?? 0),
             ];
         }
 
