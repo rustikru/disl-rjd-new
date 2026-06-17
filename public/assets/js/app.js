@@ -238,10 +238,10 @@ var WAGON_TABS = {
     summaryUrl: BASE + '/api/approach/summary',
     detailUrl: BASE + '/api/approach/detail',
     filtersUrl: BASE + '/api/approach/filters',
-    metricsId: 'approachMetrics',
+    /*metricsId: 'approachMetrics',
     kpi: function (data) {
       return makeRoadKpi(this, data, 'Всего в подходе')
-    },
+    },*/
     csvFilename: 'подход',
     csvDetFilename: 'подход-расширенная',
     totalText: 'Общий итог - ст.Углеуральская',
@@ -330,10 +330,12 @@ var WAGON_TABS = {
     summaryUrl: BASE + '/api/loading/summary',
     detailUrl: BASE + '/api/loading/detail',
     filtersUrl: BASE + '/api/loading/filters',
+    /*
     metricsId: 'loadingMetrics',
     kpi: function (data) {
       return makeRoadKpi(this, data, 'Всего погружено')
     },
+    */
     csvFilename: 'погрузка',
     csvDetFilename: 'погрузка-расширенная',
     totalText: 'Всего погружено',
@@ -414,10 +416,10 @@ var WAGON_TABS = {
     ctx: 'raw-material',
     summaryUrl: BASE + '/api/raw-material/summary',
     detailUrl: BASE + '/api/raw-material/detail',
-    metricsId: 'rawMetrics',
+    /*metricsId: 'rawMetrics',
     kpi: function (data) {
       return makeRoadKpi(this, data, 'Гружёных вагонов')
-    },
+    },*/
     csvFilename: 'сырьё',
     csvDetFilename: 'сырьё-расширенная',
     totalText: 'Гружёных вагонов',
