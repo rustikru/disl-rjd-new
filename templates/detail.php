@@ -23,13 +23,35 @@ $basePath = $basePath ?? '';
       gap: 4px;
       flex-wrap: wrap;
     }
-    .detail-breadcrumb .bc-sep { color: var(--border); }
-    .detail-breadcrumb .bc-item { color: var(--text-2); }
-    .detail-breadcrumb .bc-item.bc-active { color: var(--text-1); font-weight: 700; }
-    .detail-page-body { padding: 16px 20px 40px; max-width: 100%; }
-    .detail-header-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 
-    #detailTable { overflow: hidden; }
+    .detail-breadcrumb .bc-sep {
+      color: var(--border);
+    }
+
+    .detail-breadcrumb .bc-item {
+      color: var(--text-2);
+    }
+
+    .detail-breadcrumb .bc-item.bc-active {
+      color: var(--text-1);
+      font-weight: 700;
+    }
+
+    .detail-page-body {
+      padding: 16px 20px 40px;
+      max-width: 100%;
+    }
+
+    .detail-header-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    #detailTable {
+      overflow: hidden;
+    }
   </style>
 </head>
 
@@ -38,9 +60,12 @@ $basePath = $basePath ?? '';
   <header class="site-header">
     <div class="header-inner">
       <div class="brand">
-        <div class="brand-icon"></div>
+        <div class="brand-icon">
+          <img src="<?= htmlspecialchars($basePath) ?>/assets/img/meta-logo.png" alt="" class="brand-logo">
+        </div>
         <div class="brand-text">
           <div class="brand-name"><?= htmlspecialchars($appName) ?></div>
+          <div id="brandDateSub" class="brand-date-sub"></div>
         </div>
       </div>
       <div class="header-meta">
@@ -121,21 +146,21 @@ $basePath = $basePath ?? '';
 
     $(function () {
       var params = new URLSearchParams(window.location.search);
-      var ctx        = params.get('ctx')          || '';
-      var road       = params.get('road')         || '';
-      var station    = params.get('station')      || '';
-      var wagType    = params.get('wagon_type')   || '';
-      var cargoState = params.get('cargo_state')  || '';
+      var ctx = params.get('ctx') || '';
+      var road = params.get('road') || '';
+      var station = params.get('station') || '';
+      var wagType = params.get('wagon_type') || '';
+      var cargoState = params.get('cargo_state') || '';
 
       var ctxDef = null;
       var def = DETAIL_CONTEXTS[ctx];
       if (def) {
         var endpointOverride = params.get('_endpoint');
         ctxDef = {
-          label:    def.label,
+          label: def.label,
           endpoint: BASE + (endpointOverride || def.endpoint),
-          cols:     def.cols,
-          sort:     def.sort || null,
+          cols: def.cols,
+          sort: def.sort || null,
         };
       }
 
@@ -143,14 +168,14 @@ $basePath = $basePath ?? '';
 
       var bcpathRaw = params.get('_bcpath') || '';
       var bcpathParts = [];
-      try { if (bcpathRaw) bcpathParts = JSON.parse(bcpathRaw); } catch (e) {}
+      try { if (bcpathRaw) bcpathParts = JSON.parse(bcpathRaw); } catch (e) { }
       var titleParts = [];
       if (ctxDef) { titleParts.push(ctxDef.label); }
       if (road) { titleParts.push(road); }
       else if (bcpathParts.length) { bcpathParts.forEach(function (p) { if (p) titleParts.push(p); }); }
-      if (station)   { titleParts.push(station); }
-      if (wagType)   { titleParts.push(wagType); }
-      if (cargoState){ titleParts.push(cargoState); }
+      if (station) { titleParts.push(station); }
+      if (wagType) { titleParts.push(wagType); }
+      if (cargoState) { titleParts.push(cargoState); }
       $('#detailTitle').text(titleParts.join(' › ') || 'Детализация');
 
       if (!ctxDef) {
@@ -169,7 +194,7 @@ $basePath = $basePath ?? '';
         var sortArr = Array.isArray(ctxDef.sort) ? ctxDef.sort : [ctxDef.sort];
         sortArr = sortArr.filter(function (s) { return s && s.field; });
         if (sortArr.length) {
-          apiParams.set('sort',     sortArr.map(function (s) { return s.field; }).join(','));
+          apiParams.set('sort', sortArr.map(function (s) { return s.field; }).join(','));
           apiParams.set('sort_dir', sortArr.map(function (s) { return s.dir || 'asc'; }).join(','));
           var types = sortArr.map(function (s) { return s.type || ''; }).join(',');
           if (types.replace(/,/g, '')) apiParams.set('sort_type', types);
@@ -207,8 +232,8 @@ $basePath = $basePath ?? '';
       }
       if (!d) return s;
       return mask.replace('HH24', d.HH24).replace('YYYY', d.YYYY)
-                 .replace('MM', d.MM).replace('DD', d.DD)
-                 .replace('MI', d.MI).replace('SS', d.SS);
+        .replace('MM', d.MM).replace('DD', d.DD)
+        .replace('MI', d.MI).replace('SS', d.SS);
     }
 
     function showTable(rows, cols) {
@@ -219,16 +244,16 @@ $basePath = $basePath ?? '';
         }
         return c;
       });
-      _vtAllData  = rows || [];
+      _vtAllData = rows || [];
       _vtFiltered = _vtAllData.slice();
-      _vtCols     = cols;
+      _vtCols = cols;
 
-      var ROW_H    = 28;
-      var BUFFER   = 8;
+      var ROW_H = 28;
+      var BUFFER = 8;
       var measured = [];
 
       (function measureCols() {
-        var cv  = document.createElement('canvas');
+        var cv = document.createElement('canvas');
         var ctx = cv.getContext('2d');
         var PAD = 20, MIN = 50, MAX = 320;
         ctx.font = 'bold 12px sans-serif';
@@ -245,19 +270,19 @@ $basePath = $basePath ?? '';
           });
         });
       })();
-      var availW   = document.getElementById('detailTable').offsetWidth || (window.innerWidth - 40);
-      var baseW    = measured.reduce(function (s, w) { return s + w; }, 0);
-      var scale    = availW > baseW ? availW / baseW : 1;
+      var availW = document.getElementById('detailTable').offsetWidth || (window.innerWidth - 40);
+      var baseW = measured.reduce(function (s, w) { return s + w; }, 0);
+      var scale = availW > baseW ? availW / baseW : 1;
       var template = measured.map(function (w) { return Math.floor(w * scale) + 'px'; }).join(' ');
-      var totalW   = availW > baseW ? availW : baseW;
+      var totalW = availW > baseW ? availW : baseW;
 
       $('#detailTable').html(
         '<div class="vt-viewport" id="vtVp">' +
-          '<div class="vt-content" style="width:' + totalW + 'px">' +
-            '<div class="vt-head"   id="vtHead"   style="grid-template-columns:' + template + ';width:' + totalW + 'px"></div>' +
-            '<div class="vt-filter" id="vtFilter" style="grid-template-columns:' + template + ';width:' + totalW + 'px"></div>' +
-            '<div id="vtRows"></div>' +
-          '</div>' +
+        '<div class="vt-content" style="width:' + totalW + 'px">' +
+        '<div class="vt-head"   id="vtHead"   style="grid-template-columns:' + template + ';width:' + totalW + 'px"></div>' +
+        '<div class="vt-filter" id="vtFilter" style="grid-template-columns:' + template + ';width:' + totalW + 'px"></div>' +
+        '<div id="vtRows"></div>' +
+        '</div>' +
         '</div>'
       );
 
@@ -266,7 +291,7 @@ $basePath = $basePath ?? '';
         hHtml += '<div class="vt-th' + (c.meta ? ' col-meta' : '') + '">' + esc(c.label) + '</div>';
         fHtml += '<div class="vt-fc"><input data-k="' + c.key + '" type="text" placeholder=""></div>';
       });
-      document.getElementById('vtHead').innerHTML   = hHtml;
+      document.getElementById('vtHead').innerHTML = hHtml;
       document.getElementById('vtFilter').innerHTML = fHtml;
 
       function cellHtml(c, row) {
@@ -277,14 +302,14 @@ $basePath = $basePath ?? '';
         var style = '';
         if (c.danger) {
           var d = parseFloat(display) || 0;
-          if (d >= 7)      style = ' style="color:#E8392A;font-weight:700"';
+          if (d >= 7) style = ' style="color:#E8392A;font-weight:700"';
           else if (d >= 3) style = ' style="color:#E8A530;font-weight:600"';
         }
         return '<div class="' + cls + '"' + style + '>' + esc(String(display)) + '</div>';
       }
 
-      var vp      = document.getElementById('vtVp');
-      var rowsEl  = document.getElementById('vtRows');
+      var vp = document.getElementById('vtVp');
+      var rowsEl = document.getElementById('vtRows');
       var lastFirst = -1, lastLast = -1;
 
       function render(force) {
@@ -292,12 +317,12 @@ $basePath = $basePath ?? '';
         var total = _vtFiltered.length;
         var viewRows = Math.ceil(vp.clientHeight / ROW_H);
         var first = Math.max(0, Math.floor(scrollTop / ROW_H) - BUFFER);
-        var last  = Math.min(total, first + viewRows + BUFFER * 2);
+        var last = Math.min(total, first + viewRows + BUFFER * 2);
         if (!force && first === lastFirst && last === lastLast) return;
         lastFirst = first; lastLast = last;
 
         if (!total) {
-          rowsEl.style.paddingTop    = '0';
+          rowsEl.style.paddingTop = '0';
           rowsEl.style.paddingBottom = '0';
           rowsEl.innerHTML = '<div class="vt-empty">Нет данных</div>';
           return;
@@ -308,14 +333,14 @@ $basePath = $basePath ?? '';
           cols.forEach(function (c) { html += cellHtml(c, _vtFiltered[i]); });
           html += '</div>';
         }
-        rowsEl.style.paddingTop    = (first * ROW_H) + 'px';
+        rowsEl.style.paddingTop = (first * ROW_H) + 'px';
         rowsEl.style.paddingBottom = ((total - last) * ROW_H) + 'px';
         rowsEl.innerHTML = html;
       }
 
       document.getElementById('vtFilter').addEventListener('input', function () {
         var inputs = this.querySelectorAll('input');
-        var terms  = [];
+        var terms = [];
         for (var i = 0; i < inputs.length; i++) {
           var v = inputs[i].value.trim().toLowerCase();
           if (v) terms.push({ k: inputs[i].getAttribute('data-k'), v: v });
@@ -340,7 +365,7 @@ $basePath = $basePath ?? '';
 
       function fitVpHeight() {
         var top = vp.getBoundingClientRect().top;
-        var h   = top > 0 ? window.innerHeight - top - 10 : window.innerHeight - 10;
+        var h = top > 0 ? window.innerHeight - top - 10 : window.innerHeight - 10;
         vp.style.height = Math.max(300, h) + 'px';
         render(false);
       }
