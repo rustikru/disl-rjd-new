@@ -18,7 +18,7 @@ var TAB_GROUPS = [
     label: 'Аналитика',
     tabs: [
       { id: 'analysis-period', label: 'Анализ за период' },
-      { id: 'maps', label: 'Карта' },
+      { id: 'maps', label: 'Карта', url: BASE + '/maps' },
     ],
   },
   {
@@ -28,7 +28,11 @@ var TAB_GROUPS = [
   {
     label: 'Импорт',
     tabs: [
-      { id: 'import', label: ' Загрузка справки РЖД ', url: BASE + '/import' },
+      {
+        id: 'import',
+        label: ' Загрузка справки РЖД ',
+        url: BASE + '/import-file',
+      },
     ],
   },
 ]

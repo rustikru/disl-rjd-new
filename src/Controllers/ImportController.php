@@ -169,13 +169,13 @@ class ImportController
 
         if ($file->getError() !== UPLOAD_ERR_OK) {
             return $this->jsonResponse($response, 422, [
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Ошибка загрузки (код ' . $file->getError() . ')',
             ]);
         }
 
         $name = $file->getClientFilename() ?: 'file';
-        $ext  = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
         if (!in_array($ext, ['xlsx'], true)) {
             return $this->jsonResponse($response, 422, ['status' => 'error', 'message' => 'Допускаются только .xlsx']);
         }
@@ -194,19 +194,19 @@ class ImportController
 
         if ($result['skipped']) {
             return $this->jsonResponse($response, 200, [
-                'status'    => 'warn',
-                'message'   => 'Справка «' . $result['type'] . '» на ' . $result['report_dt'] . ' уже загружена',
+                'status' => 'warn',
+                'message' => 'Справка «' . $result['type'] . '» на ' . $result['report_dt'] . ' уже загружена',
                 'report_dt' => $result['report_dt'],
-                'type'      => $result['type'],
+                'type' => $result['type'],
             ]);
         }
 
         return $this->jsonResponse($response, 200, [
-            'status'    => 'ok',
-            'message'   => 'Загружено ' . $result['rows'] . ' строк',
-            'rows'      => $result['rows'],
+            'status' => 'ok',
+            'message' => 'Загружено ' . $result['rows'] . ' строк',
+            'rows' => $result['rows'],
             'report_dt' => $result['report_dt'],
-            'type'      => $result['type'],
+            'type' => $result['type'],
         ]);
     }
 
