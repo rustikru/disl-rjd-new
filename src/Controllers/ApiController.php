@@ -529,7 +529,7 @@ class ApiController
         }
 
         $bindings = ['report_dt' => $reportDt];
-        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Подход' AND dist_remain_km IS NOT NULL AND dist_remain_km != 0";
+        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Подход' and upper(dest_station) like '%УГЛ%'";
 
         $cargo = $params['cargo'] ?? null;
         if ($cargo) {
@@ -555,7 +555,7 @@ class ApiController
         }
 
         $bindings = ['report_dt' => $reportDt];
-        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР'";
+        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР' and upper(dest_station) not like '%УГЛ%'";
 
         $cargo = $params['cargo'] ?? null;
         if ($cargo) {
