@@ -117,17 +117,11 @@ class ApiController
              ORDER BY TRUNC(report_dt) DESC, type_reference'
         );
 
-        $dtsByType = $this->getLatestDtsByType(null, ['Подход', 'Отправка']);
-        if (empty($dtsByType)) {
-            return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
-        }
-        $cond = $this->latestDtCondition($dtsByType);
-        $bindings = $cond['params'];
-
-        $cargo = $this->db->fetchAll(
-            "SELECT DISTINCT cargo_name FROM xx_dislocation_rjd WHERE cargo_name IS NOT NULL and {$cond['sql']} order by cargo_name",
-            $bindings
-        );
+        $source = $this->dislFrom([]);
+        $cargo = $source['reportDt'] ? $this->db->fetchAll(
+            "SELECT DISTINCT cargo_name FROM {$source['from']} WHERE cargo_name IS NOT NULL ORDER BY cargo_name",
+            $source['bindings']
+        ) : [];
 
         $reports = array_map(function (array $r) {
             $dt = (string) ($r['report_date'] ?? '');
@@ -154,20 +148,14 @@ class ApiController
     public function dislSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
-        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state', 'dest_road']);
+        $source = $this->dislFrom($params);
 
-        if (empty($dtsByType)) {
+        if (!$source['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state', 'dest_road']);
         $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
-        $cond = $this->latestDtCondition($dtsByType);
-        $bindings = $cond['params'];
-        $source = [
-            'from' => "(SELECT * FROM xx_dislocation_rjd WHERE {$cond['sql']}" . $this->wagonNoCond($params, $bindings) . ")",
-            'bindings' => $bindings,
-        ];
 
         return $this->json($response, $this->summaryReport($source, $rowDims, $colDefs));
     }
@@ -176,21 +164,20 @@ class ApiController
     public function dislDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state']);
-        $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
-        $cond = $this->latestDtCondition($dtsByType, 'xdr');
-        $bindings = $cond['params'];
+        $source = $this->dislFrom($params);
 
+        if (!$source['reportDt']) {
+            return $this->json($response, ['rows' => []]);
+        }
+
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state']);
+        $bindings = $source['bindings'];
         $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
-        $whereCond .= $this->wagonNoCond($params, $bindings);
         $selectCols = $this->selectFields($params['fields'] ?? '');
         $orderBy = $this->orderBY($params, implode(', ', $rowDims) . ', oper_station');
 
         $rows = $this->db->fetchAll(
-            "SELECT $selectCols
-             FROM xx_dislocation_rjd xdr
-             WHERE {$cond['sql']} $whereCond
-             ORDER BY $orderBy",
+            "SELECT $selectCols FROM {$source['from']} xdr WHERE 1=1 $whereCond ORDER BY $orderBy",
             $bindings
         );
 
@@ -646,6 +633,31 @@ class ApiController
     // Источники данных (FROM + базовый WHERE каждого раздела)
     // Каждый возвращает: ['from' => <subquery>, 'bindings' => [...], 'reportDt' => string|null]
     // =========================================================================
+
+    /** Дислокация: объединение двух типов справок ('Подход' + 'Отправка'). */
+    private function dislFrom(array $params): array
+    {
+        $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
+        if (empty($dtsByType)) {
+            return ['from' => '', 'bindings' => [], 'reportDt' => null];
+        }
+        $cond = $this->latestDtCondition($dtsByType);
+        $bindings = $cond['params'];
+        $whereCond = $cond['sql'];
+
+        $cargo = $params['cargo'] ?? null;
+        if ($cargo) {
+            $whereCond .= " AND UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е')) = UPPER(REPLACE(:cargo_f, 'Ё', 'Е'))";
+            $bindings['cargo_f'] = $cargo;
+        }
+        $whereCond .= $this->wagonNoCond($params, $bindings);
+
+        return [
+            'from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)",
+            'bindings' => $bindings,
+            'reportDt' => max($dtsByType),
+        ];
+    }
 
     /** Подход: вагоны с ненулевым остатком пути (type_reference='Подход'). */
     private function approachFrom(array $params): array
