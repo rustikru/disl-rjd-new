@@ -416,7 +416,7 @@ $basePath = $basePath ?? '';
               </select>
             </div>
             <div class=" filter-item">
-              <label class="filter-label">Операция с</label>
+              <label class="filter-label">Дата операции с</label>
               <input class="filter-input" type="date" id="fAnalysisPeriodDateFrom" value="<?= date('Y-m-01') ?>"
                 style="width:145px">
             </div>

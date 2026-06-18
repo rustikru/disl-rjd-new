@@ -17,7 +17,7 @@ var TAB_GROUPS = [
   {
     label: 'Аналитика',
     tabs: [
-      { id: 'analysis-period', label: 'Анализ за период' },
+      { id: 'analysis-period', label: 'Анализ данных за период' },
       { id: 'maps', label: 'Карта', url: BASE + '/maps', target: '_blank' },
     ],
   },

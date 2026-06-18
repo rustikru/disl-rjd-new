@@ -659,7 +659,7 @@ class ApiController
         }
         $cargo = $params['cargo'] ?? '';
         if ($cargo !== '') {
-            $whereCond .= " AND cargo_name >= :cargo";
+            $whereCond .= " AND cargo_name = :cargo";
             $bindings['cargo'] = $cargo;
         }
 
