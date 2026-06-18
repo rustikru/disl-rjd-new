@@ -61,15 +61,28 @@ class ApiController
             $bindings['kpi_type'] = $kpiType;
         }
 
-        $rows = $this->db->fetchAll(
-            "SELECT kpi.id, kpi.type, kpi.label AS x_label,
-                    xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id)      AS x_value,
-                    xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_pct(kpi.id) AS trend_pct,
-                    xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_dir(kpi.id) AS trend_dir
-             FROM XX_KPI_TABLE_V kpi
-             WHERE $whereCond",
-            $bindings
-        );
+        try {
+            $rows = $this->db->fetchAll(
+                "SELECT kpi.id, kpi.type, kpi.label AS x_label,
+                        xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id)         AS x_value,
+                        xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_pct(kpi.id) AS trend_pct,
+                        xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_dir(kpi.id) AS trend_dir
+                 FROM XX_KPI_TABLE_V kpi
+                 WHERE $whereCond",
+                $bindings
+            );
+        } catch (\Throwable $e) {
+            // тренды недоступны (пакет не скомпилирован) — грузим без них
+            $rows = $this->db->fetchAll(
+                "SELECT kpi.id, kpi.type, kpi.label AS x_label,
+                        xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id) AS x_value,
+                        NULL AS trend_pct,
+                        NULL AS trend_dir
+                 FROM XX_KPI_TABLE_V kpi
+                 WHERE $whereCond",
+                $bindings
+            );
+        }
 
         $values = [];
         foreach ($rows as $r) {
