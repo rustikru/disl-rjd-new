@@ -133,9 +133,10 @@ function loadKPI() {
     var board = KPI_BOARDS[key]
     $.getJSON(board.dataUrl).done(function (data) {
       //console.log('Ключ:', data)
-      var label = data.updated_at || '—'
-      $('#brandDateSub').text('Дислокация РЖД на ' + label)
-      $('#headerDate').text(label)
+      if (data.updated_at) {
+        $('#brandDateSub').text('Дислокация РЖД на ' + data.updated_at)
+        $('#headerDate').text(data.updated_at)
+      }
       showKpi(data, board.containerId)
     })
   })
