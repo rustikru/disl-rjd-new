@@ -705,6 +705,18 @@ body {
   color: #000000;
 }
 
+.data-table .row-pinned td {
+  background: #fffbe6;
+  font-weight: 700;
+  border-top: 2px solid #f5c518;
+  border-bottom: 2px solid #f5c518;
+  color: #5a3e00;
+}
+
+.data-table .row-pinned .col-total-col {
+  color: #5a3e00;
+}
+
 .data-table .row-grand .col-total-col {
   color: #000000;
   font-size: 11.5px;

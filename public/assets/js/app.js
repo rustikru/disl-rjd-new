@@ -285,6 +285,7 @@ var WAGON_TABS = {
     csvFilename: 'подход',
     csvDetFilename: 'подход-расширенная',
     totalText: 'Общий итог - ст.Углеуральская',
+    pinnedRowLabel: 'ст. Углеуральская',
     sumTableId: 'approachSumTable',
     sumSubId: 'approachSumSub',
     sumSubLabel: 'Всего в подходе',
@@ -741,6 +742,16 @@ function loadSummary(cfg) {
         subtotalDepth,
         cfg.totalText,
       )
+      if (cfg.pinnedRowLabel) {
+        var $tbody = $table.find('tbody')
+        var $grandRow = $tbody.find('tr.row-grand').first()
+        if ($grandRow.length) {
+          var $pinned = $grandRow.clone()
+          $pinned.removeClass('row-total row-grand').addClass('row-pinned')
+          $pinned.find('td.col-meta--l0').first().text(cfg.pinnedRowLabel)
+          $grandRow.before($pinned)
+        }
+      }
       $sub.text(
         cfg.sumSubLabel +
           ': ' +
