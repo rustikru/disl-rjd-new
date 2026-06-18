@@ -125,7 +125,7 @@ class ApiController
         $bindings = $cond['params'];
 
         $cargo = $this->db->fetchAll(
-            "SELECT DISTINCT cargo_name FROM xx_dislocation_rjd WHERE {$cond['sql']} order by cargo_name",
+            "SELECT DISTINCT cargo_name FROM xx_dislocation_rjd WHERE cargo_name IS NOT NULL and {$cond['sql']} order by cargo_name",
             $bindings
         );
 

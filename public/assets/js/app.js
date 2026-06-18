@@ -260,7 +260,7 @@ var WAGON_TABS = {
     getParams: function () {
       return {
         wagon_no: $('#fDislocationWagonNo').val().trim() || undefined,
-        wagon_no: $('#fDislocationCargo').val().trim() || undefined,
+        cargo: $('#fDislocationCargo').val().trim() || undefined,
       }
     },
     fillFilters: function (data) {
