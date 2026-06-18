@@ -779,7 +779,9 @@ function loadSummary(cfg) {
         })
         if (pinTotal > 0) {
           pinnedStation = { v: pinVals, grand_total: pinTotal, name: pinName }
-          data.total = (data.total || 0) - pinTotal
+          var totalBeforePin = data.total || 0
+          data.total = totalBeforePin - pinTotal
+          data._totalWithPin = totalBeforePin
           data.roads = data.roads.filter(function (road) {
             return (
               (road.stations && road.stations.length > 0) ||
@@ -889,7 +891,7 @@ function loadSummary(cfg) {
       $sub.text(
         cfg.sumSubLabel +
           ': ' +
-          (data.total || 0).toLocaleString('ru-RU') +
+          (data._totalWithPin !== undefined ? data._totalWithPin : data.total || 0).toLocaleString('ru-RU') +
           ' ваг.',
       )
     })
@@ -2148,7 +2150,7 @@ function openDetail(ctx, road, station, col, groupBy, subs, extra) {
   if (tabCfg && tabCfg.pinnedStationKey && !p.has('exclude_station')) {
     var stKey = (station || '').toUpperCase()
     var pinKey = tabCfg.pinnedStationKey.toUpperCase()
-    if (stKey !== '' && stKey.indexOf(pinKey) === -1) p.set('exclude_station', tabCfg.pinnedStationKey)
+    if (stKey.indexOf(pinKey) === -1) p.set('exclude_station', tabCfg.pinnedStationKey)
   }
   navNewTab(BASE + '/detail?' + p.toString())
 }
