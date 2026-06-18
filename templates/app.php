@@ -428,6 +428,7 @@ $basePath = $basePath ?? '';
             </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnAnalysisPeriodApply">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="btnAnalysisPeriodReset">Сбросить</button>
             </div>
           </div>
         </div>

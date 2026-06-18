@@ -501,6 +501,7 @@ var WAGON_TABS = {
     loadedKey: '_analysisPeriodLoaded',
     loadedDetKey: '_analysisPeriodDetLoaded',
     applyBtnId: 'btnAnalysisPeriodApply',
+    resetBtnId: 'btnAnalysisPeriodReset',
     getParams: function () {
       return {
         wagon_no: $('#fAnalysisPeriodWagonNo').val().trim() || undefined,
@@ -512,7 +513,11 @@ var WAGON_TABS = {
     fillFilters: function (data) {
       fillSelect('#fAnalysisPeriodCargo', data.cargo || [])
     },
+
     resetFilters: function () {
+      $('#fAnalysisPeriodWagonNo').val('')
+      $('#fAnalysisPeriodDateFrom').val('')
+      $('#fAnalysisPeriodDateTo').val('')
       $('#fAnalysisPeriodCargo').val('')
     },
   },
@@ -753,9 +758,7 @@ function loadSummary(cfg) {
         data.roads.forEach(function (road) {
           var kept = []
           ;(road.stations || []).forEach(function (st) {
-            if (
-              (st[stationField] || '').toUpperCase().indexOf(pinKey) !== -1
-            ) {
+            if ((st[stationField] || '').toUpperCase().indexOf(pinKey) !== -1) {
               if (!pinName) pinName = st[stationField] || ''
               ;(st.v || []).forEach(function (val, i) {
                 pinVals[i] = (pinVals[i] || 0) + (val || 0)
@@ -813,10 +816,18 @@ function loadSummary(cfg) {
         if ($grandRow.length) {
           var hasSubtotals = cells[0] && cells[0].isSubtotal
           var linkAttrs =
-            ' data-ctx="' + esc(cfg.ctx || '') +
-            '" data-road="" data-station="' + esc(pinnedStation.name) +
+            ' data-ctx="' +
+            esc(cfg.ctx || '') +
+            '" data-road="" data-station="' +
+            esc(pinnedStation.name) +
             '" data-group-by="' +
-            esc((cfg.groupCols || []).map(function (g) { return g.key }).join(',')) +
+            esc(
+              (cfg.groupCols || [])
+                .map(function (g) {
+                  return g.key
+                })
+                .join(','),
+            ) +
             '"'
           var pinnedCells = [
             '<td class="col-meta col-meta--l0">' +
@@ -2138,7 +2149,8 @@ function openDetail(ctx, road, station, col, groupBy, subs, extra) {
   if (tabCfg && tabCfg.pinnedStationKey && !p.has('exclude_station')) {
     var stKey = (station || '').toUpperCase()
     var pinKey = tabCfg.pinnedStationKey.toUpperCase()
-    if (stKey.indexOf(pinKey) === -1) p.set('exclude_station', tabCfg.pinnedStationKey)
+    if (stKey.indexOf(pinKey) === -1)
+      p.set('exclude_station', tabCfg.pinnedStationKey)
   }
   navNewTab(BASE + '/detail?' + p.toString())
 }
