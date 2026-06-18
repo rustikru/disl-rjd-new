@@ -107,6 +107,47 @@ class ApiController
             'trends' => $trends,
         ]);
     }
+
+    /** GET /api/kpi/summary */
+    public function kpiSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params   = $request->getQueryParams();
+        $bindings = [];
+        $whereCond = '1=1';
+
+        $kpiType = trim($params['kpi_type'] ?? '');
+        if ($kpiType !== '') {
+            $whereCond .= ' AND kpi_type = :kpi_type';
+            $bindings['kpi_type'] = $kpiType;
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT kpi.id, kpi.type, kpi.label AS x_label,
+                    xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id) AS x_value
+             FROM XX_KPI_TABLE_V kpi
+             WHERE $whereCond",
+            $bindings
+        );
+
+        $sections = [];
+        foreach ($rows as $r) {
+            $sectionName = trim(explode(',', (string) ($r['id'] ?? ''))[0]);
+            if (!isset($sections[$sectionName])) {
+                $sections[$sectionName] = ['values' => []];
+            }
+            $sections[$sectionName]['values'][] = [
+                'id'     => $r['id']      ?? '',
+                'value'  => $r['x_value'] ?? '0',
+                'label'  => $r['x_label'] ?? '',
+                'trend'  => 'down',
+                'change' => '',
+            ];
+        }
+
+        return $this->json($response, [
+            'sections' => array_values($sections),
+        ]);
+    }
     /** GET /api/dislocation/filters */
     public function dislFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {

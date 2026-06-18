@@ -131,7 +131,7 @@ function loadKPI() {
   })*/
   Object.keys(KPI_BOARDS).forEach(function (key) {
     var board = KPI_BOARDS[key]
-    $.getJSON(board.dataUrl).done(function (data) {
+    $.getJSON(board.dataUrl, board.params ? board.params() : {}).done(function (data) {
       //console.log('Ключ:', data)
       if (data.updated_at) {
         $('#brandDateSub').text('Дислокация РЖД на ' + data.updated_at)
@@ -651,9 +651,7 @@ var KPI_BOARDS = {
   departure: {
     containerId: 'departureMetrics',
     dataUrl: BASE + '/api/kpi/summary',
-    params: function () {
-      return { kpi_type: 'departure_kpi' }
-    },
+    params: function () { return { kpi_type: 'departure_kpi' } },
     cards: departureCards,
   },
   approach: {

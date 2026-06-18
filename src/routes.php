@@ -93,6 +93,11 @@ return function (App $app, array $config): void {
                 return (new \App\Controllers\ApiController($getDb()))->dashboardKPI($req, $res);
             });
 
+            // --- Универсальный KPI ---
+            $api->get('/kpi/summary', function ($req, $res) use ($getDb) {
+                return (new \App\Controllers\ApiController($getDb()))->kpiSummary($req, $res);
+            });
+
             // --- Загрузка файлов через API ---
             $api->post('/import/file', function ($req, $res) use ($getDb, $config) {
                 return (new \App\Controllers\ImportController($getDb(), $config))->handleUploadJson($req, $res);
