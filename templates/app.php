@@ -409,6 +409,12 @@ $basePath = $basePath ?? '';
               <input class="filter-input" type="text" id="fAnalysisPeriodWagonNo"
                 placeholder="Номер вагона1; Номер вагона2; ..."">
             </div>
+            <div class=" filter-item" style="flex-basis:100%">
+              <label class="filter-label" for="fAnalysisPeriodCargo">Груз</label>
+              <select class="filter-input" id="fAnalysisPeriodCargo">
+                <option value="">— Все —</option>
+              </select>
+            </div>
             <div class=" filter-item">
               <label class="filter-label">Операция с</label>
               <input class="filter-input" type="date" id="fAnalysisPeriodDateFrom" value="<?= date('Y-m-01') ?>"

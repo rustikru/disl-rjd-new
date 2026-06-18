@@ -176,6 +176,9 @@ return function (App $app, array $config): void {
 
             // --- Анализ за период ---
             $api->group('/analysis', function ($sub) use ($getDb) {
+                $sub->get('/filters', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->analysisFilters($req, $res);
+                });
                 $sub->get('/period/detail', function ($req, $res) use ($getDb) {
                     return (new \App\Controllers\ApiController($getDb()))->analysisPeriod($req, $res);
                 });

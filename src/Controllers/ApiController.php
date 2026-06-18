@@ -599,6 +599,41 @@ class ApiController
         return $this->json($response, ['rows' => $rows]);
     }
 
+    public function analysisFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params = $request->getQueryParams();
+        $bindings = [];
+        $whereCond = '1=1';
+
+        $wagonNo = trim($params['wagon_no'] ?? '');
+        if ($wagonNo !== '') {
+            $whereCond .= ' AND wagon_no IN (' . $this->parserInValues($wagonNo, ';', 'wagon_no', $bindings) . ')';
+        }
+
+        $dateFrom = $params['date_from'] ?? '';
+        if ($dateFrom !== '') {
+            $whereCond .= " AND TRUNC(oper_dt) >= TO_DATE(:date_from, 'YYYY-MM-DD')";
+            $bindings['date_from'] = $dateFrom;
+        }
+
+        $dateTo = $params['date_to'] ?? '';
+        if ($dateTo !== '') {
+            $whereCond .= " AND TRUNC(oper_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
+            $bindings['date_to'] = $dateTo;
+        }
+
+        $cargo = $this->db->fetchAll(
+            "SELECT DISTINCT cargo_name
+             FROM xx_dislocation_rjd
+             WHERE $whereCond
+             ORDER BY cargo_name",
+            $bindings
+        );
+
+        return $this->json($response, [
+            'cargo' => array_column($cargo, 'cargo_name'),
+        ]);
+    }
     /** GET /api/analysis/period/detail */
     public function analysisPeriod(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
@@ -621,6 +656,11 @@ class ApiController
         if ($dateTo !== '') {
             $whereCond .= " AND TRUNC(oper_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
             $bindings['date_to'] = $dateTo;
+        }
+        $cargo = $params['cargo'] ?? '';
+        if ($cargo !== '') {
+            $whereCond .= " AND cargo_name >= :cargo";
+            $bindings['cargo'] = $cargo;
         }
 
         $selectCols = $this->selectFields($params['fields'] ?? '');

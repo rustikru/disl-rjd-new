@@ -493,6 +493,7 @@ var WAGON_TABS = {
   'analysis-period': {
     ctx: 'analysis-period',
     detailUrl: BASE + '/api/analysis/period/detail',
+    filtersUrl: BASE + '/api/analysis/filters',
     csvDetFilename: 'анализ-за-период',
     detTableId: 'analysisPeriodDetTable',
     detSubId: 'analysisPeriodDetSub',
@@ -505,7 +506,14 @@ var WAGON_TABS = {
         wagon_no: $('#fAnalysisPeriodWagonNo').val().trim() || undefined,
         date_from: $('#fAnalysisPeriodDateFrom').val() || undefined,
         date_to: $('#fAnalysisPeriodDateTo').val() || undefined,
+        cargo: $('#fAnalysisPeriodCargo').val() || undefined,
       }
+    },
+    fillFilters: function (data) {
+      fillSelect('#fAnalysisPeriodCargo', data.cargo || [])
+    },
+    resetFilters: function () {
+      $('#fAnalysisPeriodCargo').val('')
     },
   },
 }
@@ -768,7 +776,11 @@ function loadSummary(cfg) {
           road.stations = kept
         })
         if (pinGrandTotal > 0) {
-          pinnedStation = { v: pinV, grand_total: pinGrandTotal, stVal: pinStVal }
+          pinnedStation = {
+            v: pinV,
+            grand_total: pinGrandTotal,
+            stVal: pinStVal,
+          }
           data.total = (data.total || 0) - pinGrandTotal
           data.roads = data.roads.filter(function (road) {
             return (
@@ -2150,7 +2162,8 @@ function openDetail(ctx, road, station, col, groupBy, subs, extra) {
   if (tabCfg && tabCfg.pinnedStationKey && !p.has('exclude_station')) {
     var stUpper = (station || '').toUpperCase()
     var pinUpper = tabCfg.pinnedStationKey.toUpperCase()
-    if (stUpper.indexOf(pinUpper) === -1) p.set('exclude_station', tabCfg.pinnedStationKey)
+    if (stUpper.indexOf(pinUpper) === -1)
+      p.set('exclude_station', tabCfg.pinnedStationKey)
   }
   navNewTab(BASE + '/detail?' + p.toString())
 }
