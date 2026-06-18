@@ -957,7 +957,6 @@ function loadDetail(cfg) {
         },
         sortExtra,
       )
-  if (cfg.pinnedStationKey) listParams.exclude_station = cfg.pinnedStationKey
   $.getJSON(cfg.detailUrl, listParams)
     .done(function (data) {
       if (cfg.showList) {
@@ -2149,8 +2148,7 @@ function openDetail(ctx, road, station, col, groupBy, subs, extra) {
   if (tabCfg && tabCfg.pinnedStationKey && !p.has('exclude_station')) {
     var stKey = (station || '').toUpperCase()
     var pinKey = tabCfg.pinnedStationKey.toUpperCase()
-    if (stKey.indexOf(pinKey) === -1)
-      p.set('exclude_station', tabCfg.pinnedStationKey)
+    if (stKey !== '' && stKey.indexOf(pinKey) === -1) p.set('exclude_station', tabCfg.pinnedStationKey)
   }
   navNewTab(BASE + '/detail?' + p.toString())
 }
