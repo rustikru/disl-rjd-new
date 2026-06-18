@@ -189,6 +189,15 @@ return function (App $app, array $config): void {
                 });
             });
 
+            $api->group('/kpi', function ($sub) use ($getDb) {
+                $sub->get('/summary', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->kpiSummary($req, $res);
+                });
+                $sub->get('/detail', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->kpiDetail($req, $res);
+                });
+            });
+
         }); // Конец группы /api
 
     })->add(new \App\Middleware\AuthMiddleware($config['base_path'] ?? ''));
