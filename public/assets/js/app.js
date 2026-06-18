@@ -689,7 +689,7 @@ function initTab(cfg) {
     var initHint = cfg.validate ? cfg.validate() : null
     if (initHint) {
       $('#' + cfg.detTableId).html(
-        '<div style="text-align:center;padding:40px;color:#9DA5B0">' + esc(initHint) + '</div>',
+        '<div style="text-align:center;padding:60px;color:#E8392A;font-size:15px;font-weight:600">' + esc(initHint) + '</div>',
       )
     } else {
       window[cfg.loadedDetKey] = true
@@ -2248,7 +2248,7 @@ $(function () {
       var applyHint = cfg.validate ? cfg.validate() : null
       if (applyHint) {
         $('#' + cfg.detTableId).html(
-          '<div style="text-align:center;padding:40px;color:#9DA5B0">' + esc(applyHint) + '</div>',
+          '<div style="text-align:center;padding:60px;color:#E8392A;font-size:15px;font-weight:600">' + esc(applyHint) + '</div>',
         )
         return
       }
