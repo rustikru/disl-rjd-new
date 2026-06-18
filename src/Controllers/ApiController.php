@@ -269,53 +269,6 @@ class ApiController
         return $this->json($response, $this->summaryReport($source, $rowDims, $colDefs));
     }
 
-    public function approachKPI(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
-    {
-
-        $params = $request->getQueryParams();
-        $source = $this->approachFrom($params);
-        $bindings = $source['bindings'];
-        if (!$source['reportDt']) {
-            return $this->json($response, ['rows' => []]);
-        }
-
-        $sections = [];
-        $trends = [];
-
-
-        $rows = $this->db->fetchAll(
-            "select kpi.label as x_label, xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id) as x_value 
-                    from XX_KPI_TABLE_V kpi
-                    where kpi.type = 'approach_kpi'"
-        );
-
-        foreach ($rows as $r) {
-            $sectionName = trim(explode(',', (string) ($r['id'] ?? ''))[0]);
-
-            if (!isset($sections[$sectionName])) {
-                $sections[$sectionName] = [
-                    'values' => []
-                ];
-            }
-
-            $sections[$sectionName]['values'][] = [
-                'id' => $r['id'] ?? '',
-                'value' => $r['x_value'] ?? '0',
-                'label' => $r['x_label'] ?? '',
-                'trend' => 'down',
-                'change' => ''
-            ];
-        }
-
-
-        return $this->json($response, [
-            'sections' => array_values($sections),
-            'trends' => $trends,
-        ]);
-    }
-
-
-
     /** GET /api/approach/detail */
     public function approachDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
@@ -412,50 +365,7 @@ class ApiController
 
         return $this->json($response, ['rows' => $rows]);
     }
-    /** GET /api/departure/KPI */
-    public function departureKPI(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
-    {
 
-        $params = $request->getQueryParams();
-        $source = $this->departureFrom($params);
-        $bindings = $source['bindings'];
-        if (!$source['reportDt']) {
-            return $this->json($response, ['rows' => []]);
-        }
-
-        $sections = [];
-        $trends = [];
-
-
-        $rows = $this->db->fetchAll(
-            "select kpi.label as x_label, xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id) as x_value 
-                    from XX_KPI_TABLE_V kpi
-                    where kpi.type = 'departue_kpi'"
-        );
-        foreach ($rows as $r) {
-            $sectionName = trim(explode(',', (string) ($r['id'] ?? ''))[0]);
-
-            if (!isset($sections[$sectionName])) {
-                $sections[$sectionName] = [
-                    'values' => []
-                ];
-            }
-
-            $sections[$sectionName]['values'][] = [
-                'id' => $r['id'] ?? '',
-                'value' => $r['x_value'] ?? '0',
-                'label' => $r['x_label'] ?? '',
-                'trend' => 'down',
-                'change' => ''
-            ];
-        }
-
-
-        return $this->json($response, [
-            'sections' => array_values($sections),
-            'trends' => $trends,
-        ]);
-    }
 
     /** GET /api/loading/filters */
     public function loadingFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
