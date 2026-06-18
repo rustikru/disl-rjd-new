@@ -286,6 +286,8 @@ var WAGON_TABS = {
     csvDetFilename: 'подход-расширенная',
     totalText: 'Общий итог - ст.Углеуральская',
     pinnedRowLabel: 'ст. Углеуральская',
+    pinnedStationKey: 'УГЛЕУР',
+    firstRoadKey: 'СВЕРДЛ',
     sumTableId: 'approachSumTable',
     sumSubId: 'approachSumSub',
     sumSubLabel: 'Всего в подходе',
@@ -733,7 +735,62 @@ function loadSummary(cfg) {
             subtotalDepth = idx
         })
       }
-      drawSummary(
+      /* Выделяем закреплённую станцию до отрисовки, чтобы итог пересчитался сам */
+      var pinnedStation = null
+      if (cfg.pinnedStationKey && data.roads) {
+        var stKeyForPin = (cfg.groupCols[cfg.groupCols.length - 1] || {}).key
+        var pinKeyUpper = cfg.pinnedStationKey.toUpperCase()
+        var pinV = []
+        var pinGrandTotal = 0
+        data.roads.forEach(function (road) {
+          var kept = []
+          ;(road.stations || []).forEach(function (st) {
+            if (
+              (st[stKeyForPin] || '').toUpperCase().indexOf(pinKeyUpper) !== -1
+            ) {
+              ;(st.v || []).forEach(function (val, i) {
+                pinV[i] = (pinV[i] || 0) + (val || 0)
+              })
+              var stSum = (st.v || []).reduce(function (a, b) {
+                return a + (b || 0)
+              }, 0)
+              pinGrandTotal += stSum
+              ;(st.v || []).forEach(function (val, i) {
+                road.total[i] = (road.total[i] || 0) - (val || 0)
+              })
+              road.grand_total = (road.grand_total || 0) - stSum
+            } else {
+              kept.push(st)
+            }
+          })
+          road.stations = kept
+        })
+        if (pinGrandTotal > 0) {
+          pinnedStation = { v: pinV, grand_total: pinGrandTotal }
+          data.total = (data.total || 0) - pinGrandTotal
+          data.roads = data.roads.filter(function (road) {
+            return (
+              (road.stations && road.stations.length > 0) ||
+              road.grand_total > 0
+            )
+          })
+        }
+      }
+
+      /* Сортировка: firstRoadKey выводится первой дорогой */
+      if (cfg.firstRoadKey && data.roads && data.roads.length > 1) {
+        var roadKey0 = (cfg.groupCols[0] || {}).key
+        var frkUpper = cfg.firstRoadKey.toUpperCase()
+        data.roads.sort(function (a, b) {
+          var aFirst =
+            (a[roadKey0] || '').toUpperCase().indexOf(frkUpper) !== -1 ? 0 : 1
+          var bFirst =
+            (b[roadKey0] || '').toUpperCase().indexOf(frkUpper) !== -1 ? 0 : 1
+          return aFirst - bFirst
+        })
+      }
+
+      var renderedDisplayCells = drawSummary(
         '#' + cfg.sumTableId,
         data.roads,
         data,
@@ -742,16 +799,48 @@ function loadSummary(cfg) {
         subtotalDepth,
         cfg.totalText,
       )
-      if (cfg.pinnedRowLabel) {
-        var $tbody = $table.find('tbody')
-        var $grandRow = $tbody.find('tr.row-grand').first()
+
+      /* Вставляем закреплённую строку перед «Общий итог» */
+      if (pinnedStation && renderedDisplayCells && renderedDisplayCells.length) {
+        var $grandRow = $table.find('tr.row-grand').first()
         if ($grandRow.length) {
-          var $pinned = $grandRow.clone()
-          $pinned.removeClass('row-total row-grand').addClass('row-pinned')
-          $pinned.find('td.col-meta--l0').first().text(cfg.pinnedRowLabel)
-          $grandRow.before($pinned)
+          var hasSubtotalsPin =
+            renderedDisplayCells[0] && renderedDisplayCells[0].isSubtotal
+          var pinnedCells = [
+            '<td class="col-meta col-meta--l0">' +
+              esc(cfg.pinnedRowLabel) +
+              '</td>',
+          ]
+          if (!hasSubtotalsPin) {
+            pinnedCells.push(
+              '<td class="col-total-col">' +
+                pinnedStation.grand_total.toLocaleString('ru-RU') +
+                '</td>',
+            )
+          }
+          renderedDisplayCells.forEach(function (dc) {
+            var v
+            if (dc.isSubtotal) {
+              v = 0
+              ;(dc.indices || []).forEach(function (i) {
+                v += pinnedStation.v[i] || 0
+              })
+            } else {
+              v = pinnedStation.v[dc.dataIdx] || 0
+            }
+            var disp = v ? v.toLocaleString('ru-RU') : ''
+            pinnedCells.push(
+              dc.isSubtotal
+                ? '<td class="col-subtotal">' + disp + '</td>'
+                : '<td>' + disp + '</td>',
+            )
+          })
+          $grandRow.before(
+            $('<tr class="row-pinned">' + pinnedCells.join('') + '</tr>'),
+          )
         }
       }
+
       $sub.text(
         cfg.sumSubLabel +
           ': ' +
@@ -1624,6 +1713,7 @@ function drawSummary(
   $(selector).html(
     h.join('') + '<tbody>' + totalH.join('') + bodyH.join('') + '</tbody>',
   )
+  return displayCells
 }
 
 // CSV-экспорт виртуальной таблицы (детализация) — берёт данные из _vtInline
