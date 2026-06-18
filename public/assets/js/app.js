@@ -242,6 +242,7 @@ var WAGON_TABS = {
     sumSubId: 'mainTableSub',
     sumSubLabel: 'Итого по дислокации',
     detTableId: 'dislExtTable',
+    detSubId: 'dislDetSub',
     detPanelId: 'disl-extended',
     loadedKey: '_dislLoaded',
     loadedDetKey: '_extLoaded',

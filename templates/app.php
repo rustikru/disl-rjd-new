@@ -93,7 +93,7 @@ $basePath = $basePath ?? '';
         <div id="disl-extended" class="inner-panel">
           <section class="table-section">
             <div class="table-toolbar">
-              <div class="table-info"><span class="table-title">Детализация</span></div>
+              <div class="table-info"><span class="table-title">Детализация</span><span class="table-sub" id="dislDetSub"></span></div>
               <div class="table-acts"></div>
             </div>
             <div id="dislExtTable"></div>
