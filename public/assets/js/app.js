@@ -957,6 +957,7 @@ function loadDetail(cfg) {
         },
         sortExtra,
       )
+  if (cfg.pinnedStationKey) listParams.exclude_station = cfg.pinnedStationKey
   $.getJSON(cfg.detailUrl, listParams)
     .done(function (data) {
       if (cfg.showList) {
@@ -2145,6 +2146,12 @@ function openDetail(ctx, road, station, col, groupBy, subs, extra) {
     )
       p.set(k, extra[k])
   })
+  /* Закреплённая станция: исключаем её из детализации дерева, но не из своей строки */
+  if (tabCfg && tabCfg.pinnedStationKey && !p.has('exclude_station')) {
+    var stUpper = (station || '').toUpperCase()
+    var pinUpper = tabCfg.pinnedStationKey.toUpperCase()
+    if (stUpper.indexOf(pinUpper) === -1) p.set('exclude_station', tabCfg.pinnedStationKey)
+  }
   navNewTab(BASE + '/detail?' + p.toString())
 }
 
