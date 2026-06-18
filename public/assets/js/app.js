@@ -743,28 +743,27 @@ function loadSummary(cfg) {
             subtotalDepth = idx
         })
       }
-      /* Выделяем закреплённую станцию до отрисовки, чтобы итог пересчитался сам */
       var pinnedStation = null
       if (cfg.pinnedStationKey && data.roads) {
-        var stKeyForPin = (cfg.groupCols[cfg.groupCols.length - 1] || {}).key
-        var pinKeyUpper = cfg.pinnedStationKey.toUpperCase()
-        var pinV = []
-        var pinGrandTotal = 0
-        var pinStVal = ''
+        var stationField = (cfg.groupCols[cfg.groupCols.length - 1] || {}).key
+        var pinKey = cfg.pinnedStationKey.toUpperCase()
+        var pinVals = []
+        var pinTotal = 0
+        var pinName = ''
         data.roads.forEach(function (road) {
           var kept = []
           ;(road.stations || []).forEach(function (st) {
             if (
-              (st[stKeyForPin] || '').toUpperCase().indexOf(pinKeyUpper) !== -1
+              (st[stationField] || '').toUpperCase().indexOf(pinKey) !== -1
             ) {
-              if (!pinStVal) pinStVal = st[stKeyForPin] || ''
+              if (!pinName) pinName = st[stationField] || ''
               ;(st.v || []).forEach(function (val, i) {
-                pinV[i] = (pinV[i] || 0) + (val || 0)
+                pinVals[i] = (pinVals[i] || 0) + (val || 0)
               })
               var stSum = (st.v || []).reduce(function (a, b) {
                 return a + (b || 0)
               }, 0)
-              pinGrandTotal += stSum
+              pinTotal += stSum
               ;(st.v || []).forEach(function (val, i) {
                 road.total[i] = (road.total[i] || 0) - (val || 0)
               })
@@ -775,13 +774,9 @@ function loadSummary(cfg) {
           })
           road.stations = kept
         })
-        if (pinGrandTotal > 0) {
-          pinnedStation = {
-            v: pinV,
-            grand_total: pinGrandTotal,
-            stVal: pinStVal,
-          }
-          data.total = (data.total || 0) - pinGrandTotal
+        if (pinTotal > 0) {
+          pinnedStation = { v: pinVals, grand_total: pinTotal, name: pinName }
+          data.total = (data.total || 0) - pinTotal
           data.roads = data.roads.filter(function (road) {
             return (
               (road.stations && road.stations.length > 0) ||
@@ -791,20 +786,19 @@ function loadSummary(cfg) {
         }
       }
 
-      /* Сортировка: firstRoadKey выводится первой дорогой */
       if (cfg.firstRoadKey && data.roads && data.roads.length > 1) {
-        var roadKey0 = (cfg.groupCols[0] || {}).key
-        var frkUpper = cfg.firstRoadKey.toUpperCase()
+        var roadField = (cfg.groupCols[0] || {}).key
+        var firstKey = cfg.firstRoadKey.toUpperCase()
         data.roads.sort(function (a, b) {
           var aFirst =
-            (a[roadKey0] || '').toUpperCase().indexOf(frkUpper) !== -1 ? 0 : 1
+            (a[roadField] || '').toUpperCase().indexOf(firstKey) !== -1 ? 0 : 1
           var bFirst =
-            (b[roadKey0] || '').toUpperCase().indexOf(frkUpper) !== -1 ? 0 : 1
+            (b[roadField] || '').toUpperCase().indexOf(firstKey) !== -1 ? 0 : 1
           return aFirst - bFirst
         })
       }
 
-      var renderedDisplayCells = drawSummary(
+      var cells = drawSummary(
         '#' + cfg.sumTableId,
         data.roads,
         data,
@@ -814,48 +808,31 @@ function loadSummary(cfg) {
         cfg.totalText,
       )
 
-      /* Вставляем закреплённую строку перед «Общий итог» */
-      if (
-        pinnedStation &&
-        renderedDisplayCells &&
-        renderedDisplayCells.length
-      ) {
+      if (pinnedStation && cells && cells.length) {
         var $grandRow = $table.find('tr.row-grand').first()
         if ($grandRow.length) {
-          var hasSubtotalsPin =
-            renderedDisplayCells[0] && renderedDisplayCells[0].isSubtotal
-          var pinCtx = esc(cfg.ctx || '')
-          var pinSt = esc(pinnedStation.stVal)
-          var pinGBy = esc(
-            (cfg.groupCols || [])
-              .map(function (g) {
-                return g.key
-              })
-              .join(','),
-          )
-          var pinLink =
-            ' data-ctx="' +
-            pinCtx +
-            '" data-road="" data-station="' +
-            pinSt +
+          var hasSubtotals = cells[0] && cells[0].isSubtotal
+          var linkAttrs =
+            ' data-ctx="' + esc(cfg.ctx || '') +
+            '" data-road="" data-station="' + esc(pinnedStation.name) +
             '" data-group-by="' +
-            pinGBy +
+            esc((cfg.groupCols || []).map(function (g) { return g.key }).join(',')) +
             '"'
           var pinnedCells = [
             '<td class="col-meta col-meta--l0">' +
               esc(cfg.pinnedRowLabel) +
               '</td>',
           ]
-          if (!hasSubtotalsPin) {
+          if (!hasSubtotals) {
             pinnedCells.push(
               '<td class="col-total-col cell-link"' +
-                pinLink +
+                linkAttrs +
                 ' data-col="">' +
                 pinnedStation.grand_total.toLocaleString('ru-RU') +
                 '</td>',
             )
           }
-          renderedDisplayCells.forEach(function (dc) {
+          cells.forEach(function (dc) {
             var v
             if (dc.isSubtotal) {
               v = 0
@@ -866,27 +843,27 @@ function loadSummary(cfg) {
               v = pinnedStation.v[dc.dataIdx] || 0
             }
             var disp = v ? v.toLocaleString('ru-RU') : ''
-            var subAttrStr = ''
+            var subAttrs = ''
             ;(dc.subs || []).forEach(function (sv, si) {
               if (sv)
-                subAttrStr +=
+                subAttrs +=
                   ' data-sub' + (si ? si + 1 : '') + '="' + esc(sv) + '"'
             })
             pinnedCells.push(
               dc.isSubtotal
                 ? '<td class="col-subtotal cell-link"' +
-                    pinLink +
+                    linkAttrs +
                     ' data-col=""' +
-                    subAttrStr +
+                    subAttrs +
                     '>' +
                     disp +
                     '</td>'
                 : '<td class="cell-link"' +
-                    pinLink +
+                    linkAttrs +
                     ' data-col="' +
                     esc(dc.col) +
                     '"' +
-                    subAttrStr +
+                    subAttrs +
                     '>' +
                     disp +
                     '</td>',
@@ -2158,12 +2135,10 @@ function openDetail(ctx, road, station, col, groupBy, subs, extra) {
     )
       p.set(k, extra[k])
   })
-  /* Закреплённая станция: исключаем её из детализации дерева, но не из своей строки */
   if (tabCfg && tabCfg.pinnedStationKey && !p.has('exclude_station')) {
-    var stUpper = (station || '').toUpperCase()
-    var pinUpper = tabCfg.pinnedStationKey.toUpperCase()
-    if (stUpper.indexOf(pinUpper) === -1)
-      p.set('exclude_station', tabCfg.pinnedStationKey)
+    var stKey = (station || '').toUpperCase()
+    var pinKey = tabCfg.pinnedStationKey.toUpperCase()
+    if (stKey.indexOf(pinKey) === -1) p.set('exclude_station', tabCfg.pinnedStationKey)
   }
   navNewTab(BASE + '/detail?' + p.toString())
 }

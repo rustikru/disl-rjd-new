@@ -287,10 +287,10 @@ class ApiController
         $bindings = $source['bindings'];
         $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
 
-        $excludeSt = $params['exclude_station'] ?? null;
-        if ($excludeSt) {
+        $excl = $params['exclude_station'] ?? null;
+        if ($excl) {
             $whereCond .= " AND UPPER(oper_station) NOT LIKE '%' || UPPER(:excl_st) || '%'";
-            $bindings['excl_st'] = strtoupper($excludeSt);
+            $bindings['excl_st'] = strtoupper($excl);
         }
 
         $selectCols = $this->selectFields($params['fields'] ?? '');
