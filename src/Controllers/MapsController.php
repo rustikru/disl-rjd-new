@@ -40,7 +40,7 @@ class MapsController
         }
 
         $rows = $this->db->fetchAll(
-            "SELECT distinct 
+            "SELECT  
                     xdr.wagon_no,
                     xdr.wagon_type_code,
                     xdr.cargo_weight_kg,
