@@ -210,6 +210,13 @@ class ApiController
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state']);
         $bindings = $source['bindings'];
         $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
+
+        $kpiId = trim($params['kpi_id'] ?? '');
+        if ($kpiId !== '') {
+            $whereCond .= ' AND CASE WHEN XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_check_kpi(:kpi_id, xdr.id) THEN 1 ELSE 0 END = 1';
+            $bindings['kpi_id'] = (int) $kpiId;
+        }
+
         $selectCols = $this->selectFields($params['fields'] ?? '');
         $orderBy = $this->orderBY($params, implode(', ', $rowDims) . ', oper_station');
 

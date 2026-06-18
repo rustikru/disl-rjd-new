@@ -556,12 +556,13 @@ function departureCards(data) {
   var valuesArray =
     (data.sections && data.sections[0] && data.sections[0].values) || []
 
-  return valuesArray.map(function (item, index) {
+  return valuesArray.map(function (item) {
     return {
       label: item.label,
       value: item.value,
       variant: 'pill',
       trend: makeTrend(item.change, item.trend),
+      detail: item.id ? { ctx: 'dislocation', params: { kpi_id: item.id } } : null,
     }
   })
 }
@@ -569,12 +570,13 @@ function approachCards(data) {
   var valuesArray =
     (data.sections && data.sections[0] && data.sections[0].values) || []
 
-  return valuesArray.map(function (item, index) {
+  return valuesArray.map(function (item) {
     return {
       label: item.label,
       value: item.value,
       variant: 'pill',
       trend: makeTrend(item.change, item.trend),
+      detail: item.id ? { ctx: 'dislocation', params: { kpi_id: item.id } } : null,
     }
   })
 }
