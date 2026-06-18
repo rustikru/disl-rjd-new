@@ -1918,13 +1918,17 @@ $(document).on('input', '.col-search-input', function () {
       return $(this).val().toLowerCase().trim()
     })
     .get()
+  var visible = 0
   $table.find('tbody tr:not(.search-row)').each(function () {
     var $cells = $(this).find('td')
     var show = filters.every(function (q, ci) {
       return !q || matchFilter(q, $cells.eq(ci).text().toLowerCase())
     })
     $(this).toggle(show)
+    if (show) visible++
   })
+  var $sub = $table.closest('.table-section').find('.table-sub')
+  if ($sub.length) $sub.text('Строк: ' + visible.toLocaleString('ru-RU'))
 })
 
 // Открыть URL в новой вкладке через <a>, а не window.open:
