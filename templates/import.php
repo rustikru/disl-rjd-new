@@ -188,6 +188,7 @@ $basePath = $basePath ?? '';
       <div class="header-meta">
         <a href="<?= htmlspecialchars($basePath) ?>/" class="btn btn-ghost btn-sm">← На главную</a>
         <form method="POST" action="<?= htmlspecialchars($basePath) ?>/logout" style="display:inline">
+          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
           <button type="submit" class="btn btn-ghost btn-sm">Выйти</button>
         </form>
       </div>

@@ -26,6 +26,9 @@ class SessionMiddleware implements MiddlewareInterface
             session_name($this->sessionName);
             session_start();
         }
+        if (empty($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        }
         return $handler->handle($request);
     }
 }

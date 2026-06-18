@@ -32,6 +32,7 @@ $basePath = $basePath ?? '';
       <?php endif; ?>
 
       <form method="POST" action="<?= htmlspecialchars($basePath) ?>/login" id="loginForm">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
         <div class="field">
           <label class="field-label" for="username">Логин</label>
           <input class="field-input<?= $error ? ' error' : '' ?>" type="text" id="username" name="username"

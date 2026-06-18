@@ -28,6 +28,11 @@ return function (App $app, array $config): void {
     });
 
     $app->post('/logout', function ($req, $res) use ($config) {
+        $body = (array) $req->getParsedBody();
+        $csrf = $body['csrf_token'] ?? '';
+        if ($csrf === '' || !hash_equals($_SESSION['csrf_token'] ?? '', $csrf)) {
+            return $res->withHeader('Location', ($config['base_path'] ?? '') . '/')->withStatus(302);
+        }
         session_destroy();
         return $res->withHeader('Location', ($config['base_path'] ?? '') . '/login')->withStatus(302);
     });
