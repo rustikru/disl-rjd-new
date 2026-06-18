@@ -95,8 +95,17 @@ class ApiController
             ];
         }
 
+        $dtRow = $this->db->fetchAll("SELECT MAX(report_dt) AS latest_dt FROM xx_dislocation_rjd");
+        $latestDt = $dtRow[0]['latest_dt'] ?? null;
+        try {
+            $updatedAt = $latestDt ? (new \DateTime($latestDt))->format('d.m.Y H:i') : null;
+        } catch (\Exception $e) {
+            $updatedAt = $latestDt;
+        }
+
         return $this->json($response, [
-            'sections' => [['values' => $values]],
+            'updated_at' => $updatedAt,
+            'sections'   => [['values' => $values]],
         ]);
     }
     /** GET /api/dislocation/filters */
