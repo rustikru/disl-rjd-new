@@ -284,7 +284,7 @@ var WAGON_TABS = {
     },*/
     csvFilename: 'подход',
     csvDetFilename: 'подход-расширенная',
-    totalText: 'Общий итог - ст.Углеуральская',
+    totalText: 'Общий итог',
     pinnedRowLabel: 'ст. Углеуральская',
     pinnedStationKey: 'УГЛЕУР',
     firstRoadKey: 'СВЕРДЛ',
@@ -801,7 +801,11 @@ function loadSummary(cfg) {
       )
 
       /* Вставляем закреплённую строку перед «Общий итог» */
-      if (pinnedStation && renderedDisplayCells && renderedDisplayCells.length) {
+      if (
+        pinnedStation &&
+        renderedDisplayCells &&
+        renderedDisplayCells.length
+      ) {
         var $grandRow = $table.find('tr.row-grand').first()
         if ($grandRow.length) {
           var hasSubtotalsPin =
