@@ -132,10 +132,10 @@ class ApiController
         $values = [];
         foreach ($rows as $r) {
             $values[] = [
-                'id'     => $r['id']      ?? '',
-                'value'  => $r['x_value'] ?? '0',
-                'label'  => $r['x_label'] ?? '',
-                'trend'  => 'down',
+                'id' => $r['id'] ?? '',
+                'value' => $r['x_value'] ?? '0',
+                'label' => $r['x_label'] ?? '',
+                'trend' => 'down',
                 'change' => '',
             ];
         }
@@ -211,6 +211,7 @@ class ApiController
         $bindings = $source['bindings'];
         $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
 
+        // Детализация для карточек KPI по ID карточки
         $kpiId = trim($params['kpi_id'] ?? '');
         if ($kpiId !== '') {
             $whereCond .= ' AND CASE WHEN XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_check_kpi(:kpi_id, xdr.id) THEN 1 ELSE 0 END = 1';

@@ -189,9 +189,6 @@ return function (App $app, array $config): void {
                 $sub->get('/summary', function ($req, $res) use ($getDb) {
                     return (new \App\Controllers\ApiController($getDb()))->kpiSummary($req, $res);
                 });
-                $sub->get('/detail', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->kpiDetail($req, $res);
-                });
             });
 
         }); // Конец группы /api
