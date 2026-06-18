@@ -111,13 +111,13 @@ class ApiController
     /** GET /api/kpi/summary */
     public function kpiSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params   = $request->getQueryParams();
+        $params = $request->getQueryParams();
         $bindings = [];
         $whereCond = '1=1';
 
         $kpiType = trim($params['kpi_type'] ?? '');
         if ($kpiType !== '') {
-            $whereCond .= ' AND kpi_type = :kpi_type';
+            $whereCond .= ' AND type = :kpi_type';
             $bindings['kpi_type'] = $kpiType;
         }
 
@@ -136,10 +136,10 @@ class ApiController
                 $sections[$sectionName] = ['values' => []];
             }
             $sections[$sectionName]['values'][] = [
-                'id'     => $r['id']      ?? '',
-                'value'  => $r['x_value'] ?? '0',
-                'label'  => $r['x_label'] ?? '',
-                'trend'  => 'down',
+                'id' => $r['id'] ?? '',
+                'value' => $r['x_value'] ?? '0',
+                'label' => $r['x_label'] ?? '',
+                'trend' => 'down',
                 'change' => '',
             ];
         }
@@ -314,52 +314,7 @@ class ApiController
         ]);
     }
 
-    public function kpiSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
-    {
 
-        $params = $request->getQueryParams();
-        //$source = $this->approachFrom($params);
-
-        $sections = [];
-        $trends = [];
-        $whereCond = '1=1';
-
-        $kpi_type = trim($params['kpi_type'] ?? '');
-        if ($kpi_type !== '') {
-            $whereCond .= " AND kpi_type = :kpi_type";
-        }
-
-
-        $rows = $this->db->fetchAll(
-            "select kpi.id, kpi.type, kpi.label as x_label, xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id) as x_value 
-                    from XX_KPI_TABLE_V kpi
-                    where 1=1 and $whereCond"
-        );
-
-        foreach ($rows as $r) {
-            $sectionName = trim(explode(',', (string) ($r['id'] ?? ''))[0]);
-
-            if (!isset($sections[$sectionName])) {
-                $sections[$sectionName] = [
-                    'values' => []
-                ];
-            }
-
-            $sections[$sectionName]['values'][] = [
-                'id' => $r['id'] ?? '',
-                'value' => $r['x_value'] ?? '0',
-                'label' => $r['x_label'] ?? '',
-                'trend' => 'down',
-                'change' => ''
-            ];
-        }
-
-
-        return $this->json($response, [
-            'sections' => array_values($sections),
-            'trends' => $trends,
-        ]);
-    }
 
     /** GET /api/approach/detail */
     public function approachDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface

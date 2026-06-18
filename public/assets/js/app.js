@@ -131,14 +131,16 @@ function loadKPI() {
   })*/
   Object.keys(KPI_BOARDS).forEach(function (key) {
     var board = KPI_BOARDS[key]
-    $.getJSON(board.dataUrl, board.params ? board.params() : {}).done(function (data) {
-      //console.log('Ключ:', data)
-      if (data.updated_at) {
-        $('#brandDateSub').text('Дислокация РЖД на ' + data.updated_at)
-        $('#headerDate').text(data.updated_at)
-      }
-      showKpi(data, board.containerId)
-    })
+    $.getJSON(board.dataUrl, board.params ? board.params() : {}).done(
+      function (data) {
+        //console.log('Ключ:', data)
+        if (data.updated_at) {
+          $('#brandDateSub').text('Дислокация РЖД на ' + data.updated_at)
+          $('#headerDate').text(data.updated_at)
+        }
+        showKpi(data, board.containerId)
+      },
+    )
   })
 }
 
@@ -651,12 +653,17 @@ var KPI_BOARDS = {
   departure: {
     containerId: 'departureMetrics',
     dataUrl: BASE + '/api/kpi/summary',
-    params: function () { return { kpi_type: 'departure_kpi' } },
+    params: function () {
+      return { kpi_type: 'departue_kpi' }
+    },
     cards: departureCards,
   },
   approach: {
     containerId: 'approachMetrics',
-    dataUrl: BASE + '/api/approach/kpi',
+    dataUrl: BASE + '/api/kpi/summary',
+    params: function () {
+      return { kpi_type: 'approach_kpi' }
+    },
     cards: approachCards,
   },
 }
