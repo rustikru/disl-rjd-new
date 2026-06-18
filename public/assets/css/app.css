@@ -400,6 +400,11 @@ body {
   flex-wrap: wrap;
 }
 
+.kpi-trend-row {
+  margin-top: auto;
+  padding-top: 8px;
+}
+
 .kpi-badge {
   font-size: 11px;
   font-weight: 500;

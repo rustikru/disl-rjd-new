@@ -1949,10 +1949,9 @@ function kpiCard(item) {
       '</div>' +
       '<div class="kpi-value-row"><span class="kpi-value">' +
       valStr +
-      '</span>' +
-      badgeHtml +
-      '</div>' +
+      '</span></div>' +
       (item.sub ? '<div class="kpi-delta">' + esc(item.sub) + '</div>' : '') +
+      (badgeHtml ? '<div class="kpi-trend-row">' + badgeHtml + '</div>' : '') +
       '</div>'
     )
   }
