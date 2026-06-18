@@ -3,6 +3,7 @@
 $appName = $appName ?? 'АО Метафракс Кемикалс';
 $basePath = $basePath ?? '';
 $user = $user ?? ['display_name' => 'Пользователь'];
+$reportDtLabel = $reportDtLabel ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -285,7 +286,7 @@ $user = $user ?? ['display_name' => 'Пользователь'];
                 </div>
                 <div class="brand-text">
                     <div class="brand-name"><?= htmlspecialchars($appName) ?></div>
-                    <div id="brandDateSub" class="brand-date-sub"></div>
+                    <div id="brandDateSub" class="brand-date-sub"><?= $reportDtLabel ? 'Дислокация РЖД на ' . htmlspecialchars($reportDtLabel) : '' ?></div>
                 </div>
             </div>
             <div class="header-meta">
@@ -309,7 +310,7 @@ $user = $user ?? ['display_name' => 'Пользователь'];
         </div>
 
         <div id="map"></div>
-    </div>="<?= htmlspecialchars($basePath) ?>/assets/css/Leaflet/
+    </div>
     <!-- Подключение библиотек карты Leaflet -->
     <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jquery/jquery-3.7.1.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -376,7 +377,8 @@ $user = $user ?? ['display_name' => 'Пользователь'];
             markerGroup = L.markerClusterGroup({
                 maxClusterRadius: 50,
                 iconCreateFunction: function (cluster) {
-                    var n = cluster.getChildCount();
+                    var n = 0;
+                    cluster.getAllChildMarkers().forEach(function (m) { n += (m._wagonCount || 1); });
                     var size = n > 500 ? 52 : n > 50 ? 42 : 34;
                     return L.divIcon({
                         html: '<div class="leaflet-data-marker" style="width:' + size + 'px;height:' + size + 'px;font-size:' + (n > 99 ? 10 : 12) + 'px;background:#251249">' + n + '</div>',
@@ -414,6 +416,7 @@ $user = $user ?? ['display_name' => 'Пользователь'];
                 }).join('');
 
                 var marker = L.marker([s.lat, s.lng], { icon: icon });
+                marker._wagonCount = cnt;
 
                 marker.bindPopup(
                     '<div>' +

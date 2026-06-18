@@ -29,6 +29,16 @@ class MapsController
         $dtsByType = $apiController->getLatestDtsByType(null, ['Подход', 'Отправка']);
         $cond = $apiController->latestDtCondition($dtsByType, 'xdr');
 
+        $reportDtLabel = '';
+        if (!empty($dtsByType)) {
+            $dt = max($dtsByType);
+            try {
+                $reportDtLabel = (new \DateTime($dt))->format('d.m.Y');
+            } catch (\Exception $e) {
+                $reportDtLabel = $dt;
+            }
+        }
+
         $rows = $this->db->fetchAll(
             "SELECT distinct 
                     xdr.wagon_no,
