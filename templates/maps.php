@@ -1,5 +1,5 @@
 <?php
-// Задаем дефолтные значения, если переменные не пришли из Slim-фреймворка, чтобы не было варнингов
+
 $appName = $appName ?? 'АО Метафракс Кемикалс';
 $basePath = $basePath ?? '';
 $user = $user ?? ['display_name' => 'Пользователь'];
@@ -15,12 +15,11 @@ $user = $user ?? ['display_name' => 'Пользователь'];
     </title>
     <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
 
-    <!-- Стили приложения -->
     <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
 
     <!-- Подключение библиотек карты Leaflet -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/Leaflet/leaflet.css" />
+    <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/Leaflet/MarkerCluster.css" />
 
     <script>window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';</script>
     <style>
@@ -48,14 +47,12 @@ $user = $user ?? ['display_name' => 'Пользователь'];
             background: var(--paper);
         }
 
-        /* Исправление высоты под шапку сайта */
         .app-container {
             display: flex;
             flex: 1;
             height: calc(100vh - 60px);
         }
 
-        /* Жесткое скрытие дефолтных элементов управления Leaflet */
         .leaflet-control-attribution,
         .leaflet-control-zoom {
             display: none !important;
@@ -312,8 +309,8 @@ $user = $user ?? ['display_name' => 'Пользователь'];
         </div>
 
         <div id="map"></div>
-    </div>
-
+    </div>="<?= htmlspecialchars($basePath) ?>/assets/css/Leaflet/
+    <!-- Подключение библиотек карты Leaflet -->
     <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jquery/jquery-3.7.1.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
@@ -407,13 +404,13 @@ $user = $user ?? ['display_name' => 'Пользователь'];
 
                 var wagonsListHtml = wagons.map(function (w) {
                     return '<div style="border-bottom: 1px solid #e2e1e7; padding: 5px 0; font-size: 11px; line-height: 1.4;">' +
-                        '<strong style="color: var(--primary); font-family: var(--mono); font-size: 12px;">№ ' + w.wagon_num + '</strong> — ' + w.wagon_type + '<br>' +
+                        '<strong style="color: var(--primary); font-family: var(--mono); font-size: 12px;">' + w.wagon_num + '</strong> — ' + w.wagon_type + '<br>' +
                         '<span style="color: ' + (w.ld ? 'var(--loaded)' : 'var(--empty)') + '; font-weight: 600;">' +
                         (w.ld ? 'Гружёный' : 'Порожний') +
                         '</span>' +
                         (w.cargo ? '<span style="color: #555;"> (' + w.cargo + ')</span>' : '') +
                         (w.dest_station ? '<br><span style="color: #7c7e86; font-size: 10px;">→ Назначение: ' + w.dest_station + '</span>' : '') +
-                        (w.days_no_move > 0 ? '<br><small style="color: var(--empty);">Без движения: ' + w.days_no_move + ' дн.</small>' : '') +
+                        // (w.days_no_move > 0 ? '<br><small style="color: var(--empty);">Без движения: ' + w.days_no_move + ' дн.</small>' : '') +
                         '</div>';
                 }).join('');
 
