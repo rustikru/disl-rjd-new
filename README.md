@@ -21,7 +21,7 @@
 ```
 disl-rjd-new/
 ├── public/
-│   ├── index.php            # Точка входа (bootstrap)
+│   ├── index.php            # bootstrap
 │   ├── .htaccess            # mod_rewrite → index.php
 │   └── assets/
 │       ├── css/app.css      # Все стили (включая шапки таблиц bisque)
@@ -252,7 +252,7 @@ disl-rjd-new/
 │  └── GROUP BY: rowDims, applyFormat(colDef)  ← без алиаса                          │
 │                                                                                     │
 │  selectFields($fields)                                                              │
-│  └── isSafeField() → whitelist [a-z0-9_.] + проверка user_tab_columns              │
+│  └── isSafeField() → whitelist [a-z0-9_.] + проверка по user_tab_columns           │
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -273,6 +273,7 @@ KPI-карточки рендерятся через универсальную 
   value:   1234,             // числовое значение
   accent:  true,             // фиолетовая рамка — главный показатель
   variant: 'pill',           // альтернативный стиль (таблеточка)
+  sub:     '← 3 от плана',  // дополнительная строка под значением (серый текст)
   trend: {                   // стрелка тренда (опционально)
     pct: 5.2,                // процент изменения
     dir: 'up'                // 'up' | 'down' | 'neutral'
@@ -280,10 +281,34 @@ KPI-карточки рендерятся через универсальную 
   detail: {                  // клик → открыть страницу /detail (опционально)
     ctx:       'dislocation',        // контекст (ключ DETAIL_CONTEXTS)
     road:      'ГОРЬКОВСКАЯ',        // фильтр по дороге (опционально)
-    _endpoint: '/api/custom/detail'  // переопределить URL API (опционально)
+    _endpoint: '/api/custom/detail', // переопределить URL API (опционально)
+    params:    { kpi_type: 'tank' }  // доп. параметры запроса к детализации
   }
 }
 ```
+
+Все поля объекта карточки:
+
+| Поле      | Тип     | Описание |
+|-----------|---------|----------|
+| `label`   | string  | Подпись карточки |
+| `value`   | number  | Основное значение |
+| `accent`  | boolean | Фиолетовая рамка (главный показатель раздела) |
+| `variant` | string  | `'pill'` — компактный стиль |
+| `sub`     | string  | Мелкий текст под значением |
+| `trend`   | object  | `{ pct, dir }` — стрелка и процент изменения |
+| `detail`  | object  | Конфиг drill-down (см. ниже) |
+
+Поля `detail`:
+
+| Поле        | Описание |
+|-------------|----------|
+| `ctx`       | Ключ `DETAIL_CONTEXTS` — определяет колонки страницы детализации |
+| `road`      | Фильтр по дороге (передаётся в URL) |
+| `station`   | Фильтр по станции |
+| `groupBy`   | `group_by` параметр для строк детализации |
+| `_endpoint` | Переопределить URL API (данные из другого источника, колонки — из `ctx`) |
+| `params`    | Объект доп. параметров, добавляемых в URL запроса детализации |
 
 ---
 
@@ -410,6 +435,82 @@ mySection: {
 
 ---
 
+### KPI из Oracle-пакета
+
+Когда расчёт показателей идёт в PL/SQL-пакете (`TABLE(MY_PKG.fnc_kpi())`), на бэкенде создаётся тонкий API-метод, который вызывает функцию и маппит строки в объект нужной формы.
+
+**Пример: Oracle-пакет возвращает таблицу строк**
+
+```php
+// ApiController.php
+public function myKpi(Request $req, Response $res): Response
+{
+    $rows = $this->db->fetchAll(
+        "SELECT * FROM TABLE(XX_ETW.MY_PKG.fnc_kpi())"
+    );
+    // fnc_kpi() возвращает: ID, VALUE, LABEL, TREND_PCT, TREND_DIR
+    $cards = [];
+    foreach ($rows as $r) {
+        $cards[] = [
+            'id'        => $r['id'],
+            'value'     => (int) $r['value'],
+            'label'     => $r['label'],
+            'trend_pct' => $r['trend_pct'],
+            'trend_dir' => $r['trend_dir'],
+        ];
+    }
+    return $this->json($res, ['cards' => $cards, 'updated_at' => /* ... */]);
+}
+```
+
+**В `app.js` — карточки из произвольного формата:**
+
+```js
+var KPI_BOARDS = {
+  mySection: {
+    containerId: 'myKpiGrid',
+    dataUrl:     BASE + '/api/my/kpi',
+    cards: function (data) {
+      return (data.cards || []).map(function (r) {
+        return {
+          label:  r.label,
+          value:  r.value,
+          accent: r.id === 'total',
+          trend:  makeTrend(r.trend_pct, r.trend_dir),
+          detail: {
+            ctx:       'approach',
+            _endpoint: '/api/approach/detail',
+            params:    { kpi_type: r.id }   // передаётся в запрос детализации
+          }
+        }
+      })
+    },
+  },
+}
+```
+
+**Бэкенд детализации** — получает `kpi_type` и применяет нужный фильтр:
+
+```php
+public function myDetail(Request $req, Response $res): Response
+{
+    $params   = $req->getQueryParams();
+    $kpiType  = $params['kpi_type'] ?? null;
+    $source   = $this->approachFrom($params);
+    $bindings = $source['bindings'];
+    $where    = $this->applyDetailFilters($rowDims, $params, $bindings);
+    if ($kpiType) {
+        $where .= " AND kpi_category = :kpi_type";
+        $bindings['kpi_type'] = $kpiType;
+    }
+    // ...
+}
+```
+
+**Существующий пример — `dashboardKPI`:** вызывает `fnc_set_dashboard()` и маппит поля `total`, `tank_total`, `comming_to_ugl` и т.д. в карточки через `dashboardCards(data)` в `app.js`.
+
+---
+
 ### Переопределение эндпоинта для drill-down (`_endpoint`)
 
 Если данные считаются в Oracle-пакете и нужен отдельный API, но колонки детализации совпадают с существующим контекстом:
@@ -471,6 +572,12 @@ URL страницы детализации:
 | `colDims`           | array    | Колонки сводной. `{ key, paramName }` — реальное поле → URL-параметр фильтра. `{ key, synthetic: true }` — метка-псевдоколонка, не передаётся как фильтр |
 | `detSubId`          | string   | `id` подписи под заголовком расширенной («Строк: N»)                                              |
 | `draw(data, cfg)`   | function | Переопределяет стандартный рендер сводной. Нужен когда структура ответа API нестандартна. Пример: Дислокация использует `{sections, cols}` и рендерит через `drawMain` |
+| `totalColDims`      | array    | Ключи из `colDims[].key`, по которым строятся столбцы подытогов в строке. Пример: `['wagon_type_code']` — итог по типу вагона без разбивки по грузу |
+| `totalText`         | string   | Текст строки «Общий итог» сводной. По умолчанию `'Общий итог'`. Можно использовать как пояснение: `'Общий итог - ст.Углеуральская'` |
+| `pinnedRowLabel`    | string   | Подпись закреплённой строки вверху таблицы (перед «Общий итог»). Пример: `'ст. Углеуральская'` |
+| `pinnedStationKey`  | string   | Подстрока имени станции для закрепления. Станция извлекается из дерева до отрисовки. Пример: `'УГЛЕУР'` |
+| `firstRoadKey`      | string   | Подстрока имени дороги, которую нужно поставить первой в дереве (после «Общий итог»). Пример: `'СВЕРДЛ'` |
+| `showList(data, cfg)` | function | Переопределяет рендер расширенной таблицы (вместо `showTable()`). Нужен когда API возвращает не массив `{rows}` |
 | `listParams()`      | function | Переопределяет параметры запроса к `detailUrl`                                                    |
 
 ### Поля элемента `colDims[]`
@@ -535,7 +642,7 @@ DETAIL_CONTEXTS['my-ctx'] = {
 
 ---
 
-## Принцип «один источник правды»
+## Откуда что берётся
 
 | Что                       | Где задаётся                     | Куда попадает                                  |
 | ------------------------- | -------------------------------- | ---------------------------------------------- |
@@ -544,7 +651,7 @@ DETAIL_CONTEXTS['my-ctx'] = {
 | Поля SELECT детализации   | `DETAIL_CONTEXTS[ctx].cols[].key` | `?fields=` → `selectFields()` → SQL `SELECT`   |
 | Сортировка детализации    | `DETAIL_CONTEXTS[ctx].sort`      | `?sort=&sort_dir=&sort_type=`                  |
 | Тип вагона (Oracle функция) | `ApiController::WAG_TYPE_EXPR` | Все summary и detail методы через константу    |
-| Валидация полей           | `isSafeField()` + `user_tab_columns` | Единственная точка безопасности              |
+| Валидация полей           | `isSafeField()` + `user_tab_columns` | Единственная проверка безопасности           |
 
 ---
 
