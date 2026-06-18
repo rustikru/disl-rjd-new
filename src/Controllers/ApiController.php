@@ -652,7 +652,7 @@ class ApiController
             $bindings['date_from'] = $dateFrom;
         }
 
-        $dateTo = $params['date_to'] !== '' ? ($params['date_to'] ?? '') : '';
+        $dateTo = $params['date_to'] ?? '';
         if ($dateTo === '') {
             $dateTo = date('Y-m-d');
         }
