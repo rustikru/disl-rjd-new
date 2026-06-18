@@ -514,6 +514,10 @@ var WAGON_TABS = {
       fillSelect('#fAnalysisPeriodCargo', data.cargo || [])
     },
 
+    validate: function () {
+      if (!$('#fAnalysisPeriodDateFrom').val()) return 'Укажите дату начала периода'
+      return null
+    },
     resetFilters: function () {
       $('#fAnalysisPeriodWagonNo').val('')
       $('#fAnalysisPeriodDateFrom').val('')
@@ -682,8 +686,15 @@ function initTab(cfg) {
   loadFilters(cfg)
   loadSummary(cfg)
   if (!cfg.summaryUrl && cfg.detailUrl && !window[cfg.loadedDetKey]) {
-    window[cfg.loadedDetKey] = true
-    loadDetail(cfg)
+    var initHint = cfg.validate ? cfg.validate() : null
+    if (initHint) {
+      $('#' + cfg.detTableId).html(
+        '<div style="text-align:center;padding:40px;color:#9DA5B0">' + esc(initHint) + '</div>',
+      )
+    } else {
+      window[cfg.loadedDetKey] = true
+      loadDetail(cfg)
+    }
   }
 }
 /* Загрузка и отображение фильтров, если они есть настроены */
@@ -2234,6 +2245,13 @@ $(function () {
     var applyId = cfg.applyBtnId || 'btn' + capKey + 'Apply'
     var resetId = cfg.resetBtnId || 'btn' + capKey + 'Reset'
     $('#' + applyId).on('click', function () {
+      var applyHint = cfg.validate ? cfg.validate() : null
+      if (applyHint) {
+        $('#' + cfg.detTableId).html(
+          '<div style="text-align:center;padding:40px;color:#9DA5B0">' + esc(applyHint) + '</div>',
+        )
+        return
+      }
       window[cfg.loadedDetKey] = false
       loadSummary(cfg)
       if ($('#' + cfg.detPanelId).hasClass('active')) {

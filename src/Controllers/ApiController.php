@@ -652,11 +652,13 @@ class ApiController
             $bindings['date_from'] = $dateFrom;
         }
 
-        $dateTo = $params['date_to'] ?? '';
-        if ($dateTo !== '') {
-            $whereCond .= " AND TRUNC(oper_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
-            $bindings['date_to'] = $dateTo;
+        $dateTo = $params['date_to'] !== '' ? ($params['date_to'] ?? '') : '';
+        if ($dateTo === '') {
+            $dateTo = date('Y-m-d');
         }
+        $whereCond .= " AND TRUNC(oper_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
+        $bindings['date_to'] = $dateTo;
+
         $cargo = $params['cargo'] ?? '';
         if ($cargo !== '') {
             $whereCond .= " AND cargo_name = :cargo";
