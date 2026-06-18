@@ -188,7 +188,7 @@ return function (App $app, array $config): void {
                     return (new \App\Controllers\ApiController($getDb()))->analysisPeriod($req, $res);
                 });
             });
-
+            // --- Карточки KPI ---
             $api->group('/kpi', function ($sub) use ($getDb) {
                 $sub->get('/summary', function ($req, $res) use ($getDb) {
                     return (new \App\Controllers\ApiController($getDb()))->kpiSummary($req, $res);
