@@ -117,6 +117,9 @@ return function (App $app, array $config): void {
                 $sub->get('/detail', function ($req, $res) use ($getDb) {
                     return (new \App\Controllers\ApiController($getDb()))->approachDetail($req, $res);
                 });
+                $sub->get('/kpi', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->approachKPI($req, $res);
+                });
             });
 
             // --- Отправление ---

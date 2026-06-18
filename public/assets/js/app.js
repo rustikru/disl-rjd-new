@@ -132,7 +132,7 @@ function loadKPI() {
   Object.keys(KPI_BOARDS).forEach(function (key) {
     var board = KPI_BOARDS[key]
     $.getJSON(board.dataUrl).done(function (data) {
-      console.log('Ключ:', data)
+      //console.log('Ключ:', data)
       var label = data.updated_at || '—'
       $('#brandDateSub').text('Дислокация РЖД на ' + label)
       $('#headerDate').text(label)
@@ -520,14 +520,30 @@ function metricsCards(data, mainLabel, ctx, groupBy) {
   )
 }
 function departureCards(data) {
-  return [
-    {
-      label: 'Груженые в пути c УГЛ',
-      value: '21',
+  var valuesArray =
+    (data.sections && data.sections[0] && data.sections[0].values) || []
+
+  return valuesArray.map(function (item, index) {
+    return {
+      label: item.label,
+      value: item.value,
       variant: 'pill',
-      trend: makeTrend('2', 'down'),
-    },
-  ]
+      trend: makeTrend(item.change, item.trend),
+    }
+  })
+}
+function approachCards(data) {
+  var valuesArray =
+    (data.sections && data.sections[0] && data.sections[0].values) || []
+
+  return valuesArray.map(function (item, index) {
+    return {
+      label: item.label,
+      value: item.value,
+      variant: 'pill',
+      trend: makeTrend(item.change, item.trend),
+    }
+  })
 }
 /**
  * KPI для страницы Дислокация
@@ -536,7 +552,7 @@ function departureCards(data) {
  */
 
 function dashboardCards(data) {
-  console.log(data)
+  //console.log(data)
   var grandTotal = 0,
     tankTotal = 0,
     commingToUgl = 0,
@@ -605,6 +621,11 @@ var KPI_BOARDS = {
     containerId: 'departureMetrics',
     dataUrl: BASE + '/api/departure/kpi',
     cards: departureCards,
+  },
+  approach: {
+    containerId: 'approachMetrics',
+    dataUrl: BASE + '/api/approach/kpi',
+    cards: approachCards,
   },
 }
 

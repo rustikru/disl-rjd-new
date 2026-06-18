@@ -227,6 +227,55 @@ class ApiController
         return $this->json($response, $this->summaryReport($source, $rowDims, $colDefs));
     }
 
+    public function approachKPI(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+
+        $params = $request->getQueryParams();
+        $source = $this->approachFrom($params);
+        $bindings = $source['bindings'];
+        if (!$source['reportDt']) {
+            return $this->json($response, ['rows' => []]);
+        }
+
+        $sections = [];
+        $trends = [];
+
+
+        $rows = $this->db->fetchAll(
+            "select kpi.label as x_label, count(x.x_value) as x_value 
+                    from XX_KPI_TABLE_V kpi left join (
+                  SELECT  xx_rjd_dislocation_new_pkg.set_kpi_label('approachKPI',id) as x_value
+                    FROM {$source['from']} WHERE 1=1 
+                  ) x on kpi.type = 'approach_kpi' and kpi.label = x.x_value
+                group by kpi.label",
+            $bindings
+        );
+
+        foreach ($rows as $r) {
+            $sectionName = trim(explode(',', (string) ($r['id'] ?? ''))[0]);
+
+            if (!isset($sections[$sectionName])) {
+                $sections[$sectionName] = [
+                    'values' => []
+                ];
+            }
+
+            $sections[$sectionName]['values'][] = [
+                'id' => $r['id'] ?? '',
+                'value' => $r['x_value'] ?? '0',
+                'label' => $r['x_label'] ?? '',
+                'trend' => 'down',
+                'change' => ''
+            ];
+        }
+
+
+        return $this->json($response, [
+            'sections' => array_values($sections),
+            'trends' => $trends,
+        ]);
+    }
+
     /** GET /api/approach/detail */
     public function approachDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
@@ -319,55 +368,45 @@ class ApiController
     /** GET /api/departure/KPI */
     public function departureKPI(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $dtsByType = $this->getLatestDtsByType(null, ['Подход', 'Отправка']);
 
-        $rows = $this->db->fetchAll(
-            "SELECT * FROM TABLE(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_set_dashboard()) where 1=2"
-        );
-        $dt = max($dtsByType);
+        $params = $request->getQueryParams();
+        $source = $this->departureFrom($params);
+        $bindings = $source['bindings'];
+        if (!$source['reportDt']) {
+            return $this->json($response, ['rows' => []]);
+        }
 
         $sections = [];
         $trends = [];
 
+
+        $rows = $this->db->fetchAll(
+            "select kpi.label as x_label, count(x.x_value) as x_value 
+                    from XX_KPI_TABLE_V kpi left join (
+                  SELECT  xx_rjd_dislocation_new_pkg.set_kpi_label('departureKPI',id) as x_value
+                    FROM {$source['from']} WHERE 1=1 
+                  ) x on kpi.type = 'departure_kpi' and kpi.label = x.x_value
+                group by kpi.label",
+            $bindings
+        );
         foreach ($rows as $r) {
             $sectionName = trim(explode(',', (string) ($r['id'] ?? ''))[0]);
+
             if (!isset($sections[$sectionName])) {
                 $sections[$sectionName] = [
-                    'total' => 0,
-                    'tank_total' => 0,
-                    'comming_to_ugl' => 0,
-                    'arrived_today_ugl' => 0,
-                    'arrived_ugl' => 0,
-                    'loaded_transit' => 0,
+                    'values' => []
                 ];
             }
-            $sections[$sectionName]['total'] = (int) $r['total'];
-            $sections[$sectionName]['tank_total'] = (int) $r['tank_total'];
-            $sections[$sectionName]['comming_to_ugl'] = (int) $r['comming_to_ugl'];
-            $sections[$sectionName]['arrived_today_ugl'] = (int) $r['arrived_today_ugl'];
-            $sections[$sectionName]['loaded_transit'] = (int) $r['loaded_transit'];
 
-            $trends = [
-                'total' => null,
-                'total_dir' => null,
-                'tank' => null,
-                'tank_dir' => null,
-                'other' => null,
-                'other_dir' => null,
-                'met_arrived_ugl' => $r['met_arrived_ugl'],
-                'met_arrived_ugl_dir' => $r['met_arrived_ugl_dir'],
-                'met_loaded_transit' => $r['met_loaded_transit'],
-                'met_loaded_transit_dir' => $r['met_loaded_transit_dir'],
-                'met_comming_to_ugl' => $r['met_comming_to_ugl'],
-                'met_comming_to_ugl_dir' => $r['met_comming_to_ugl_dir'],
+            $sections[$sectionName]['values'][] = [
+                'id' => $r['id'] ?? '',
+                'value' => $r['x_value'] ?? '0',
+                'label' => $r['x_label'] ?? '',
+                'trend' => 'down',
+                'change' => ''
             ];
         }
 
-        try {
-            $dtLabel = (new \DateTime($dt))->format('d.m.Y H:i');
-        } catch (\Exception $e) {
-            $dtLabel = $dt;
-        }
 
         return $this->json($response, [
             'sections' => array_values($sections),
