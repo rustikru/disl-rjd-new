@@ -30,7 +30,8 @@ class MapsController
         $cond = $apiController->latestDtCondition($dtsByType, 'xdr');
 
         $rows = $this->db->fetchAll(
-            "SELECT xdr.wagon_no,
+            "SELECT distinct 
+                    xdr.wagon_no,
                     xdr.wagon_type_code,
                     xdr.cargo_weight_kg,
                     xdr.cargo_name,
@@ -39,13 +40,12 @@ class MapsController
                     xdr.idle_time_days,
                     xdr.oper_road,
                     xdr.oper_station,
-                    xdr.dest_station_esr_code,
                     rs.esr_code,
                     rs.station_name,
                     rs.latitude,
                     rs.longitude
              FROM xx_dislocation_rjd xdr
-             LEFT JOIN xx_rjd_stations rs ON xdr.dest_station_esr_code = rs.esr_code
+             LEFT JOIN xx_rjd_stations rs ON xdr.oper_station_esr_code = rs.esr_code
              WHERE {$cond['sql']}
                ",
             $cond['params']
@@ -77,6 +77,8 @@ class MapsController
                 'dest_station' => (string) ($r['dest_station'] ?? ''),
                 'wagon_state' => (string) ($r['wagon_state'] ?? ''),
                 'days_no_move' => (int) ($r['idle_time_days'] ?? 0),
+                'latitude' => (string) ($r['latitude'] ?? ''),
+                'longitude' => (string) ($r['longitude'] ?? ''),
             ];
         }
 
