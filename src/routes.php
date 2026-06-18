@@ -89,10 +89,6 @@ return function (App $app, array $config): void {
             $api->get('/dashboard', function ($req, $res) use ($getDb) {
                 return (new \App\Controllers\ApiController($getDb()))->dashboard($req, $res);
             });
-            $api->get('/dashboard/kpi', function ($req, $res) use ($getDb) {
-                return (new \App\Controllers\ApiController($getDb()))->dashboardKPI($req, $res);
-            });
-
             // --- Загрузка файлов через API ---
             $api->post('/import/file', function ($req, $res) use ($getDb, $config) {
                 return (new \App\Controllers\ImportController($getDb(), $config))->handleUploadJson($req, $res);

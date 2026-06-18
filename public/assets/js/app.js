@@ -122,13 +122,6 @@ function initInnerTabs() {
 
 // Dashboard
 function loadKPI() {
-  /*
-  $.getJSON(KPI_BOARDS.dashboard.dataUrl).done(function (data) {
-    var label = data.updated_at || '—'
-    $('#brandDateSub').text('Дислокация РЖД на ' + label)
-    $('#headerDate').text(label)
-    showKpi(data)
-  })*/
   Object.keys(KPI_BOARDS).forEach(function (key) {
     var board = KPI_BOARDS[key]
     $.getJSON(board.dataUrl, board.params ? board.params() : {}).done(
@@ -587,69 +580,26 @@ function approachCards(data) {
  */
 
 function dashboardCards(data) {
-  //console.log(data)
-  var grandTotal = 0,
-    tankTotal = 0,
-    commingToUgl = 0,
-    arrivedTodayUgl = 0,
-    loadedTransit = 0
-  ;(data.sections || []).forEach(function (x) {
-    grandTotal += x.total || 0
-    tankTotal += x.tank_total || 0
-    commingToUgl += x.comming_to_ugl || 0
-    arrivedTodayUgl += x.arrived_today_ugl || 0
-    loadedTransit += x.loaded_transit || 0
-  })
-  var tr = data.trends || {}
-  return [
-    {
-      label: 'Груженые в пути c УГЛ',
-      value: loadedTransit,
-      variant: 'pill',
-      trend: makeTrend(tr.met_loaded_transit, tr.met_loaded_transit_dir),
-    },
-    {
-      label: 'Цистерны',
-      value: tankTotal,
-      variant: 'pill',
-      trend: makeTrend(tr.tank, tr.tank_dir),
-    },
-    {
-      label: 'Прочие вагоны',
-      value: grandTotal - tankTotal,
-      variant: 'pill',
-      trend: makeTrend(tr.other, tr.other_dir),
-    },
-    {
-      label: 'В пути на УГЛ',
-      value: commingToUgl,
-      variant: 'pill',
-      trend: makeTrend(tr.met_comming_to_ugl, tr.met_comming_to_ugl_dir),
-    },
-    {
-      label: 'Прибыло сегодня (УГЛ)',
-      value: arrivedTodayUgl,
-      variant: 'pill',
-      trend: makeTrend(tr.met_arrived_ugl, tr.met_arrived_ugl_dir),
-    },
-  ]
-}
+  var valuesArray =
+    (data.sections && data.sections[0] && data.sections[0].values) || []
 
-function loadKpi(cfg) {
-  $.getJSON(cfg.dataUrl, cfg.params ? cfg.params() : {}).done(function (data) {
-    var items = cfg.cards
-      ? cfg.cards(data)
-      : metricsCards(data, cfg.mainLabel, cfg.ctx, cfg.groupBy)
-    $('#' + cfg.containerId).html(items.map(kpiCard).join(''))
+  return valuesArray.map(function (item) {
+    return {
+      label: item.label,
+      value: item.value,
+      variant: 'pill',
+      trend: makeTrend(item.change, item.trend),
+      detail: item.id ? { ctx: 'dislocation', params: { kpi_id: item.id } } : null,
+    }
   })
 }
 
 // KPI-карточки для дашборда и отдельных блоков
 var KPI_BOARDS = {
-  // GET /api/dashboard
   dashboard: {
     containerId: 'kpiGrid',
-    dataUrl: BASE + '/api/dashboard/kpi',
+    dataUrl: BASE + '/api/kpi/summary',
+    params: function () { return { kpi_type: 'dashboard_kpi' } },
     cards: dashboardCards,
   },
   departure: {
