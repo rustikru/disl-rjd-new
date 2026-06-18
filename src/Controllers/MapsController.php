@@ -33,7 +33,7 @@ class MapsController
         if (!empty($dtsByType)) {
             $dt = max($dtsByType);
             try {
-                $reportDtLabel = (new \DateTime($dt))->format('d.m.Y');
+                $reportDtLabel = (new \DateTime($dt))->format('d.m.Y H:i:s');
             } catch (\Exception $e) {
                 $reportDtLabel = $dt;
             }
