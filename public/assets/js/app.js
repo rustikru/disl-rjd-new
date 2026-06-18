@@ -839,7 +839,9 @@ function loadSummary(cfg) {
                 : '<td>' + disp + '</td>',
             )
           })
-          $grandRow.before($('<tr">' + pinnedCells.join('') + '</tr>'))
+          $grandRow.before(
+            $('<tr class="row-pinned">' + pinnedCells.join('') + '</tr>'),
+          )
         }
       }
 

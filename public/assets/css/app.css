@@ -708,8 +708,8 @@ body {
 .data-table .row-pinned td {
   background: #fffbe6;
   font-weight: 700;
-  border-top: 2px solid #f5c518;
-  border-bottom: 2px solid #f5c518;
+  /* border-top: 2px solid #f5c518;
+  border-bottom: 2px solid #f5c518; */
   color: #5a3e00;
 }
 
