@@ -123,7 +123,9 @@ class ApiController
 
         $rows = $this->db->fetchAll(
             "SELECT kpi.id, kpi.type, kpi.label AS x_label,
-                    xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id) AS x_value
+                    xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id)      AS x_value,
+                    xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_pct(kpi.id) AS trend_pct,
+                    xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_dir(kpi.id) AS trend_dir
              FROM XX_KPI_TABLE_V kpi
              WHERE $whereCond",
             $bindings
@@ -132,11 +134,11 @@ class ApiController
         $values = [];
         foreach ($rows as $r) {
             $values[] = [
-                'id' => $r['id'] ?? '',
-                'value' => $r['x_value'] ?? '0',
-                'label' => $r['x_label'] ?? '',
-                'trend' => 'down',
-                'change' => '',
+                'id'     => $r['id']      ?? '',
+                'value'  => $r['x_value'] ?? '0',
+                'label'  => $r['x_label'] ?? '',
+                'trend'  => $r['trend_dir'] ?? '',
+                'change' => $r['trend_pct'] ?? '',
             ];
         }
 
