@@ -117,69 +117,6 @@ class ApiController
         ]);
     }
 
-    /** GET /api/map/stations */
-    public function mapStations(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
-    {
-        $params    = $request->getQueryParams();
-        $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
-
-        if (empty($dtsByType)) {
-            return $this->json($response, []);
-        }
-
-        $cond = $this->latestDtCondition($dtsByType, 'xdr');
-
-        $rows = $this->db->fetchAll(
-            "SELECT xdr.wagon_no,
-                    xdr.wagon_type_code,
-                    xdr.cargo_weight_kg,
-                    xdr.cargo_name,
-                    xdr.dest_station,
-                    xdr.wagon_state,
-                    xdr.idle_time_days,
-                    xdr.oper_road,
-                    xdr.oper_station,
-                    xdr.oper_station_esr_code,
-                    rs.latitude,
-                    rs.longitude
-             FROM xx_dislocation_rjd xdr
-             LEFT JOIN xx_rjd_stations rs ON xdr.oper_station_esr_code = rs.esr_code
-             WHERE {$cond['sql']}
-               AND xdr.oper_station IS NOT NULL
-               AND rs.latitude      IS NOT NULL
-               AND rs.longitude     IS NOT NULL",
-            $cond['params']
-        );
-
-        $stationsMap = [];
-        foreach ($rows as $r) {
-            $code = (string) ($r['oper_station_esr_code'] ?? '');
-            if (!isset($stationsMap[$code])) {
-                $stationsMap[$code] = [
-                    'code'   => $code,
-                    'name'   => (string) ($r['oper_station'] ?? ''),
-                    'road'   => (string) ($r['oper_road'] ?? ''),
-                    'lat'    => (float)   $r['latitude'],
-                    'lng'    => (float)   $r['longitude'],
-                    'count'  => 0,
-                    'wagons' => [],
-                ];
-            }
-            $stationsMap[$code]['count']++;
-            $stationsMap[$code]['wagons'][] = [
-                'wagon_num'    => (string) ($r['wagon_no']        ?? ''),
-                'wagon_type'   => (string) ($r['wagon_type_code'] ?? ''),
-                'ld'           => isset($r['cargo_weight_kg']) && (float) $r['cargo_weight_kg'] != 0.0,
-                'cargo'        => (string) ($r['cargo_name']      ?? ''),
-                'dest_station' => (string) ($r['dest_station']    ?? ''),
-                'wagon_state'  => (string) ($r['wagon_state']     ?? ''),
-                'days_no_move' => (int)    ($r['idle_time_days']  ?? 0),
-            ];
-        }
-
-        return $this->json($response, array_values($stationsMap));
-    }
-
     /** GET /api/dislocation/summary */
     public function dislSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
