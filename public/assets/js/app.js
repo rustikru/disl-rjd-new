@@ -1056,6 +1056,8 @@ function showTable($container, rows, colDefs) {
         })
     lastFirst = lastLast = -1
     render(true)
+    var $subEl = $container.closest('.table-section').find('.table-sub')
+    if ($subEl.length) $subEl.text('Строк: ' + data.filtered.length.toLocaleString('ru-RU'))
   })
 
   var ticking = false
