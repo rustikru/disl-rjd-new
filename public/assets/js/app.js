@@ -515,7 +515,8 @@ var WAGON_TABS = {
     },
 
     validate: function () {
-      if (!$('#fAnalysisPeriodDateFrom').val()) return 'Укажите дату начала периода'
+      if (!$('#fAnalysisPeriodDateFrom').val())
+        return 'Укажите дату начала периода'
       return null
     },
     resetFilters: function () {
@@ -649,7 +650,10 @@ var KPI_BOARDS = {
   },
   departure: {
     containerId: 'departureMetrics',
-    dataUrl: BASE + '/api/departure/kpi',
+    dataUrl: BASE + '/api/kpi/summary',
+    params: function () {
+      return { kpi_type: 'departure_kpi' }
+    },
     cards: departureCards,
   },
   approach: {
@@ -689,7 +693,9 @@ function initTab(cfg) {
     var initHint = cfg.validate ? cfg.validate() : null
     if (initHint) {
       $('#' + cfg.detTableId).html(
-        '<div style="text-align:center;padding:60px;color:#E8392A;font-size:15px;font-weight:600">' + esc(initHint) + '</div>',
+        '<div style="text-align:center;padding:60px;color:#E8392A;font-size:15px;font-weight:600">' +
+          esc(initHint) +
+          '</div>',
       )
     } else {
       window[cfg.loadedDetKey] = true
@@ -902,7 +908,10 @@ function loadSummary(cfg) {
       $sub.text(
         cfg.sumSubLabel +
           ': ' +
-          (data._totalWithPin !== undefined ? data._totalWithPin : data.total || 0).toLocaleString('ru-RU') +
+          (data._totalWithPin !== undefined
+            ? data._totalWithPin
+            : data.total || 0
+          ).toLocaleString('ru-RU') +
           ' ваг.',
       )
     })
@@ -2161,7 +2170,8 @@ function openDetail(ctx, road, station, col, groupBy, subs, extra) {
   if (tabCfg && tabCfg.pinnedStationKey && !p.has('exclude_station')) {
     var stKey = (station || '').toUpperCase()
     var pinKey = tabCfg.pinnedStationKey.toUpperCase()
-    if (stKey.indexOf(pinKey) === -1) p.set('exclude_station', tabCfg.pinnedStationKey)
+    if (stKey.indexOf(pinKey) === -1)
+      p.set('exclude_station', tabCfg.pinnedStationKey)
   }
   navNewTab(BASE + '/detail?' + p.toString())
 }
@@ -2248,7 +2258,9 @@ $(function () {
       var applyHint = cfg.validate ? cfg.validate() : null
       if (applyHint) {
         $('#' + cfg.detTableId).html(
-          '<div style="text-align:center;padding:60px;color:#E8392A;font-size:15px;font-weight:600">' + esc(applyHint) + '</div>',
+          '<div style="text-align:center;padding:60px;color:#E8392A;font-size:15px;font-weight:600">' +
+            esc(applyHint) +
+            '</div>',
         )
         return
       }

@@ -277,16 +277,22 @@ class ApiController
     {
 
         $params = $request->getQueryParams();
-        $source = $this->approachFrom($params);
+        //$source = $this->approachFrom($params);
 
         $sections = [];
         $trends = [];
+        $whereCond = '1=1';
+
+        $kpi_type = trim($params['kpi_type'] ?? '');
+        if ($kpi_type !== '') {
+            $whereCond .= " AND kpi_type = :kpi_type";
+        }
 
 
         $rows = $this->db->fetchAll(
             "select kpi.id, kpi.type, kpi.label as x_label, xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id) as x_value 
                     from XX_KPI_TABLE_V kpi
-                    where 1=1 "
+                    where 1=1 and $whereCond"
         );
 
         foreach ($rows as $r) {
