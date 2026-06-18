@@ -129,23 +129,19 @@ class ApiController
             $bindings
         );
 
-        $sections = [];
+        $values = [];
         foreach ($rows as $r) {
-            $sectionName = trim(explode(',', (string) ($r['id'] ?? ''))[0]);
-            if (!isset($sections[$sectionName])) {
-                $sections[$sectionName] = ['values' => []];
-            }
-            $sections[$sectionName]['values'][] = [
-                'id' => $r['id'] ?? '',
-                'value' => $r['x_value'] ?? '0',
-                'label' => $r['x_label'] ?? '',
-                'trend' => 'down',
+            $values[] = [
+                'id'     => $r['id']      ?? '',
+                'value'  => $r['x_value'] ?? '0',
+                'label'  => $r['x_label'] ?? '',
+                'trend'  => 'down',
                 'change' => '',
             ];
         }
 
         return $this->json($response, [
-            'sections' => array_values($sections),
+            'sections' => [['values' => $values]],
         ]);
     }
     /** GET /api/dislocation/filters */
