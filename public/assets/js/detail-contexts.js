@@ -3,7 +3,7 @@
 var DETAIL_CONTEXTS = {
   /**** Дислокация — расширенная */
   dislocation: {
-    label: 'Расширенная дислокация',
+    label: 'Детализация',
     endpoint: '/api/dislocation/detail',
     cols: [
       {
