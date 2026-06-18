@@ -711,6 +711,7 @@ body {
   /* border-top: 2px solid #f5c518;
   border-bottom: 2px solid #f5c518; */
   color: #5a3e00;
+  font-size: 12px;
 }
 
 .data-table .row-pinned .col-total-col {
