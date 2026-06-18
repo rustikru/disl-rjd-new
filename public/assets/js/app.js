@@ -121,19 +121,44 @@ function initInnerTabs() {
 }
 
 // Dashboard
-function loadDashboard() {
+function loadKPI() {
+  /*
   $.getJSON(KPI_BOARDS.dashboard.dataUrl).done(function (data) {
     var label = data.updated_at || '—'
     $('#brandDateSub').text('Дислокация РЖД на ' + label)
     $('#headerDate').text(label)
-    showDashKpi(data)
+    showKpi(data)
+  })*/
+  Object.keys(KPI_BOARDS).forEach(function (key) {
+    var board = KPI_BOARDS[key]
+    $.getJSON(board.dataUrl).done(function (data) {
+      console.log('Ключ:', data)
+      var label = data.updated_at || '—'
+      $('#brandDateSub').text('Дислокация РЖД на ' + label)
+      $('#headerDate').text(label)
+      showKpi(data, board.containerId)
+    })
   })
 }
 
-// KPI карточки дашборда
-function showDashKpi(data) {
-  var cfg = KPI_BOARDS.dashboard
-  $('#' + cfg.containerId).html(cfg.cards(data).map(kpiCard).join(''))
+// KPI карточки
+function showKpi(data, containerId) {
+  // 1. Если containerId не передан, берем дефолтный от dashboard
+  var targetContainer = containerId || KPI_BOARDS.dashboard.containerId
+
+  // в объекте KPI_BOARDS  ищем конфигурацию
+  var currentBoard = Object.values(KPI_BOARDS).find(function (board) {
+    return board.containerId === targetContainer
+  })
+
+  // Если вдруг не нашли
+  if (!currentBoard) {
+    return
+  }
+
+  var cardsHtml = currentBoard.cards(data).map(kpiCard).join('')
+
+  $('#' + targetContainer).html(cardsHtml)
 }
 
 // SVG
@@ -494,8 +519,24 @@ function metricsCards(data, mainLabel, ctx, groupBy) {
     }),
   )
 }
+function departureCards(data) {
+  return [
+    {
+      label: 'Груженые в пути c УГЛ',
+      value: '21',
+      variant: 'pill',
+      trend: makeTrend('2', 'down'),
+    },
+  ]
+}
+/**
+ * KPI для страницы Дислокация
+ * @param {*} data
+ * @returns
+ */
 
 function dashboardCards(data) {
+  console.log(data)
   var grandTotal = 0,
     tankTotal = 0,
     commingToUgl = 0,
@@ -557,8 +598,13 @@ var KPI_BOARDS = {
   // GET /api/dashboard
   dashboard: {
     containerId: 'kpiGrid',
-    dataUrl: BASE + '/api/dashboard',
+    dataUrl: BASE + '/api/dashboard/kpi',
     cards: dashboardCards,
+  },
+  departure: {
+    containerId: 'departureMetrics',
+    dataUrl: BASE + '/api/departure/kpi',
+    cards: departureCards,
   },
 }
 
@@ -1988,7 +2034,7 @@ $(document).on('click', '.row-sub-parent', function (e) {
 $(function () {
   initSidebar()
   initInnerTabs()
-  loadDashboard()
+  loadKPI()
   initTab(WAGON_TABS.dislocation)
 
   Object.keys(WAGON_TABS).forEach(function (k) {

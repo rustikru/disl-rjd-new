@@ -62,6 +62,27 @@ class ApiController
             return $this->json($response, ['updated_at' => null, 'sections' => [], 'trends' => []]);
         }
 
+        $dt = max($dtsByType);
+
+        $sections = [];
+
+        try {
+            $dtLabel = (new \DateTime($dt))->format('d.m.Y H:i');
+        } catch (\Exception $e) {
+            $dtLabel = $dt;
+        }
+
+        return $this->json($response, [
+            'updated_at' => $dtLabel,
+            'sections' => array_values($sections),
+            'trends' => '',
+        ]);
+    }
+    /** GET /api/dashboard/KPI */
+    public function dashboardKPI(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $dtsByType = $this->getLatestDtsByType(null, ['Подход', 'Отправка']);
+
         $rows = $this->db->fetchAll(
             "SELECT * FROM TABLE(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_set_dashboard())"
         );
@@ -111,7 +132,6 @@ class ApiController
         }
 
         return $this->json($response, [
-            'updated_at' => $dtLabel,
             'sections' => array_values($sections),
             'trends' => $trends,
         ]);
@@ -295,6 +315,64 @@ class ApiController
         );
 
         return $this->json($response, ['rows' => $rows]);
+    }
+    /** GET /api/departure/KPI */
+    public function departureKPI(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $dtsByType = $this->getLatestDtsByType(null, ['Подход', 'Отправка']);
+
+        $rows = $this->db->fetchAll(
+            "SELECT * FROM TABLE(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_set_dashboard()) where 1=2"
+        );
+        $dt = max($dtsByType);
+
+        $sections = [];
+        $trends = [];
+
+        foreach ($rows as $r) {
+            $sectionName = trim(explode(',', (string) ($r['id'] ?? ''))[0]);
+            if (!isset($sections[$sectionName])) {
+                $sections[$sectionName] = [
+                    'total' => 0,
+                    'tank_total' => 0,
+                    'comming_to_ugl' => 0,
+                    'arrived_today_ugl' => 0,
+                    'arrived_ugl' => 0,
+                    'loaded_transit' => 0,
+                ];
+            }
+            $sections[$sectionName]['total'] = (int) $r['total'];
+            $sections[$sectionName]['tank_total'] = (int) $r['tank_total'];
+            $sections[$sectionName]['comming_to_ugl'] = (int) $r['comming_to_ugl'];
+            $sections[$sectionName]['arrived_today_ugl'] = (int) $r['arrived_today_ugl'];
+            $sections[$sectionName]['loaded_transit'] = (int) $r['loaded_transit'];
+
+            $trends = [
+                'total' => null,
+                'total_dir' => null,
+                'tank' => null,
+                'tank_dir' => null,
+                'other' => null,
+                'other_dir' => null,
+                'met_arrived_ugl' => $r['met_arrived_ugl'],
+                'met_arrived_ugl_dir' => $r['met_arrived_ugl_dir'],
+                'met_loaded_transit' => $r['met_loaded_transit'],
+                'met_loaded_transit_dir' => $r['met_loaded_transit_dir'],
+                'met_comming_to_ugl' => $r['met_comming_to_ugl'],
+                'met_comming_to_ugl_dir' => $r['met_comming_to_ugl_dir'],
+            ];
+        }
+
+        try {
+            $dtLabel = (new \DateTime($dt))->format('d.m.Y H:i');
+        } catch (\Exception $e) {
+            $dtLabel = $dt;
+        }
+
+        return $this->json($response, [
+            'sections' => array_values($sections),
+            'trends' => $trends,
+        ]);
     }
 
     /** GET /api/loading/filters */
