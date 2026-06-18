@@ -242,13 +242,9 @@ class ApiController
 
 
         $rows = $this->db->fetchAll(
-            "select kpi.label as x_label, count(x.x_value) as x_value 
-                    from XX_KPI_TABLE_V kpi left join (
-                  SELECT  xx_rjd_dislocation_new_pkg.set_kpi_label('approachKPI',id) as x_value
-                    FROM {$source['from']} WHERE 1=1 
-                  ) x on kpi.type = 'approach_kpi' and kpi.label = x.x_value
-                group by kpi.label",
-            $bindings
+            "select kpi.label as x_label, xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id) as x_value 
+                    from XX_KPI_TABLE_V kpi
+                    where kpi.type = 'approach_kpi'"
         );
 
         foreach ($rows as $r) {
@@ -381,13 +377,9 @@ class ApiController
 
 
         $rows = $this->db->fetchAll(
-            "select kpi.label as x_label, count(x.x_value) as x_value 
-                    from XX_KPI_TABLE_V kpi left join (
-                  SELECT  xx_rjd_dislocation_new_pkg.set_kpi_label('departureKPI',id) as x_value
-                    FROM {$source['from']} WHERE 1=1 
-                  ) x on kpi.type = 'departure_kpi' and kpi.label = x.x_value
-                group by kpi.label",
-            $bindings
+            "select kpi.label as x_label, xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id) as x_value 
+                    from XX_KPI_TABLE_V kpi
+                    where kpi.type = 'departue_kpi'"
         );
         foreach ($rows as $r) {
             $sectionName = trim(explode(',', (string) ($r['id'] ?? ''))[0]);
