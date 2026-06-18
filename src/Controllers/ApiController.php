@@ -132,6 +132,7 @@ class ApiController
         }
 
         return $this->json($response, [
+            'updated_at' => $dtLabel,
             'sections' => array_values($sections),
             'trends' => $trends,
         ]);
