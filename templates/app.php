@@ -48,7 +48,6 @@ $basePath = $basePath ?? '';
 
     <main class="main-content">
 
-      <!-- Dashboard (скрыт — KPI перенесены на вкладку Дислокация) -->
       <div id="panel-dashboard" class="tab-panel"></div>
 
       <!-- Дислокация -->
@@ -65,7 +64,13 @@ $basePath = $basePath ?? '';
               <input class="filter-input" type="text" id="fDislocationWagonNo"
                 placeholder="Номер вагона1; Номер вагона2; ...">
             </div>
-            <div class="filter-actions">
+            <div class="filter-item">
+              <label class="filter-label" for="fDislocationCargo">Груз</label>
+              <select class="filter-input" id="fDislocationCargo">
+                <option value="">— Все —</option>
+              </select>
+            </div>
+            <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnDislocationApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnDislocationReset">Сбросить</button>
             </div>
@@ -93,7 +98,8 @@ $basePath = $basePath ?? '';
         <div id="disl-extended" class="inner-panel">
           <section class="table-section">
             <div class="table-toolbar">
-              <div class="table-info"><span class="table-title">Детализация</span><span class="table-sub" id="dislDetSub"></span></div>
+              <div class="table-info"><span class="table-title">Детализация</span><span class="table-sub"
+                  id="dislDetSub"></span></div>
               <div class="table-acts"></div>
             </div>
             <div id="dislExtTable"></div>
@@ -104,7 +110,6 @@ $basePath = $basePath ?? '';
       <!-- Подход -->
       <div id="panel-approach" class="tab-panel">
 
-        <!-- Метрики по дорогам -->
         <div class="kpi-grid" id="approachMetrics" style="margin-bottom:16px"></div>
 
         <!-- Внутренние вкладки -->
@@ -133,7 +138,7 @@ $basePath = $basePath ?? '';
                 <option value="">— Все —</option>
               </select>
             </div> -->
-            <div class="filter-actions">
+            <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnApproachApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnApproachReset">Сбросить</button>
             </div>
@@ -199,7 +204,7 @@ $basePath = $basePath ?? '';
                 <option value="">— Все —</option>
               </select>
             </div>
-            <div class="filter-actions">
+            <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnDepartureApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnDepartureReset">Сбросить</button>
             </div>
@@ -256,7 +261,7 @@ $basePath = $basePath ?? '';
                 <option value="">— Все —</option>
               </select>
             </div>
-            <div class="filter-actions">
+            <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnLoadingApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnLoadingReset">Сбросить</button>
             </div>
@@ -312,7 +317,7 @@ $basePath = $basePath ?? '';
                 <option value="">— Все —</option>
               </select>
             </div>
-            <div class="filter-actions">
+            <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnDowntimeApply">Применить</button>
             </div>
           </div>
@@ -361,7 +366,7 @@ $basePath = $basePath ?? '';
               <label class="filter-label" for="fRawWagonNo">№ вагона</label>
               <input class="filter-input" type="text" id="fRawWagonNo" placeholder="Номер вагона1; Номер вагона2; ...">
             </div>
-            <div class="filter-actions">
+            <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnRawApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnRawReset">Сбросить</button>
             </div>
@@ -414,7 +419,7 @@ $basePath = $basePath ?? '';
               <input class="filter-input" type="date" id="fAnalysisPeriodDateTo" value="<?= date('Y-m-d') ?>"
                 style="width:145px">
             </div>
-            <div class="filter-actions">
+            <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnAnalysisPeriodApply">Применить</button>
             </div>
           </div>

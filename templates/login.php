@@ -20,8 +20,8 @@ $basePath = $basePath ?? '';
   <div class="login-wrap">
 
     <div class="brand">
-      <img class="brand-logo" src="<?= htmlspecialchars($basePath) ?>/assets/img/meta-logo.png" alt="">
-      <div class="brand-name"><?= htmlspecialchars($appName ?? 'Дислокация') ?></div>
+      <!-- <img class="brand-logo" src="<?= htmlspecialchars($basePath) ?>/assets/img/meta-logo.png" alt=""> -->
+      <!-- <div class="brand-name"><?= htmlspecialchars($appName ?? 'Дислокация') ?></div> -->
     </div>
 
     <div class="card">

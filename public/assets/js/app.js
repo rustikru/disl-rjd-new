@@ -235,6 +235,7 @@ var WAGON_TABS = {
     ctx: 'dislocation',
     summaryUrl: BASE + '/api/dislocation/summary',
     detailUrl: BASE + '/api/dislocation/detail',
+    filtersUrl: BASE + '/api/dislocation/filters',
     csvFilename: 'дислокация',
     csvDetFilename: 'дислокация-расширенная',
     totalText: 'Общий итог',
@@ -257,10 +258,17 @@ var WAGON_TABS = {
       { key: 'cargo_w_type', paramName: 'cargo_state' },
     ],
     getParams: function () {
-      return { wagon_no: $('#fDislocationWagonNo').val().trim() || undefined }
+      return {
+        wagon_no: $('#fDislocationWagonNo').val().trim() || undefined,
+        wagon_no: $('#fDislocationCargo').val().trim() || undefined,
+      }
+    },
+    fillFilters: function (data) {
+      fillSelect('#fDislocationCargo', data.cargo || [])
     },
     resetFilters: function () {
       $('#fDislocationWagonNo').val('')
+      $('#fDislocationCargo').val('')
     },
   },
 

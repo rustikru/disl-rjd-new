@@ -20,38 +20,8 @@ class ApiController
     }
 
     // =========================================================================
-    // Публичные endpoint
+    // endpoint
     // =========================================================================
-
-    /** GET /api/dislocation/filters */
-    public function dislFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
-    {
-        $rows = $this->db->fetchAll(
-            'SELECT TRUNC(report_dt) AS report_date, type_reference, COUNT(*) AS cnt
-             FROM xx_dislocation_rjd
-             GROUP BY TRUNC(report_dt), type_reference
-             ORDER BY TRUNC(report_dt) DESC, type_reference'
-        );
-
-        $reports = array_map(function (array $r) {
-            $dt = (string) ($r['report_date'] ?? '');
-            try {
-                $label = (new \DateTime($dt))->format('d.m.Y');
-            } catch (\Exception $e) {
-                $label = $dt;
-            }
-            return [
-                'report_dt' => $dt,
-                'type_reference' => (string) ($r['type_reference'] ?? ''),
-                'label' => $label . ($r['type_reference'] ? ' (' . $r['type_reference'] . ')' : ''),
-                'cnt' => (int) $r['cnt'],
-            ];
-        }, $rows);
-
-        return $this->json($response, ['reports' => $reports]);
-    }
-
-
 
     /** GET /api/dashboard */
     public function dashboard(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -137,6 +107,48 @@ class ApiController
             'trends' => $trends,
         ]);
     }
+    /** GET /api/dislocation/filters */
+    public function dislFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $rows = $this->db->fetchAll(
+            'SELECT TRUNC(report_dt) AS report_date, type_reference, COUNT(*) AS cnt
+             FROM xx_dislocation_rjd
+             GROUP BY TRUNC(report_dt), type_reference
+             ORDER BY TRUNC(report_dt) DESC, type_reference'
+        );
+
+        $dtsByType = $this->getLatestDtsByType(null, ['Подход', 'Отправка']);
+        if (empty($dtsByType)) {
+            return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
+        }
+        $cond = $this->latestDtCondition($dtsByType);
+        $bindings = $cond['params'];
+
+        $cargo = $this->db->fetchAll(
+            "SELECT DISTINCT cargo_name FROM xx_dislocation_rjd WHERE {$cond['sql']} order by cargo_name",
+            $bindings
+        );
+
+        $reports = array_map(function (array $r) {
+            $dt = (string) ($r['report_date'] ?? '');
+            try {
+                $label = (new \DateTime($dt))->format('d.m.Y');
+            } catch (\Exception $e) {
+                $label = $dt;
+            }
+            return [
+                'report_dt' => $dt,
+                'type_reference' => (string) ($r['type_reference'] ?? ''),
+                'label' => $label . ($r['type_reference'] ? ' (' . $r['type_reference'] . ')' : ''),
+                'cnt' => (int) $r['cnt'],
+            ];
+        }, $rows);
+
+        return $this->json($response, [
+            'reports' => $reports,
+            'cargo' => array_column($cargo, 'cargo_name')
+        ]);
+    }
 
     /** GET /api/dislocation/summary */
     public function dislSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -168,6 +180,7 @@ class ApiController
         $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $bindings = $cond['params'];
+
         $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
         $whereCond .= $this->wagonNoCond($params, $bindings);
         $selectCols = $this->selectFields($params['fields'] ?? '');
