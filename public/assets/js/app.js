@@ -291,13 +291,13 @@ var WAGON_TABS = {
     summaryUrl: BASE + '/api/departure/summary',
     detailUrl: BASE + '/api/departure/detail',
     filtersUrl: BASE + '/api/departure/filters',
-    metricsId: 'departureMetrics',
+    /* metricsId: 'departureMetrics',
     kpi: function (data) {
       return makeRoadKpi(this, data, 'Всего отправлено')
-    },
+    }, */
     csvFilename: 'отправление',
     csvDetFilename: 'отправление-расширенная',
-    totalText: 'Всего отправлено',
+    totalText: 'Всего отправлено со ст.Углеуральская',
     sumTableId: 'departureSumTable',
     sumSubId: 'departureSumSub',
     sumSubLabel: 'Всего',

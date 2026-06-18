@@ -322,7 +322,6 @@ body {
   position: relative;
 }
 
-/* Верхний цветовой индикатор (Border Bar) для разделения слоев */
 .kpi-card::before {
   content: '';
   position: absolute;
@@ -332,7 +331,7 @@ body {
   height: 3px;
   background: var(--accent);
 }
-.kpi-card:nth-child(2)::before {
+/* .kpi-card:nth-child(2)::before {
   background: var(--brand-blue);
 }
 .kpi-card:nth-child(3)::before {
@@ -343,7 +342,7 @@ body {
 }
 .kpi-card:nth-child(5)::before {
   background: var(--accent);
-}
+} */
 
 .kpi-value {
   font-size: 30px;

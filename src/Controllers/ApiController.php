@@ -256,7 +256,9 @@ class ApiController
         ]);
     }
 
-    /** GET /api/departure/summary */
+    /** GET /api/departure/summary 
+     * Отправление вагонов
+     */
     public function departureSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
@@ -557,7 +559,7 @@ class ApiController
         }
 
         $bindings = ['report_dt' => $reportDt];
-        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР' and upper(dest_station) not like '%УГЛ%'";
+        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') and upper(dest_station) not like '%УГЛ%'";
 
         $cargo = $params['cargo'] ?? null;
         if ($cargo) {

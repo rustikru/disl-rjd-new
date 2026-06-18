@@ -378,7 +378,6 @@ $user = $user ?? ['display_name' => 'Пользователь'];
                 iconCreateFunction: function (cluster) {
                     var n = cluster.getChildCount();
                     var size = n > 500 ? 52 : n > 50 ? 42 : 34;
-                    // Добавляем класс кумулятивного маркера кластера напрямую, убирая дефолтный квадратный стиль
                     return L.divIcon({
                         html: '<div class="leaflet-data-marker" style="width:' + size + 'px;height:' + size + 'px;font-size:' + (n > 99 ? 10 : 12) + 'px;background:#251249">' + n + '</div>',
                         iconSize: [size, size], iconAnchor: [size / 2, size / 2], className: ''
