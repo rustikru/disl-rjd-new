@@ -742,12 +742,14 @@ function loadSummary(cfg) {
         var pinKeyUpper = cfg.pinnedStationKey.toUpperCase()
         var pinV = []
         var pinGrandTotal = 0
+        var pinStVal = ''
         data.roads.forEach(function (road) {
           var kept = []
           ;(road.stations || []).forEach(function (st) {
             if (
               (st[stKeyForPin] || '').toUpperCase().indexOf(pinKeyUpper) !== -1
             ) {
+              if (!pinStVal) pinStVal = st[stKeyForPin] || ''
               ;(st.v || []).forEach(function (val, i) {
                 pinV[i] = (pinV[i] || 0) + (val || 0)
               })
@@ -766,7 +768,7 @@ function loadSummary(cfg) {
           road.stations = kept
         })
         if (pinGrandTotal > 0) {
-          pinnedStation = { v: pinV, grand_total: pinGrandTotal }
+          pinnedStation = { v: pinV, grand_total: pinGrandTotal, stVal: pinStVal }
           data.total = (data.total || 0) - pinGrandTotal
           data.roads = data.roads.filter(function (road) {
             return (
@@ -810,6 +812,23 @@ function loadSummary(cfg) {
         if ($grandRow.length) {
           var hasSubtotalsPin =
             renderedDisplayCells[0] && renderedDisplayCells[0].isSubtotal
+          var pinCtx = esc(cfg.ctx || '')
+          var pinSt = esc(pinnedStation.stVal)
+          var pinGBy = esc(
+            (cfg.groupCols || [])
+              .map(function (g) {
+                return g.key
+              })
+              .join(','),
+          )
+          var pinLink =
+            ' data-ctx="' +
+            pinCtx +
+            '" data-road="" data-station="' +
+            pinSt +
+            '" data-group-by="' +
+            pinGBy +
+            '"'
           var pinnedCells = [
             '<td class="col-meta col-meta--l0">' +
               esc(cfg.pinnedRowLabel) +
@@ -817,7 +836,9 @@ function loadSummary(cfg) {
           ]
           if (!hasSubtotalsPin) {
             pinnedCells.push(
-              '<td class="col-total-col">' +
+              '<td class="col-total-col cell-link"' +
+                pinLink +
+                ' data-col="">' +
                 pinnedStation.grand_total.toLocaleString('ru-RU') +
                 '</td>',
             )
@@ -833,10 +854,30 @@ function loadSummary(cfg) {
               v = pinnedStation.v[dc.dataIdx] || 0
             }
             var disp = v ? v.toLocaleString('ru-RU') : ''
+            var subAttrStr = ''
+            ;(dc.subs || []).forEach(function (sv, si) {
+              if (sv)
+                subAttrStr +=
+                  ' data-sub' + (si ? si + 1 : '') + '="' + esc(sv) + '"'
+            })
             pinnedCells.push(
               dc.isSubtotal
-                ? '<td class="col-subtotal">' + disp + '</td>'
-                : '<td>' + disp + '</td>',
+                ? '<td class="col-subtotal cell-link"' +
+                    pinLink +
+                    ' data-col=""' +
+                    subAttrStr +
+                    '>' +
+                    disp +
+                    '</td>'
+                : '<td class="cell-link"' +
+                    pinLink +
+                    ' data-col="' +
+                    esc(dc.col) +
+                    '"' +
+                    subAttrStr +
+                    '>' +
+                    disp +
+                    '</td>',
             )
           })
           $grandRow.before(
