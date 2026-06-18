@@ -319,7 +319,12 @@ class ApiController
             $source['bindings']
         );
         $destStation = $this->db->fetchAll(
-            "SELECT DISTINCT dest_station FROM {$source['from']} WHERE dest_station IS NOT NULL ORDER BY dest_station " . $this->db->limit(300),
+            "SELECT dest_station
+             FROM (
+                 SELECT DISTINCT dest_station FROM {$source['from']}
+                 WHERE dest_station IS NOT NULL
+                 ORDER BY dest_station
+             ) WHERE ROWNUM <= 300",
             $source['bindings']
         );
 
