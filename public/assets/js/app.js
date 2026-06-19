@@ -513,7 +513,7 @@ var WAGON_TABS = {
 function makeTrend(pct, dir) {
   return pct ? { pct: pct, dir: dir || 'neutral' } : null
 }
-
+// для сводных карточек с разбивкой по groupBy (дорогам и т.д)
 function metricsCards(data, mainLabel, ctx, groupBy) {
   return [
     {
