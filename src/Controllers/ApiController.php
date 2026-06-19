@@ -62,9 +62,7 @@ class ApiController
         }
 
         // Прогрессивный fallback:
-        //   1. get_kpi_row — pipelined-функция: prv_kpi_trend вызывается 1 раз на карточку вместо 2
-        //   2. отдельные скалярные функции (если get_kpi_row ещё не скомпилирована)
-        //   3. без трендов (если trend-функции отсутствуют)
+        //   1. get_kpi_row — pipelined-функция: prv_kpi_trend вызывается 1 раз на карточку 
         $queries = [
             "SELECT /*+ CARDINALITY(t 1) */ kpi.id, kpi.type, kpi.label AS x_label,
                     t.x_value, t.trend_pct, t.trend_dir
@@ -645,7 +643,7 @@ class ApiController
         ];
     }
 
-    /** Подход: вагоны с ненулевым остатком пути (type_reference='Подход'). */
+    /** Подход: вагоны станция назначения УГЛ  (type_reference='Подход'). */
     private function approachFrom(array $params): array
     {
         $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Подход');
@@ -671,7 +669,7 @@ class ApiController
         return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
 
-    /** Отправление: вагоны с oper_mnemonic='ОТПР' (type_reference='Отправка'). */
+    /** Отправление: вагоны станция назначения не УГЛ (type_reference='Отправка'). */
     private function departureFrom(array $params): array
     {
         $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Отправка');
@@ -742,17 +740,20 @@ class ApiController
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $bindings = $cond['params'];
         $whereCond = "{$cond['sql']} AND idle_time_days IS NOT NULL AND nvl(idle_time_days,0) != 0";
-
+        // Параметр диапазон простоя
+        // минимальное 
         $minDays = max(0, (int) ($params['min_days'] ?? 1));
         if ($minDays > 0) {
             $whereCond .= ' AND idle_time_days >= :min_days';
             $bindings['min_days'] = $minDays;
         }
+        // максимальное 
         $maxDays = isset($params['max_days']) && $params['max_days'] !== '' ? (int) $params['max_days'] : null;
         if ($maxDays !== null) {
             $whereCond .= ' AND idle_time_days <= :max_days';
             $bindings['max_days'] = $maxDays;
         }
+        // Станция назначения
         $destStation = trim($params['dest_station'] ?? '');
         if ($destStation !== '') {
             $whereCond .= ' AND dest_station = :dest_station';
@@ -780,7 +781,7 @@ class ApiController
 
     /**
      * Строит и выполняет запрос сводной таблицы.
-     * Единый метод для всех разделов 
+     * Общий метод для всех разделов 
      *
      * $source   — источник данных из *From(): ['from', 'bindings']
      * $rowDims  — поля строк сводной (GROUP BY строки)

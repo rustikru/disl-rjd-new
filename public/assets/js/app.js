@@ -155,17 +155,6 @@ function showKpi(data, containerId) {
   $('#' + targetContainer).html(cardsHtml)
 }
 
-// SVG
-var BAR_COLORS = [
-  '#4A7FCB',
-  '#5B9E6B',
-  '#8B62C4',
-  '#3B9EAF',
-  '#6B7EC4',
-  '#D4622A',
-  '#E8A530',
-]
-
 // Конфиг вкладок: сводные таблицы и детализации
 /*
   Структура WAGON_TABS — поля в стандартном порядке:
@@ -188,7 +177,7 @@ var BAR_COLORS = [
     colDims[]      — измерения колонок: [{key, paramName}] или [{key, synthetic:true}]
     getParams()    — доп. параметры из формы фильтров → передаются в оба URL
 
-  Опциональные:
+  Дополнительно(не обязательно):
     filtersUrl     — URL для заполнения <select> фильтров
     fillFilters(d) — заполняет <select> данными из filtersUrl
     resetFilters() — сбрасывает фильтры
@@ -2210,8 +2199,8 @@ $(function () {
   initSidebar()
   initInnerTabs()
 
-  var kpiXhrs     = loadKPI()
-  var summaryXhr  = initTab(WAGON_TABS.dislocation)
+  var kpiXhrs = loadKPI()
+  var summaryXhr = initTab(WAGON_TABS.dislocation)
 
   // Скрываем оверлей когда готовы и KPI, и сводная таблица
   var allXhrs = (kpiXhrs || []).concat(summaryXhr ? [summaryXhr] : [])
