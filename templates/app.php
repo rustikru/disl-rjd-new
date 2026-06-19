@@ -17,6 +17,7 @@ $basePath = $basePath ?? '';
 </head>
 
 <body>
+  <div id="pageLoadOverlay" aria-hidden="true"></div>
 
   <header class="site-header">
     <div class="header-inner">

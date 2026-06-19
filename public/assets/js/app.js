@@ -122,9 +122,9 @@ function initInnerTabs() {
 
 // Dashboard
 function loadKPI() {
-  Object.keys(KPI_BOARDS).forEach(function (key) {
+  return Object.keys(KPI_BOARDS).map(function (key) {
     var board = KPI_BOARDS[key]
-    $.getJSON(board.dataUrl, board.params ? board.params() : {}).done(
+    return $.getJSON(board.dataUrl, board.params ? board.params() : {}).done(
       function (data) {
         //console.log('Ключ:', data)
         if (data.updated_at) {
@@ -653,7 +653,7 @@ function initTab(cfg) {
     }
   }
   loadFilters(cfg)
-  loadSummary(cfg)
+  var _sumXhr = loadSummary(cfg)
   if (!cfg.summaryUrl && cfg.detailUrl && !window[cfg.loadedDetKey]) {
     var initHint = cfg.validate ? cfg.validate() : null
     if (initHint) {
@@ -667,6 +667,7 @@ function initTab(cfg) {
       loadDetail(cfg)
     }
   }
+  return _sumXhr
 }
 /* Загрузка и отображение фильтров, если они есть настроены */
 function loadFilters(cfg) {
@@ -677,7 +678,7 @@ function loadFilters(cfg) {
 }
 /* Загрузка сводной таблицы и KPI, если они есть настроены */
 function loadSummary(cfg) {
-  if (!cfg.summaryUrl) return
+  if (!cfg.summaryUrl) return $.when()
   var $sub = $('#' + cfg.sumSubId)
   var $table = $('#' + cfg.sumTableId)
   $sub.text('Загрузка...')
@@ -699,7 +700,7 @@ function loadSummary(cfg) {
   if (cby) summaryParams.col_by = cby
 
   /* Получаем сводную информацию  */
-  $.getJSON(cfg.summaryUrl, summaryParams)
+  return $.getJSON(cfg.summaryUrl, summaryParams)
     .done(function (data) {
       if (cfg.metricsId) {
         var items = cfg.kpi
@@ -2210,8 +2211,23 @@ $(document).on('click', '.row-sub-parent', function (e) {
 $(function () {
   initSidebar()
   initInnerTabs()
-  loadKPI()
-  initTab(WAGON_TABS.dislocation)
+
+  var kpiXhrs     = loadKPI()
+  var summaryXhr  = initTab(WAGON_TABS.dislocation)
+
+  // Скрываем оверлей когда готовы и KPI, и сводная таблица
+  var allXhrs = (kpiXhrs || []).concat(summaryXhr ? [summaryXhr] : [])
+  $.when.apply($, allXhrs).always(function () {
+    var el = document.getElementById('pageLoadOverlay')
+    if (!el) return
+    el.classList.add('is-done')
+    setTimeout(function () { el.parentNode && el.parentNode.removeChild(el) }, 500)
+  })
+  // Страховка: показать страницу не позже чем через 8 секунд
+  setTimeout(function () {
+    var el = document.getElementById('pageLoadOverlay')
+    if (el) el.classList.add('is-done')
+  }, 8000)
 
   Object.keys(WAGON_TABS).forEach(function (k) {
     var cfg = WAGON_TABS[k]
