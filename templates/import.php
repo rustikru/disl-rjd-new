@@ -314,10 +314,11 @@ $basePath = $basePath ?? '';
     </section>
 
     <?php if (!empty($reports)): ?>
-      <section class="table-section">
+      <section class="table-section" id="reportsSection">
         <div class="table-toolbar">
           <div class="table-info">
             <span class="table-title">Загруженные справки</span>
+            <span class="table-sub" id="reportsSub"></span>
           </div>
         </div>
         <div class="table-scroll">
@@ -329,20 +330,47 @@ $basePath = $basePath ?? '';
                 <th>Кол-во вагонов</th>
               </tr>
             </thead>
-            <tbody>
-              <?php foreach ($reports as $i => $r): ?>
-                <tr class="row-data">
-                  <td><?= $i + 1 ?></td>
-                  <td>
-                    <?= htmlspecialchars((string) ($r['type_reference'] ?? '') . ' [' . ($r['report_date'] ?? '') . ']') ?>
-                  </td>
-                  <td><?= htmlspecialchars((string) ($r['cnt'] ?? '0')) ?></td>
-                </tr>
-              <?php endforeach; ?>
-            </tbody>
+            <tbody id="reportsTbody"></tbody>
           </table>
+          <div id="reportsSentinel" style="height:1px"></div>
         </div>
       </section>
+      <script>
+        (function () {
+          var PAGE = 10;
+          var data = <?= json_encode(array_values($reports), JSON_UNESCAPED_UNICODE) ?>;
+          var loaded = 0;
+          var tbody = document.getElementById('reportsTbody');
+          var sentinel = document.getElementById('reportsSentinel');
+          var sub = document.getElementById('reportsSub');
+
+          function loadMore() {
+            var next = Math.min(loaded + PAGE, data.length);
+            var html = '';
+            for (var i = loaded; i < next; i++) {
+              var r = data[i];
+              html += '<tr class="row-data"><td>' + (i + 1) + '</td>'
+                + '<td>' + esc(String((r.type_reference || '') + ' [' + (r.report_date || '') + ']')) + '</td>'
+                + '<td>' + esc(String(r.cnt || 0)) + '</td></tr>';
+            }
+            tbody.insertAdjacentHTML('beforeend', html);
+            loaded = next;
+            sub.textContent = 'Показано ' + loaded + ' из ' + data.length;
+            if (loaded >= data.length) observer.disconnect();
+          }
+
+          function esc(s) {
+            return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          }
+
+          var observer = new IntersectionObserver(function (entries) {
+            if (entries[0].isIntersecting) loadMore();
+          }, { rootMargin: '100px' });
+
+          loadMore();
+          observer.observe(sentinel);
+        })();
+      </script>
     <?php endif; ?>
 
   </div>
