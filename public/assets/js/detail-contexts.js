@@ -29,6 +29,14 @@ var DETAIL_CONTEXTS = {
         formatData: 'DD.MM.YYYY HH24:MI:SS',
       },
       { key: 'idle_time_days', label: 'Простой (дн)', danger: true, w: 105 },
+      { key: 'lessee', label: 'Арендатор', danger: true, w: 105 },
+      {
+        key: 'lease_home_station',
+        label: 'Станция приписки арендатора',
+        danger: true,
+        w: 105,
+      },
+
       {
         key: 'asoup_arrive_dt',
         label: 'Приб. (АСОУП)',
@@ -74,6 +82,13 @@ var DETAIL_CONTEXTS = {
         meta: true,
         w: 130,
       },
+      { key: 'lessee', label: 'Арендатор', danger: true, w: 105 },
+      {
+        key: 'lease_home_station',
+        label: 'Станция приписки арендатора',
+        danger: true,
+        w: 105,
+      },
     ],
   },
   /**** Отправление вагонов */
@@ -102,6 +117,13 @@ var DETAIL_CONTEXTS = {
         label: 'Норм. дата дост.',
         meta: true,
         w: 125,
+      },
+      { key: 'lessee', label: 'Арендатор', danger: true, w: 105 },
+      {
+        key: 'lease_home_station',
+        label: 'Станция приписки арендатора',
+        danger: true,
+        w: 105,
       },
     ],
   },
@@ -133,6 +155,13 @@ var DETAIL_CONTEXTS = {
         w: 110,
         formatData: 'DD.MM.YYYY HH24:MI:SS',
       },
+      { key: 'lessee', label: 'Арендатор', danger: true, w: 105 },
+      {
+        key: 'lease_home_station',
+        label: 'Станция приписки арендатора',
+        danger: true,
+        w: 105,
+      },
     ],
   },
 
@@ -156,6 +185,13 @@ var DETAIL_CONTEXTS = {
       { key: 'idle_time_days', label: 'Простой (сут.)', danger: true, w: 115 },
       { key: 'owner', label: 'Владелец', meta: true, w: 160 },
       { key: 'lessee', label: 'Арендатор', meta: true, w: 160 },
+      { key: 'lessee', label: 'Арендатор', danger: true, w: 105 },
+      {
+        key: 'lease_home_station',
+        label: 'Станция приписки арендатора',
+        danger: true,
+        w: 105,
+      },
     ],
   },
   /**** Сырьё */
@@ -179,6 +215,13 @@ var DETAIL_CONTEXTS = {
       { key: 'oper_road', label: 'Дорога', meta: true, w: 150 },
       { key: 'depart_station', label: 'Ст. отправл.', meta: true, w: 145 },
       { key: 'owner', label: 'Владелец', meta: true, w: 160 },
+      { key: 'lessee', label: 'Арендатор', danger: true, w: 105 },
+      {
+        key: 'lease_home_station',
+        label: 'Станция приписки арендатора',
+        danger: true,
+        w: 105,
+      },
     ],
   },
 
@@ -226,6 +269,13 @@ var DETAIL_CONTEXTS = {
       { key: 'train_index', label: '№ поезда', meta: true, w: 90 },
       { key: 'train_no', label: '№ поезда', meta: true, w: 90 },
       { key: 'consignor', label: 'Грузоотправитель', meta: true, w: 90 },
+      { key: 'lessee', label: 'Арендатор', danger: true, w: 105 },
+      {
+        key: 'lease_home_station',
+        label: 'Станция приписки арендатора',
+        danger: true,
+        w: 105,
+      },
     ],
   },
 }
