@@ -37,6 +37,25 @@ $basePath = $basePath ?? '';
       font-weight: 700;
     }
 
+    .bc-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 12px 4px 8px;
+      border-radius: 99px;
+      background: var(--hover-green);
+      color: var(--text-2);
+      font-size: 12px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: background .15s, color .15s;
+    }
+
+    .bc-back:hover {
+      background: var(--accent-lt);
+      color: var(--accent);
+    }
+
     .detail-page-body {
       padding: 16px 20px 40px;
       max-width: 100%;
@@ -193,7 +212,7 @@ $basePath = $basePath ?? '';
         };
       }
 
-      $('#breadcrumb').html('<span class="bc-item"><a href="#" onclick="goBack();return false;" style="color:inherit;text-decoration:none">← Вернуться</a></span>');
+      $('#breadcrumb').html('<a href="#" class="bc-back" onclick="goBack();return false;">← Вернуться</a>');
 
       var bcpathRaw = params.get('_bcpath') || '';
       var bcpathParts = [];
