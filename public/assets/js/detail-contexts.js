@@ -27,26 +27,32 @@ var BASE_COLS = [
   // ============================================================
   { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number', w: 110, tab: 'main', showInline: true},
   { key: 'wagon_type_code', label: 'Тип вагона', meta: true, w: 120, tab: 'main', showInline: true},
-  { key: 'wagon_state', label: 'Состояние вагона', meta: true, w: 130, tab: 'main', showInline: true},
-  { key: 'oper_station', label: 'Тек. станция', meta: true, w: 150, tab: 'main', showInline: true},
   { key: 'idle_time_days', label: 'Простой (сут.)', right: true, w: 100, tab: 'main', showInline: true},
-  { key: 'dest_station', label: 'Ст. назнач.', meta: true, w: 145, tab: 'main', showInline: true},
+  { key: 'park_type', label: 'Признак парка', meta: true, w: 180, tab: 'main', showInline: false},
   { key: 'cargo_name', label: 'Груз', meta: true, w: 150, tab: 'main', showInline: true},
-  { key: 'oper_dt', label: 'Дата операции', meta: true, w: 130, formatData: 'DD.MM.YYYY HH24:MI:SS', tab: 'disl-wagon', showInline: true},
+  { key: 'cargo_weight_kg', label: 'Вес(кг)', right: true, w: 100, tab: 'main', showInline: true},
+  { key: 'oper_station', label: 'Тек. станция', meta: true, w: 150, tab: 'main', showInline: true},
   { key: 'oper_mnemonic', label: 'Операция', meta: true, w: 90, tab: 'main', showInline: true},
+  { key: 'oper_dt', label: 'Дата операции', meta: true, w: 130, formatData: 'DD.MM.YYYY HH24:MI:SS', tab: 'main', showInline: true},
+  { key: 'dest_road', label: 'Дорога назнач.', meta: true, w: 130, tab: 'main', showInline: true},
+  { key: 'dest_station', label: 'Ст. назнач.', meta: true, w: 145, tab: 'main', showInline: true},
+  { key: 'depart_road', label: 'Дорога отправл.', meta: true, w: 130, tab: 'main', showInline: true},
+  { key: 'depart_station', label: 'Ст. отправл.', meta: true, w: 145, tab: 'main', showInline: true},
+  { key: 'train_index', label: 'Индекс поезда', meta: true, w: 130, tab: 'main', showInline: true},
+  { key: 'train_no', label: 'Поезд №', meta: true, w: 90, tab: 'main', showInline: true},
+  { key: 'waybill_no', label: '№ накладной', meta: true, w: 100, tab: 'main', showInline: true},
+  { key: 'waybill_id', label: 'ID накладной', meta: true, w: 100, tab: 'main', showInline: false},
+  { key: 'wagon_state', label: 'Состояние вагона', meta: true, w: 130, tab: 'main', showInline: true},
   { key: 'norm_delivery_dt', label: 'Срок доставки', meta: true, w: 130, tab: 'main', showInline: true},
-
   // ============================================================
   // ВКЛАДКА: ДАННЫЕ О ВАГОНЕ (data-wagon) — раздел 1 справки (кол. 1–31)
   // ============================================================
   // — оперативные (showInline: true) —
-  { key: 'waybill_no', label: '№ накладной', meta: true, w: 100, tab: 'data-wagon', showInline: true},
-  { key: 'cargo_weight_kg', label: 'Вес (кг)', right: true, w: 100, tab: 'data-wagon', showInline: true},
-  { key: 'container_nos', label: 'Номера контейнеров', right: true, w: 120, tab: 'data-wagon', showInline: true},
+
   { key: 'consignor_name', label: 'Грузоотправитель', meta: true, w: 150, tab: 'data-wagon', showInline: true},
   { key: 'consignee_name', label: 'Грузополучатель', meta: true, w: 150, tab: 'data-wagon', showInline: true},
   // — идентификаторы документов (скрыты на «расширенной дислокации») —
-  { key: 'waybill_id', label: 'ID накладной', meta: true, w: 100, tab: 'data-wagon', showInline: false},
+  { key: 'container_nos', label: 'Номера контейнеров', right: true, w: 120, tab: 'data-wagon', showInline: true},
   { key: 'send_id', label: 'ID отправки', meta: true, w: 100, tab: 'data-wagon', showInline: false},
   { key: 'extra_waybill_no', label: '№ досыл. накладной', meta: true, w: 120, tab: 'data-wagon', showInline: false},
   { key: 'extra_send_id', label: 'ID досылки', meta: true, w: 100, tab: 'data-wagon', showInline: false},
@@ -76,17 +82,14 @@ var BASE_COLS = [
   // ВКЛАДКА: ДИСЛОКАЦИЯ ВАГОНА (disl-wagon) — раздел 2 справки (кол. 32–60)
   // ============================================================
   // — оперативные (showInline: true) —
-  { key: 'depart_station', label: 'Ст. отправл.', meta: true, w: 145, tab: 'disl-wagon', showInline: true},
-  { key: 'oper_road', label: 'Дорога опер.', meta: true, w: 120, tab: 'disl-wagon', showInline: true},
   
-  { key: 'train_index', label: 'Индекс поезда', meta: true, w: 130, tab: 'disl-wagon', showInline: true},
-  { key: 'train_no', label: 'Поезд №', meta: true, w: 90, tab: 'disl-wagon', showInline: true},
+  
+  
   { key: 'dist_remain_km', label: 'Остаток км', right: true, w: 100, tab: 'disl-wagon', showInline: false},
   // — справочные реквизиты раздела 2 —
   { key: 'operation', label: 'Операция (полн.)', meta: true, w: 180, tab: 'disl-wagon', showInline: false},
-  { key: 'depart_road', label: 'Дорога отправл.', meta: true, w: 130, tab: 'disl-wagon', showInline: true},
-  { key: 'dest_road', label: 'Дорога назнач.', meta: true, w: 130, tab: 'disl-wagon', showInline: true},
-  { key: 'park_type', label: 'Признак парка', meta: true, w: 180, tab: 'disl-wagon', showInline: false},
+  { key: 'oper_road', label: 'Дорога опер.', meta: true, w: 120, tab: 'disl-wagon', showInline: true},
+  
   { key: 'handover_road', label: 'Дорога сдачи', meta: true, w: 120, tab: 'disl-wagon', showInline: false},
   { key: 'receive_road', label: 'Дорога приёма', meta: true, w: 120, tab: 'disl-wagon', showInline: false},
   { key: 'wagon_in_train', label: 'Позиция в составе', right: true, w: 120, tab: 'disl-wagon', showInline: false},
@@ -110,7 +113,7 @@ var LESSEE_COLS = [
     label: 'Арендатор',
     danger: true,
     w: 105,
-    tab: 'disl-wagon',
+    tab: 'main',
     showInline: true,
   },
   {
@@ -118,7 +121,7 @@ var LESSEE_COLS = [
     label: 'Станция приписки арендатора',
     danger: true,
     w: 105,
-    tab: 'disl-wagon',
+    tab: 'main',
     showInline: true,
   },
 ]
