@@ -264,12 +264,12 @@ $reportDtLabel = $reportDtLabel ?? '';
         .sidebar-cargo {
             padding: 0 14px 12px;
             display: flex;
+            flex-direction: column;
             gap: 6px;
-            align-items: center;
         }
 
         .sidebar-cargo select {
-            flex: 1;
+            width: 100%;
             padding: 8px 10px;
             border: 1px solid var(--border);
             border-radius: 8px;
@@ -280,6 +280,7 @@ $reportDtLabel = $reportDtLabel ?? '';
             outline: none;
             cursor: pointer;
             transition: border-color .15s;
+            box-sizing: border-box;
         }
 
         .sidebar-cargo select:focus {
@@ -288,17 +289,17 @@ $reportDtLabel = $reportDtLabel ?? '';
         }
 
         .btn-reset {
-            padding: 8px 11px;
+            align-self: flex-end;
+            padding: 5px 12px;
             border: 1px solid var(--border);
             border-radius: 8px;
             background: #fff;
             font-family: var(--sans);
-            font-size: 12px;
+            font-size: 11px;
             color: var(--muted);
             cursor: pointer;
             white-space: nowrap;
             transition: all .15s;
-            flex-shrink: 0;
         }
 
         .btn-reset:hover {
