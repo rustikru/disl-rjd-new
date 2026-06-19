@@ -2219,11 +2219,11 @@ $(function () {
     var el = document.getElementById('pageLoadOverlay')
     if (el && el.parentNode) el.parentNode.removeChild(el)
   })
-  // Страховка: показать страницу не позже чем через 5 секунд
+  // Страховка: показать страницу не позже чем через 1.5 секунды
   setTimeout(function () {
     var el = document.getElementById('pageLoadOverlay')
     if (el && el.parentNode) el.parentNode.removeChild(el)
-  }, 5000)
+  }, 1500)
 
   Object.keys(WAGON_TABS).forEach(function (k) {
     var cfg = WAGON_TABS[k]
