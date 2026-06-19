@@ -32,7 +32,6 @@ var TAB_GROUPS = [
         id: 'import',
         label: ' Загрузка справки РЖД ',
         url: BASE + '/import',
-        target: '_blank',
       },
     ],
   },
@@ -847,7 +846,9 @@ function loadDetail(cfg) {
   var $table = $('#' + cfg.detTableId)
   // showInline: false — поле скрыто из inline-детализации (но видно на странице detail.php)
   var cols = DETAIL_CONTEXTS[cfg.ctx]
-    ? DETAIL_CONTEXTS[cfg.ctx].cols.filter(function (c) { return c.showInline !== false })
+    ? DETAIL_CONTEXTS[cfg.ctx].cols.filter(function (c) {
+        return c.showInline !== false
+      })
     : []
   $sub.text('Загрузка...')
   var ctxSortRaw = DETAIL_CONTEXTS[cfg.ctx]
@@ -2167,7 +2168,10 @@ $(function () {
 
   // Восстанавливаем активную вкладку из URL hash (при возврате с детализации)
   var hashTab = (location.hash || '').replace('#', '')
-  var startTab = (hashTab && document.getElementById('panel-' + hashTab)) ? hashTab : 'dislocation'
+  var startTab =
+    hashTab && document.getElementById('panel-' + hashTab)
+      ? hashTab
+      : 'dislocation'
   if (startTab !== 'dislocation') switchTab(startTab)
 
   var kpiXhrs = loadKPI()
