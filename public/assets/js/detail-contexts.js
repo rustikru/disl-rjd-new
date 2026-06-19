@@ -43,7 +43,7 @@ var BASE_COLS = [
   { key: 'waybill_no', label: '№ накладной', meta: true, w: 100, tab: 'main', showInline: true},
   { key: 'waybill_id', label: 'ID накладной', meta: true, w: 100, tab: 'main', showInline: false},
   { key: 'wagon_state', label: 'Состояние вагона', meta: true, w: 130, tab: 'main', showInline: true},
-  { key: 'norm_delivery_dt', label: 'Срок доставки', meta: true, w: 130, tab: 'main', showInline: true},
+  { key: 'norm_delivery_dt', label: 'Срок доставки', meta: true, w: 130, formatData: 'DD.MM.YYYY',tab: 'main', showInline: true},
   // ============================================================
   // ВКЛАДКА: ДАННЫЕ О ВАГОНЕ (data-wagon) — раздел 1 справки (кол. 1–31)
   // ============================================================
