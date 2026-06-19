@@ -17,7 +17,6 @@ $basePath = $basePath ?? '';
 </head>
 
 <body>
-  <div id="pageLoadOverlay" aria-hidden="true"></div>
 
   <header class="site-header">
     <div class="header-inner">
@@ -49,6 +48,7 @@ $basePath = $basePath ?? '';
     <aside class="sidebar" id="sidebar"></aside>
 
     <main class="main-content">
+      <div id="pageLoadOverlay" aria-hidden="true"></div>
 
       <div id="panel-dashboard" class="tab-panel"></div>
 
