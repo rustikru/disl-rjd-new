@@ -52,6 +52,39 @@ $basePath = $basePath ?? '';
     #detailTable {
       overflow: hidden;
     }
+
+    .detail-tabs-bar {
+      display: flex;
+      gap: 2px;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 12px;
+    }
+
+    .detail-tab-btn {
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 500;
+      border: none;
+      background: none;
+      color: var(--text-2);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      border-radius: 6px 6px 0 0;
+      transition: color .15s, border-color .15s;
+      white-space: nowrap;
+    }
+
+    .detail-tab-btn:hover {
+      color: var(--text-1);
+      background: var(--hover-green);
+    }
+
+    .detail-tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
   </style>
 </head>
 
@@ -95,6 +128,7 @@ $basePath = $basePath ?? '';
           <button class="btn btn-ghost btn-sm" id="btnDetailCSV">Скачать CSV</button>
         </div>
       </div>
+      <div class="detail-tabs-bar" id="detailTabsBar" style="display:none"></div>
       <div id="detailTable"></div>
     </section>
 
@@ -201,13 +235,41 @@ $basePath = $basePath ?? '';
         }
       }
 
+      // Вкладки drill-down (только если DETAIL_TABS определён и контекст их поддерживает)
+      var allCols    = ctxDef.cols
+      var hasTabs    = typeof DETAIL_TABS !== 'undefined' && DETAIL_TABS.length > 0
+      var activeTab  = hasTabs ? DETAIL_TABS[0].key : null
+
+      function getTabCols(tab) {
+        if (!tab) return allCols
+        return allCols.filter(function (c) { return (c.tab || 'main') === tab })
+      }
+
+      function renderTabs() {
+        var bar = document.getElementById('detailTabsBar')
+        if (!hasTabs) return
+        bar.style.display = 'flex'
+        bar.innerHTML = DETAIL_TABS.map(function (t) {
+          return '<button class="detail-tab-btn' + (t.key === activeTab ? ' active' : '') +
+                 '" data-tab="' + t.key + '">' + esc(t.name) + '</button>'
+        }).join('')
+        bar.querySelectorAll('.detail-tab-btn').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            activeTab = this.getAttribute('data-tab')
+            renderTabs()
+            showTable(_vtAllData, getTabCols(activeTab))
+          })
+        })
+      }
+
       $('#detailSub').text('Загрузка...');
 
       $.getJSON(ctxDef.endpoint + (apiParams.toString() ? '?' + apiParams.toString() : ''))
         .done(function (data) {
           var rows = data.rows || [];
           $('#detailSub').text('Строк: ' + rows.length.toLocaleString('ru-RU'));
-          showTable(rows, ctxDef.cols);
+          showTable(rows, getTabCols(activeTab));
+          renderTabs();
         })
         .fail(function (jqXHR) {
           var status = jqXHR.status ? ' (' + jqXHR.status + ')' : '';

@@ -1,21 +1,31 @@
 // Настройки для построения таблицы детализации
 
+// Вкладки drill-down страницы. Используются только в detail.php.
+// Inline-детализация в основном приложении этот массив игнорирует.
+var DETAIL_TABS = [
+  { key: 'main',              name: 'Основная информация' },
+  { key: 'data-wagon',        name: 'Данные о вагоне' },
+  { key: 'disl-wagon',        name: 'Дислокация вагона' },
+  { key: 'techn-state-wagon', name: 'Техн. состояние' },
+]
+
 // Общие поля — начало (во всех детализациях)
+// tab: к какой вкладке drill-down относится поле (по умолчанию 'main')
 var BASE_COLS = [
-  { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number', w: 110 },
-  { key: 'wagon_type_code', label: 'Тип вагона', meta: true, w: 120 },
-  { key: 'park_type', label: 'Тип парка', meta: true, w: 125 },
-  { key: 'cargo_name', label: 'Груз', meta: true, w: 150 },
-  { key: 'cargo_weight_kg', label: 'Вес (кг)', right: true, w: 100 },
-  { key: 'container_nos', label: 'Номера контейнеров', right: true, w: 100 },
-  { key: 'waybill_no', label: '№ накладной', meta: true, w: 100 },
-  { key: 'waybill_id', label: 'ID накладной', meta: true, w: 100 },
-  { key: 'oper_station', label: 'Тек. станция', meta: true, w: 150 },
-  { key: 'depart_station', label: 'Ст. отправл.', meta: true, w: 145 },
-  { key: 'dest_station', label: 'Ст. назнач.', meta: true, w: 145 },
-  { key: 'oper_mnemonic', label: 'Операция', meta: true, w: 90 },
-  { key: 'train_index', label: 'Индекс поезда', meta: true, w: 90 },
-  { key: 'train_no', label: 'Поезд №', meta: true, w: 90 },
+  { key: 'wagon_no',        label: '№ вагона',           meta: true, type: 'number', w: 110, tab: 'main' },
+  { key: 'wagon_type_code', label: 'Тип вагона',         meta: true, w: 120,  tab: 'data-wagon' },
+  { key: 'park_type',       label: 'Тип парка',          meta: true, w: 125,  tab: 'data-wagon' },
+  { key: 'cargo_name',      label: 'Груз',               meta: true, w: 150,  tab: 'main' },
+  { key: 'cargo_weight_kg', label: 'Вес (кг)',           right: true, w: 100, tab: 'main' },
+  { key: 'container_nos',   label: 'Номера контейнеров', right: true, w: 100, tab: 'data-wagon' },
+  { key: 'waybill_no',      label: '№ накладной',        meta: true, w: 100,  tab: 'data-wagon' },
+  { key: 'waybill_id',      label: 'ID накладной',       meta: true, w: 100,  tab: 'data-wagon' },
+  { key: 'oper_station',    label: 'Тек. станция',       meta: true, w: 150,  tab: 'main' },
+  { key: 'depart_station',  label: 'Ст. отправл.',       meta: true, w: 145,  tab: 'disl-wagon' },
+  { key: 'dest_station',    label: 'Ст. назнач.',        meta: true, w: 145,  tab: 'main' },
+  { key: 'oper_mnemonic',   label: 'Операция',           meta: true, w: 90,   tab: 'disl-wagon' },
+  { key: 'train_index',     label: 'Индекс поезда',      meta: true, w: 90,   tab: 'disl-wagon' },
+  { key: 'train_no',        label: 'Поезд №',            meta: true, w: 90,   tab: 'disl-wagon' },
 ]
 
 // Общие поля — конец таблицы
