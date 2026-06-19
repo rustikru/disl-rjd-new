@@ -12,106 +12,37 @@ var DETAIL_TABS = [
 // Общие поля — начало (во всех детализациях)
 // tab:       к какой вкладке drill-down относится поле (по умолчанию 'main')
 // drillDown: показывать на странице drill-down или нет (по умолчанию true)
+
+/* prettier-ignore */
 var BASE_COLS = [
-  {
-    key: 'wagon_no',
-    label: '№ вагона',
-    meta: true,
-    type: 'number',
-    w: 110,
-    tab: 'data-wagon',
-    drillDown: true,
-  },
-  {
-    key: 'wagon_type_code',
-    label: 'Тип вагона',
-    meta: true,
-    w: 120,
-    tab: 'data-wagon',
-    drillDown: true,
-  },
-  {
-    key: 'park_type',
-    label: 'Тип парка',
-    meta: true,
-    w: 125,
-    tab: 'data-wagon',
-    drillDown: true,
-  },
-  { key: 'cargo_name', label: 'Груз', meta: true, w: 150, tab: 'data-wagon', drillDown: true },
-  {
-    key: 'cargo_weight_kg',
-    label: 'Вес (кг)',
-    right: true,
-    w: 100,
-    tab: 'data-wagon',
-    drillDown: true,
-  },
-  {
-    key: 'container_nos',
-    label: 'Номера контейнеров',
-    right: true,
-    w: 100,
-    tab: 'data-wagon',
-    drillDown: true,
-  },
-  {
-    key: 'waybill_no',
-    label: '№ накладной',
-    meta: true,
-    w: 100,
-    tab: 'data-wagon',
-    drillDown: true,
-  },
-  {
-    key: 'waybill_id',
-    label: 'ID накладной',
-    meta: true,
-    w: 100,
-    tab: 'data-wagon',
-    drillDown: false,
-  },
-  {
-    key: 'oper_station',
-    label: 'Тек. станция',
-    meta: true,
-    w: 150,
-    tab: 'data-wagon',
-    drillDown: true,
-  },
-  {
-    key: 'depart_station',
-    label: 'Ст. отправл.',
-    meta: true,
-    w: 145,
-    tab: 'disl-wagon',
-    drillDown: true,
-  },
-  {
-    key: 'dest_station',
-    label: 'Ст. назнач.',
-    meta: true,
-    w: 145,
-    tab: 'data-wagon',
-    drillDown: true,
-  },
-  {
-    key: 'oper_mnemonic',
-    label: 'Операция',
-    meta: true,
-    w: 90,
-    tab: 'disl-wagon',
-    drillDown: true,
-  },
-  {
-    key: 'train_index',
-    label: 'Индекс поезда',
-    meta: true,
-    w: 90,
-    tab: 'disl-wagon',
-    drillDown: true,
-  },
+  // === ВКЛАДКА: ОСНОВНАЯ ИНФОРМАЦИЯ (main) ===
+  { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number', w: 110, tab: 'main', drillDown: true },
+  { key: 'wagon_type_code', label: 'Тип вагона', meta: true, w: 120, tab: 'main', drillDown: true },
+  { key: 'wagon_state', label: 'Состояние вагона', meta: true, w: 130, tab: 'main', drillDown: true }, // Добавлено
+  { key: 'oper_station', label: 'Тек. станция', meta: true, w: 150, tab: 'main', drillDown: true },
+  { key: 'oper_mnemonic', label: 'Операция', meta: true, w: 90, tab: 'main', drillDown: true },
+  { key: 'idle_time_days', label: 'Простой (сут.)', right: true, w: 100, tab: 'main', drillDown: true }, // Добавлено
+  { key: 'dest_station', label: 'Ст. назнач.', meta: true, w: 145, tab: 'main', drillDown: true },
+  { key: 'cargo_name', label: 'Груз', meta: true, w: 150, tab: 'main', drillDown: true },
+  { key: 'norm_delivery_dt', label: 'Срок доставки', meta: true, w: 130, tab: 'main', drillDown: true }, // Добавлено
+
+  // === ВКЛАДКА: ДАННЫЕ О ВАГОНЕ (data-wagon) ===
+  { key: 'waybill_no', label: '№ накладной', meta: true, w: 100, tab: 'data-wagon', drillDown: true },
+  { key: 'waybill_id', label: 'ID накладной', meta: true, w: 100, tab: 'data-wagon', drillDown: false }, // Скрыт в drill-down
+  { key: 'send_id', label: 'ID отправки', meta: true, w: 100, tab: 'data-wagon', drillDown: false }, // Добавлено
+  { key: 'cargo_weight_kg', label: 'Вес (кг)', right: true, w: 100, tab: 'data-wagon', drillDown: true },
+  { key: 'container_nos', label: 'Номера контейнеров', right: true, w: 120, tab: 'data-wagon', drillDown: true },
+  { key: 'consignor_name', label: 'Грузоотправитель', meta: true, w: 150, tab: 'data-wagon', drillDown: true }, // Добавлено
+  { key: 'consignee_name', label: 'Грузополучатель', meta: true, w: 150, tab: 'data-wagon', drillDown: true }, // Добавлено
+
+  // === ВКЛАДКА: ДИСЛОКАЦИЯ ВАГОНА (disl-wagon) ===
+  { key: 'depart_station', label: 'Ст. отправл.', meta: true, w: 145, tab: 'disl-wagon', drillDown: true },
+  { key: 'oper_road', label: 'Дорога опер.', meta: true, w: 120, tab: 'disl-wagon', drillDown: true }, // Добавлено
+  { key: 'oper_dt', label: 'Дата операции', meta: true, w: 130, tab: 'disl-wagon', drillDown: true }, // Добавлено
+  { key: 'train_index', label: 'Индекс поезда', meta: true, w: 130, tab: 'disl-wagon', drillDown: true },
   { key: 'train_no', label: 'Поезд №', meta: true, w: 90, tab: 'disl-wagon', drillDown: true },
+  { key: 'dist_remain_km', label: 'Остаток км', right: true, w: 100, tab: 'disl-wagon', drillDown: true }, // Добавлено
+  { key: 'days_no_move', label: 'Дней без движ.', right: true, w: 110, tab: 'disl-wagon', drillDown: true } // Добавлено
 ]
 
 // Общие поля — конец таблицы
