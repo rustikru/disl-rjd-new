@@ -20,8 +20,8 @@ $headerRight = $headerRight ?? '';
       </div>
     </div>
     <div class="header-meta">
-      <?= $headerRight ?>
       <div class="user-info">
+        <?= $headerRight ?>
         <span class="user-name" title="<?= htmlspecialchars($user['auth_source'] ?? '') ?>">
           <?= htmlspecialchars($user['display_name'] ?? $user['username'] ?? '') ?>
         </span>

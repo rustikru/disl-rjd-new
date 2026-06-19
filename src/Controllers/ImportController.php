@@ -82,8 +82,9 @@ class ImportController
              ORDER BY (report_dt) DESC, type_reference"
         );
 
-        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
+        $user     = $_SESSION['user'] ?? [];
 
         ob_start();
         include __DIR__ . '/../../templates/import.php';
