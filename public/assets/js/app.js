@@ -2217,15 +2217,13 @@ $(function () {
   var allXhrs = (kpiXhrs || []).concat(summaryXhr ? [summaryXhr] : [])
   $.when.apply($, allXhrs).always(function () {
     var el = document.getElementById('pageLoadOverlay')
-    if (!el) return
-    el.classList.add('is-done')
-    setTimeout(function () { el.parentNode && el.parentNode.removeChild(el) }, 200)
+    if (el && el.parentNode) el.parentNode.removeChild(el)
   })
-  // Страховка: показать страницу не позже чем через 8 секунд
+  // Страховка: показать страницу не позже чем через 5 секунд
   setTimeout(function () {
     var el = document.getElementById('pageLoadOverlay')
-    if (el) el.classList.add('is-done')
-  }, 8000)
+    if (el && el.parentNode) el.parentNode.removeChild(el)
+  }, 5000)
 
   Object.keys(WAGON_TABS).forEach(function (k) {
     var cfg = WAGON_TABS[k]
