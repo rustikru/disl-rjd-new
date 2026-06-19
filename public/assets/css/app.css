@@ -294,6 +294,10 @@ body {
     border-color 0.12s;
 }
 
+a.nav-item {
+  text-decoration: none;
+}
+
 .nav-item:hover {
   background: var(--hover-green);
   color: var(--text-1);

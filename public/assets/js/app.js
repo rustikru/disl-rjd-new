@@ -51,27 +51,22 @@ function initSidebar() {
     groupEl.appendChild(labelEl)
 
     group.tabs.forEach(function (tab) {
-      var btn = document.createElement('button')
-      btn.className = 'nav-item' + (tab.id === 'dislocation' ? ' active' : '')
-      btn.textContent = tab.label
-      btn.dataset.tab = tab.id
+      var el
       if (tab.url) {
-        btn.addEventListener('click', function () {
-          var a = document.createElement('a')
-          a.href = tab.url
-          if (tab.target) a.target = tab.target
-          a.rel = 'noopener noreferrer'
-          a.style.display = 'none'
-          document.body.appendChild(a)
-          a.click()
-          document.body.removeChild(a)
-        })
+        el = document.createElement('a')
+        el.href = tab.url
+        if (tab.target) el.target = tab.target
+        el.rel = 'noopener noreferrer'
       } else {
-        btn.addEventListener('click', function () {
+        el = document.createElement('button')
+        el.addEventListener('click', function () {
           switchTab(tab.id)
         })
       }
-      groupEl.appendChild(btn)
+      el.className = 'nav-item' + (tab.id === 'dislocation' ? ' active' : '')
+      el.textContent = tab.label
+      el.dataset.tab = tab.id
+      groupEl.appendChild(el)
     })
 
     sidebar.appendChild(groupEl)
