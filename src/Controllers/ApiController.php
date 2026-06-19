@@ -61,28 +61,41 @@ class ApiController
             $bindings['kpi_type'] = $kpiType;
         }
 
-        try {
-            $rows = $this->db->fetchAll(
-                "SELECT kpi.id, kpi.type, kpi.label AS x_label,
-                        xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id)         AS x_value,
-                        xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_pct(kpi.id) AS trend_pct,
-                        xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_dir(kpi.id) AS trend_dir
-                 FROM XX_KPI_TABLE_V kpi
-                 WHERE $whereCond",
-                $bindings
-            );
-        } catch (\Throwable $e) {
-            // тренды недоступны (пакет не скомпилирован) — грузим без них
-            $rows = $this->db->fetchAll(
-                "SELECT kpi.id, kpi.type, kpi.label AS x_label,
-                        xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id) AS x_value,
-                        NULL AS trend_pct,
-                        NULL AS trend_dir
-                 FROM XX_KPI_TABLE_V kpi
-                 WHERE $whereCond",
-                $bindings
-            );
+        // Прогрессивный fallback:
+        //   1. get_kpi_row — pipelined-функция: prv_kpi_trend вызывается 1 раз на карточку вместо 2
+        //   2. отдельные скалярные функции (если get_kpi_row ещё не скомпилирована)
+        //   3. без трендов (если trend-функции отсутствуют)
+        $queries = [
+            "SELECT kpi.id, kpi.type, kpi.label AS x_label,
+                    t.x_value, t.trend_pct, t.trend_dir
+             FROM XX_KPI_TABLE_V kpi,
+                  TABLE(xx_rjd_dislocation_new_pkg.get_kpi_row(kpi.id)) t
+             WHERE $whereCond",
+
+            "SELECT kpi.id, kpi.type, kpi.label AS x_label,
+                    xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id)         AS x_value,
+                    xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_pct(kpi.id) AS trend_pct,
+                    xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_dir(kpi.id) AS trend_dir
+             FROM XX_KPI_TABLE_V kpi
+             WHERE $whereCond",
+
+            "SELECT kpi.id, kpi.type, kpi.label AS x_label,
+                    xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id) AS x_value,
+                    NULL AS trend_pct,
+                    NULL AS trend_dir
+             FROM XX_KPI_TABLE_V kpi
+             WHERE $whereCond",
+        ];
+        $rows = null;
+        foreach ($queries as $sql) {
+            try {
+                $rows = $this->db->fetchAll($sql, $bindings);
+                break;
+            } catch (\Throwable $e) {
+                continue;
+            }
         }
+        $rows ??= [];
 
         $values = [];
         foreach ($rows as $r) {
