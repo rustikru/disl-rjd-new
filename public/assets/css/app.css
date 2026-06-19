@@ -199,14 +199,21 @@ body {
 .user-info {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-left: 4px;
+  gap: 4px;
+  background: var(--hover-green);
+  border-radius: 99px;
+  padding: 4px 6px 4px 4px;
+}
+
+.user-info .btn {
+  border-radius: 99px;
 }
 
 .user-name {
   font-size: 13px;
-  color: var(--text-1);
-  font-weight: 500;
+  color: var(--accent);
+  font-weight: 700;
+  padding: 0 8px;
 }
 
 /* ==========================================================================
