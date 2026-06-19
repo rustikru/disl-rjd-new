@@ -187,6 +187,7 @@ $basePath = $basePath ?? '';
       </div>
       <div class="header-meta">
         <!-- <a href="<?= htmlspecialchars($basePath) ?>/" class="btn btn-ghost btn-sm">← На главную</a> -->
+        <button type="button" class="btn btn-ghost btn-sm" onclick="goBack()">← Назад</button>
         <form method="POST" action="<?= htmlspecialchars($basePath) ?>/logout" style="display:inline">
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
           <button type="submit" class="btn btn-ghost btn-sm">Выйти</button>
@@ -218,6 +219,14 @@ $basePath = $basePath ?? '';
         </div>
 
         <script>
+          function goBack() {
+            if (window.history.length > 1) {
+              window.history.back();
+            } else {
+              window.close();
+              setTimeout(function () { window.location.href = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>/'; }, 200);
+            }
+          }
           (function () {
             var BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
             var fileInput = document.getElementById('xlsx_file');
