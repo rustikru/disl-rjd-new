@@ -261,6 +261,51 @@ $reportDtLabel = $reportDtLabel ?? '';
             font-size: 13px;
         }
 
+        .sidebar-cargo {
+            padding: 0 14px 12px;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .sidebar-cargo select {
+            flex: 1;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: var(--sans);
+            font-size: 12px;
+            background: #faf9fc;
+            color: var(--ink);
+            outline: none;
+            cursor: pointer;
+            transition: border-color .15s;
+        }
+
+        .sidebar-cargo select:focus {
+            border-color: var(--primary);
+            background: #fff;
+        }
+
+        .btn-reset {
+            padding: 8px 11px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #fff;
+            font-family: var(--sans);
+            font-size: 12px;
+            color: var(--muted);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all .15s;
+            flex-shrink: 0;
+        }
+
+        .btn-reset:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
         .popup-scroll::-webkit-scrollbar {
             width: 4px;
         }
@@ -307,6 +352,12 @@ $reportDtLabel = $reportDtLabel ?? '';
             <div class="sidebar-search">
                 <input type="text" id="station-search" placeholder="Станция или № вагона">
             </div>
+            <div class="sidebar-cargo">
+                <select id="cargo-filter">
+                    <option value="">— Все грузы —</option>
+                </select>
+                <button class="btn-reset" id="btn-reset">Сбросить</button>
+            </div>
             <div class="sidebar-summary" id="sidebar-summary"></div>
             <div class="station-list" id="station-list"></div>
         </div>
@@ -321,13 +372,24 @@ $reportDtLabel = $reportDtLabel ?? '';
         'use strict';
 
         var STATIONS = <?= $stationsJson ?? '[]' ?>;
-        var activeFilter = 'all', activeStation = null, markerGroup = null;
+        var CARGOS   = <?= $cargosJson   ?? '[]' ?>;
+        var activeFilter = 'all', activeCargo = '', activeStation = null, markerGroup = null;
+
+        // Заполняем список грузов
+        var cargoSel = document.getElementById('cargo-filter');
+        CARGOS.forEach(function (c) {
+            var opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            cargoSel.appendChild(opt);
+        });
 
         var map = L.map('map', { center: [57.5, 60.0], zoom: 4, zoomControl: true, attributionControl: false });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
         function getFilteredWagons(station) {
             return station.wagons.filter(function (w) {
+                if (activeCargo && w.cargo !== activeCargo) return false;
                 if (activeFilter === 'loaded') return w.ld;
                 if (activeFilter === 'empty') return !w.ld;
                 if (activeFilter === 'idle') return w.days_no_move > 5;
@@ -447,6 +509,25 @@ $reportDtLabel = $reportDtLabel ?? '';
         }
 
         document.getElementById('station-search').addEventListener('input', function () {
+            renderSidebar();
+            buildMarkers();
+        });
+
+        cargoSel.addEventListener('change', function () {
+            activeCargo = this.value;
+            renderSidebar();
+            buildMarkers();
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', function () {
+            activeCargo = '';
+            activeFilter = 'all';
+            activeStation = null;
+            document.getElementById('station-search').value = '';
+            cargoSel.value = '';
+            document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
+            var allBtn = document.querySelector('.filter-btn[data-filter="all"]');
+            if (allBtn) allBtn.classList.add('active');
             renderSidebar();
             buildMarkers();
         });

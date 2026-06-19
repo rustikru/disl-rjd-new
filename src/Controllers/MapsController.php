@@ -64,6 +64,7 @@ class MapsController
         );
 
         $stationsMap = [];
+        $cargosSet = [];
         foreach ($rows as $r) {
             $code = (string) ($r['esr_code'] ?? $r['dest_station_esr_code'] ?? '');
             if (!$code) {
@@ -93,9 +94,17 @@ class MapsController
                 'latitude' => (string) ($r['latitude'] ?? ''),
                 'longitude' => (string) ($r['longitude'] ?? ''),
             ];
+            $cargo = trim((string) ($r['cargo_name'] ?? ''));
+            if ($cargo !== '') {
+                $cargosSet[$cargo] = true;
+            }
         }
 
+        $cargos = array_keys($cargosSet);
+        sort($cargos);
+
         $stationsJson = json_encode(array_values($stationsMap), JSON_UNESCAPED_UNICODE);
+        $cargosJson   = json_encode($cargos, JSON_UNESCAPED_UNICODE);
 
         ob_start();
         include __DIR__ . '/../../templates/maps.php';
