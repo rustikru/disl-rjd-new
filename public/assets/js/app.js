@@ -2221,7 +2221,7 @@ $(function () {
     var el = document.getElementById('pageLoadOverlay')
     if (!el) return
     el.classList.add('is-done')
-    setTimeout(function () { el.parentNode && el.parentNode.removeChild(el) }, 500)
+    setTimeout(function () { el.parentNode && el.parentNode.removeChild(el) }, 200)
   })
   // Страховка: показать страницу не позже чем через 8 секунд
   setTimeout(function () {
