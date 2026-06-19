@@ -176,7 +176,7 @@ $basePath = $basePath ?? '';
     }
 
     /* Данные для CSV — обновляются при каждом showTable */
-    var _vtAllData = [], _vtFiltered = [], _vtCols = [];
+    var _vtAllData = [], _vtFiltered = [], _vtCols = [], _vtAllCols = [];
 
     $(function () {
       var params = new URLSearchParams(window.location.search);
@@ -238,6 +238,7 @@ $basePath = $basePath ?? '';
       // Вкладки drill-down (только если DETAIL_TABS определён и контекст их поддерживает)
       // drillDown !== false — фильтруем поля, скрытые для страницы детализации
       var allCols   = ctxDef.cols.filter(function (c) { return c.drillDown !== false })
+      _vtAllCols = allCols
       var hasTabs   = typeof DETAIL_TABS !== 'undefined' && DETAIL_TABS.length > 0
       // visTabs — только вкладки, у которых есть хотя бы одно поле
       var visTabs   = hasTabs ? DETAIL_TABS.filter(function (t) {
@@ -449,10 +450,12 @@ $basePath = $basePath ?? '';
       function cleanCell(v) {
         return '"' + String(v == null ? '' : v).trim().replace(/\r?\n|\r/g, ' ').replace(/"/g, '""') + '"';
       }
+      // Используем все колонки (все вкладки), а не только активную
+      var csvCols = _vtAllCols.length ? _vtAllCols : _vtCols;
       var lines = [];
-      lines.push(_vtCols.map(function (c) { return cleanCell(c.label); }).join(';'));
+      lines.push(csvCols.map(function (c) { return cleanCell(c.label); }).join(';'));
       _vtAllData.forEach(function (row) {
-        lines.push(_vtCols.map(function (c) {
+        lines.push(csvCols.map(function (c) {
           var v = row[c.key];
           return cleanCell(c.fmt ? c.fmt(v) : v);
         }).join(';'));
