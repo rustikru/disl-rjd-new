@@ -10,7 +10,8 @@ var DETAIL_TABS = [
 ]
 
 // Общие поля — начало (во всех детализациях)
-// tab: к какой вкладке drill-down относится поле (по умолчанию 'main')
+// tab:       к какой вкладке drill-down относится поле (по умолчанию 'main')
+// drillDown: показывать на странице drill-down или нет (по умолчанию true)
 var BASE_COLS = [
   {
     key: 'wagon_no',
@@ -19,6 +20,7 @@ var BASE_COLS = [
     type: 'number',
     w: 110,
     tab: 'data-wagon',
+    drillDown: true,
   },
   {
     key: 'wagon_type_code',
@@ -26,6 +28,7 @@ var BASE_COLS = [
     meta: true,
     w: 120,
     tab: 'data-wagon',
+    drillDown: true,
   },
   {
     key: 'park_type',
@@ -33,14 +36,16 @@ var BASE_COLS = [
     meta: true,
     w: 125,
     tab: 'data-wagon',
+    drillDown: true,
   },
-  { key: 'cargo_name', label: 'Груз', meta: true, w: 150, tab: 'data-wagon' },
+  { key: 'cargo_name', label: 'Груз', meta: true, w: 150, tab: 'data-wagon', drillDown: true },
   {
     key: 'cargo_weight_kg',
     label: 'Вес (кг)',
     right: true,
     w: 100,
     tab: 'data-wagon',
+    drillDown: true,
   },
   {
     key: 'container_nos',
@@ -48,6 +53,7 @@ var BASE_COLS = [
     right: true,
     w: 100,
     tab: 'data-wagon',
+    drillDown: true,
   },
   {
     key: 'waybill_no',
@@ -55,6 +61,7 @@ var BASE_COLS = [
     meta: true,
     w: 100,
     tab: 'data-wagon',
+    drillDown: true,
   },
   {
     key: 'waybill_id',
@@ -62,6 +69,7 @@ var BASE_COLS = [
     meta: true,
     w: 100,
     tab: 'data-wagon',
+    drillDown: false,
   },
   {
     key: 'oper_station',
@@ -69,6 +77,7 @@ var BASE_COLS = [
     meta: true,
     w: 150,
     tab: 'data-wagon',
+    drillDown: true,
   },
   {
     key: 'depart_station',
@@ -76,6 +85,7 @@ var BASE_COLS = [
     meta: true,
     w: 145,
     tab: 'disl-wagon',
+    drillDown: true,
   },
   {
     key: 'dest_station',
@@ -83,6 +93,7 @@ var BASE_COLS = [
     meta: true,
     w: 145,
     tab: 'data-wagon',
+    drillDown: true,
   },
   {
     key: 'oper_mnemonic',
@@ -90,6 +101,7 @@ var BASE_COLS = [
     meta: true,
     w: 90,
     tab: 'disl-wagon',
+    drillDown: true,
   },
   {
     key: 'train_index',
@@ -97,8 +109,9 @@ var BASE_COLS = [
     meta: true,
     w: 90,
     tab: 'disl-wagon',
+    drillDown: true,
   },
-  { key: 'train_no', label: 'Поезд №', meta: true, w: 90, tab: 'disl-wagon' },
+  { key: 'train_no', label: 'Поезд №', meta: true, w: 90, tab: 'disl-wagon', drillDown: true },
 ]
 
 // Общие поля — конец таблицы
@@ -109,6 +122,7 @@ var LESSEE_COLS = [
     danger: true,
     w: 105,
     tab: 'data-wagon',
+    drillDown: true,
   },
   {
     key: 'lease_home_station',
@@ -116,6 +130,7 @@ var LESSEE_COLS = [
     danger: true,
     w: 105,
     tab: 'data-wagon',
+    drillDown: true,
   },
 ]
 

@@ -236,9 +236,14 @@ $basePath = $basePath ?? '';
       }
 
       // Вкладки drill-down (только если DETAIL_TABS определён и контекст их поддерживает)
-      var allCols    = ctxDef.cols
-      var hasTabs    = typeof DETAIL_TABS !== 'undefined' && DETAIL_TABS.length > 0
-      var activeTab  = hasTabs ? DETAIL_TABS[0].key : null
+      // drillDown !== false — фильтруем поля, скрытые для страницы детализации
+      var allCols   = ctxDef.cols.filter(function (c) { return c.drillDown !== false })
+      var hasTabs   = typeof DETAIL_TABS !== 'undefined' && DETAIL_TABS.length > 0
+      // visTabs — только вкладки, у которых есть хотя бы одно поле
+      var visTabs   = hasTabs ? DETAIL_TABS.filter(function (t) {
+        return allCols.some(function (c) { return (c.tab || 'main') === t.key })
+      }) : []
+      var activeTab = visTabs.length ? visTabs[0].key : null
 
       function getTabCols(tab) {
         if (!tab) return allCols
@@ -247,9 +252,9 @@ $basePath = $basePath ?? '';
 
       function renderTabs() {
         var bar = document.getElementById('detailTabsBar')
-        if (!hasTabs) return
+        if (!visTabs.length) return
         bar.style.display = 'flex'
-        bar.innerHTML = DETAIL_TABS.map(function (t) {
+        bar.innerHTML = visTabs.map(function (t) {
           return '<button class="detail-tab-btn' + (t.key === activeTab ? ' active' : '') +
                  '" data-tab="' + t.key + '">' + esc(t.name) + '</button>'
         }).join('')
