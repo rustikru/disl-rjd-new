@@ -98,7 +98,9 @@ body {
 }
 
 @keyframes page-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ==========================================================================
@@ -307,7 +309,7 @@ a.nav-item {
   background: #e0d5f5;
   color: var(--accent);
   font-weight: 500;
-  border-left-color: var(--accent);
+  /* border-left-color: var(--accent); */
 }
 
 .nav-item.active:hover {
