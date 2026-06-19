@@ -324,29 +324,20 @@ $reportDtLabel = $reportDtLabel ?? '';
 
 <body>
 
-    <header class="site-header">
-        <div class="header-inner">
-            <div class="brand">
-                <div class="brand-icon">
-                    <img src="<?= htmlspecialchars($basePath) ?>/assets/img/meta-logo.png" alt="" class="brand-logo">
-                </div>
-                <div class="brand-text">
-                    <div class="brand-name"><?= htmlspecialchars($appName) ?></div>
-                    <div id="brandDateSub" class="brand-date-sub">
-                        <?= $reportDtLabel ? 'Дислокация РЖД на ' . htmlspecialchars($reportDtLabel) : '' ?>
-                    </div>
-                </div>
-            </div>
-            <div class="header-meta">
-                <div class="user-info">
-                    <span class="user-name" title="<?= htmlspecialchars($user['auth_source'] ?? '') ?>">
-                        <?= htmlspecialchars($user['display_name'] ?? $user['username'] ?? '') ?>
-                    </span>
-                    <button type="button" class="btn btn-ghost btn-sm" onclick="goBack()">← Назад</button>
-                </div>
-            </div>
+<?php
+    $headerSub = '<div id="brandDateSub" class="brand-date-sub">'
+      . ($reportDtLabel ? 'Дислокация РЖД на ' . htmlspecialchars($reportDtLabel) : '')
+      . '</div>';
+    ob_start(); ?>
+        <div class="user-info">
+            <span class="user-name" title="<?= htmlspecialchars($user['auth_source'] ?? '') ?>">
+                <?= htmlspecialchars($user['display_name'] ?? $user['username'] ?? '') ?>
+            </span>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="goBack()">← Назад</button>
         </div>
-    </header>
+    <?php $headerRight = ob_get_clean();
+    include __DIR__ . '/partials/header.php';
+?>
 
     <div class="app-container">
         <div class="sidebar">
