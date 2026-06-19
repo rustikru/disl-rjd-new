@@ -380,7 +380,10 @@ $reportDtLabel = $reportDtLabel ?? '';
         CARGOS.forEach(function (c) {
             var opt = document.createElement('option');
             opt.value = c;
-            opt.textContent = c;
+            // Убираем числовой код в конце: "Аммиак (488161)" → "Аммиак"
+            var label = c.replace(/\s*\(\d+\)\s*$/, '').trim();
+            if (label.length > 42) label = label.slice(0, 40) + '…';
+            opt.textContent = label;
             cargoSel.appendChild(opt);
         });
 
