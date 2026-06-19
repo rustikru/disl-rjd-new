@@ -36,6 +36,60 @@
 
 ---
 
+## Кеш трендов KPI через таблицу `xx_kpi_trend_cache`
+
+**Статус:** не реализовано, идея согласована
+
+**Суть:**
+Вместо вычисления трендов на каждый запрос (`set_kpi_label` + `prv_kpi_trend`) — считать один раз при импорте данных и хранить результат в кеш-таблице. Запрос `/api/kpi/summary` становится простым JOIN — < 50 мс вместо 2–3 сек.
+
+**Oracle — DDL:**
+```sql
+CREATE TABLE XX_ETW.XX_KPI_TREND_CACHE (
+    kpi_id    NUMBER        PRIMARY KEY,
+    x_value   VARCHAR2(200),
+    trend_pct VARCHAR2(50),
+    trend_dir VARCHAR2(10),
+    cached_at DATE
+);
+```
+
+**Oracle — процедура обновления (добавить в пакет):**
+```sql
+PROCEDURE refresh_kpi_cache IS
+    v_pct VARCHAR2(50);
+    v_dir VARCHAR2(10);
+BEGIN
+    DELETE FROM XX_ETW.XX_KPI_TREND_CACHE;
+    FOR rec IN (SELECT id FROM XX_KPI_TABLE_V) LOOP
+        prv_kpi_trend(rec.id, v_pct, v_dir);
+        INSERT INTO XX_ETW.XX_KPI_TREND_CACHE (kpi_id, x_value, trend_pct, trend_dir, cached_at)
+        VALUES (rec.id, set_kpi_label(rec.id), v_pct, v_dir, SYSDATE);
+    END LOOP;
+    COMMIT;
+END refresh_kpi_cache;
+```
+Вызывать `refresh_kpi_cache` после каждого импорта XLSX.
+
+**PHP — запрос в `kpiSummary` становится:**
+```sql
+SELECT kpi.id, kpi.label AS x_label,
+       c.x_value, c.trend_pct, c.trend_dir
+FROM XX_KPI_TABLE_V kpi
+JOIN XX_ETW.XX_KPI_TREND_CACHE c ON c.kpi_id = kpi.id
+WHERE kpi.type = :kpi_type
+```
+
+**Сравнение с текущим подходом:**
+
+| Подход | Время запроса | Когда считает |
+|---|---|---|
+| 3 скалярных функции | ~2–3 сек | каждый запрос |
+| `get_kpi_row` pipelined | ~1–1.5 сек | каждый запрос |
+| **Таблица-кеш** | **< 50 мс** | **один раз при импорте** |
+
+---
+
 ## KPI карточки — нестандартная детализация и поля
 
 **Статус:** не реализовано, идея согласована
