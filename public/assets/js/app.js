@@ -1986,6 +1986,17 @@ $(document).on('click', '[data-collapse-table]', function () {
 $(document).on('click', '[data-expand-table]', function () {
   expandAll($('#' + $(this).data('expand-table')))
 })
+$(document).on('click', '[data-toggle-table]', function () {
+  var $btn = $(this)
+  var $table = $('#' + $btn.data('toggle-table'))
+  if ($btn.data('collapsed')) {
+    expandAll($table)
+    $btn.text('Свернуть все').data('collapsed', false)
+  } else {
+    collapseAll($table)
+    $btn.text('Отобразить все').data('collapsed', true)
+  }
+})
 
 // Поиск по столбцам:  строку-фильтр под заголовком таблицы
 function matchFilter(q, text) {

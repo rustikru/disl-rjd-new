@@ -87,8 +87,7 @@ $basePath = $basePath ?? '';
                 <span class="table-sub" id="mainTableSub"></span>
               </div>
               <div class="table-acts">
-                <button class="btn btn-ghost btn-sm" data-collapse-table="mainTable">Свернуть все</button>
-                <button class="btn btn-ghost btn-sm" data-expand-table="mainTable">Отобразить все</button>
+                <button class="btn btn-ghost btn-sm" data-toggle-table="mainTable">Свернуть все</button>
               </div>
             </div>
             <div class="table-scroll">
@@ -155,8 +154,7 @@ $basePath = $basePath ?? '';
                 <span class="table-sub" id="approachSumSub"></span>
               </div>
               <div class="table-acts">
-                <button class="btn btn-ghost btn-sm" data-collapse-table="approachSumTable">Свернуть все</button>
-                <button class="btn btn-ghost btn-sm" data-expand-table="approachSumTable">Отобразить все</button>
+                <button class="btn btn-ghost btn-sm" data-toggle-table="approachSumTable">Свернуть все</button>
               </div>
             </div>
             <div class="table-scroll">
@@ -220,8 +218,7 @@ $basePath = $basePath ?? '';
                 <span class="table-sub" id="departureSumSub"></span>
               </div>
               <div class="table-acts">
-                <button class="btn btn-ghost btn-sm" data-collapse-table="departureSumTable">Свернуть все</button>
-                <button class="btn btn-ghost btn-sm" data-expand-table="departureSumTable">Отобразить все</button>
+                <button class="btn btn-ghost btn-sm" data-toggle-table="departureSumTable">Свернуть все</button>
               </div>
             </div>
             <div class="table-scroll">
@@ -277,8 +274,7 @@ $basePath = $basePath ?? '';
                 <span class="table-sub" id="loadingSumSub"></span>
               </div>
               <div class="table-acts">
-                <button class="btn btn-ghost btn-sm" data-collapse-table="loadingSumTable">Свернуть все</button>
-                <button class="btn btn-ghost btn-sm" data-expand-table="loadingSumTable">Отобразить все</button>
+                <button class="btn btn-ghost btn-sm" data-toggle-table="loadingSumTable">Свернуть все</button>
               </div>
             </div>
             <div class="table-scroll">
@@ -332,8 +328,7 @@ $basePath = $basePath ?? '';
                 <span class="table-sub" id="downtimeSumSub"></span>
               </div>
               <div class="table-acts">
-                <button class="btn btn-ghost btn-sm" data-collapse-table="downtimeSumTable">Свернуть все</button>
-                <button class="btn btn-ghost btn-sm" data-expand-table="downtimeSumTable">Отобразить все</button>
+                <button class="btn btn-ghost btn-sm" data-toggle-table="downtimeSumTable">Свернуть все</button>
               </div>
             </div>
             <div class="table-scroll">
