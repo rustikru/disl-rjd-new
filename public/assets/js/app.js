@@ -18,7 +18,7 @@ var TAB_GROUPS = [
     label: 'Аналитика',
     tabs: [
       { id: 'analysis-period', label: 'Анализ данных за период' },
-      { id: 'maps', label: 'Карта', url: BASE + '/maps', target: '_blank' },
+      { id: 'maps', label: 'Карта', url: BASE + '/maps' },
     ],
   },
   {
@@ -32,7 +32,6 @@ var TAB_GROUPS = [
         id: 'import',
         label: ' Загрузка справки РЖД ',
         url: BASE + '/import',
-        target: '_blank',
       },
     ],
   },
@@ -57,11 +56,7 @@ function initSidebar() {
       btn.dataset.tab = tab.id
       if (tab.url) {
         btn.addEventListener('click', function () {
-          const target =
-            typeof tab !== 'undefined' && tab.target === '_blank'
-              ? '_blank'
-              : '_self'
-          window.open(tab.url, target === '_blank' ? '_blank' : '_self')
+          window.location.href = tab.url
         })
       } else {
         btn.addEventListener('click', function () {
