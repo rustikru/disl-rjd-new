@@ -342,7 +342,7 @@ $reportDtLabel = $reportDtLabel ?? '';
                     <span class="user-name" title="<?= htmlspecialchars($user['auth_source'] ?? '') ?>">
                         <?= htmlspecialchars($user['display_name'] ?? $user['username'] ?? '') ?>
                     </span>
-                    <button type="button" class="btn btn-ghost btn-sm" onclick="window.history.back()">← Назад</button>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="goBack()">← Назад</button>
                 </div>
             </div>
         </div>
@@ -371,6 +371,15 @@ $reportDtLabel = $reportDtLabel ?? '';
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script>
         'use strict';
+
+        function goBack() {
+          if (window.history.length > 1) {
+            window.history.back();
+          } else {
+            window.close();
+            setTimeout(function () { window.location.href = window.APP_BASE + '/'; }, 200);
+          }
+        }
 
         var STATIONS = <?= $stationsJson ?? '[]' ?>;
         var CARGOS   = <?= $cargosJson   ?? '[]' ?>;
