@@ -100,10 +100,10 @@ class ApiController
         $values = [];
         foreach ($rows as $r) {
             $values[] = [
-                'id'     => $r['id']      ?? '',
-                'value'  => $r['x_value'] ?? '0',
-                'label'  => $r['x_label'] ?? '',
-                'trend'  => $r['trend_dir'] ?? '',
+                'id' => $r['id'] ?? '',
+                'value' => $r['x_value'] ?? '0',
+                'label' => $r['x_label'] ?? '',
+                'trend' => $r['trend_dir'] ?? '',
                 'change' => $r['trend_pct'] ?? '',
             ];
         }
@@ -118,7 +118,7 @@ class ApiController
 
         return $this->json($response, [
             'updated_at' => $updatedAt,
-            'sections'   => [['values' => $values]],
+            'sections' => [['values' => $values]],
         ]);
     }
     /** GET /api/dislocation/filters */
@@ -191,7 +191,7 @@ class ApiController
         // Детализация для карточек KPI по ID карточки
         $kpiId = trim($params['kpi_id'] ?? '');
         if ($kpiId !== '') {
-            $whereCond .= ' AND CASE WHEN XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_check_kpi(:kpi_id, xdr.id) THEN 1 ELSE 0 END = 1';
+            $whereCond .= ' AND CASE WHEN XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_check_kpi(:kpi_id, xdr.id) = 1 THEN 1 ELSE 0 END = 1';
             $bindings['kpi_id'] = (int) $kpiId;
         }
 
