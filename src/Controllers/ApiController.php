@@ -70,21 +70,24 @@ class ApiController
                     t.x_value, t.trend_pct, t.trend_dir
              FROM XX_RJD_KPI_TBL_V kpi,
                   TABLE(xx_rjd_dislocation_new_pkg.get_kpi_row(kpi.id)) t
-             WHERE $whereCond",
+             WHERE $whereCond
+            order by kpi.ORDER_BY",
 
             "SELECT kpi.id, kpi.type, kpi.label AS x_label,
                     xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id)         AS x_value,
                     xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_pct(kpi.id) AS trend_pct,
                     xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_dir(kpi.id) AS trend_dir
              FROM XX_RJD_KPI_TBL_V kpi
-             WHERE $whereCond",
+             WHERE $whereCond
+            order by kpi.ORDER_BY",
 
             "SELECT kpi.id, kpi.type, kpi.label AS x_label,
                     xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id) AS x_value,
                     NULL AS trend_pct,
                     NULL AS trend_dir
              FROM XX_RJD_KPI_TBL_V kpi
-             WHERE $whereCond",
+             WHERE $whereCond
+            order by kpi.ORDER_BY",
         ];
         $rows = null;
         foreach ($queries as $sql) {

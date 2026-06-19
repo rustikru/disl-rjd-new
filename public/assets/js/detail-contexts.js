@@ -1,13 +1,24 @@
 // Настройки для построения таблицы детализации
 
-// Общие поля — начало (присутствуют во всех детализациях)
+// Общие поля — начало (во всех детализациях)
 var BASE_COLS = [
   { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number', w: 110 },
   { key: 'wagon_type_code', label: 'Тип вагона', meta: true, w: 120 },
+  { key: 'park_type', label: 'Тип парка', meta: true, w: 125 },
   { key: 'cargo_name', label: 'Груз', meta: true, w: 150 },
+  { key: 'cargo_weight_kg', label: 'Вес (кг)', right: true, w: 100 },
+  { key: 'container_nos', label: 'Номера контейнеров', right: true, w: 100 },
+  { key: 'waybill_no', label: '№ накладной', meta: true, w: 100 },
+  { key: 'waybill_id', label: 'ID накладной', meta: true, w: 100 },
+  { key: 'oper_station', label: 'Тек. станция', meta: true, w: 150 },
+  { key: 'depart_station', label: 'Ст. отправл.', meta: true, w: 145 },
+  { key: 'dest_station', label: 'Ст. назнач.', meta: true, w: 145 },
+  { key: 'oper_mnemonic', label: 'Операция', meta: true, w: 90 },
+  { key: 'train_index', label: 'Индекс поезда', meta: true, w: 90 },
+  { key: 'train_no', label: 'Поезд №', meta: true, w: 90 },
 ]
 
-// Общие поля — конец (арендатор, всегда последними)
+// Общие поля — конец таблицы
 var LESSEE_COLS = [
   { key: 'lessee', label: 'Арендатор', danger: true, w: 105 },
   {
@@ -18,7 +29,7 @@ var LESSEE_COLS = [
   },
 ]
 
-// Собирает колонки: BASE_COLS + specific + LESSEE_COLS, без дублей по key
+// Собирает колонки без дублей по key
 function buildCols(specific) {
   var all = BASE_COLS.concat(specific || []).concat(LESSEE_COLS)
   var seen = {}
@@ -36,12 +47,6 @@ var DETAIL_CONTEXTS = {
     endpoint: '/api/dislocation/detail',
     sort: [{ field: 'wagon_no', type: 'number' }],
     cols: buildCols([
-      { key: 'train_no', label: 'Поезд №', meta: true, w: 90 },
-      { key: 'oper_station', label: 'Тек. станция', meta: true, w: 150 },
-      { key: 'depart_station', label: 'Ст. отправл.', meta: true, w: 145 },
-      { key: 'dest_station', label: 'Ст. назнач.', meta: true, w: 145 },
-      { key: 'park_type', label: 'Тип парка', meta: true, w: 125 },
-      { key: 'oper_mnemonic', label: 'Операция', meta: true, w: 90 },
       {
         key: 'oper_dt',
         label: 'Дата операции',
@@ -50,6 +55,13 @@ var DETAIL_CONTEXTS = {
         formatData: 'DD.MM.YYYY HH24:MI:SS',
       },
       { key: 'idle_time_days', label: 'Простой (дн)', danger: true, w: 105 },
+      {
+        key: 'norm_delivery_dt',
+        label: 'Нормат-я дата доставки',
+        meta: true,
+        w: 50,
+        formatData: 'DD.MM.YYYY',
+      },
       {
         key: 'asoup_arrive_dt',
         label: 'Приб. (АСОУП)',
@@ -116,7 +128,6 @@ var DETAIL_CONTEXTS = {
     endpoint: '/api/loading/detail',
     sort: { field: 'wagon_no', type: 'number', dir: 'asc' },
     cols: buildCols([
-      { key: 'cargo_weight_kg', label: 'Вес (кг)', right: true, w: 100 },
       { key: 'depart_station', label: 'Ст. отправл.', meta: true, w: 145 },
       { key: 'depart_road', label: 'Дорога', meta: true, w: 140 },
       { key: 'dest_station', label: 'Ст. назнач.', meta: true, w: 145 },
