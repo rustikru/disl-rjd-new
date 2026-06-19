@@ -125,7 +125,7 @@ $basePath = $basePath ?? '';
           <span class="table-sub" id="detailSub"></span>
         </div>
         <div class="table-acts">
-          <button class="btn btn-ghost btn-sm" id="btnDetailCSV">Скачать CSV</button>
+          <button class="btn btn-ghost btn-sm" id="btnDetailCSV">Выгрузить в Excel</button>
         </div>
       </div>
       <div class="detail-tabs-bar" id="detailTabsBar" style="display:none"></div>
@@ -237,11 +237,11 @@ $basePath = $basePath ?? '';
 
       // Вкладки drill-down (только если DETAIL_TABS определён и контекст их поддерживает)
       // drillDown !== false — фильтруем поля, скрытые для страницы детализации
-      var allCols   = ctxDef.cols.filter(function (c) { return c.drillDown !== false })
+      var allCols = ctxDef.cols.filter(function (c) { return c.drillDown !== false })
       _vtAllCols = allCols
-      var hasTabs   = typeof DETAIL_TABS !== 'undefined' && DETAIL_TABS.length > 0
+      var hasTabs = typeof DETAIL_TABS !== 'undefined' && DETAIL_TABS.length > 0
       // visTabs — только вкладки, у которых есть хотя бы одно поле
-      var visTabs   = hasTabs ? DETAIL_TABS.filter(function (t) {
+      var visTabs = hasTabs ? DETAIL_TABS.filter(function (t) {
         return allCols.some(function (c) { return (c.tab || 'main') === t.key })
       }) : []
       var activeTab = visTabs.length ? visTabs[0].key : null
@@ -257,7 +257,7 @@ $basePath = $basePath ?? '';
         bar.style.display = 'flex'
         bar.innerHTML = visTabs.map(function (t) {
           return '<button class="detail-tab-btn' + (t.key === activeTab ? ' active' : '') +
-                 '" data-tab="' + t.key + '">' + esc(t.name) + '</button>'
+            '" data-tab="' + t.key + '">' + esc(t.name) + '</button>'
         }).join('')
         bar.querySelectorAll('.detail-tab-btn').forEach(function (btn) {
           btn.addEventListener('click', function () {
