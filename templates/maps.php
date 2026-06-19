@@ -444,6 +444,7 @@ $reportDtLabel = $reportDtLabel ?? '';
 
             markerGroup = L.markerClusterGroup({
                 maxClusterRadius: 50,
+                showCoverageOnHover: false,
                 iconCreateFunction: function (cluster) {
                     var n = 0;
                     cluster.getAllChildMarkers().forEach(function (m) { n += (m._wagonCount || 1); });
