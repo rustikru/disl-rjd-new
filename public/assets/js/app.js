@@ -1704,7 +1704,7 @@ function drawSummary(
 // CSV-экспорт виртуальной таблицы (детализация) — берёт данные из _vtInline
 function saveCSVfromVT(tableId, filename) {
   var vt = _vtInline[tableId]
-  if (!vt || !vt.all.length) return
+  if (!vt || !vt.filtered.length) return
   var cols = vt.cols
   var rows = [
     cols
@@ -1713,7 +1713,7 @@ function saveCSVfromVT(tableId, filename) {
       })
       .join(';'),
   ]
-  vt.all.forEach(function (row) {
+  vt.filtered.forEach(function (row) {
     var cells = cols.map(function (c) {
       var v = c.fmt
         ? c.fmt(row[c.key])

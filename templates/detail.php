@@ -454,7 +454,7 @@ $basePath = $basePath ?? '';
       var csvCols = _vtAllCols.length ? _vtAllCols : _vtCols;
       var lines = [];
       lines.push(csvCols.map(function (c) { return cleanCell(c.label); }).join(';'));
-      _vtAllData.forEach(function (row) {
+      _vtFiltered.forEach(function (row) {
         lines.push(csvCols.map(function (c) {
           var v = row[c.key];
           return cleanCell(c.fmt ? c.fmt(v) : v);
