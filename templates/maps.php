@@ -324,13 +324,13 @@ $reportDtLabel = $reportDtLabel ?? '';
 
 <body>
 
-<?php
-    $headerSub   = '<div id="brandDateSub" class="brand-date-sub">'
-      . ($reportDtLabel ? 'Дислокация РЖД на ' . htmlspecialchars($reportDtLabel) : '')
-      . '</div>';
+    <?php
+    $headerSub = '<div id="brandDateSub" class="brand-date-sub">'
+        . ($reportDtLabel ? 'Дислокация РЖД на ' . htmlspecialchars($reportDtLabel) : '')
+        . '</div>';
     $headerRight = '<button type="button" class="btn btn-ghost btn-sm" onclick="goBack()">← Назад</button>';
     include __DIR__ . '/partials/header.php';
-?>
+    ?>
 
     <div class="app-container">
         <div class="sidebar">
@@ -357,16 +357,16 @@ $reportDtLabel = $reportDtLabel ?? '';
         'use strict';
 
         function goBack() {
-          if (window.history.length > 1) {
-            window.history.back();
-          } else {
-            window.close();
-            setTimeout(function () { window.location.href = window.APP_BASE + '/'; }, 200);
-          }
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.close();
+                setTimeout(function () { window.location.href = window.APP_BASE + '/'; }, 200);
+            }
         }
 
         var STATIONS = <?= $stationsJson ?? '[]' ?>;
-        var CARGOS   = <?= $cargosJson   ?? '[]' ?>;
+        var CARGOS = <?= $cargosJson ?? '[]' ?>;
         var activeFilter = 'all', activeCargo = '', activeStation = null, markerGroup = null;
 
         // Заполняем список грузов
@@ -467,7 +467,11 @@ $reportDtLabel = $reportDtLabel ?? '';
 
                 var wagonsListHtml = wagons.map(function (w) {
                     return '<div style="border-bottom: 1px solid #e2e1e7; padding: 5px 0; font-size: 11px; line-height: 1.4;">' +
-                        '<strong style="color: var(--primary); font-family: var(--mono); font-size: 12px;">' + w.wagon_num + '</strong> — ' + w.wagon_type + '<br>' +
+                        '<a href="' + (window.APP_BASE || '') + '/detail?ctx=dislocation&wagon_no=' + encodeURIComponent(w.wagon_num) + '" target="_blank" title="Открыть детализацию по вагону">' +
+                        '<strong style="color: var(--primary); font-family: var(--mono); font-size: 12px;">' +
+                        w.wagon_num +
+                        '</strong>' +
+                        '</a> — ' + w.wagon_type + '<br>' +
                         '<span style="color: ' + (w.ld ? 'var(--loaded)' : 'var(--empty)') + '; font-weight: 600;">' +
                         (w.ld ? 'Гружёный' : 'Порожний') +
                         '</span>' +
