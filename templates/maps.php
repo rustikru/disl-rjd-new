@@ -325,17 +325,10 @@ $reportDtLabel = $reportDtLabel ?? '';
 <body>
 
 <?php
-    $headerSub = '<div id="brandDateSub" class="brand-date-sub">'
+    $headerSub   = '<div id="brandDateSub" class="brand-date-sub">'
       . ($reportDtLabel ? 'Дислокация РЖД на ' . htmlspecialchars($reportDtLabel) : '')
       . '</div>';
-    ob_start(); ?>
-        <div class="user-info">
-            <span class="user-name" title="<?= htmlspecialchars($user['auth_source'] ?? '') ?>">
-                <?= htmlspecialchars($user['display_name'] ?? $user['username'] ?? '') ?>
-            </span>
-            <button type="button" class="btn btn-ghost btn-sm" onclick="goBack()">← Назад</button>
-        </div>
-    <?php $headerRight = ob_get_clean();
+    $headerRight = '<button type="button" class="btn btn-ghost btn-sm" onclick="goBack()">← Назад</button>';
     include __DIR__ . '/partials/header.php';
 ?>
 

@@ -174,15 +174,8 @@ $basePath = $basePath ?? '';
 <body>
 
 <?php
-  $headerSub = '<div class="brand-sub">Загрузка справки РЖД</div>';
-  ob_start(); ?>
-      <!-- <a href="<?= htmlspecialchars($basePath) ?>/" class="btn btn-ghost btn-sm">← На главную</a> -->
-      <button type="button" class="btn btn-ghost btn-sm" onclick="goBack()">← Назад</button>
-      <form method="POST" action="<?= htmlspecialchars($basePath) ?>/logout" style="display:inline">
-        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
-        <button type="submit" class="btn btn-ghost btn-sm">Выйти</button>
-      </form>
-  <?php $headerRight = ob_get_clean();
+  $headerSub   = '<div class="brand-sub">Загрузка справки РЖД</div>';
+  $headerRight = '<button type="button" class="btn btn-ghost btn-sm" onclick="goBack()">← Назад</button>';
   include __DIR__ . '/partials/header.php';
 ?>
 

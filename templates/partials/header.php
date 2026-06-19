@@ -2,8 +2,9 @@
 // Переменные из вызывающего шаблона:
 //   $appName     (string)       — название приложения
 //   $basePath    (string)       — базовый путь
+//   $user        (array)        — ['display_name', 'username', 'auth_source']
 //   $headerSub   (string|null)  — HTML-подпись под названием (.brand-date-sub / .brand-sub)
-//   $headerRight (string|null)  — HTML внутри .header-meta (кнопки, имя пользователя)
+//   $headerRight (string|null)  — дополнительные кнопки слева от имени (← Назад и т.п.)
 $headerSub   = $headerSub   ?? '';
 $headerRight = $headerRight ?? '';
 ?>
@@ -18,10 +19,17 @@ $headerRight = $headerRight ?? '';
         <?= $headerSub ?>
       </div>
     </div>
-    <?php if ($headerRight !== ''): ?>
     <div class="header-meta">
       <?= $headerRight ?>
+      <div class="user-info">
+        <span class="user-name" title="<?= htmlspecialchars($user['auth_source'] ?? '') ?>">
+          <?= htmlspecialchars($user['display_name'] ?? $user['username'] ?? '') ?>
+        </span>
+        <form method="POST" action="<?= htmlspecialchars($basePath) ?>/logout" style="display:inline">
+          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
+          <button type="submit" class="btn btn-ghost btn-sm">Выйти</button>
+        </form>
+      </div>
     </div>
-    <?php endif; ?>
   </div>
 </header>
