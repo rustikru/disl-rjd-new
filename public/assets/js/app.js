@@ -844,7 +844,10 @@ function loadSummary(cfg) {
 function loadDetail(cfg) {
   var $sub = $('#' + cfg.detSubId)
   var $table = $('#' + cfg.detTableId)
-  var cols = DETAIL_CONTEXTS[cfg.ctx] ? DETAIL_CONTEXTS[cfg.ctx].cols : []
+  // showInline: false — поле скрыто из inline-детализации (но видно на странице detail.php)
+  var cols = DETAIL_CONTEXTS[cfg.ctx]
+    ? DETAIL_CONTEXTS[cfg.ctx].cols.filter(function (c) { return c.showInline !== false })
+    : []
   $sub.text('Загрузка...')
   var ctxSortRaw = DETAIL_CONTEXTS[cfg.ctx]
     ? DETAIL_CONTEXTS[cfg.ctx].sort

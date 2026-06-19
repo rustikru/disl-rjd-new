@@ -236,8 +236,8 @@ $basePath = $basePath ?? '';
       }
 
       // Вкладки drill-down (только если DETAIL_TABS определён и контекст их поддерживает)
-      // drillDown !== false — фильтруем поля, скрытые для страницы детализации
-      var allCols = ctxDef.cols.filter(function (c) { return c.drillDown !== false })
+      // detail.php показывает все поля; showInline управляет только inline-детализацией в app.js
+      var allCols = ctxDef.cols
       _vtAllCols = allCols
       var hasTabs = typeof DETAIL_TABS !== 'undefined' && DETAIL_TABS.length > 0
       // visTabs — только вкладки, у которых есть хотя бы одно поле
