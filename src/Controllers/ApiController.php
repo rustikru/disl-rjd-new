@@ -66,7 +66,7 @@ class ApiController
         //   2. отдельные скалярные функции (если get_kpi_row ещё не скомпилирована)
         //   3. без трендов (если trend-функции отсутствуют)
         $queries = [
-            "SELECT kpi.id, kpi.type, kpi.label AS x_label,
+            "SELECT /*+ CARDINALITY(t 1) */ kpi.id, kpi.type, kpi.label AS x_label,
                     t.x_value, t.trend_pct, t.trend_dir
              FROM XX_KPI_TABLE_V kpi,
                   TABLE(xx_rjd_dislocation_new_pkg.get_kpi_row(kpi.id)) t
