@@ -532,45 +532,7 @@ function metricsCards(data, mainLabel, ctx, groupBy) {
     }),
   )
 }
-function departureCards(data) {
-  var valuesArray =
-    (data.sections && data.sections[0] && data.sections[0].values) || []
-
-  return valuesArray.map(function (item) {
-    return {
-      label: item.label,
-      value: item.value,
-      variant: 'pill',
-      trend: makeTrend(item.change, item.trend),
-      detail: item.id
-        ? { ctx: 'dislocation', params: { kpi_id: item.id } }
-        : null,
-    }
-  })
-}
-function approachCards(data) {
-  var valuesArray =
-    (data.sections && data.sections[0] && data.sections[0].values) || []
-
-  return valuesArray.map(function (item) {
-    return {
-      label: item.label,
-      value: item.value,
-      variant: 'pill',
-      trend: makeTrend(item.change, item.trend),
-      detail: item.id
-        ? { ctx: 'dislocation', params: { kpi_id: item.id } }
-        : null,
-    }
-  })
-}
-/**
- * KPI для страницы Дислокация
- * @param {*} data
- * @returns
- */
-
-function dashboardCards(data) {
+function kpiCards(data) {
   var valuesArray =
     (data.sections && data.sections[0] && data.sections[0].values) || []
 
@@ -595,7 +557,7 @@ var KPI_BOARDS = {
     params: function () {
       return { kpi_type: 'dashboard_kpi' }
     },
-    cards: dashboardCards,
+    cards: kpiCards,
   },
   departure: {
     containerId: 'departureMetrics',
@@ -603,7 +565,7 @@ var KPI_BOARDS = {
     params: function () {
       return { kpi_type: 'departue_kpi' }
     },
-    cards: departureCards,
+    cards: kpiCards,
   },
   approach: {
     containerId: 'approachMetrics',
@@ -611,7 +573,7 @@ var KPI_BOARDS = {
     params: function () {
       return { kpi_type: 'approach_kpi' }
     },
-    cards: approachCards,
+    cards: kpiCards,
   },
 }
 
