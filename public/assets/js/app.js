@@ -555,7 +555,9 @@ function departureCards(data) {
       value: item.value,
       variant: 'pill',
       trend: makeTrend(item.change, item.trend),
-      detail: item.id ? { ctx: 'dislocation', params: { kpi_id: item.id } } : null,
+      detail: item.id
+        ? { ctx: 'dislocation', params: { kpi_id: item.id } }
+        : null,
     }
   })
 }
@@ -569,7 +571,9 @@ function approachCards(data) {
       value: item.value,
       variant: 'pill',
       trend: makeTrend(item.change, item.trend),
-      detail: item.id ? { ctx: 'dislocation', params: { kpi_id: item.id } } : null,
+      detail: item.id
+        ? { ctx: 'dislocation', params: { kpi_id: item.id } }
+        : null,
     }
   })
 }
@@ -589,7 +593,9 @@ function dashboardCards(data) {
       value: item.value,
       variant: 'pill',
       trend: makeTrend(item.change, item.trend),
-      detail: item.id ? { ctx: 'dislocation', params: { kpi_id: item.id } } : null,
+      detail: item.id
+        ? { ctx: 'dislocation', params: { kpi_id: item.id } }
+        : null,
     }
   })
 }
@@ -599,7 +605,9 @@ var KPI_BOARDS = {
   dashboard: {
     containerId: 'kpiGrid',
     dataUrl: BASE + '/api/kpi/summary',
-    params: function () { return { kpi_type: 'dashboard_kpi' } },
+    params: function () {
+      return { kpi_type: 'dashboard_kpi' }
+    },
     cards: dashboardCards,
   },
   departure: {

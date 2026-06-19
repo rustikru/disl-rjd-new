@@ -50,6 +50,8 @@ class MapsController
                     xdr.idle_time_days,
                     xdr.oper_road,
                     xdr.oper_station,
+                    xdr.days_no_oper,
+                    xdr.days_no_move,
                     rs.esr_code,
                     rs.station_name,
                     rs.latitude,
@@ -86,7 +88,8 @@ class MapsController
                 'cargo' => (string) ($r['cargo_name'] ?? ''),
                 'dest_station' => (string) ($r['dest_station'] ?? ''),
                 'wagon_state' => (string) ($r['wagon_state'] ?? ''),
-                'days_no_move' => (int) ($r['idle_time_days'] ?? 0),
+                'days_no_move' => (int) ($r['days_no_move'] ?? 0),
+                'days_no_oper' => (int) ($r['days_no_oper'] ?? 0),
                 'latitude' => (string) ($r['latitude'] ?? ''),
                 'longitude' => (string) ($r['longitude'] ?? ''),
             ];

@@ -286,7 +286,9 @@ $reportDtLabel = $reportDtLabel ?? '';
                 </div>
                 <div class="brand-text">
                     <div class="brand-name"><?= htmlspecialchars($appName) ?></div>
-                    <div id="brandDateSub" class="brand-date-sub"><?= $reportDtLabel ? 'Дислокация РЖД на ' . htmlspecialchars($reportDtLabel) : '' ?></div>
+                    <div id="brandDateSub" class="brand-date-sub">
+                        <?= $reportDtLabel ? 'Дислокация РЖД на ' . htmlspecialchars($reportDtLabel) : '' ?>
+                    </div>
                 </div>
             </div>
             <div class="header-meta">
@@ -411,7 +413,8 @@ $reportDtLabel = $reportDtLabel ?? '';
                         '</span>' +
                         (w.cargo ? '<span style="color: #555;"> (' + w.cargo + ')</span>' : '') +
                         (w.dest_station ? '<br><span style="color: #7c7e86; font-size: 10px;">→ Назначение: ' + w.dest_station + '</span>' : '') +
-                        // (w.days_no_move > 0 ? '<br><small style="color: var(--empty);">Без движения: ' + w.days_no_move + ' дн.</small>' : '') +
+                        (w.days_no_move > 0 ? '<br><small style="color: var(--empty);">Без движения: ' + w.days_no_move + ' дн.</small>' : '') +
+                        (w.days_no_oper > 0 ? '<br><small style="color: var(--empty);">Дней без операций: ' + w.days_no_oper + ' дн.</small>' : '') +
                         '</div>';
                 }).join('');
 
