@@ -106,7 +106,6 @@ $basePath = $basePath ?? '';
           <span class="user-name" title="<?= htmlspecialchars($user['auth_source'] ?? '') ?>">
             <?= htmlspecialchars($user['display_name'] ?? $user['username'] ?? '') ?>
           </span>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="goBack()">← Назад</button>
         </div>
       </div>
     </div>
