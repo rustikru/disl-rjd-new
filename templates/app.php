@@ -57,7 +57,7 @@ $basePath = $basePath ?? '';
         <div class="kpi-grid" id="kpiGrid" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="disl-summary">Сводная дислокация</button>
-          <button class="inner-tab" data-inner="disl-extended">Детализация</button>
+          <button class="inner-tab" data-inner="disl-extended">Подробная</button>
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
@@ -100,7 +100,7 @@ $basePath = $basePath ?? '';
         <div id="disl-extended" class="inner-panel">
           <section class="table-section">
             <div class="table-toolbar">
-              <div class="table-info"><span class="table-title">Детализация</span><span class="table-sub"
+              <div class="table-info"><span class="table-title">Подробная</span><span class="table-sub"
                   id="dislDetSub"></span></div>
               <div class="table-acts"></div>
             </div>
@@ -117,7 +117,7 @@ $basePath = $basePath ?? '';
         <!-- Внутренние вкладки -->
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="approach-summary">Сводная</button>
-          <button class="inner-tab" data-inner="approach-detail">Детализация</button>
+          <button class="inner-tab" data-inner="approach-detail">Подробная</button>
         </div>
 
         <!-- Фильтры -->
@@ -169,7 +169,7 @@ $basePath = $basePath ?? '';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title">Детализация в подходе</span>
+                <span class="table-title">Подробная в подходе</span>
                 <span class="table-sub" id="approachDetSub"></span>
               </div>
               <div class="table-acts"></div>
@@ -185,7 +185,7 @@ $basePath = $basePath ?? '';
         <div class="kpi-grid" id="departureMetrics" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="departure-summary">Сводная</button>
-          <button class="inner-tab" data-inner="departure-detail">Детализация</button>
+          <button class="inner-tab" data-inner="departure-detail">Подробная</button>
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
@@ -248,7 +248,7 @@ $basePath = $basePath ?? '';
         <div class="kpi-grid" id="loadingMetrics" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="loading-summary">Сводная</button>
-          <button class="inner-tab" data-inner="loading-detail">Детализация</button>
+          <button class="inner-tab" data-inner="loading-detail">Подробная</button>
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
@@ -304,7 +304,7 @@ $basePath = $basePath ?? '';
       <div id="panel-downtime" class="tab-panel">
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="downtime-summary">Сводная по станциям</button>
-          <button class="inner-tab" data-inner="downtime-detail">Детализация</button>
+          <button class="inner-tab" data-inner="downtime-detail">Подробная</button>
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
@@ -360,7 +360,7 @@ $basePath = $basePath ?? '';
         <div class="kpi-grid" id="rawMetrics" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="raw-summary">Сводная по грузам</button>
-          <button class="inner-tab" data-inner="raw-detail">Детализация</button>
+          <button class="inner-tab" data-inner="raw-detail">Подробная</button>
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
@@ -392,7 +392,7 @@ $basePath = $basePath ?? '';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title">Детализация с сырьём</span>
+                <span class="table-title">Подробная с сырьём</span>
                 <span class="table-sub" id="rawDetSub"></span>
               </div>
               <div class="table-acts"></div>
