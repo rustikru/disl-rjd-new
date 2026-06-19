@@ -81,6 +81,7 @@ function switchTab(tabId) {
   document.querySelectorAll('.tab-panel').forEach(function (panel) {
     panel.classList.toggle('active', panel.id === 'panel-' + tabId)
   })
+  history.replaceState(null, '', '#' + tabId)
   Object.keys(WAGON_TABS).forEach(function (k) {
     var cfg = WAGON_TABS[k]
     if (tabId === k && !window[cfg.loadedKey]) {
@@ -2164,8 +2165,13 @@ $(function () {
   initSidebar()
   initInnerTabs()
 
+  // Восстанавливаем активную вкладку из URL hash (при возврате с детализации)
+  var hashTab = (location.hash || '').replace('#', '')
+  var startTab = (hashTab && document.getElementById('panel-' + hashTab)) ? hashTab : 'dislocation'
+  if (startTab !== 'dislocation') switchTab(startTab)
+
   var kpiXhrs = loadKPI()
-  var summaryXhr = initTab(WAGON_TABS.dislocation)
+  var summaryXhr = initTab(WAGON_TABS[startTab] || WAGON_TABS.dislocation)
 
   // Скрываем оверлей когда готовы и KPI, и сводная таблица
   var allXhrs = (kpiXhrs || []).concat(summaryXhr ? [summaryXhr] : [])
