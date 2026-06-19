@@ -106,7 +106,7 @@ $basePath = $basePath ?? '';
           <span class="user-name" title="<?= htmlspecialchars($user['auth_source'] ?? '') ?>">
             <?= htmlspecialchars($user['display_name'] ?? $user['username'] ?? '') ?>
           </span>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="window.history.back()">← Назад</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="goBack()">← Назад</button>
         </div>
       </div>
     </div>
@@ -140,6 +140,17 @@ $basePath = $basePath ?? '';
     'use strict';
 
     var BASE = window.APP_BASE || '';
+
+    function goBack() {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        // Страница открыта в новой вкладке — закрываем её
+        window.close();
+        // Если браузер не разрешил закрыть — идём на главную
+        setTimeout(function () { window.location.href = BASE + '/'; }, 200);
+      }
+    }
 
     function esc(str) {
       if (!str && str !== 0) return '';
@@ -198,7 +209,7 @@ $basePath = $basePath ?? '';
         };
       }
 
-      $('#breadcrumb').html('<span class="bc-item"><a href="' + (window.APP_BASE || '') + '/" style="color:inherit;text-decoration:none">← Вернуться</a></span>');
+      $('#breadcrumb').html('<span class="bc-item"><a href="#" onclick="goBack();return false;" style="color:inherit;text-decoration:none">← Вернуться</a></span>');
 
       var bcpathRaw = params.get('_bcpath') || '';
       var bcpathParts = [];
