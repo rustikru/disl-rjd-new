@@ -385,12 +385,13 @@ class AdminController
         }
 
         $roleId = (int) ($body['role_id'] ?? 0);
-        $role = $this->db->fetchOne('SELECT id, is_system FROM xx_rjd_roles WHERE id = :id', ['id' => $roleId]);
+        $role = $this->db->fetchOne('SELECT id, code FROM xx_rjd_roles WHERE id = :id', ['id' => $roleId]);
         if (!$role) {
             return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
         }
-        if ((int) ($role['is_system'] ?? 0) === 1) {
-            return $this->redirect($response, '/admin/roles?err=' . urlencode('Системную роль удалить нельзя'));
+        // ADMIN трогать нельзя — система заблокируется
+        if (($role['code'] ?? '') === 'ADMIN') {
+            return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль «Администратор» удалить нельзя'));
         }
 
         $used = $this->db->fetchOne(

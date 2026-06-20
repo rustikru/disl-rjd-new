@@ -199,15 +199,13 @@ $totalPages = count($pages);
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
           <input type="hidden" name="role_id"    value="<?= (int) $r['id'] ?>">
         </form>
-        <?php if ((int) ($r['is_system'] ?? 0) === 0): ?>
-          <form id="rfd-<?= (int) $r['id'] ?>"
-                method="POST"
-                action="<?= htmlspecialchars($basePath) ?>/admin/roles/delete"
-                style="display:none">
-            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-            <input type="hidden" name="role_id"    value="<?= (int) $r['id'] ?>">
-          </form>
-        <?php endif; ?>
+        <form id="rfd-<?= (int) $r['id'] ?>"
+              method="POST"
+              action="<?= htmlspecialchars($basePath) ?>/admin/roles/delete"
+              style="display:none">
+          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+          <input type="hidden" name="role_id"    value="<?= (int) $r['id'] ?>">
+        </form>
       <?php endif; ?>
     <?php endforeach; ?>
 
@@ -305,15 +303,13 @@ $totalPages = count($pages);
                   <div class="actions-cell">
                     <button type="submit" class="btn btn-primary btn-sm"
                             form="rf-<?= (int) $r['id'] ?>">Сохранить</button>
-                    <?php if ((int) ($r['is_system'] ?? 0) === 0): ?>
-                      <button type="submit"
-                              class="btn btn-ghost btn-sm"
-                              style="color:var(--brand-neg)"
-                              form="rfd-<?= (int) $r['id'] ?>"
-                              onclick="return confirm('Удалить роль «<?= htmlspecialchars(addslashes($r['name']), ENT_QUOTES) ?>»?')">
-                        Удалить
-                      </button>
-                    <?php endif; ?>
+                    <button type="submit"
+                            class="btn btn-ghost btn-sm"
+                            style="color:var(--brand-neg)"
+                            form="rfd-<?= (int) $r['id'] ?>"
+                            onclick="return confirm('Удалить роль «<?= htmlspecialchars(addslashes($r['name']), ENT_QUOTES) ?>»?')">
+                      Удалить
+                    </button>
                   </div>
                 <?php endif; ?>
               </td>
