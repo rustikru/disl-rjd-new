@@ -237,8 +237,8 @@ class AdminController
         try {
             // id проставит триггер xx_rjd_roles_bi из последовательности
             $this->db->execute(
-                'INSERT INTO xx_rjd_roles (code, name, description, is_system) VALUES (:code, :name, :desc, 0)',
-                ['code' => $code, 'name' => $name, 'desc' => $desc !== '' ? $desc : null]
+                'INSERT INTO xx_rjd_roles (code, name, description, is_system) VALUES (:code, :name, :dsc, 0)',
+                ['code' => $code, 'name' => $name, 'dsc' => $desc !== '' ? $desc : null]
             );
             $row = $this->db->fetchOne('SELECT id FROM xx_rjd_roles WHERE code = :code', ['code' => $code]);
             $this->savePages((int) $row['id'], (array) ($body['pages'] ?? []));
@@ -283,8 +283,8 @@ class AdminController
         try {
             if ($name !== '') {
                 $this->db->execute(
-                    'UPDATE xx_rjd_roles SET name = :name, description = :desc WHERE id = :id',
-                    ['name' => $name, 'desc' => $desc !== '' ? $desc : null, 'id' => $roleId]
+                    'UPDATE xx_rjd_roles SET name = :name, description = :dsc WHERE id = :id',
+                    ['name' => $name, 'dsc' => $desc !== '' ? $desc : null, 'id' => $roleId]
                 );
             }
             $this->db->execute('DELETE FROM xx_rjd_role_pages WHERE role_id = :id', ['id' => $roleId]);
