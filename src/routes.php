@@ -71,6 +71,12 @@ return function (App $app, array $config): void {
         $group->get('/admin', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->index($req, $res);
         });
+        $group->get('/admin/users', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->usersPage($req, $res);
+        });
+        $group->get('/admin/roles', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->rolesPage($req, $res);
+        });
         $group->post('/admin/users', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->createUser($req, $res);
         });

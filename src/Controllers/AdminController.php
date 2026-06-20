@@ -34,24 +34,20 @@ class AdminController
         $this->config = $config;
     }
 
-    /** GET /admin */
+    /** GET /admin — редирект на /admin/users */
     public function index(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        return $this->redirect($response, '/admin/users');
+    }
+
+    /** GET /admin/users */
+    public function usersPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         if (!$this->isAdmin()) {
             return $this->forbidden($response);
         }
 
-        $roles = $this->db->fetchAll(
-            'SELECT id, code, name, description, is_system FROM xx_rjd_roles ORDER BY id'
-        );
-
-        // Карта доступных страниц по ролям: [role_id => ['dashboard' => true, ...]]
-        $rolePages = [];
-        foreach ($this->db->fetchAll('SELECT role_id, page FROM xx_rjd_role_pages') as $rp) {
-            $rolePages[(int) $rp['role_id']][$rp['page']] = true;
-        }
-
-        $pages = self::PAGES;
+        $roles = $this->db->fetchAll('SELECT id, code, name FROM xx_rjd_roles ORDER BY id');
 
         $rawUsers = $this->db->fetchAll(
             'SELECT u.id, u.username, u.display_name, u.email, u.is_active
@@ -84,12 +80,49 @@ class AdminController
         $basePath = $this->config['base_path'] ?? '';
         $user     = $_SESSION['user'] ?? [];
 
-        $query = $request->getQueryParams();
+        $query    = $request->getQueryParams();
         $flashOk  = $query['ok']  ?? null;
         $flashErr = $query['err'] ?? null;
+        $csrf     = $_SESSION['csrf_token'] ?? '';
 
         ob_start();
-        include __DIR__ . '/../../templates/admin.php';
+        include __DIR__ . '/../../templates/admin/users.php';
+        $html = ob_get_clean();
+
+        $response->getBody()->write($html);
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    /** GET /admin/roles */
+    public function rolesPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isAdmin()) {
+            return $this->forbidden($response);
+        }
+
+        $roles = $this->db->fetchAll(
+            'SELECT id, code, name, description, is_system FROM xx_rjd_roles ORDER BY id'
+        );
+
+        // Карта доступных страниц по ролям: [role_id => ['dashboard' => true, ...]]
+        $rolePages = [];
+        foreach ($this->db->fetchAll('SELECT role_id, page FROM xx_rjd_role_pages') as $rp) {
+            $rolePages[(int) $rp['role_id']][$rp['page']] = true;
+        }
+
+        $pages = self::PAGES;
+
+        $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user     = $_SESSION['user'] ?? [];
+
+        $query    = $request->getQueryParams();
+        $flashOk  = $query['ok']  ?? null;
+        $flashErr = $query['err'] ?? null;
+        $csrf     = $_SESSION['csrf_token'] ?? '';
+
+        ob_start();
+        include __DIR__ . '/../../templates/admin/roles.php';
         $html = ob_get_clean();
 
         $response->getBody()->write($html);
@@ -104,7 +137,7 @@ class AdminController
         }
         $body = (array) $request->getParsedBody();
         if (!$this->checkCsrf($body)) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
         $userId  = (int) ($body['user_id'] ?? 0);
@@ -112,7 +145,7 @@ class AdminController
         $roleIds = array_filter($roleIds, static fn(int $id) => $id > 0);
 
         if ($userId <= 0) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Пользователь не найден'));
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Пользователь не найден'));
         }
 
         $this->db->beginTransaction();
@@ -127,10 +160,10 @@ class AdminController
             $this->db->commit();
         } catch (\Throwable $e) {
             $this->db->rollback();
-            return $this->redirect($response, '/admin?err=' . urlencode('Не удалось обновить роли'));
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Не удалось обновить роли'));
         }
 
-        return $this->redirect($response, '/admin?ok=' . urlencode('Роли обновлены'));
+        return $this->redirect($response, '/admin/users?ok=' . urlencode('Роли обновлены'));
     }
 
     /** POST /admin/users/active — заблокировать / разблокировать пользователя */
@@ -141,14 +174,14 @@ class AdminController
         }
         $body = (array) $request->getParsedBody();
         if (!$this->checkCsrf($body)) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
         $userId = (int) ($body['user_id'] ?? 0);
         $active = (int) ($body['is_active'] ?? 0) === 1 ? 1 : 0;
 
         if ($userId <= 0) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Пользователь не найден'));
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Пользователь не найден'));
         }
 
         $this->db->execute(
@@ -158,7 +191,7 @@ class AdminController
 
         return $this->redirect(
             $response,
-            '/admin?ok=' . urlencode($active === 1 ? 'Пользователь разблокирован' : 'Пользователь заблокирован')
+            '/admin/users?ok=' . urlencode($active === 1 ? 'Пользователь разблокирован' : 'Пользователь заблокирован')
         );
     }
 
@@ -170,7 +203,7 @@ class AdminController
         }
         $body = (array) $request->getParsedBody();
         if (!$this->checkCsrf($body)) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
         $username    = trim((string) ($body['username'] ?? ''));
@@ -181,7 +214,7 @@ class AdminController
         $roleIds     = array_filter($roleIds, static fn(int $id) => $id > 0);
 
         if ($username === '' || $displayName === '') {
-            return $this->redirect($response, '/admin?err=' . urlencode('Укажите логин и имя пользователя'));
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Укажите логин и имя пользователя'));
         }
 
         $exists = $this->db->fetchOne(
@@ -189,7 +222,7 @@ class AdminController
             ['username' => $username]
         );
         if ($exists) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Пользователь с таким логином уже существует'));
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Пользователь с таким логином уже существует'));
         }
 
         $hash = $password !== '' ? password_hash($password, PASSWORD_BCRYPT) : '';
@@ -224,10 +257,10 @@ class AdminController
             $this->db->commit();
         } catch (\Throwable $e) {
             $this->db->rollback();
-            return $this->redirect($response, '/admin?err=' . urlencode('Не удалось создать пользователя'));
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Не удалось создать пользователя'));
         }
 
-        return $this->redirect($response, '/admin?ok=' . urlencode('Пользователь создан'));
+        return $this->redirect($response, '/admin/users?ok=' . urlencode('Пользователь создан'));
     }
 
     /** POST /admin/users/password — сбросить / задать пароль пользователю */
@@ -238,14 +271,14 @@ class AdminController
         }
         $body = (array) $request->getParsedBody();
         if (!$this->checkCsrf($body)) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
         $userId   = (int) ($body['user_id'] ?? 0);
         $password = (string) ($body['password'] ?? '');
 
         if ($userId <= 0 || $password === '') {
-            return $this->redirect($response, '/admin?err=' . urlencode('Укажите новый пароль'));
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Укажите новый пароль'));
         }
 
         $this->db->execute(
@@ -253,7 +286,7 @@ class AdminController
             ['hash' => password_hash($password, PASSWORD_BCRYPT), 'id' => $userId]
         );
 
-        return $this->redirect($response, '/admin?ok=' . urlencode('Пароль обновлён'));
+        return $this->redirect($response, '/admin/users?ok=' . urlencode('Пароль обновлён'));
     }
 
     /** POST /admin/roles — создать роль */
@@ -264,7 +297,7 @@ class AdminController
         }
         $body = (array) $request->getParsedBody();
         if (!$this->checkCsrf($body)) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+            return $this->redirect($response, '/admin/roles?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
         $code = strtoupper(trim((string) ($body['code'] ?? '')));
@@ -272,15 +305,15 @@ class AdminController
         $desc = trim((string) ($body['description'] ?? ''));
 
         if ($code === '' || $name === '') {
-            return $this->redirect($response, '/admin?err=' . urlencode('Укажите код и название роли'));
+            return $this->redirect($response, '/admin/roles?err=' . urlencode('Укажите код и название роли'));
         }
         if (!preg_match('/^[A-Z][A-Z0-9_]{1,29}$/', $code)) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Код роли: латиница, цифры и _, начинается с буквы'));
+            return $this->redirect($response, '/admin/roles?err=' . urlencode('Код роли: латиница, цифры и _, начинается с буквы'));
         }
 
         $exists = $this->db->fetchOne('SELECT id FROM xx_rjd_roles WHERE code = :code', ['code' => $code]);
         if ($exists) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Роль с таким кодом уже существует'));
+            return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль с таким кодом уже существует'));
         }
 
         $this->db->beginTransaction();
@@ -295,10 +328,10 @@ class AdminController
             $this->db->commit();
         } catch (\Throwable $e) {
             $this->db->rollback();
-            return $this->redirect($response, '/admin?err=' . urlencode('Не удалось создать роль'));
+            return $this->redirect($response, '/admin/roles?err=' . urlencode('Не удалось создать роль'));
         }
 
-        return $this->redirect($response, '/admin?ok=' . urlencode('Роль создана'));
+        return $this->redirect($response, '/admin/roles?ok=' . urlencode('Роль создана'));
     }
 
     /** POST /admin/roles/save — обновить название/описание и доступ роли к страницам */
@@ -309,21 +342,21 @@ class AdminController
         }
         $body = (array) $request->getParsedBody();
         if (!$this->checkCsrf($body)) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+            return $this->redirect($response, '/admin/roles?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
         $roleId = (int) ($body['role_id'] ?? 0);
         if ($roleId <= 0) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Роль не найдена'));
+            return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
         }
 
         $role = $this->db->fetchOne('SELECT id, code FROM xx_rjd_roles WHERE id = :id', ['id' => $roleId]);
         if (!$role) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Роль не найдена'));
+            return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
         }
         // Роль ADMIN всегда имеет полный доступ — её страницы не редактируем
         if (($role['code'] ?? '') === 'ADMIN') {
-            return $this->redirect($response, '/admin?err=' . urlencode('Доступ роли «Администратор» изменить нельзя'));
+            return $this->redirect($response, '/admin/roles?err=' . urlencode('Доступ роли «Администратор» изменить нельзя'));
         }
 
         $name = trim((string) ($body['name'] ?? ''));
@@ -342,10 +375,10 @@ class AdminController
             $this->db->commit();
         } catch (\Throwable $e) {
             $this->db->rollback();
-            return $this->redirect($response, '/admin?err=' . urlencode('Не удалось сохранить роль'));
+            return $this->redirect($response, '/admin/roles?err=' . urlencode('Не удалось сохранить роль'));
         }
 
-        return $this->redirect($response, '/admin?ok=' . urlencode('Роль обновлена'));
+        return $this->redirect($response, '/admin/roles?ok=' . urlencode('Роль обновлена'));
     }
 
     /** POST /admin/roles/delete — удалить роль (только несистемную и без пользователей) */
@@ -356,16 +389,16 @@ class AdminController
         }
         $body = (array) $request->getParsedBody();
         if (!$this->checkCsrf($body)) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+            return $this->redirect($response, '/admin/roles?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
         $roleId = (int) ($body['role_id'] ?? 0);
         $role = $this->db->fetchOne('SELECT id, is_system FROM xx_rjd_roles WHERE id = :id', ['id' => $roleId]);
         if (!$role) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Роль не найдена'));
+            return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
         }
         if ((int) ($role['is_system'] ?? 0) === 1) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Системную роль удалить нельзя'));
+            return $this->redirect($response, '/admin/roles?err=' . urlencode('Системную роль удалить нельзя'));
         }
 
         $used = $this->db->fetchOne(
@@ -373,13 +406,13 @@ class AdminController
             ['id' => $roleId]
         );
         if ((int) ($used['cnt'] ?? 0) > 0) {
-            return $this->redirect($response, '/admin?err=' . urlencode('Роль назначена пользователям — сначала переназначьте их'));
+            return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль назначена пользователям — сначала переназначьте их'));
         }
 
         // xx_rjd_role_pages и xx_rjd_user_roles удалятся каскадом (ON DELETE CASCADE)
         $this->db->execute('DELETE FROM xx_rjd_roles WHERE id = :id', ['id' => $roleId]);
 
-        return $this->redirect($response, '/admin?ok=' . urlencode('Роль удалена'));
+        return $this->redirect($response, '/admin/roles?ok=' . urlencode('Роль удалена'));
     }
 
     /** Записывает доступ роли к страницам, отфильтровав по белому списку PAGES */

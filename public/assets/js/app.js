@@ -41,7 +41,7 @@ var TAB_GROUPS = [
 if (window.APP_IS_ADMIN) {
   TAB_GROUPS.push({
     label: 'Администрирование',
-    tabs: [{ id: 'admin', label: 'Пользователи', url: BASE + '/admin' }],
+    tabs: [{ id: 'admin', label: 'Перейти', url: BASE + '/admin/users' }],
   })
 }
 
