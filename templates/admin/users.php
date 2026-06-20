@@ -69,8 +69,26 @@ $roleClass = function (?string $code) {
     .dot-on  { background:var(--brand-green); }
     .dot-off { background:var(--text-3); }
 
-    .row-actions { display:flex; gap:6px; justify-content:flex-end; }
-    .inline-form { display:inline; }
+    .row-actions { display:flex; gap:2px; justify-content:flex-end; align-items:center; }
+    .inline-form { display:inline-flex; }
+    .icon-btn {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:32px;
+      height:32px;
+      border:none;
+      border-radius:8px;
+      background:transparent;
+      cursor:pointer;
+      color:var(--text-3);
+      transition:background .15s, color .15s;
+      padding:0;
+    }
+    .icon-btn:hover { background:var(--hover-green,#f0eef8); color:var(--text-1); }
+    .icon-btn--pwd:hover  { color:var(--accent); }
+    .icon-btn--lock:hover { color:var(--brand-neg); }
+    .icon-btn--unlock:hover { color:var(--brand-green,#2aa26b); }
 
     .pager { display:flex; align-items:center; justify-content:flex-end; gap:10px; padding:12px 18px; border-top:1px solid var(--border-lt); font-size:12.5px; color:var(--text-2); }
     .pager button { border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:5px 11px; cursor:pointer; font-size:12.5px; color:var(--text-1); }
@@ -223,15 +241,39 @@ $roleClass = function (?string $code) {
               </td>
               <td>
                 <div class="row-actions">
-                  <button type="button" class="btn btn-ghost btn-sm"
-                          onclick="openPwd(<?= (int) $u['id'] ?>, '<?= htmlspecialchars(addslashes($name), ENT_QUOTES) ?>')">Пароль</button>
+                  <!-- Сменить пароль -->
+                  <button type="button"
+                          class="icon-btn icon-btn--pwd"
+                          title="Сменить пароль"
+                          onclick="openPwd(<?= (int) $u['id'] ?>, '<?= htmlspecialchars(addslashes($name), ENT_QUOTES) ?>')">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="7" width="9" height="6.5" rx="1.5"/>
+                      <path d="M5 7V5a2.5 2.5 0 0 1 5 0v2"/>
+                    </svg>
+                  </button>
+                  <!-- Заблокировать / Разблокировать -->
                   <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/users/active" class="inline-form">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
                     <input type="hidden" name="user_id" value="<?= (int) $u['id'] ?>">
                     <input type="hidden" name="is_active" value="<?= $isActive ? 0 : 1 ?>">
-                    <button type="submit" class="btn btn-sm <?= $isActive ? 'btn-ghost' : 'btn-primary' ?>">
-                      <?= $isActive ? 'Заблокировать' : 'Разблокировать' ?>
-                    </button>
+                    <?php if ($isActive): ?>
+                      <button type="submit" class="icon-btn icon-btn--lock" title="Заблокировать"
+                              onclick="return confirm('Заблокировать пользователя «<?= htmlspecialchars(addslashes($name), ENT_QUOTES) ?>»?')">
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                          <rect x="3" y="7" width="9" height="6.5" rx="1.5"/>
+                          <path d="M5 7V5a2.5 2.5 0 0 1 5 0v2"/>
+                          <line x1="7.5" y1="9.5" x2="7.5" y2="11"/>
+                        </svg>
+                      </button>
+                    <?php else: ?>
+                      <button type="submit" class="icon-btn icon-btn--unlock" title="Разблокировать">
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                          <rect x="3" y="7" width="9" height="6.5" rx="1.5"/>
+                          <path d="M5 7V5a2.5 2.5 0 0 1 5 0"/>
+                          <line x1="10" y1="3.5" x2="12" y2="3.5"/>
+                        </svg>
+                      </button>
+                    <?php endif; ?>
                   </form>
                 </div>
               </td>
