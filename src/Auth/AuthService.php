@@ -84,7 +84,7 @@ class AuthService
     public function setPassword(string $username, string $newPassword): void
     {
         $this->db->execute(
-            'UPDATE xx_users_rjd SET password_hash = :hash WHERE username = :username',
+            'UPDATE xx_rjd_users SET password_hash = :hash WHERE username = :username',
             [
                 'hash' => password_hash($newPassword, PASSWORD_BCRYPT),
                 'username' => $username,
@@ -98,7 +98,7 @@ class AuthService
     private function ensureUserExists(string $username, string $displayName, string $email): void
     {
         $exists = $this->db->fetchOne(
-            'SELECT id FROM xx_users_rjd WHERE username = :username',
+            'SELECT id FROM xx_rjd_users WHERE username = :username',
             ['username' => $username]
         );
 
@@ -106,9 +106,11 @@ class AuthService
             return;
         }
 
+        // Новым AD-пользователям назначаем роль «Наблюдатель» (VIEWER) по умолчанию
         $this->db->execute(
-            'INSERT INTO xx_users_rjd (username, display_name, email, password_hash, is_active)
-             VALUES (:username, :display_name, :email, :hash, 1)',
+            "INSERT INTO xx_rjd_users (username, display_name, email, password_hash, is_active, role_id)
+             VALUES (:username, :display_name, :email, :hash, 1,
+                     (SELECT id FROM xx_rjd_roles WHERE code = 'VIEWER'))",
             [
                 'username' => $username,
                 'display_name' => $displayName,

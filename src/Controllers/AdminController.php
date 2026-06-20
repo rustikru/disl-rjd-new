@@ -20,6 +20,14 @@ class AdminController
     private DbInterface $db;
     private array $config;
 
+    /** Страницы приложения для постраничного разграничения доступа (код => название) */
+    public const PAGES = [
+        'dashboard' => 'Дашборд',
+        'maps'      => 'Карта',
+        'import'    => 'Загрузка справок',
+        'admin'     => 'Администрирование',
+    ];
+
     public function __construct(DbInterface $db, array $config = [])
     {
         $this->db = $db;
@@ -34,8 +42,16 @@ class AdminController
         }
 
         $roles = $this->db->fetchAll(
-            'SELECT id, code, name, description FROM xx_rjd_roles ORDER BY id'
+            'SELECT id, code, name, description, is_system FROM xx_rjd_roles ORDER BY id'
         );
+
+        // Карта доступных страниц по ролям: [role_id => ['dashboard' => true, ...]]
+        $rolePages = [];
+        foreach ($this->db->fetchAll('SELECT role_id, page FROM xx_rjd_role_pages') as $rp) {
+            $rolePages[(int) $rp['role_id']][$rp['page']] = true;
+        }
+
+        $pages = self::PAGES;
 
         $users = $this->db->fetchAll(
             'SELECT u.id, u.username, u.display_name, u.email, u.is_active, u.role_id,
@@ -162,6 +178,172 @@ class AdminController
         );
 
         return $this->redirect($response, '/admin?ok=' . urlencode('Пользователь создан'));
+    }
+
+    /** POST /admin/users/password — сбросить / задать пароль пользователю */
+    public function resetPassword(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isAdmin()) {
+            return $this->forbidden($response);
+        }
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body)) {
+            return $this->redirect($response, '/admin?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+        }
+
+        $userId   = (int) ($body['user_id'] ?? 0);
+        $password = (string) ($body['password'] ?? '');
+
+        if ($userId <= 0 || $password === '') {
+            return $this->redirect($response, '/admin?err=' . urlencode('Укажите новый пароль'));
+        }
+
+        $this->db->execute(
+            'UPDATE xx_rjd_users SET password_hash = :hash WHERE id = :id',
+            ['hash' => password_hash($password, PASSWORD_BCRYPT), 'id' => $userId]
+        );
+
+        return $this->redirect($response, '/admin?ok=' . urlencode('Пароль обновлён'));
+    }
+
+    /** POST /admin/roles — создать роль */
+    public function createRole(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isAdmin()) {
+            return $this->forbidden($response);
+        }
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body)) {
+            return $this->redirect($response, '/admin?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+        }
+
+        $code = strtoupper(trim((string) ($body['code'] ?? '')));
+        $name = trim((string) ($body['name'] ?? ''));
+        $desc = trim((string) ($body['description'] ?? ''));
+
+        if ($code === '' || $name === '') {
+            return $this->redirect($response, '/admin?err=' . urlencode('Укажите код и название роли'));
+        }
+        if (!preg_match('/^[A-Z][A-Z0-9_]{1,29}$/', $code)) {
+            return $this->redirect($response, '/admin?err=' . urlencode('Код роли: латиница, цифры и _, начинается с буквы'));
+        }
+
+        $exists = $this->db->fetchOne('SELECT id FROM xx_rjd_roles WHERE code = :code', ['code' => $code]);
+        if ($exists) {
+            return $this->redirect($response, '/admin?err=' . urlencode('Роль с таким кодом уже существует'));
+        }
+
+        $this->db->beginTransaction();
+        try {
+            // id проставит триггер xx_rjd_roles_bi из последовательности
+            $this->db->execute(
+                'INSERT INTO xx_rjd_roles (code, name, description, is_system) VALUES (:code, :name, :desc, 0)',
+                ['code' => $code, 'name' => $name, 'desc' => $desc !== '' ? $desc : null]
+            );
+            $row = $this->db->fetchOne('SELECT id FROM xx_rjd_roles WHERE code = :code', ['code' => $code]);
+            $this->savePages((int) $row['id'], (array) ($body['pages'] ?? []));
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollback();
+            return $this->redirect($response, '/admin?err=' . urlencode('Не удалось создать роль'));
+        }
+
+        return $this->redirect($response, '/admin?ok=' . urlencode('Роль создана'));
+    }
+
+    /** POST /admin/roles/save — обновить название/описание и доступ роли к страницам */
+    public function saveRolePages(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isAdmin()) {
+            return $this->forbidden($response);
+        }
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body)) {
+            return $this->redirect($response, '/admin?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+        }
+
+        $roleId = (int) ($body['role_id'] ?? 0);
+        if ($roleId <= 0) {
+            return $this->redirect($response, '/admin?err=' . urlencode('Роль не найдена'));
+        }
+
+        $role = $this->db->fetchOne('SELECT id, code FROM xx_rjd_roles WHERE id = :id', ['id' => $roleId]);
+        if (!$role) {
+            return $this->redirect($response, '/admin?err=' . urlencode('Роль не найдена'));
+        }
+        // Роль ADMIN всегда имеет полный доступ — её страницы не редактируем
+        if (($role['code'] ?? '') === 'ADMIN') {
+            return $this->redirect($response, '/admin?err=' . urlencode('Доступ роли «Администратор» изменить нельзя'));
+        }
+
+        $name = trim((string) ($body['name'] ?? ''));
+        $desc = trim((string) ($body['description'] ?? ''));
+
+        $this->db->beginTransaction();
+        try {
+            if ($name !== '') {
+                $this->db->execute(
+                    'UPDATE xx_rjd_roles SET name = :name, description = :desc WHERE id = :id',
+                    ['name' => $name, 'desc' => $desc !== '' ? $desc : null, 'id' => $roleId]
+                );
+            }
+            $this->db->execute('DELETE FROM xx_rjd_role_pages WHERE role_id = :id', ['id' => $roleId]);
+            $this->savePages($roleId, (array) ($body['pages'] ?? []));
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollback();
+            return $this->redirect($response, '/admin?err=' . urlencode('Не удалось сохранить роль'));
+        }
+
+        return $this->redirect($response, '/admin?ok=' . urlencode('Роль обновлена'));
+    }
+
+    /** POST /admin/roles/delete — удалить роль (только несистемную и без пользователей) */
+    public function deleteRole(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isAdmin()) {
+            return $this->forbidden($response);
+        }
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body)) {
+            return $this->redirect($response, '/admin?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+        }
+
+        $roleId = (int) ($body['role_id'] ?? 0);
+        $role = $this->db->fetchOne('SELECT id, is_system FROM xx_rjd_roles WHERE id = :id', ['id' => $roleId]);
+        if (!$role) {
+            return $this->redirect($response, '/admin?err=' . urlencode('Роль не найдена'));
+        }
+        if ((int) ($role['is_system'] ?? 0) === 1) {
+            return $this->redirect($response, '/admin?err=' . urlencode('Системную роль удалить нельзя'));
+        }
+
+        $used = $this->db->fetchOne(
+            'SELECT COUNT(*) AS cnt FROM xx_rjd_users WHERE role_id = :id',
+            ['id' => $roleId]
+        );
+        if ((int) ($used['cnt'] ?? 0) > 0) {
+            return $this->redirect($response, '/admin?err=' . urlencode('Роль назначена пользователям — сначала переназначьте их'));
+        }
+
+        // xx_rjd_role_pages удалится каскадом (ON DELETE CASCADE)
+        $this->db->execute('DELETE FROM xx_rjd_roles WHERE id = :id', ['id' => $roleId]);
+
+        return $this->redirect($response, '/admin?ok=' . urlencode('Роль удалена'));
+    }
+
+    /** Записывает доступ роли к страницам, отфильтровав по белому списку PAGES */
+    private function savePages(int $roleId, array $pages): void
+    {
+        foreach ($pages as $page) {
+            if (!isset(self::PAGES[$page])) {
+                continue;
+            }
+            $this->db->execute(
+                'INSERT INTO xx_rjd_role_pages (role_id, page) VALUES (:id, :page)',
+                ['id' => $roleId, 'page' => $page]
+            );
+        }
     }
 
     /** Текущий пользователь — администратор? */

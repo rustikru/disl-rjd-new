@@ -80,6 +80,18 @@ return function (App $app, array $config): void {
         $group->post('/admin/users/active', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->toggleActive($req, $res);
         });
+        $group->post('/admin/users/password', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->resetPassword($req, $res);
+        });
+        $group->post('/admin/roles', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->createRole($req, $res);
+        });
+        $group->post('/admin/roles/save', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->saveRolePages($req, $res);
+        });
+        $group->post('/admin/roles/delete', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->deleteRole($req, $res);
+        });
 
         // Детальная страница (статический шаблон)
         $group->get('/detail', function ($req, $res) use ($config) {
