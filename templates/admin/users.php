@@ -140,7 +140,7 @@ $roleClass = function (?string $code) {
 
 <?php
   $headerSub   = '<div class="brand-sub">Администрирование</div>';
-  $headerRight = '';
+  $headerRight = '<a href="' . htmlspecialchars($basePath) . '/" class="btn btn-ghost btn-sm" id="backBtn" style="margin-right:4px">← На главную</a>';
   include __DIR__ . '/../partials/header.php';
 ?>
 
@@ -166,7 +166,6 @@ $roleClass = function (?string $code) {
         <small>Управление доступом</small>
       </div>
       <div class="admin-actions">
-        <a href="<?= htmlspecialchars($basePath) ?>/" target="_blank" rel="noopener noreferrer" class="btn btn-ghost">← На главную</a>
         <button type="button" class="btn btn-primary" onclick="openModal('userModal')">+ Пользователь</button>
       </div>
     </div>
@@ -449,6 +448,23 @@ $roleClass = function (?string $code) {
         })
       })(pickers[i])
     }
+  })()
+</script>
+
+<script>
+  /* --- Кнопка «← На главную»: history.back() если пришли не со страницы /admin, иначе идём на / --- */
+  ;(function () {
+    var btn = document.getElementById('backBtn')
+    if (!btn) return
+    var base = <?= json_encode($basePath) ?>
+    btn.addEventListener('click', function (e) {
+      var ref = document.referrer
+      if (ref && ref.indexOf(location.origin + base + '/admin') === -1 && history.length > 1) {
+        e.preventDefault()
+        history.back()
+      }
+      // иначе следуем href как обычная ссылка (на главную)
+    })
   })()
 </script>
 

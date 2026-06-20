@@ -176,7 +176,7 @@ $totalPages = count($pages);
 
 <?php
   $headerSub   = '<div class="brand-sub">Администрирование</div>';
-  $headerRight = '';
+  $headerRight = '<a href="' . htmlspecialchars($basePath) . '/" class="btn btn-ghost btn-sm" id="backBtn" style="margin-right:4px">← На главную</a>';
   include __DIR__ . '/../partials/header.php';
 ?>
 
@@ -202,7 +202,6 @@ $totalPages = count($pages);
         <small>Управление ролями и доступом</small>
       </div>
       <div class="admin-actions">
-        <a href="<?= htmlspecialchars($basePath) ?>/" target="_blank" class="btn btn-ghost btn-sm">← На главную</a>
         <button type="button" class="btn btn-primary" onclick="openModal('roleModal')">+ Добавить роль</button>
       </div>
     </div>
@@ -465,6 +464,23 @@ $totalPages = count($pages);
       summ.textContent = checked > 0 ? (checked + ' из ' + total) : 'Не выбраны'
     })
   }
+</script>
+
+<script>
+  /* --- Кнопка «← На главную»: history.back() если пришли не со страницы /admin, иначе идём на / --- */
+  ;(function () {
+    var btn = document.getElementById('backBtn')
+    if (!btn) return
+    var base = <?= json_encode($basePath) ?>
+    btn.addEventListener('click', function (e) {
+      var ref = document.referrer
+      if (ref && ref.indexOf(location.origin + base + '/admin') === -1 && history.length > 1) {
+        e.preventDefault()
+        history.back()
+      }
+      // иначе следуем href как обычная ссылка (на главную)
+    })
+  })()
 </script>
 
 </body>
