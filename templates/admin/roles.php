@@ -135,8 +135,25 @@ $totalPages = count($pages);
       font-style:italic;
     }
 
-    /* --- Кнопки действий --- */
-    .actions-cell { white-space:nowrap; display:flex; gap:6px; align-items:center; }
+    /* --- Кнопки-иконки действий --- */
+    .actions-cell { white-space:nowrap; display:flex; gap:2px; align-items:center; }
+    .icon-btn {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:32px;
+      height:32px;
+      border:none;
+      border-radius:8px;
+      background:transparent;
+      cursor:pointer;
+      color:var(--text-3);
+      transition:background .15s, color .15s;
+      padding:0;
+    }
+    .icon-btn:hover { background:var(--hover-green,#f0eef8); color:var(--text-1); }
+    .icon-btn.icon-btn--save:hover { color:var(--accent); }
+    .icon-btn.icon-btn--del:hover  { color:var(--brand-neg); }
 
     /* --- Модалки --- */
     .modal-wrap { position:fixed; inset:0; background:rgba(27,23,38,.45); display:none; align-items:center; justify-content:center; z-index:200; }
@@ -301,14 +318,24 @@ $totalPages = count($pages);
               <td>
                 <?php if (!$isAdmin): ?>
                   <div class="actions-cell">
-                    <button type="submit" class="btn btn-primary btn-sm"
-                            form="rf-<?= (int) $r['id'] ?>">Сохранить</button>
                     <button type="submit"
-                            class="btn btn-ghost btn-sm"
-                            style="color:var(--brand-neg)"
+                            class="icon-btn icon-btn--save"
+                            form="rf-<?= (int) $r['id'] ?>"
+                            title="Сохранить">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="2.5 8.5 6.5 12.5 13.5 4"/>
+                      </svg>
+                    </button>
+                    <button type="submit"
+                            class="icon-btn icon-btn--del"
                             form="rfd-<?= (int) $r['id'] ?>"
+                            title="Удалить"
                             onclick="return confirm('Удалить роль «<?= htmlspecialchars(addslashes($r['name']), ENT_QUOTES) ?>»?')">
-                      Удалить
+                      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="1 3.5 14 3.5"/>
+                        <path d="M5 3.5V2.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v1"/>
+                        <path d="M2.5 3.5l.9 9a1 1 0 0 0 1 .9h6.2a1 1 0 0 0 1-.9l.9-9"/>
+                      </svg>
                     </button>
                   </div>
                 <?php endif; ?>
