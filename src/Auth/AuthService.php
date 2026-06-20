@@ -38,25 +38,22 @@ class AuthService
             if ($adUser !== null) {
                 // При первом входе через AD создаём запись в БД
                 $this->ensureUserExists($username, $adUser['display_name'], $adUser['email']);
-                $role = $this->db->fetchOne(
-                    'SELECT r.code AS role_code, r.name AS role_name
-                     FROM xx_rjd_users u
-                     LEFT JOIN xx_rjd_roles r ON r.id = u.role_id
-                     WHERE u.username = :username',
+                $dbUser = $this->db->fetchOne(
+                    'SELECT id FROM xx_rjd_users WHERE username = :username',
                     ['username' => $username]
                 );
-                $adUser['role_code'] = $role['role_code'] ?? null;
-                $adUser['role_name'] = $role['role_name'] ?? null;
+                $roles = $this->fetchUserRoles((int) ($dbUser['id'] ?? 0));
+                $adUser['role_codes'] = array_column($roles, 'code');
+                $adUser['role_names'] = array_column($roles, 'name');
+                $adUser['is_admin']   = in_array('ADMIN', $adUser['role_codes'], true);
                 return $adUser;
             }
         }
 
 
         $user = $this->db->fetchOne(
-            'SELECT u.id, u.username, u.display_name, u.email, u.password_hash, u.is_active,
-                    r.code AS role_code, r.name AS role_name
+            'SELECT u.id, u.username, u.display_name, u.email, u.password_hash, u.is_active
              FROM xx_rjd_users u
-             LEFT JOIN xx_rjd_roles r ON r.id = u.role_id
              WHERE u.username = :username',
             ['username' => $username]
         );
@@ -69,14 +66,17 @@ class AuthService
             return null;
         }
 
+        $roles = $this->fetchUserRoles((int) $user['id']);
+
         return [
-            'id' => $user['id'],
-            'username' => $user['username'],
+            'id'           => $user['id'],
+            'username'     => $user['username'],
             'display_name' => $user['display_name'],
-            'email' => $user['email'],
-            'auth_source' => 'local',
-            'role_code' => $user['role_code'] ?? null,
-            'role_name' => $user['role_name'] ?? null,
+            'email'        => $user['email'],
+            'auth_source'  => 'local',
+            'role_codes'   => array_column($roles, 'code'),
+            'role_names'   => array_column($roles, 'name'),
+            'is_admin'     => in_array('ADMIN', array_column($roles, 'code'), true),
         ];
     }
 
@@ -108,15 +108,43 @@ class AuthService
 
         // Новым AD-пользователям назначаем роль «Наблюдатель» (VIEWER) по умолчанию
         $this->db->execute(
-            "INSERT INTO xx_rjd_users (username, display_name, email, password_hash, is_active, role_id)
-             VALUES (:username, :display_name, :email, :hash, 1,
-                     (SELECT id FROM xx_rjd_roles WHERE code = 'VIEWER'))",
+            'INSERT INTO xx_rjd_users (username, display_name, email, password_hash, is_active)
+             VALUES (:username, :display_name, :email, :hash, 1)',
             [
-                'username' => $username,
+                'username'     => $username,
                 'display_name' => $displayName,
-                'email' => $email,
-                'hash' => '',
+                'email'        => $email,
+                'hash'         => '',
             ]
+        );
+
+        // Назначаем роль VIEWER через промежуточную таблицу
+        $this->db->execute(
+            "INSERT INTO xx_rjd_user_roles (user_id, role_id)
+             SELECT u.id, r.id
+               FROM xx_rjd_users u, xx_rjd_roles r
+              WHERE u.username = :username
+                AND r.code = 'VIEWER'",
+            ['username' => $username]
+        );
+    }
+
+    /**
+     * Загружает роли пользователя по его id.
+     *
+     * @return array<int, array{id: mixed, code: mixed, name: mixed}>
+     */
+    private function fetchUserRoles(int $userId): array
+    {
+        if ($userId <= 0) {
+            return [];
+        }
+        return $this->db->fetchAll(
+            'SELECT r.id, r.code, r.name
+               FROM xx_rjd_roles r
+               JOIN xx_rjd_user_roles ur ON ur.role_id = r.id
+              WHERE ur.user_id = :uid',
+            ['uid' => $userId]
         );
     }
 }

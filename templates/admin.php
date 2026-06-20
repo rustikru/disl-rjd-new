@@ -225,17 +225,29 @@ $csrf = $_SESSION['csrf_token'] ?? '';
               </td>
               <td><?= htmlspecialchars($u['email'] ?? '') ?: '<span style="color:var(--text-3)">—</span>' ?></td>
               <td>
-                <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/users/role" class="row-form">
+                <?php
+                  $userRoleIds = array_column($u['roles'], 'id');
+                ?>
+                <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px">
+                  <?php if (!empty($u['roles'])): ?>
+                    <?php foreach ($u['roles'] as $ur): ?>
+                      <span class="role-badge <?= $roleClass($ur['code']) ?>"><?= htmlspecialchars($ur['name']) ?></span>
+                    <?php endforeach; ?>
+                  <?php else: ?>
+                    <span style="color:var(--text-3)">—</span>
+                  <?php endif; ?>
+                </div>
+                <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/users/roles" class="row-form" style="flex-wrap:wrap; gap:6px 12px">
                   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
                   <input type="hidden" name="user_id" value="<?= (int) $u['id'] ?>">
-                  <select name="role_id" class="role-select">
-                    <option value="">— не назначена —</option>
-                    <?php foreach ($roles as $r): ?>
-                      <option value="<?= (int) $r['id'] ?>" <?= ((int) ($u['role_id'] ?? 0) === (int) $r['id']) ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($r['name']) ?>
-                      </option>
-                    <?php endforeach; ?>
-                  </select>
+                  <?php foreach ($roles as $r): ?>
+                    <label style="display:inline-flex; align-items:center; gap:4px; font-size:12px; cursor:pointer">
+                      <input type="checkbox" name="role_ids[]" value="<?= (int) $r['id'] ?>"
+                             <?= in_array((int) $r['id'], array_map('intval', $userRoleIds), true) ? 'checked' : '' ?>
+                             style="accent-color:var(--accent)">
+                      <?= htmlspecialchars($r['name']) ?>
+                    </label>
+                  <?php endforeach; ?>
                   <button type="submit" class="btn btn-ghost btn-sm">Сохранить</button>
                 </form>
               </td>
@@ -353,13 +365,15 @@ $csrf = $_SESSION['csrf_token'] ?? '';
         <input type="password" name="password" autocomplete="new-password">
       </div>
       <div class="fg">
-        <label>Роль</label>
-        <select name="role_id">
-          <option value="">— не назначена —</option>
+        <label>Роли</label>
+        <div class="pages-list">
           <?php foreach ($roles as $r): ?>
-            <option value="<?= (int) $r['id'] ?>"><?= htmlspecialchars($r['name']) ?></option>
+            <label class="pg">
+              <input type="checkbox" name="role_ids[]" value="<?= (int) $r['id'] ?>">
+              <?= htmlspecialchars($r['name']) ?>
+            </label>
           <?php endforeach; ?>
-        </select>
+        </div>
       </div>
     </div>
     <div class="modal-foot">

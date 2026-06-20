@@ -74,8 +74,8 @@ return function (App $app, array $config): void {
         $group->post('/admin/users', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->createUser($req, $res);
         });
-        $group->post('/admin/users/role', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\AdminController($getDb(), $config))->saveRole($req, $res);
+        $group->post('/admin/users/roles', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->saveUserRoles($req, $res);
         });
         $group->post('/admin/users/active', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->toggleActive($req, $res);

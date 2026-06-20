@@ -53,13 +53,32 @@ class AdminController
 
         $pages = self::PAGES;
 
-        $users = $this->db->fetchAll(
-            'SELECT u.id, u.username, u.display_name, u.email, u.is_active, u.role_id,
-                    r.code AS role_code, r.name AS role_name
+        $rawUsers = $this->db->fetchAll(
+            'SELECT u.id, u.username, u.display_name, u.email, u.is_active
                FROM xx_rjd_users u
-               LEFT JOIN xx_rjd_roles r ON r.id = u.role_id
               ORDER BY NLSSORT(u.display_name, \'NLS_SORT=RUSSIAN\'), u.username'
         );
+
+        // Подгружаем роли для всех пользователей одним запросом
+        $userRolesRaw = $this->db->fetchAll(
+            'SELECT ur.user_id, r.id, r.code, r.name
+               FROM xx_rjd_user_roles ur
+               JOIN xx_rjd_roles r ON r.id = ur.role_id'
+        );
+        $rolesByUser = [];
+        foreach ($userRolesRaw as $ur) {
+            $rolesByUser[(int) $ur['user_id']][] = [
+                'id'   => $ur['id'],
+                'code' => $ur['code'],
+                'name' => $ur['name'],
+            ];
+        }
+
+        $users = [];
+        foreach ($rawUsers as $u) {
+            $u['roles'] = $rolesByUser[(int) $u['id']] ?? [];
+            $users[]    = $u;
+        }
 
         $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
@@ -77,8 +96,8 @@ class AdminController
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 
-    /** POST /admin/users/role — изменить роль пользователя */
-    public function saveRole(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    /** POST /admin/users/roles — изменить роли пользователя */
+    public function saveUserRoles(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         if (!$this->isAdmin()) {
             return $this->forbidden($response);
@@ -88,20 +107,30 @@ class AdminController
             return $this->redirect($response, '/admin?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
-        $userId = (int) ($body['user_id'] ?? 0);
-        $roleId = $body['role_id'] ?? '';
-        $roleId = ($roleId === '' || $roleId === null) ? null : (int) $roleId;
+        $userId  = (int) ($body['user_id'] ?? 0);
+        $roleIds = array_map('intval', (array) ($body['role_ids'] ?? []));
+        $roleIds = array_filter($roleIds, static fn(int $id) => $id > 0);
 
         if ($userId <= 0) {
             return $this->redirect($response, '/admin?err=' . urlencode('Пользователь не найден'));
         }
 
-        $this->db->execute(
-            'UPDATE xx_rjd_users SET role_id = :role_id WHERE id = :id',
-            ['role_id' => $roleId, 'id' => $userId]
-        );
+        $this->db->beginTransaction();
+        try {
+            $this->db->execute('DELETE FROM xx_rjd_user_roles WHERE user_id = :uid', ['uid' => $userId]);
+            foreach ($roleIds as $roleId) {
+                $this->db->execute(
+                    'INSERT INTO xx_rjd_user_roles (user_id, role_id) VALUES (:uid, :rid)',
+                    ['uid' => $userId, 'rid' => $roleId]
+                );
+            }
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollback();
+            return $this->redirect($response, '/admin?err=' . urlencode('Не удалось обновить роли'));
+        }
 
-        return $this->redirect($response, '/admin?ok=' . urlencode('Роль обновлена'));
+        return $this->redirect($response, '/admin?ok=' . urlencode('Роли обновлены'));
     }
 
     /** POST /admin/users/active — заблокировать / разблокировать пользователя */
@@ -148,8 +177,8 @@ class AdminController
         $displayName = trim((string) ($body['display_name'] ?? ''));
         $email       = trim((string) ($body['email'] ?? ''));
         $password    = (string) ($body['password'] ?? '');
-        $roleId      = $body['role_id'] ?? '';
-        $roleId      = ($roleId === '' || $roleId === null) ? null : (int) $roleId;
+        $roleIds     = array_map('intval', (array) ($body['role_ids'] ?? []));
+        $roleIds     = array_filter($roleIds, static fn(int $id) => $id > 0);
 
         if ($username === '' || $displayName === '') {
             return $this->redirect($response, '/admin?err=' . urlencode('Укажите логин и имя пользователя'));
@@ -165,17 +194,38 @@ class AdminController
 
         $hash = $password !== '' ? password_hash($password, PASSWORD_BCRYPT) : '';
 
-        $this->db->execute(
-            'INSERT INTO xx_rjd_users (username, display_name, email, password_hash, is_active, role_id)
-             VALUES (:username, :display_name, :email, :hash, 1, :role_id)',
-            [
-                'username'     => $username,
-                'display_name' => $displayName,
-                'email'        => $email !== '' ? $email : null,
-                'hash'         => $hash,
-                'role_id'      => $roleId,
-            ]
-        );
+        $this->db->beginTransaction();
+        try {
+            $this->db->execute(
+                'INSERT INTO xx_rjd_users (username, display_name, email, password_hash, is_active)
+                 VALUES (:username, :display_name, :email, :hash, 1)',
+                [
+                    'username'     => $username,
+                    'display_name' => $displayName,
+                    'email'        => $email !== '' ? $email : null,
+                    'hash'         => $hash,
+                ]
+            );
+
+            if (!empty($roleIds)) {
+                $newUser = $this->db->fetchOne(
+                    'SELECT id FROM xx_rjd_users WHERE username = :username',
+                    ['username' => $username]
+                );
+                $newUserId = (int) ($newUser['id'] ?? 0);
+                foreach ($roleIds as $roleId) {
+                    $this->db->execute(
+                        'INSERT INTO xx_rjd_user_roles (user_id, role_id) VALUES (:uid, :rid)',
+                        ['uid' => $newUserId, 'rid' => $roleId]
+                    );
+                }
+            }
+
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            $this->db->rollback();
+            return $this->redirect($response, '/admin?err=' . urlencode('Не удалось создать пользователя'));
+        }
 
         return $this->redirect($response, '/admin?ok=' . urlencode('Пользователь создан'));
     }
@@ -319,14 +369,14 @@ class AdminController
         }
 
         $used = $this->db->fetchOne(
-            'SELECT COUNT(*) AS cnt FROM xx_rjd_users WHERE role_id = :id',
+            'SELECT COUNT(*) AS cnt FROM xx_rjd_user_roles WHERE role_id = :id',
             ['id' => $roleId]
         );
         if ((int) ($used['cnt'] ?? 0) > 0) {
             return $this->redirect($response, '/admin?err=' . urlencode('Роль назначена пользователям — сначала переназначьте их'));
         }
 
-        // xx_rjd_role_pages удалится каскадом (ON DELETE CASCADE)
+        // xx_rjd_role_pages и xx_rjd_user_roles удалятся каскадом (ON DELETE CASCADE)
         $this->db->execute('DELETE FROM xx_rjd_roles WHERE id = :id', ['id' => $roleId]);
 
         return $this->redirect($response, '/admin?ok=' . urlencode('Роль удалена'));
@@ -350,7 +400,7 @@ class AdminController
     private function isAdmin(): bool
     {
         $u = $_SESSION['user'] ?? [];
-        if (($u['role_code'] ?? '') === 'ADMIN') {
+        if ($u['is_admin'] ?? false) {
             return true;
         }
 
@@ -358,8 +408,8 @@ class AdminController
         // либо инфраструктура ролей ещё не развёрнута — пускаем авторизованного пользователя.
         try {
             $row = $this->db->fetchOne(
-                "SELECT COUNT(*) AS cnt FROM xx_rjd_users u
-                  JOIN xx_rjd_roles r ON r.id = u.role_id
+                "SELECT COUNT(*) AS cnt FROM xx_rjd_user_roles ur
+                  JOIN xx_rjd_roles r ON r.id = ur.role_id
                  WHERE r.code = 'ADMIN'"
             );
             return (int) ($row['cnt'] ?? 0) === 0;

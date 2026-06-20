@@ -49,7 +49,7 @@ class PageAccessMiddleware implements MiddlewareInterface
         }
 
         // Администратор — полный доступ
-        if (($user['role_code'] ?? '') === 'ADMIN') {
+        if ($user['is_admin'] ?? false) {
             return $handler->handle($request);
         }
 
@@ -99,14 +99,14 @@ class PageAccessMiddleware implements MiddlewareInterface
         return null;
     }
 
-    /** Возвращает список страниц, доступных роли пользователя. */
+    /** Возвращает список страниц, доступных всем ролям пользователя. */
     private function allowedPages(int $userId): array
     {
         $rows = ($this->dbResolver)()->fetchAll(
             'SELECT p.page
                FROM xx_rjd_role_pages p
-               JOIN xx_rjd_users u ON u.role_id = p.role_id
-              WHERE u.id = :id',
+               JOIN xx_rjd_user_roles ur ON ur.role_id = p.role_id
+              WHERE ur.user_id = :id',
             ['id' => $userId]
         );
         return array_map(static fn($r) => $r['page'], $rows);
@@ -117,8 +117,8 @@ class PageAccessMiddleware implements MiddlewareInterface
     {
         try {
             $row = ($this->dbResolver)()->fetchOne(
-                "SELECT COUNT(*) AS cnt FROM xx_rjd_users u
-                  JOIN xx_rjd_roles r ON r.id = u.role_id
+                "SELECT COUNT(*) AS cnt FROM xx_rjd_user_roles ur
+                  JOIN xx_rjd_roles r ON r.id = ur.role_id
                  WHERE r.code = 'ADMIN'"
             );
             return (int) ($row['cnt'] ?? 0) === 0;
