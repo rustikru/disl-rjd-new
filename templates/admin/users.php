@@ -86,9 +86,25 @@ $roleClass = function (?string $code) {
       padding:0;
     }
     .icon-btn:hover { background:var(--hover-green,#f0eef8); color:var(--text-1); }
-    .icon-btn--pwd:hover  { color:var(--accent); }
+    .icon-btn--save   { color:var(--brand-green,#2aa26b); }
+    .icon-btn--save:hover { background:#e8f6ef; color:var(--brand-green,#2aa26b); }
     .icon-btn--lock:hover { color:var(--brand-neg); }
     .icon-btn--unlock:hover { color:var(--brand-green,#2aa26b); }
+
+    /* Инпуты в таблице */
+    .tbl-input {
+      border:1px solid var(--border);
+      border-radius:7px;
+      padding:4px 8px;
+      font-family:inherit;
+      font-size:13px;
+      outline:none;
+      color:var(--text-1);
+      width:100%;
+      background:transparent;
+      box-sizing:border-box;
+    }
+    .tbl-input:focus { border-color:var(--accent); background:var(--surface); }
 
     .pager { display:flex; align-items:center; justify-content:flex-end; gap:10px; padding:12px 18px; border-top:1px solid var(--border-lt); font-size:12.5px; color:var(--text-2); }
     .pager button { border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:5px 11px; cursor:pointer; font-size:12.5px; color:var(--text-1); }
@@ -108,8 +124,6 @@ $roleClass = function (?string $code) {
     .fg input { border:1px solid var(--border); border-radius:8px; padding:8px 11px; font-family:inherit; font-size:13px; outline:none; color:var(--text-1); }
     .fg input:focus { border-color:var(--accent); }
     .fg2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-    .pwd-row { display:flex; gap:8px; }
-    .pwd-row input { flex:1; }
     .modal-foot { padding:14px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px; }
 
     /* pages-list — компактные чекбоксы ролей в модалке */
@@ -169,6 +183,17 @@ $roleClass = function (?string $code) {
       <div class="flash flash-err"><?= htmlspecialchars($flashErr) ?></div>
     <?php endif; ?>
 
+    <!-- Внешние формы для редактирования пользователей -->
+    <?php foreach ($users as $u): ?>
+      <form id="uf-<?= (int) $u['id'] ?>"
+            method="POST"
+            action="<?= htmlspecialchars($basePath) ?>/admin/users/save"
+            style="display:none">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+        <input type="hidden" name="user_id" value="<?= (int) $u['id'] ?>">
+      </form>
+    <?php endforeach; ?>
+
     <!-- Пользователи -->
     <div class="panel">
       <div class="panel-head">
@@ -196,13 +221,32 @@ $roleClass = function (?string $code) {
               <td>
                 <div class="u-cell">
                   <span class="u-avatar"><?= htmlspecialchars($initials($name)) ?></span>
-                  <div>
-                    <div class="u-name"><?= htmlspecialchars($name) ?></div>
-                    <div class="u-login"><?= htmlspecialchars($u['username']) ?></div>
+                  <div style="min-width:130px">
+                    <input class="tbl-input"
+                           name="display_name"
+                           value="<?= htmlspecialchars((string) ($u['display_name'] ?: $u['username'])) ?>"
+                           placeholder="Имя пользователя"
+                           form="uf-<?= (int) $u['id'] ?>">
+                    <div class="u-login" style="margin-top:3px"><?= htmlspecialchars($u['username']) ?></div>
                   </div>
                 </div>
               </td>
-              <td><?= htmlspecialchars($u['email'] ?? '') ?: '<span style="color:var(--text-3)">—</span>' ?></td>
+              <td style="min-width:180px">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <input class="tbl-input"
+                         type="email"
+                         name="email"
+                         value="<?= htmlspecialchars($u['email'] ?? '') ?>"
+                         placeholder="E-mail"
+                         form="uf-<?= (int) $u['id'] ?>">
+                  <input class="tbl-input"
+                         type="password"
+                         name="password"
+                         placeholder="Новый пароль"
+                         autocomplete="new-password"
+                         form="uf-<?= (int) $u['id'] ?>">
+                </div>
+              </td>
               <td>
                 <details class="role-picker">
                   <summary class="role-picker-btn">
@@ -241,14 +285,13 @@ $roleClass = function (?string $code) {
               </td>
               <td>
                 <div class="row-actions">
-                  <!-- Сменить пароль -->
-                  <button type="button"
-                          class="icon-btn icon-btn--pwd"
-                          title="Сменить пароль"
-                          onclick="openPwd(<?= (int) $u['id'] ?>, '<?= htmlspecialchars(addslashes($name), ENT_QUOTES) ?>')">
-                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="3" y="7" width="9" height="6.5" rx="1.5"/>
-                      <path d="M5 7V5a2.5 2.5 0 0 1 5 0v2"/>
+                  <!-- Сохранить запись -->
+                  <button type="submit"
+                          class="icon-btn icon-btn--save"
+                          form="uf-<?= (int) $u['id'] ?>"
+                          title="Сохранить">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="2.5 8 5.5 11.5 12.5 3.5"/>
                     </svg>
                   </button>
                   <!-- Заблокировать / Разблокировать -->
@@ -341,31 +384,6 @@ $roleClass = function (?string $code) {
   </form>
 </div>
 
-<!-- Модалка: сброс пароля -->
-<div class="modal-wrap" id="pwdModal">
-  <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/users/password" class="modal">
-    <div class="modal-head">
-      <span class="t">Сброс пароля</span>
-      <button type="button" class="modal-x" onclick="closeModal('pwdModal')">✕</button>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-      <input type="hidden" name="user_id" id="pwdUserId" value="">
-      <p style="font-size:13px; color:var(--text-2)">Новый пароль для <b id="pwdUserName"></b>:</p>
-      <div class="fg">
-        <div class="pwd-row">
-          <input type="text" name="password" id="pwdInput" autocomplete="new-password" placeholder="Введите или сгенерируйте">
-          <button type="button" class="btn btn-ghost btn-sm" onclick="genPwd()">Сгенерировать</button>
-        </div>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button type="button" class="btn btn-ghost" onclick="closeModal('pwdModal')">Отмена</button>
-      <button type="submit" class="btn btn-primary">Сохранить пароль</button>
-    </div>
-  </form>
-</div>
-
 <script>
   'use strict'
   // --- Модалки ---
@@ -383,20 +401,6 @@ $roleClass = function (?string $code) {
       for (var j = 0; j < wraps.length; j++) wraps[j].classList.remove('open')
     }
   })
-
-  // --- Сброс пароля ---
-  function openPwd(userId, userName) {
-    document.getElementById('pwdUserId').value = userId
-    document.getElementById('pwdUserName').textContent = userName
-    document.getElementById('pwdInput').value = ''
-    openModal('pwdModal')
-  }
-  function genPwd() {
-    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
-    var s = ''
-    for (var i = 0; i < 12; i++) s += chars.charAt(Math.floor(Math.random() * chars.length))
-    document.getElementById('pwdInput').value = s
-  }
 
   // --- Поиск и пагинация по таблице пользователей ---
   ;(function () {

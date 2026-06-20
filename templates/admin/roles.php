@@ -318,7 +318,9 @@ $totalPages = count($pages);
                 <?php if (!$isAdmin): ?>
                   <div class="actions-cell">
                     <button type="submit" class="btn btn-primary btn-sm"
-                            form="rf-<?= (int) $r['id'] ?>">Сохранить</button>
+                            form="rf-<?= (int) $r['id'] ?>">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><polyline points="1.5 6.5 4.5 9.5 10.5 2.5"/></svg>Сохранить
+                    </button>
                     <button type="submit"
                             class="btn-del"
                             form="rfd-<?= (int) $r['id'] ?>"

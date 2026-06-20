@@ -255,6 +255,41 @@ class AdminController
         return $this->redirect($response, '/admin/users?ok=' . urlencode('Пользователь создан'));
     }
 
+    /** POST /admin/users/save — обновить имя, e-mail и (опционально) пароль */
+    public function saveUser(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isAdmin()) {
+            return $this->forbidden($response);
+        }
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body)) {
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+        }
+
+        $userId      = (int) ($body['user_id'] ?? 0);
+        $displayName = trim((string) ($body['display_name'] ?? ''));
+        $email       = trim((string) ($body['email'] ?? ''));
+        $password    = (string) ($body['password'] ?? '');
+
+        if ($userId <= 0 || $displayName === '') {
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Укажите имя пользователя'));
+        }
+
+        if ($password !== '') {
+            $this->db->execute(
+                'UPDATE xx_rjd_users SET display_name = :display_name, email = :email, password_hash = :hash WHERE id = :id',
+                ['display_name' => $displayName, 'email' => $email !== '' ? $email : null, 'hash' => password_hash($password, PASSWORD_BCRYPT), 'id' => $userId]
+            );
+        } else {
+            $this->db->execute(
+                'UPDATE xx_rjd_users SET display_name = :display_name, email = :email WHERE id = :id',
+                ['display_name' => $displayName, 'email' => $email !== '' ? $email : null, 'id' => $userId]
+            );
+        }
+
+        return $this->redirect($response, '/admin/users?ok=' . urlencode('Пользователь сохранён'));
+    }
+
     /** POST /admin/users/password — сбросить / задать пароль пользователю */
     public function resetPassword(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
