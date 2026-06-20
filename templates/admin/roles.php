@@ -299,51 +299,46 @@ $totalPages = count($pages);
 </div>
 
 <script>
-  'use strict'
-
   /* --- Модалки --- */
-  function openModal(id) { var m = document.getElementById(id); if (m) m.classList.add('open') }
-  function closeModal(id) { var m = document.getElementById(id); if (m) m.classList.remove('open') }
-  var wraps = document.querySelectorAll('.modal-wrap')
+  function openModal(id) { var m = document.getElementById(id); if (m) m.classList.add('open'); }
+  function closeModal(id) { var m = document.getElementById(id); if (m) m.classList.remove('open'); }
+  var wraps = document.querySelectorAll('.modal-wrap');
   for (var i = 0; i < wraps.length; i++) {
     wraps[i].addEventListener('click', function (e) {
-      if (e.target === this) this.classList.remove('open')
-    })
+      if (e.target === this) { this.classList.remove('open'); }
+    });
   }
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
-      for (var j = 0; j < wraps.length; j++) wraps[j].classList.remove('open')
+      for (var j = 0; j < wraps.length; j++) { wraps[j].classList.remove('open'); }
     }
-  })
+  });
 
   /* --- Открыть модалку редактирования роли --- */
   function openEditRole(id, name, desc, grantedPages) {
-    document.getElementById('erRoleId').value = id
-    document.getElementById('erName').value   = name
-    document.getElementById('erDesc').value   = desc
-    var boxes = document.querySelectorAll('#erPages input[type="checkbox"]')
+    document.getElementById('erRoleId').value = id;
+    document.getElementById('erName').value   = name;
+    document.getElementById('erDesc').value   = desc;
+    var boxes = document.querySelectorAll('#erPages input[type="checkbox"]');
     for (var i = 0; i < boxes.length; i++) {
-      boxes[i].checked = grantedPages.indexOf(boxes[i].value) !== -1
+      boxes[i].checked = grantedPages.indexOf(boxes[i].value) !== -1;
     }
-    openModal('editRoleModal')
+    openModal('editRoleModal');
   }
-</script>
 
-<script>
   /* --- Кнопка «← На главную»: history.back() если пришли не со страницы /admin, иначе идём на / --- */
   ;(function () {
-    var btn = document.getElementById('backBtn')
-    if (!btn) return
-    var base = <?= json_encode($basePath) ?>
+    var btn = document.getElementById('backBtn');
+    if (!btn) { return; }
+    var base = <?= json_encode($basePath) ?>;
     btn.addEventListener('click', function (e) {
-      var ref = document.referrer
+      var ref = document.referrer;
       if (ref && ref.indexOf(location.origin + base + '/admin') === -1 && history.length > 1) {
-        e.preventDefault()
-        history.back()
+        e.preventDefault();
+        history.back();
       }
-      // иначе следуем href как обычная ссылка (на главную)
-    })
-  })()
+    });
+  })();
 </script>
 
 </body>
