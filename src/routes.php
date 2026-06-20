@@ -67,6 +67,20 @@ return function (App $app, array $config): void {
             return (new \App\Controllers\MapsController($getDb(), $config))->showMaps($req, $res);
         });
 
+        // Администрирование (пользователи и роли)
+        $group->get('/admin', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->index($req, $res);
+        });
+        $group->post('/admin/users', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->createUser($req, $res);
+        });
+        $group->post('/admin/users/role', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->saveRole($req, $res);
+        });
+        $group->post('/admin/users/active', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->toggleActive($req, $res);
+        });
+
         // Детальная страница (статический шаблон)
         $group->get('/detail', function ($req, $res) use ($config) {
             $appName = $config['app_name'] ?? 'Метафракс';

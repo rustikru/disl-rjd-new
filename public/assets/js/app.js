@@ -37,6 +37,14 @@ var TAB_GROUPS = [
   },
 ]
 
+// Раздел администрирования виден только пользователю с ролью ADMIN
+if (window.APP_IS_ADMIN) {
+  TAB_GROUPS.push({
+    label: 'Администрирование',
+    tabs: [{ id: 'admin', label: 'Пользователи', url: BASE + '/admin' }],
+  })
+}
+
 // Сайдбар
 function initSidebar() {
   var sidebar = document.getElementById('sidebar')

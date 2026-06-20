@@ -13,7 +13,10 @@ $basePath = $basePath ?? '';
   <title><?= htmlspecialchars($appName) ?> — Дислокация</title>
   <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
-  <script>window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';</script>
+  <script>
+    window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
+    window.APP_IS_ADMIN = <?= (($user['role_code'] ?? '') === 'ADMIN') ? 'true' : 'false' ?>;
+  </script>
 </head>
 
 <body>

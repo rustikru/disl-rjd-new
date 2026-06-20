@@ -38,14 +38,26 @@ class AuthService
             if ($adUser !== null) {
                 // При первом входе через AD создаём запись в БД
                 $this->ensureUserExists($username, $adUser['display_name'], $adUser['email']);
+                $role = $this->db->fetchOne(
+                    'SELECT r.code AS role_code, r.name AS role_name
+                     FROM xx_rjd_users u
+                     LEFT JOIN xx_rjd_roles r ON r.id = u.role_id
+                     WHERE u.username = :username',
+                    ['username' => $username]
+                );
+                $adUser['role_code'] = $role['role_code'] ?? null;
+                $adUser['role_name'] = $role['role_name'] ?? null;
                 return $adUser;
             }
         }
 
 
         $user = $this->db->fetchOne(
-            'SELECT id, username, display_name, email, password_hash, is_active
-             FROM xx_users_rjd WHERE username = :username',
+            'SELECT u.id, u.username, u.display_name, u.email, u.password_hash, u.is_active,
+                    r.code AS role_code, r.name AS role_name
+             FROM xx_rjd_users u
+             LEFT JOIN xx_rjd_roles r ON r.id = u.role_id
+             WHERE u.username = :username',
             ['username' => $username]
         );
 
@@ -63,6 +75,8 @@ class AuthService
             'display_name' => $user['display_name'],
             'email' => $user['email'],
             'auth_source' => 'local',
+            'role_code' => $user['role_code'] ?? null,
+            'role_name' => $user['role_name'] ?? null,
         ];
     }
 
