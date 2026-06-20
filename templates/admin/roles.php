@@ -330,7 +330,7 @@ $totalPages = count($pages);
   ;(function () {
     var btn = document.getElementById('backBtn');
     if (!btn) { return; }
-    var base = <?= json_encode($basePath) ?>;
+    var base = '<?= addslashes($basePath) ?>';
     btn.addEventListener('click', function (e) {
       var ref = document.referrer;
       if (ref && ref.indexOf(location.origin + base + '/admin') === -1 && history.length > 1) {
