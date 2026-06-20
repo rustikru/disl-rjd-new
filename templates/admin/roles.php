@@ -286,15 +286,16 @@ $totalPages = count($pages);
               </td>
 
               <!-- Описание -->
-              <td style="min-width:160px">
+              <td style="min-width:200px">
                 <?php if ($isAdmin): ?>
                   <span class="admin-note">Полный доступ ко всем разделам</span>
                 <?php else: ?>
-                  <input class="tbl-input"
-                         name="description"
-                         value="<?= htmlspecialchars($r['description'] ?? '') ?>"
-                         placeholder="Описание"
-                         form="rf-<?= (int) $r['id'] ?>">
+                  <textarea class="tbl-input"
+                            name="description"
+                            placeholder="Описание"
+                            rows="2"
+                            style="resize:vertical;min-height:36px;vertical-align:top"
+                            form="rf-<?= (int) $r['id'] ?>"><?= htmlspecialchars($r['description'] ?? '') ?></textarea>
                 <?php endif; ?>
               </td>
 
@@ -374,7 +375,8 @@ $totalPages = count($pages);
       </div>
       <div class="fg">
         <label>Описание</label>
-        <input type="text" name="description" placeholder="Краткое описание роли">
+        <textarea name="description" placeholder="Краткое описание роли" rows="2"
+                  style="border:1px solid var(--border);border-radius:8px;padding:8px 11px;font-family:inherit;font-size:13px;outline:none;color:var(--text-1);resize:vertical;min-height:36px"></textarea>
       </div>
       <div class="fg">
         <label>Доступ к разделам</label>
