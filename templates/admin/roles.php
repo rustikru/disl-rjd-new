@@ -137,7 +137,7 @@ $totalPages = count($pages);
 
     /* --- Кнопки действий --- */
     .actions-cell { white-space:nowrap; display:flex; gap:6px; align-items:center; }
-    .btn-del {
+    .btn-save, .btn-del {
       display:inline-flex;
       align-items:center;
       justify-content:center;
@@ -147,12 +147,14 @@ $totalPages = count($pages);
       border-radius:8px;
       background:transparent;
       cursor:pointer;
-      color:var(--text-3);
       transition:background .15s, color .15s;
       padding:0;
       flex-shrink:0;
     }
-    .btn-del:hover { background:#fbeaea; color:var(--brand-neg,#d94040); }
+    .btn-save { color:var(--brand-green,#2aa26b); }
+    .btn-save:hover { background:#e8f6ef; }
+    .btn-del  { color:var(--text-3); }
+    .btn-del:hover  { background:#fbeaea; color:var(--brand-neg,#d94040); }
 
     /* --- Модалки --- */
     .modal-wrap { position:fixed; inset:0; background:rgba(27,23,38,.45); display:none; align-items:center; justify-content:center; z-index:200; }
@@ -317,9 +319,9 @@ $totalPages = count($pages);
               <td>
                 <?php if (!$isAdmin): ?>
                   <div class="actions-cell">
-                    <button type="submit" class="btn btn-primary btn-sm"
-                            form="rf-<?= (int) $r['id'] ?>">
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><polyline points="1.5 6.5 4.5 9.5 10.5 2.5"/></svg>Сохранить
+                    <button type="submit" class="btn-save"
+                            form="rf-<?= (int) $r['id'] ?>" title="Сохранить">
+                      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5 8 5.5 11.5 12.5 3.5"/></svg>
                     </button>
                     <button type="submit"
                             class="btn-del"

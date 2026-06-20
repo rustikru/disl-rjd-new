@@ -86,25 +86,44 @@ $roleClass = function (?string $code) {
       padding:0;
     }
     .icon-btn:hover { background:var(--hover-green,#f0eef8); color:var(--text-1); }
-    .icon-btn--save   { color:var(--brand-green,#2aa26b); }
-    .icon-btn--save:hover { background:#e8f6ef; color:var(--brand-green,#2aa26b); }
-    .icon-btn--lock:hover { color:var(--brand-neg); }
+    .icon-btn--edit:hover   { color:var(--accent); }
+    .icon-btn--lock:hover   { color:var(--brand-neg); }
     .icon-btn--unlock:hover { color:var(--brand-green,#2aa26b); }
 
-    /* Инпуты в таблице */
-    .tbl-input {
+    /* Выпадающее меню редактирования пользователя */
+    .edit-picker { position:relative; display:inline-block; }
+    .edit-picker > summary { list-style:none; display:inline-flex; }
+    .edit-picker > summary::-webkit-details-marker { display:none; }
+    .edit-picker > summary::marker { display:none; }
+    .edit-drop {
+      position:absolute;
+      top:calc(100% + 4px);
+      right:0;
+      min-width:280px;
+      background:var(--surface);
       border:1px solid var(--border);
-      border-radius:7px;
-      padding:4px 8px;
+      border-radius:12px;
+      box-shadow:0 8px 28px rgba(27,23,38,.16);
+      padding:16px;
+      z-index:300;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .edit-drop .ef { display:flex; flex-direction:column; gap:4px; }
+    .edit-drop .ef label { font-size:11.5px; font-weight:600; color:var(--text-2); }
+    .edit-drop .ef input {
+      border:1px solid var(--border);
+      border-radius:8px;
+      padding:7px 10px;
       font-family:inherit;
       font-size:13px;
       outline:none;
       color:var(--text-1);
       width:100%;
-      background:transparent;
       box-sizing:border-box;
     }
-    .tbl-input:focus { border-color:var(--accent); background:var(--surface); }
+    .edit-drop .ef input:focus { border-color:var(--accent); }
 
     .pager { display:flex; align-items:center; justify-content:flex-end; gap:10px; padding:12px 18px; border-top:1px solid var(--border-lt); font-size:12.5px; color:var(--text-2); }
     .pager button { border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:5px 11px; cursor:pointer; font-size:12.5px; color:var(--text-1); }
@@ -183,17 +202,6 @@ $roleClass = function (?string $code) {
       <div class="flash flash-err"><?= htmlspecialchars($flashErr) ?></div>
     <?php endif; ?>
 
-    <!-- Внешние формы для редактирования пользователей -->
-    <?php foreach ($users as $u): ?>
-      <form id="uf-<?= (int) $u['id'] ?>"
-            method="POST"
-            action="<?= htmlspecialchars($basePath) ?>/admin/users/save"
-            style="display:none">
-        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-        <input type="hidden" name="user_id" value="<?= (int) $u['id'] ?>">
-      </form>
-    <?php endforeach; ?>
-
     <!-- Пользователи -->
     <div class="panel">
       <div class="panel-head">
@@ -221,32 +229,13 @@ $roleClass = function (?string $code) {
               <td>
                 <div class="u-cell">
                   <span class="u-avatar"><?= htmlspecialchars($initials($name)) ?></span>
-                  <div style="min-width:130px">
-                    <input class="tbl-input"
-                           name="display_name"
-                           value="<?= htmlspecialchars((string) ($u['display_name'] ?: $u['username'])) ?>"
-                           placeholder="Имя пользователя"
-                           form="uf-<?= (int) $u['id'] ?>">
-                    <div class="u-login" style="margin-top:3px"><?= htmlspecialchars($u['username']) ?></div>
+                  <div>
+                    <div class="u-name"><?= htmlspecialchars($name) ?></div>
+                    <div class="u-login"><?= htmlspecialchars($u['username']) ?></div>
                   </div>
                 </div>
               </td>
-              <td style="min-width:180px">
-                <div style="display:flex;flex-direction:column;gap:4px">
-                  <input class="tbl-input"
-                         type="email"
-                         name="email"
-                         value="<?= htmlspecialchars($u['email'] ?? '') ?>"
-                         placeholder="E-mail"
-                         form="uf-<?= (int) $u['id'] ?>">
-                  <input class="tbl-input"
-                         type="password"
-                         name="password"
-                         placeholder="Новый пароль"
-                         autocomplete="new-password"
-                         form="uf-<?= (int) $u['id'] ?>">
-                </div>
-              </td>
+              <td><?= htmlspecialchars($u['email'] ?? '') !== '' ? htmlspecialchars($u['email']) : '<span style="color:var(--text-3)">—</span>' ?></td>
               <td>
                 <details class="role-picker">
                   <summary class="role-picker-btn">
@@ -285,15 +274,37 @@ $roleClass = function (?string $code) {
               </td>
               <td>
                 <div class="row-actions">
-                  <!-- Сохранить запись -->
-                  <button type="submit"
-                          class="icon-btn icon-btn--save"
-                          form="uf-<?= (int) $u['id'] ?>"
-                          title="Сохранить">
-                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="2.5 8 5.5 11.5 12.5 3.5"/>
-                    </svg>
-                  </button>
+                  <!-- Редактировать запись -->
+                  <details class="edit-picker" id="ep-<?= (int) $u['id'] ?>">
+                    <summary class="icon-btn icon-btn--edit" title="Редактировать">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9.5 1.5a1.414 1.414 0 0 1 2 2L4 11l-3 1 1-3Z"/>
+                      </svg>
+                    </summary>
+                    <div class="edit-drop" id="epd-<?= (int) $u['id'] ?>">
+                      <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/users/save">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+                        <input type="hidden" name="user_id" value="<?= (int) $u['id'] ?>">
+                        <div class="ef">
+                          <label>Имя</label>
+                          <input type="text" name="display_name" value="<?= htmlspecialchars((string) ($u['display_name'] ?: $u['username'])) ?>" required>
+                        </div>
+                        <div class="ef">
+                          <label>E-mail</label>
+                          <input type="email" name="email" value="<?= htmlspecialchars($u['email'] ?? '') ?>" placeholder="user@mail.ru">
+                        </div>
+                        <div class="ef">
+                          <label>Новый пароль <span style="font-weight:400;color:var(--text-3)">(пусто — не менять)</span></label>
+                          <input type="password" name="password" placeholder="••••••••" autocomplete="new-password">
+                        </div>
+                        <div style="display:flex;justify-content:flex-end;margin-top:4px">
+                          <button type="submit" class="btn btn-primary btn-sm">
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><polyline points="1.5 6.5 4.5 9.5 10.5 2.5"/></svg>Сохранить
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </details>
                   <!-- Заблокировать / Разблокировать -->
                   <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/users/active" class="inline-form">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
@@ -468,6 +479,37 @@ $roleClass = function (?string $code) {
         })
       })(pickers[i])
     }
+  })()
+
+  // --- Edit-picker: редактирование пользователя через выпадающую форму ---
+  ;(function () {
+    var eps = [].slice.call(document.querySelectorAll('.edit-picker'))
+    for (var i = 0; i < eps.length; i++) {
+      (function (picker) {
+        var dropId = picker.id.replace('ep-', 'epd-')
+        var drop   = document.getElementById(dropId)
+        if (!drop) return
+        picker.addEventListener('toggle', function () {
+          if (picker.open) {
+            var r = picker.getBoundingClientRect()
+            drop.style.position = 'fixed'
+            drop.style.top      = (r.bottom + 4) + 'px'
+            drop.style.right    = (window.innerWidth - r.right) + 'px'
+            drop.style.left     = 'auto'
+            drop.style.zIndex   = '500'
+          } else {
+            drop.style.cssText = ''
+          }
+        })
+      })(eps[i])
+    }
+    document.addEventListener('click', function (e) {
+      for (var i = 0; i < eps.length; i++) {
+        if (eps[i].open && !eps[i].contains(e.target)) {
+          eps[i].removeAttribute('open')
+        }
+      }
+    })
   })()
 </script>
 
