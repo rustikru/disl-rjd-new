@@ -52,6 +52,8 @@ class MapsController
                     xdr.oper_station,
                     xdr.days_no_oper,
                     xdr.days_no_move,
+                    xdr.lessee,
+                    xdr.lease_home_station,
                     rs.esr_code,
                     rs.station_name,
                     rs.latitude,
@@ -91,6 +93,9 @@ class MapsController
                 'wagon_state' => (string) ($r['wagon_state'] ?? ''),
                 'days_no_move' => (int) ($r['days_no_move'] ?? 0),
                 'days_no_oper' => (int) ($r['days_no_oper'] ?? 0),
+                'lessee' => (string) ($r['lessee'] ?? ''),
+                'lease_home_station' => (string) ($r['lease_home_station'] ?? ''),
+
                 'latitude' => (string) ($r['latitude'] ?? ''),
                 'longitude' => (string) ($r['longitude'] ?? ''),
             ];
@@ -98,13 +103,29 @@ class MapsController
             if ($cargo !== '') {
                 $cargosSet[$cargo] = true;
             }
+            $lessee = trim((string) ($r['lessee'] ?? ''));
+            if ($lessee !== '') {
+                $lesseeSet[$lessee] = true;
+            }
+            $leaseStation = trim((string) ($r['lease_home_station'] ?? ''));
+            if ($leaseStation !== '') {
+                $leaseStationSet[$leaseStation] = true;
+            }
         }
-
+        // Груз
         $cargos = array_keys($cargosSet);
         sort($cargos);
-
+        // Арендатор
+        $lessees = array_keys($lesseeSet);
+        sort($lessees);
+        // Станция приписки арендатора
+        $leaseStations = array_keys($leaseStationSet);
+        sort($lessees);
+        // Станции
         $stationsJson = json_encode(array_values($stationsMap), JSON_UNESCAPED_UNICODE);
-        $cargosJson   = json_encode($cargos, JSON_UNESCAPED_UNICODE);
+        $cargosJson = json_encode($cargos, JSON_UNESCAPED_UNICODE);
+        $lesseesJson = json_encode($lessees, JSON_UNESCAPED_UNICODE);
+        $leaseStationsJson = json_encode($leaseStations, JSON_UNESCAPED_UNICODE);
 
         ob_start();
         include __DIR__ . '/../../templates/maps.php';

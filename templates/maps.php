@@ -18,7 +18,6 @@ $reportDtLabel = $reportDtLabel ?? '';
 
     <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
 
-    <!-- Подключение библиотек карты Leaflet -->
     <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/Leaflet/leaflet.css" />
     <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/Leaflet/MarkerCluster.css" />
 
@@ -268,6 +267,15 @@ $reportDtLabel = $reportDtLabel ?? '';
             gap: 6px;
         }
 
+        .sidebar-cargo label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
         .sidebar-cargo select {
             width: 100%;
             padding: 8px 10px;
@@ -289,6 +297,7 @@ $reportDtLabel = $reportDtLabel ?? '';
         }
 
         .btn-reset {
+            margin-top: 6px;
             align-self: flex-end;
             padding: 5px 12px;
             border: 1px solid var(--border);
@@ -338,9 +347,21 @@ $reportDtLabel = $reportDtLabel ?? '';
                 <input type="text" id="station-search" placeholder="Станция или № вагона">
             </div>
             <div class="sidebar-cargo">
+                <label for="cargo-filter">Груз</label>
                 <select id="cargo-filter">
                     <option value="">— Все грузы —</option>
                 </select>
+
+                <label for="lessee-filter">Арендатор</label>
+                <select id="lessee-filter">
+                    <option value="">— Все арендаторы —</option>
+                </select>
+
+                <label for="lease-station-filter">Станция приписки арендатора</label>
+                <select id="lease-station-filter">
+                    <option value="">— Все станции приписки —</option>
+                </select>
+
                 <button class="btn-reset" id="btn-reset">Сбросить</button>
             </div>
             <div class="sidebar-summary" id="sidebar-summary"></div>
@@ -349,7 +370,6 @@ $reportDtLabel = $reportDtLabel ?? '';
 
         <div id="map"></div>
     </div>
-    <!-- Подключение библиотек карты Leaflet -->
     <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jquery/jquery-3.7.1.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
@@ -367,30 +387,91 @@ $reportDtLabel = $reportDtLabel ?? '';
 
         var STATIONS = <?= $stationsJson ?? '[]' ?>;
         var CARGOS = <?= $cargosJson ?? '[]' ?>;
-        var activeFilter = 'all', activeCargo = '', activeStation = null, markerGroup = null;
+        var LESSEES = <?= $lesseesJson ?? '[]' ?>;
+        var LEASESTATIONS = <?= $leaseStationsJson ?? '[]' ?>;
 
-        // Заполняем список грузов
-        var cargoSel = document.getElementById('cargo-filter');
-        CARGOS.forEach(function (c) {
-            var opt = document.createElement('option');
-            opt.value = c;
-            // Убираем числовой код в конце: "Аммиак (488161)" → "Аммиак"
-            var label = c.replace(/\s*\(\d+\)\s*$/, '').trim();
-            if (label.length > 42) label = label.slice(0, 40) + '…';
-            opt.textContent = label;
-            cargoSel.appendChild(opt);
-        });
+        var activeFilter = 'all', activeStation = null, markerGroup = null;
+
+        // Конфигурация связанных селектов
+        var FILTER_CONFIG = {
+            'cargo': { el: document.getElementById('cargo-filter'), key: 'cargo', label: 'Все грузы', source: CARGOS },
+            'lessee': { el: document.getElementById('lessee-filter'), key: 'lessee', label: 'Все арендаторы', source: LESSEES },
+            'lease_station': { el: document.getElementById('lease-station-filter'), key: 'lease_home_station', label: 'Все станции приписки', source: LEASESTATIONS }
+        };
+
+        // Текущие выбранные значения
+        var activeFilters = {
+            cargo: '',
+            lessee: '',
+            lease_station: ''
+        };
 
         var map = L.map('map', { center: [57.5, 60.0], zoom: 4, zoomControl: true, attributionControl: false });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
+        // Функция фильтрации вагонов по всем активным параметрам
         function getFilteredWagons(station) {
             return station.wagons.filter(function (w) {
-                if (activeCargo && w.cargo !== activeCargo) return false;
+                if (activeFilters.cargo && w.cargo !== activeFilters.cargo) return false;
+                if (activeFilters.lessee && w.lessee !== activeFilters.lessee) return false;
+                if (activeFilters.lease_station && w.lease_home_station !== activeFilters.lease_station) return false;
+
                 if (activeFilter === 'loaded') return w.ld;
                 if (activeFilter === 'empty') return !w.ld;
                 if (activeFilter === 'idle') return w.days_no_move > 5;
                 return true;
+            });
+        }
+
+        // Динамический пересчет доступных опций в селектах (Взаимосвязь)
+        function updateSelectOptions() {
+            Object.keys(FILTER_CONFIG).forEach(function (currentKey) {
+                var config = FILTER_CONFIG[currentKey];
+                var selectEl = config.el;
+                var prevValue = selectEl.value;
+
+                var availableValues = new Set();
+
+                // Проверяем, какие значения доступны, если применить ВСЕ фильтры КРОМЕ текущего
+                STATIONS.forEach(function (station) {
+                    station.wagons.forEach(function (w) {
+                        if (activeFilter === 'loaded' && !w.ld) return;
+                        if (activeFilter === 'empty' && w.ld) return;
+                        if (activeFilter === 'idle' && w.days_no_move <= 5) return;
+
+                        var matchesOthers = true;
+                        Object.keys(FILTER_CONFIG).forEach(function (key) {
+                            if (key !== currentKey && activeFilters[key]) {
+                                if (w[FILTER_CONFIG[key].key] !== activeFilters[key]) {
+                                    matchesOthers = false;
+                                }
+                            }
+                        });
+
+                        if (matchesOthers && w[config.key]) {
+                            var valStr = String(w[config.key]).trim();
+
+                            // Применяем ту же регулярку для фильтрации опций в селектах
+                            if (!/^[-\s0()]*$/.test(valStr) && valStr !== '') {
+                                availableValues.add(w[config.key]);
+                            }
+                        }
+                    });
+                });
+
+                // Перестраиваем текущий селект
+                selectEl.innerHTML = '<option value="">— ' + config.label + ' —</option>';
+                config.source.forEach(function (val) {
+                    if (availableValues.has(val)) {
+                        var opt = document.createElement('option');
+                        opt.value = val;
+                        var label = val.replace(/\s*\(\d+\)\s*$/, '').trim();
+                        if (label.length > 42) label = label.slice(0, 40) + '…';
+                        opt.textContent = label;
+                        if (val === prevValue) opt.selected = true;
+                        selectEl.appendChild(opt);
+                    }
+                });
             });
         }
 
@@ -414,7 +495,6 @@ $reportDtLabel = $reportDtLabel ?? '';
             visible.sort(function (a, b) { return b.wagons.length - a.wagons.length; });
 
             var totalWagons = visible.reduce(function (acc, x) { return acc + x.wagons.length; }, 0);
-            //summary.innerHTML = 'Станций: <strong>' + visible.length + '</strong> · Вагонов: <strong>' + totalWagons + '</strong>';
             summary.innerHTML = 'всего вагонов: <strong>' + totalWagons + '</strong>';
 
             var html = visible.map(function (x) {
@@ -476,9 +556,13 @@ $reportDtLabel = $reportDtLabel ?? '';
                         (w.ld ? 'Гружёный' : 'Порожний') +
                         '</span>' +
                         (w.cargo ? '<span style="color: #555;"> (' + w.cargo + ')</span>' : '') +
-                        (w.dest_station ? '<br><span style="color: #7c7e86; font-size: 10px;">→ Назначение: ' + w.dest_station + '</span>' : '') +
+                        (w.dest_station ? '<br><span style="font-weight: bold; font-size: 10px;">Ст.Назначения: ' + w.dest_station + '</span>' : '') +
                         (w.days_no_move > 0 ? '<br><small style="color: var(--empty);">Без движения: ' + w.days_no_move + ' дн.</small>' : '') +
                         (w.days_no_oper > 0 ? '<br><small style="color: var(--empty);">Дней без операций: ' + w.days_no_oper + ' дн.</small>' : '') +
+                        (w.lessee && w.lessee.trim() !== '' && w.lessee.trim() !== '---' ?
+                            '<br><span style="color: #7c7e86; font-size: 10px;">Арендатор: ' + w.lessee + '</span>' : '') +
+                        (w.lease_home_station && w.lease_home_station.trim() !== '' && w.lease_home_station.trim() !== '- - - (0)' ?
+                            '<br><span style="color: #7c7e86; font-size: 10px;">Станция приписки арендатора: ' + w.lease_home_station + '</span>' : '') +
                         '</div>';
                 }).join('');
 
@@ -510,28 +594,38 @@ $reportDtLabel = $reportDtLabel ?? '';
             map.setView([s.lat, s.lng], Math.max(map.getZoom(), 8), { animate: true });
         }
 
+        function updateAll() {
+            updateSelectOptions();
+            renderSidebar();
+            buildMarkers();
+        }
+
+        // Слушатели событий
         document.getElementById('station-search').addEventListener('input', function () {
             renderSidebar();
             buildMarkers();
         });
 
-        cargoSel.addEventListener('change', function () {
-            activeCargo = this.value;
-            renderSidebar();
-            buildMarkers();
+        Object.keys(FILTER_CONFIG).forEach(function (key) {
+            FILTER_CONFIG[key].el.addEventListener('change', function () {
+                activeFilters[key] = this.value;
+                updateAll();
+            });
         });
 
         document.getElementById('btn-reset').addEventListener('click', function () {
-            activeCargo = '';
+            Object.keys(activeFilters).forEach(function (key) { activeFilters[key] = ''; });
             activeFilter = 'all';
             activeStation = null;
             document.getElementById('station-search').value = '';
-            cargoSel.value = '';
+
+            Object.keys(FILTER_CONFIG).forEach(function (key) { FILTER_CONFIG[key].el.value = ''; });
+
             document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
             var allBtn = document.querySelector('.filter-btn[data-filter="all"]');
             if (allBtn) allBtn.classList.add('active');
-            renderSidebar();
-            buildMarkers();
+
+            updateAll();
         });
 
         document.querySelectorAll('.filter-btn').forEach(function (btn) {
@@ -539,13 +633,12 @@ $reportDtLabel = $reportDtLabel ?? '';
                 document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
                 e.target.classList.add('active');
                 activeFilter = e.target.dataset.filter;
-                buildMarkers();
-                renderSidebar();
+                updateAll();
             });
         });
 
-        renderSidebar();
-        buildMarkers();
+        // Полный запуск цепочки фильтров при старте
+        updateAll();
     </script>
 </body>
 
