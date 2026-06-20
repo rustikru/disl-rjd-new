@@ -1,10 +1,4 @@
 <?php
-// Переменные из вызывающего шаблона:
-//   $appName     (string)       — название приложения
-//   $basePath    (string)       — базовый путь
-//   $user        (array)        — ['display_name', 'username', 'auth_source']
-//   $headerSub   (string|null)  — HTML-подпись под названием (.brand-date-sub / .brand-sub)
-//   $headerRight (string|null)  — дополнительные кнопки слева от имени (← Назад и т.п.)
 $headerSub   = $headerSub   ?? '';
 $headerRight = $headerRight ?? '';
 ?>

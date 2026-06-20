@@ -1,12 +1,4 @@
 <?php
-/** @var string  $appName */
-/** @var string  $basePath */
-/** @var array   $user */
-/** @var array   $roles  список ролей [id, code, name] */
-/** @var array   $users  список пользователей */
-/** @var ?string $flashOk */
-/** @var ?string $flashErr */
-/** @var string  $csrf */
 $basePath = $basePath ?? '';
 
 // Инициалы для аватара

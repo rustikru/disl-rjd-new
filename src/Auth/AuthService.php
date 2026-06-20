@@ -5,13 +5,7 @@ namespace App\Auth;
 
 use App\Database\DbInterface;
 
-/**
- * Сервис аутентификации.
- *
- * Стратегия входа:
- *  1. Если AD_ENABLED=true — пробуем Active Directory.
- *  2. Если AD недоступен или вернул ошибку — проверяем локальный пароль в БД.
- */
+// AD → fallback на локальный пароль
 class AuthService
 {
     private DbInterface $db;
@@ -25,11 +19,6 @@ class AuthService
         $this->ldap = new LdapAuth($config);
     }
 
-    /**
-     * Попытка входа. Возвращает массив с данными пользователя или null.
-     *
-     * @return array<string, mixed>|null
-     */
     public function login(string $username, string $password): ?array
     {
         // Шаг 1: Active Directory
@@ -92,9 +81,6 @@ class AuthService
         );
     }
 
-    /**
-     * Создаёт запись пользователя в БД если её ещё нет (для AD-пользователей).
-     */
     private function ensureUserExists(string $username, string $displayName, string $email): void
     {
         $exists = $this->db->fetchOne(
@@ -106,8 +92,7 @@ class AuthService
             return;
         }
 
-        // Создаём запись без роли — администратор назначит роль через /admin/users.
-        // Пока роль не назначена, пользователь получит 403 на всех защищённых страницах.
+        // без роли — admin назначит через /admin/users, иначе сразу 403
         $this->db->execute(
             'INSERT INTO xx_rjd_users (username, display_name, email, password_hash, is_active)
              VALUES (:username, :display_name, :email, :hash, 1)',
@@ -120,11 +105,6 @@ class AuthService
         );
     }
 
-    /**
-     * Загружает роли пользователя по его id.
-     *
-     * @return array<int, array{id: mixed, code: mixed, name: mixed}>
-     */
     private function fetchUserRoles(int $userId): array
     {
         if ($userId <= 0) {

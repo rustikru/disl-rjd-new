@@ -9,19 +9,6 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Slim\Psr7\Response;
 
-/**
- * Постраничное разграничение доступа по ролям.
- *
- * Сопоставляет запрошенный путь с «страницей» приложения (dashboard / maps /
- * import / admin) и проверяет, что роль пользователя имеет к ней доступ
- * (таблица xx_rjd_role_pages).
- *
- * Особые случаи:
- *  - роль ADMIN — полный доступ ко всему;
- *  - первичная настройка (ни один пользователь ещё не назначен администратором)
- *    либо инфраструктура ролей не развёрнута — доступ открыт, чтобы не
- *    заблокировать систему.
- */
 class PageAccessMiddleware implements MiddlewareInterface
 {
     /** @var callable():\App\Database\DbInterface */
@@ -58,7 +45,7 @@ class PageAccessMiddleware implements MiddlewareInterface
         try {
             $allowed = $this->allowedPages((int) ($user['id'] ?? 0));
         } catch (\Throwable $e) {
-            // Инфраструктура ролей ещё не развёрнута — не блокируем
+            // таблицы ролей ещё нет — не блокируем
             return $handler->handle($request);
         }
 
@@ -66,8 +53,7 @@ class PageAccessMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        // Доступа нет. Но если в системе ещё нет ни одного администратора —
-        // режим первичной настройки, пропускаем.
+        // bootstrap — нет ни одного admin-а, пропускаем
         if ($this->noAdminYet()) {
             return $handler->handle($request);
         }
@@ -75,7 +61,6 @@ class PageAccessMiddleware implements MiddlewareInterface
         return $this->deny($request, $page);
     }
 
-    /** Сопоставляет путь запроса со страницей приложения. */
     private function resolvePage(string $path): ?string
     {
         if ($this->basePath !== '' && str_starts_with($path, $this->basePath)) {
@@ -101,7 +86,6 @@ class PageAccessMiddleware implements MiddlewareInterface
         return null;
     }
 
-    /** Возвращает список страниц, доступных всем ролям пользователя. */
     private function allowedPages(int $userId): array
     {
         $rows = ($this->dbResolver)()->fetchAll(
@@ -114,7 +98,6 @@ class PageAccessMiddleware implements MiddlewareInterface
         return array_map(static fn($r) => $r['page'], $rows);
     }
 
-    /** В системе ещё нет назначенных администраторов? */
     private function noAdminYet(): bool
     {
         try {

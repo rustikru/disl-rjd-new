@@ -1,9 +1,4 @@
 <?php
-/** @var string $appName */
-/** @var string $basePath */
-/** @var array  $user */
-/** @var string $headerSub */
-/** @var string $headerRight */
 $basePath    = $basePath    ?? '';
 $appName     = $appName     ?? '';
 $user        = $user        ?? [];

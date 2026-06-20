@@ -7,14 +7,6 @@ use App\Database\DbInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
-/**
- * Администрирование: управление пользователями и ролями.
- *
- * Доступ к разделу имеет только пользователь с ролью ADMIN.
- * Пока в системе нет ни одного администратора (первичная настройка) —
- * раздел открыт любому авторизованному пользователю, чтобы можно было
- * назначить первого администратора через интерфейс.
- */
 class AdminController
 {
     private DbInterface $db;
@@ -437,8 +429,7 @@ class AdminController
             return true;
         }
 
-        // Первичная настройка: пока ни один пользователь не назначен администратором,
-        // либо инфраструктура ролей ещё не развёрнута — пускаем авторизованного пользователя.
+        // bootstrap: если admin-ов ещё нет — пускаем, чтобы можно было назначить первого
         try {
             $row = $this->db->fetchOne(
                 "SELECT COUNT(*) AS cnt FROM xx_rjd_user_roles ur

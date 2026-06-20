@@ -1,13 +1,4 @@
 <?php
-/** @var string  $appName */
-/** @var string  $basePath */
-/** @var array   $user */
-/** @var array   $roles     список ролей [id, code, name, description, is_system] */
-/** @var array   $rolePages [role_id => [page => true]] */
-/** @var array   $pages     [code => name] */
-/** @var ?string $flashOk */
-/** @var ?string $flashErr */
-/** @var string  $csrf */
 $basePath = $basePath ?? '';
 
 // CSS-класс бейджа по коду роли

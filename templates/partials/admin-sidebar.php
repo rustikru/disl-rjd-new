@@ -1,12 +1,4 @@
 <?php
-/**
- * Боковая панель раздела администрирования.
- * Переменные из вызывающего шаблона:
- *   $basePath         (string) — базовый путь
- *   $activeAdminPage  (string) — ключ активной страницы: 'users' | 'roles' | ...
- *
- * Для добавления нового пункта admin-меню — добавить строку в $adminNavItems ниже.
- */
 $activeAdminPage = $activeAdminPage ?? '';
 
 $adminNavItems = [

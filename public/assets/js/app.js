@@ -158,38 +158,7 @@ function showKpi(data, containerId) {
   $('#' + targetContainer).html(cardsHtml)
 }
 
-// Конфиг вкладок: сводные таблицы и детализации
-/*
-  Структура WAGON_TABS — поля в стандартном порядке:
-
-  Обязательные:
-    ctx            — ключ контекста (data-ctx в ссылках, ключ в DETAIL_CONTEXTS)
-    summaryUrl     — URL сводной таблицы (отсутствует у detail-only вкладок)
-    detailUrl      — URL расширенной/детализации
-    csvFilename    — префикс CSV сводной (кнопка не появится, если не задан)
-    csvDetFilename — префикс CSV расширенной
-    sumTableId     — id <table> сводной
-    sumSubId       — id подписи «Итого: N» под сводной
-    sumSubLabel    — текст-префикс подписи
-    detTableId     — id <table> расширенной
-    detSubId       — id подписи «Строк: N» под расширенной (опционально)
-    detPanelId     — id панели расширенной (для ленивой загрузки при открытии)
-    loadedKey      — ключ window[...] — флаг загрузки сводной
-    loadedDetKey   — ключ window[...] — флаг загрузки расширенной
-    groupCols[]    — измерения строк сводной: [{key, label}]
-    colDims[]      — измерения колонок: [{key, paramName}] или [{key, synthetic:true}]
-    getParams()    — доп. параметры из формы фильтров → передаются в оба URL
-
-  Дополнительно(не обязательно):
-    filtersUrl     — URL для заполнения <select> фильтров
-    fillFilters(d) — заполняет <select> данными из filtersUrl
-    resetFilters() — сбрасывает фильтры
-    applyBtnId     — id кнопки «Применить» (без неё загрузка при открытии вкладки)
-    resetBtnId     — id кнопки «Сбросить» (если не задан — вычисляется как btn{TabId}Reset)
-    metricsId      — id контейнера KPI-карточек
-    metricsLabel   — подпись главной KPI-карточки (если kpi() не задан)
-    kpi(data)      — генерирует [{label, value, accent?, detail?}] из ответа сводной
-*/
+// Конфиг вкладок
 
 // Общий построитель KPI для табов с группировкой по дороге
 function makeRoadKpi(cfg, data, mainLabel) {
@@ -1860,20 +1829,6 @@ function idleStyle(days) {
   return ''
 }
 
-// HTML одной KPI-карточки. Поля: label, value (или total), accent, sub, detail.
-// detail: { ctx, road, station, col, groupBy, subs, params } — открыть детализацию по клику
-// detail: { url } — открыть произвольный URL по клику
-/*
-  kpiCard — рендерит одну KPI-карточку.
-  Атрибуты item:
-    label   — подпись
-    value   — число
-    accent  — синий фон
-    detail  — объект для перехода в детализацию
-    sub     — мелкий текст под значением
-    variant — 'pill': label сверху, value + бейдж в строку (для дашборда)
-    trend   — { pct: '-8.7%', dir: 'up'|'down'|'neutral' } — бейдж с трендом
-*/
 function kpiCard(item) {
   var val = item.value != null ? item.value : item.total || 0
   var hasDetail = !!item.detail
@@ -2045,9 +2000,7 @@ $(document).on('input', '.col-search-input', function () {
   if ($sub.length) $sub.text('Строк: ' + visible.toLocaleString('ru-RU'))
 })
 
-// Открыть URL в новой вкладке через <a>, а не window.open:
-// jQuery-делегированные обработчики блокируются попап-блокировщиком при window.open,
-// тогда как клик по якорю всегда проходит как пользовательский жест.
+// <a>.click() вместо window.open — попап-блокировщик не режет
 function navNewTab(url) {
   var a = document.createElement('a')
   a.href = url
@@ -2058,10 +2011,7 @@ function navNewTab(url) {
   document.body.removeChild(a)
 }
 
-// Drill-down: открыть страницу детализации в новой вкладке.
-// road/station → заголовок страницы + реальные поля groupCols[0]/groupCols[last].
-// col/subs → маппятся через colDims из WAGON_TABS (synthetic=true — не передаётся).
-// extra — доп. фильтры из getParams(), не перетирают явно заданные.
+// synthetic-колонки в colDims не передаются в URL
 function openDetail(ctx, road, station, col, groupBy, subs, extra) {
   var p = new URLSearchParams()
   p.set('ctx', ctx)
