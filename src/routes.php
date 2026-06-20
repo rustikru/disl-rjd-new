@@ -22,6 +22,15 @@ return function (App $app, array $config): void {
     $app->get('/login', function ($req, $res) use ($getAuth, $config) {
         return (new \App\Controllers\AuthController($getAuth(), $config))->showLogin($req, $res);
     });
+    // Публичные маршруты
+    $app->get('/tmp/admin-mockup.html', function ($req, $res) {
+        $file = __DIR__ . '/../tmp/admin-mockup.html';
+        if (file_exists($file)) {
+            $res->getBody()->write(file_get_contents($file));
+            return $res->withHeader('Content-Type', 'text/html; charset=utf-8');
+        }
+        return $res->withStatus(404)->write('File not found');
+    });
 
     $app->post('/login', function ($req, $res) use ($getAuth, $config) {
         return (new \App\Controllers\AuthController($getAuth(), $config))->handleLogin($req, $res);
