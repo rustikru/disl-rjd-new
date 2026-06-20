@@ -46,7 +46,7 @@ $totalPages = count($pages);
     .role-custom   { background:#fbf0e3; color:#a4671b; }
 
     /* --- Таблица --- */
-    .data-table { width:auto; border-collapse:collapse; }
+    .data-table { width:100%; border-collapse:collapse; }
     .data-table th {
       padding:9px 14px;
       text-align:left;
@@ -68,98 +68,30 @@ $totalPages = count($pages);
     .data-table tbody tr:last-child td { border-bottom:none; }
     .data-table tbody tr:hover td { background:var(--hover-green,#f5f4f9); }
 
-    /* --- Инпуты в таблице --- */
-    .tbl-input {
-      border:1px solid var(--border);
-      border-radius:7px;
-      padding:5px 9px;
-      font-family:inherit;
-      font-size:13px;
-      outline:none;
-      color:var(--text-1);
-      width:100%;
-      background:transparent;
-    }
-    .tbl-input:focus { border-color:var(--accent); background:var(--surface); }
-
-    /* --- Выпадающий список разделов --- */
-    details.pg-drop { position:relative; display:inline-block; }
-    summary.pg-drop-btn {
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      padding:5px 10px;
-      border:1px solid var(--border);
-      border-radius:7px;
-      font-size:13px;
-      font-weight:500;
-      color:var(--text-1);
-      cursor:pointer;
-      list-style:none;
-      user-select:none;
-      white-space:nowrap;
-    }
-    summary.pg-drop-btn::-webkit-details-marker { display:none; }
-    summary.pg-drop-btn::marker { display:none; }
-    summary.pg-drop-btn::after { content:'▾'; font-size:11px; color:var(--text-3); }
-    details[open] summary.pg-drop-btn { border-color:var(--accent); }
-
-    .pg-drop-menu {
-      position:absolute;
-      top:calc(100% + 4px);
-      left:0;
-      min-width:180px;
-      background:var(--surface);
-      border:1px solid var(--border);
-      border-radius:9px;
-      box-shadow:0 6px 24px rgba(27,23,38,.13);
-      padding:8px 0;
-      z-index:300;
-    }
-    .pg-item {
-      display:flex;
-      align-items:center;
-      gap:9px;
-      padding:7px 14px;
-      font-size:13px;
-      color:var(--text-1);
-      cursor:pointer;
-    }
-    .pg-item:hover { background:var(--hover-green,#f5f4f9); }
-    .pg-item input { width:15px; height:15px; accent-color:var(--accent); cursor:pointer; flex-shrink:0; }
-
     /* --- Примечание ADMIN --- */
-    .admin-note {
-      font-size:12px;
-      color:var(--text-3);
-      font-style:italic;
-    }
+    .admin-note { font-size:12px; color:var(--text-3); font-style:italic; }
 
     /* --- Кнопки действий --- */
-    .actions-cell { white-space:nowrap; display:flex; gap:6px; align-items:center; }
-    .btn-save, .btn-del {
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      width:30px;
-      height:30px;
-      border:none;
-      border-radius:8px;
-      background:transparent;
-      cursor:pointer;
-      transition:background .15s, color .15s;
-      padding:0;
-      flex-shrink:0;
+    .actions-cell { white-space:nowrap; display:flex; gap:4px; align-items:center; }
+    .icon-btn {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:30px; height:30px; border:none; border-radius:8px;
+      background:transparent; cursor:pointer; color:var(--text-3);
+      transition:background .15s, color .15s; padding:0; flex-shrink:0;
     }
-    .btn-save { color:var(--brand-green,#2aa26b); }
-    .btn-save:hover { background:#e8f6ef; }
-    .btn-del  { color:var(--text-3); }
-    .btn-del:hover  { background:#fbeaea; color:var(--brand-neg,#d94040); }
+    .icon-btn--edit:hover { background:var(--hover-green); color:var(--accent); }
+    .btn-del {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:30px; height:30px; border:none; border-radius:8px;
+      background:transparent; cursor:pointer; color:var(--text-3);
+      transition:background .15s, color .15s; padding:0; flex-shrink:0;
+    }
+    .btn-del:hover { background:#fbeaea; color:var(--brand-neg,#d94040); }
 
     /* --- Модалки --- */
     .modal-wrap { position:fixed; inset:0; background:rgba(27,23,38,.45); display:none; align-items:center; justify-content:center; z-index:200; }
     .modal-wrap.open { display:flex; }
-    .modal { background:var(--surface); border-radius:14px; width:440px; max-width:92vw; overflow:hidden; box-shadow:0 24px 60px rgba(27,23,38,.25); }
+    .modal { background:var(--surface); border-radius:14px; width:520px; max-width:92vw; overflow:hidden; box-shadow:0 24px 60px rgba(27,23,38,.25); }
     .modal-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); }
     .modal-head .t { font-size:15px; font-weight:700; }
     .modal-x { cursor:pointer; color:var(--text-3); font-size:18px; line-height:1; background:none; border:none; }
@@ -167,10 +99,12 @@ $totalPages = count($pages);
     .modal-body { padding:20px; display:flex; flex-direction:column; gap:14px; }
     .fg { display:flex; flex-direction:column; gap:5px; }
     .fg label { font-size:12px; font-weight:600; color:var(--text-2); }
-    .fg input { border:1px solid var(--border); border-radius:8px; padding:8px 11px; font-family:inherit; font-size:13px; outline:none; color:var(--text-1); }
-    .fg input:focus { border-color:var(--accent); }
+    .fg input, .fg textarea { border:1px solid var(--border); border-radius:8px; padding:8px 11px; font-family:inherit; font-size:13px; outline:none; color:var(--text-1); width:100%; box-sizing:border-box; }
+    .fg input:focus, .fg textarea:focus { border-color:var(--accent); }
     .fg2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
     .modal-foot { padding:14px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px; }
+    .pg-item { display:flex; align-items:center; gap:9px; padding:6px 0; font-size:13px; color:var(--text-1); cursor:pointer; }
+    .pg-item input { width:15px; height:15px; accent-color:var(--accent); cursor:pointer; flex-shrink:0; margin:0; }
   </style>
 </head>
 <body>
@@ -204,29 +138,6 @@ $totalPages = count($pages);
       <div class="flash flash-err"><?= htmlspecialchars($flashErr) ?></div>
     <?php endif; ?>
 
-    <!--
-      Внешние формы (по одной на каждую редактируемую роль).
-      Поля таблицы ссылаются на форму через атрибут form="rf-{id}".
-    -->
-    <?php foreach ($roles as $r): ?>
-      <?php if (($r['code'] ?? '') !== 'ADMIN'): ?>
-        <form id="rf-<?= (int) $r['id'] ?>"
-              method="POST"
-              action="<?= htmlspecialchars($basePath) ?>/admin/roles/save"
-              style="display:none">
-          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-          <input type="hidden" name="role_id"    value="<?= (int) $r['id'] ?>">
-        </form>
-        <form id="rfd-<?= (int) $r['id'] ?>"
-              method="POST"
-              action="<?= htmlspecialchars($basePath) ?>/admin/roles/delete"
-              style="display:none">
-          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-          <input type="hidden" name="role_id"    value="<?= (int) $r['id'] ?>">
-        </form>
-      <?php endif; ?>
-    <?php endforeach; ?>
-
     <!-- Таблица ролей -->
     <div class="panel">
       <div class="panel-head">
@@ -236,7 +147,7 @@ $totalPages = count($pages);
         <thead>
           <tr>
             <th style="width:1%;white-space:nowrap">Код</th>
-            <th style="width:160px">Название</th>
+            <th style="width:180px">Название</th>
             <th>Описание</th>
             <th style="width:1%;white-space:nowrap">Разделы доступа</th>
             <th style="width:1%;white-space:nowrap"></th>
@@ -244,96 +155,56 @@ $totalPages = count($pages);
         </thead>
         <tbody>
           <?php foreach ($roles as $r): ?>
-            <?php $isAdmin = ($r['code'] ?? '') === 'ADMIN'; ?>
             <?php
-              // Количество доступных разделов для этой роли
-              $grantedCount = count($rolePages[(int) $r['id']] ?? []);
-              $pgSummary = $grantedCount > 0
-                ? $grantedCount . ' из ' . $totalPages
-                : 'Не выбраны';
+              $isAdmin      = ($r['code'] ?? '') === 'ADMIN';
+              $granted      = $rolePages[(int) $r['id']] ?? [];
+              $grantedLabels = array_values(array_intersect_key($pages, $granted));
+              $pgText       = $isAdmin ? 'Все' : (!empty($grantedLabels) ? implode(', ', $grantedLabels) : '—');
             ?>
             <tr>
-              <!-- Код роли -->
               <td>
                 <span class="role-badge <?= $roleClass($r['code'] ?? null) ?>">
                   <?= htmlspecialchars($r['code'] ?? '') ?>
                 </span>
               </td>
-
-              <!-- Название -->
-              <td>
-                <?php if ($isAdmin): ?>
-                  <span style="font-weight:600"><?= htmlspecialchars($r['name']) ?></span>
-                <?php else: ?>
-                  <input class="tbl-input"
-                         name="name"
-                         value="<?= htmlspecialchars($r['name']) ?>"
-                         placeholder="Название"
-                         form="rf-<?= (int) $r['id'] ?>">
-                <?php endif; ?>
+              <td style="font-weight:<?= $isAdmin ? '600' : '500' ?>">
+                <?= htmlspecialchars($r['name']) ?>
               </td>
-
-              <!-- Описание -->
-              <td style="min-width:200px">
+              <td>
                 <?php if ($isAdmin): ?>
                   <span class="admin-note">Полный доступ ко всем разделам</span>
                 <?php else: ?>
-                  <textarea class="tbl-input"
-                            name="description"
-                            placeholder="Описание"
-                            rows="2"
-                            style="resize:vertical;min-height:36px;vertical-align:top"
-                            form="rf-<?= (int) $r['id'] ?>"><?= htmlspecialchars($r['description'] ?? '') ?></textarea>
+                  <span style="color:var(--text-2)"><?= htmlspecialchars($r['description'] ?? '') ?: '<span class="admin-note">—</span>' ?></span>
                 <?php endif; ?>
               </td>
-
-              <!-- Разделы доступа -->
-              <td>
-                <?php if ($isAdmin): ?>
-                  <span class="admin-note">Все</span>
-                <?php else: ?>
-                  <details class="pg-drop" id="pgd-<?= (int) $r['id'] ?>">
-                    <summary class="pg-drop-btn" id="pgds-<?= (int) $r['id'] ?>">
-                      <?= htmlspecialchars($pgSummary) ?>
-                    </summary>
-                    <div class="pg-drop-menu" id="pgdm-<?= (int) $r['id'] ?>">
-                      <?php foreach ($pages as $code => $label): ?>
-                        <label class="pg-item">
-                          <input type="checkbox"
-                                 name="pages[]"
-                                 value="<?= htmlspecialchars($code) ?>"
-                                 form="rf-<?= (int) $r['id'] ?>"
-                                 data-summary="pgds-<?= (int) $r['id'] ?>"
-                                 data-total="<?= $totalPages ?>"
-                                 data-menu="pgdm-<?= (int) $r['id'] ?>"
-                                 <?= !empty($rolePages[(int) $r['id']][$code]) ? 'checked' : '' ?>>
-                          <?= htmlspecialchars($label) ?>
-                        </label>
-                      <?php endforeach; ?>
-                    </div>
-                  </details>
-                <?php endif; ?>
+              <td style="color:var(--text-2); white-space:nowrap">
+                <?= htmlspecialchars($pgText) ?>
               </td>
-
-              <!-- Действия -->
               <td>
                 <?php if (!$isAdmin): ?>
                   <div class="actions-cell">
-                    <button type="submit" class="btn-save"
-                            form="rf-<?= (int) $r['id'] ?>" title="Сохранить">
-                      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5 8 5.5 11.5 12.5 3.5"/></svg>
-                    </button>
-                    <button type="submit"
-                            class="btn-del"
-                            form="rfd-<?= (int) $r['id'] ?>"
-                            title="Удалить роль"
-                            onclick="return confirm('Удалить роль «<?= htmlspecialchars(addslashes($r['name']), ENT_QUOTES) ?>»?')">
-                      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="1 3.5 14 3.5"/>
-                        <path d="M5 3.5V2.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v1"/>
-                        <path d="M2.5 3.5l.9 9a1 1 0 0 0 1 .9h6.2a1 1 0 0 0 1-.9l.9-9"/>
+                    <button type="button"
+                            class="icon-btn icon-btn--edit"
+                            title="Редактировать"
+                            onclick="openEditRole(<?= (int) $r['id'] ?>, '<?= htmlspecialchars(addslashes($r['name']), ENT_QUOTES) ?>', '<?= htmlspecialchars(addslashes($r['description'] ?? ''), ENT_QUOTES) ?>', <?= json_encode(array_keys($granted), JSON_UNESCAPED_UNICODE) ?>)">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9.5 1.5a1.414 1.414 0 0 1 2 2L4 11l-3 1 1-3Z"/>
                       </svg>
                     </button>
+                    <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/roles/delete" style="display:inline-flex">
+                      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+                      <input type="hidden" name="role_id"    value="<?= (int) $r['id'] ?>">
+                      <button type="submit"
+                              class="btn-del"
+                              title="Удалить роль"
+                              onclick="return confirm('Удалить роль «<?= htmlspecialchars(addslashes($r['name']), ENT_QUOTES) ?>»?')">
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="1 3.5 14 3.5"/>
+                          <path d="M5 3.5V2.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v1"/>
+                          <path d="M2.5 3.5l.9 9a1 1 0 0 0 1 .9h6.2a1 1 0 0 0 1-.9l.9-9"/>
+                        </svg>
+                      </button>
+                    </form>
                   </div>
                 <?php endif; ?>
               </td>
@@ -344,6 +215,43 @@ $totalPages = count($pages);
     </div>
 
   </main>
+</div>
+
+<!-- Модалка: редактировать роль -->
+<div class="modal-wrap" id="editRoleModal">
+  <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/roles/save" class="modal">
+    <div class="modal-head">
+      <span class="t">Редактирование роли</span>
+      <button type="button" class="modal-x" onclick="closeModal('editRoleModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+      <input type="hidden" name="role_id" id="erRoleId" value="">
+      <div class="fg">
+        <label>Название</label>
+        <input type="text" id="erName" name="name" required>
+      </div>
+      <div class="fg">
+        <label>Описание</label>
+        <textarea id="erDesc" name="description" rows="3" style="resize:vertical"></textarea>
+      </div>
+      <div class="fg">
+        <label>Разделы доступа</label>
+        <div id="erPages" style="display:flex;flex-direction:column;gap:2px;margin-top:2px">
+          <?php foreach ($pages as $code => $label): ?>
+            <label class="pg-item">
+              <input type="checkbox" name="pages[]" value="<?= htmlspecialchars($code) ?>" id="erPage-<?= htmlspecialchars($code) ?>">
+              <?= htmlspecialchars($label) ?>
+            </label>
+          <?php endforeach; ?>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('editRoleModal')">Отмена</button>
+      <button type="submit" class="btn btn-primary">Сохранить</button>
+    </div>
+  </form>
 </div>
 
 <!-- Модалка: добавить роль -->
@@ -408,54 +316,16 @@ $totalPages = count($pages);
     }
   })
 
-  /* --- Выпадающий список разделов: position:fixed чтобы не обрезался --- */
-  var drops = document.querySelectorAll('details.pg-drop')
-  for (var d = 0; d < drops.length; d++) {
-    (function (picker) {
-      var menuId = picker.id.replace('pgd-', 'pgdm-')
-      var drop   = document.getElementById(menuId)
-      if (!drop) return
-      picker.addEventListener('toggle', function () {
-        if (picker.open) {
-          var r = picker.getBoundingClientRect()
-          drop.style.position = 'fixed'
-          drop.style.top      = (r.bottom + 4) + 'px'
-          drop.style.left     = r.left + 'px'
-          drop.style.minWidth = Math.max(r.width, 180) + 'px'
-          drop.style.zIndex   = '500'
-        } else {
-          drop.style.cssText = ''
-        }
-      })
-    })(drops[d])
-  }
-
-  /* --- Закрытие dropdown при клике вне --- */
-  document.addEventListener('click', function (e) {
-    for (var d = 0; d < drops.length; d++) {
-      if (drops[d].open && !drops[d].contains(e.target)) {
-        drops[d].removeAttribute('open')
-      }
+  /* --- Открыть модалку редактирования роли --- */
+  function openEditRole(id, name, desc, grantedPages) {
+    document.getElementById('erRoleId').value = id
+    document.getElementById('erName').value   = name
+    document.getElementById('erDesc').value   = desc
+    var boxes = document.querySelectorAll('#erPages input[type="checkbox"]')
+    for (var i = 0; i < boxes.length; i++) {
+      boxes[i].checked = grantedPages.indexOf(boxes[i].value) !== -1
     }
-  })
-
-  /* --- Обновление счётчика разделов в summary при изменении чекбоксов --- */
-  var boxes = document.querySelectorAll('.pg-drop-menu input[type="checkbox"]')
-  for (var b = 0; b < boxes.length; b++) {
-    boxes[b].addEventListener('change', function () {
-      var summId = this.getAttribute('data-summary')
-      var menuId = this.getAttribute('data-menu')
-      var total  = parseInt(this.getAttribute('data-total'), 10)
-      var summ   = document.getElementById(summId)
-      var menu   = document.getElementById(menuId)
-      if (!summ || !menu) return
-      var all     = menu.querySelectorAll('input[type="checkbox"]')
-      var checked = 0
-      for (var k = 0; k < all.length; k++) {
-        if (all[k].checked) checked++
-      }
-      summ.textContent = checked > 0 ? (checked + ' из ' + total) : 'Не выбраны'
-    })
+    openModal('editRoleModal')
   }
 </script>
 
