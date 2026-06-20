@@ -9,14 +9,6 @@
 /** @var string  $csrf */
 $basePath = $basePath ?? '';
 
-// Боковое меню — раздел администрирования
-$navGroups = [
-    ['label' => 'Администрирование', 'items' => [
-        ['label' => 'Пользователи', 'url' => $basePath . '/admin/users', 'active' => true],
-        ['label' => 'Роли',         'url' => $basePath . '/admin/roles'],
-    ]],
-];
-
 // Инициалы для аватара
 $initials = function (string $name) {
     $parts = preg_split('/\s+/', trim($name));
@@ -146,17 +138,7 @@ $roleClass = function (?string $code) {
 
 <div class="app-body">
 
-  <aside class="sidebar">
-    <?php foreach ($navGroups as $group): ?>
-      <div class="nav-group">
-        <span class="nav-group-label"><?= htmlspecialchars($group['label']) ?></span>
-        <?php foreach ($group['items'] as $item): ?>
-          <a class="nav-item<?= !empty($item['active']) ? ' active' : '' ?>"
-             href="<?= htmlspecialchars($item['url']) ?>"><?= htmlspecialchars($item['label']) ?></a>
-        <?php endforeach; ?>
-      </div>
-    <?php endforeach; ?>
-  </aside>
+  <?php $activeAdminPage = 'users'; include __DIR__ . '/../partials/admin-sidebar.php'; ?>
 
   <main class="main-content">
 

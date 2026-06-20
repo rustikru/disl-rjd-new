@@ -10,14 +10,6 @@
 /** @var string  $csrf */
 $basePath = $basePath ?? '';
 
-// Боковое меню — раздел администрирования
-$navGroups = [
-    ['label' => 'Администрирование', 'items' => [
-        ['label' => 'Пользователи', 'url' => $basePath . '/admin/users'],
-        ['label' => 'Роли',         'url' => $basePath . '/admin/roles', 'active' => true],
-    ]],
-];
-
 // CSS-класс бейджа по коду роли
 $roleClass = function (?string $code) {
     switch ($code) {
@@ -182,17 +174,7 @@ $totalPages = count($pages);
 
 <div class="app-body">
 
-  <aside class="sidebar">
-    <?php foreach ($navGroups as $group): ?>
-      <div class="nav-group">
-        <span class="nav-group-label"><?= htmlspecialchars($group['label']) ?></span>
-        <?php foreach ($group['items'] as $item): ?>
-          <a class="nav-item<?= !empty($item['active']) ? ' active' : '' ?>"
-             href="<?= htmlspecialchars($item['url']) ?>"><?= htmlspecialchars($item['label']) ?></a>
-        <?php endforeach; ?>
-      </div>
-    <?php endforeach; ?>
-  </aside>
+  <?php $activeAdminPage = 'roles'; include __DIR__ . '/../partials/admin-sidebar.php'; ?>
 
   <main class="main-content">
 
