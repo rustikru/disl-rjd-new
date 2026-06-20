@@ -2132,6 +2132,24 @@ $(function () {
 
   var hasDashboard = window.APP_IS_ADMIN || ALLOWED_PAGES.indexOf('dashboard') !== -1
 
+  // Если дашборд недоступен — скрываем все панели и показываем заглушку
+  if (!hasDashboard) {
+    var allPanels = document.querySelectorAll('.tab-panel')
+    for (var pi = 0; pi < allPanels.length; pi++) {
+      allPanels[pi].style.display = 'none'
+    }
+    var mainContent = document.querySelector('.main-content')
+    if (mainContent) {
+      var noAccess = document.createElement('div')
+      noAccess.style.cssText = 'padding:80px 24px;text-align:center;color:#888;font-size:16px'
+      noAccess.innerHTML =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="margin-bottom:16px;opacity:.35"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/><path stroke-width="2" d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>' +
+        '<div style="font-weight:600;font-size:18px;margin-bottom:8px;color:#555">Нет доступных разделов</div>' +
+        '<div>Обратитесь к администратору для получения доступа</div>'
+      mainContent.appendChild(noAccess)
+    }
+  }
+
   // Восстанавливаем активную вкладку из URL hash (при возврате с детализации)
   var hashTab = (location.hash || '').replace('#', '')
   var startTab =
