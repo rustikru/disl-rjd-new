@@ -15,7 +15,7 @@ $basePath = $basePath ?? '';
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
   <script>
     window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
-    window.APP_IS_ADMIN = <?= (($user['role_code'] ?? '') === 'ADMIN') ? 'true' : 'false' ?>;
+    window.APP_IS_ADMIN = <?= !empty($user['is_admin']) ? 'true' : 'false' ?>;
   </script>
 </head>
 
