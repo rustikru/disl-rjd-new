@@ -61,14 +61,27 @@ class OracleDb implements DbInterface
         }
 
         $stmt = oci_parse($this->connection, $sql);
+        if (!$stmt) {
+            $err = oci_error($this->connection);
+            throw new \RuntimeException('Oracle oci_parse: ' . ($err['message'] ?? 'unknown error'));
+        }
         $binds = $params;
 
         foreach (array_keys($binds) as $key) {
             $bindKey = ':' . ltrim((string) $key, ':');
-            oci_bind_by_name($stmt, $bindKey, $binds[$key]);
+            if ($binds[$key] === null) {
+                oci_bind_by_name($stmt, $bindKey, $binds[$key], 4000, SQLT_CHR);
+            } else {
+                oci_bind_by_name($stmt, $bindKey, $binds[$key]);
+            }
         }
 
-        oci_execute($stmt, OCI_DEFAULT);
+        $ok = oci_execute($stmt, OCI_DEFAULT);
+        if (!$ok) {
+            $err = oci_error($stmt);
+            oci_free_statement($stmt);
+            throw new \RuntimeException('Oracle fetchAll: ' . ($err['message'] ?? 'unknown error'));
+        }
 
         $rows = [];
         while ($row = oci_fetch_assoc($stmt)) {
@@ -88,15 +101,30 @@ class OracleDb implements DbInterface
     public function execute(string $sql, array $params = []): int
     {
         $stmt = oci_parse($this->connection, $sql);
+        if (!$stmt) {
+            $err = oci_error($this->connection);
+            throw new \RuntimeException('Oracle oci_parse: ' . ($err['message'] ?? 'unknown error'));
+        }
         $binds = $params;
 
         foreach (array_keys($binds) as $key) {
             $bindKey = ':' . ltrim((string) $key, ':');
-            oci_bind_by_name($stmt, $bindKey, $binds[$key]);
+            // NULL-значение: OCI8 не может определить длину по умолчанию (-1),
+            // поэтому явно указываем SQLT_CHR с ограничением 4000.
+            if ($binds[$key] === null) {
+                oci_bind_by_name($stmt, $bindKey, $binds[$key], 4000, SQLT_CHR);
+            } else {
+                oci_bind_by_name($stmt, $bindKey, $binds[$key]);
+            }
         }
 
         $mode = $this->inTransaction ? OCI_NO_AUTO_COMMIT : OCI_COMMIT_ON_SUCCESS;
-        oci_execute($stmt, $mode);
+        $ok = oci_execute($stmt, $mode);
+        if (!$ok) {
+            $err = oci_error($stmt);
+            oci_free_statement($stmt);
+            throw new \RuntimeException('Oracle execute: ' . ($err['message'] ?? 'unknown error'));
+        }
         $count = oci_num_rows($stmt);
         oci_free_statement($stmt);
 
