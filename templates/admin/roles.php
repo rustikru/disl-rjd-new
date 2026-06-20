@@ -186,7 +186,7 @@ $totalPages = count($pages);
                     <button type="button"
                             class="icon-btn icon-btn--edit"
                             title="Редактировать"
-                            onclick="openEditRole(<?= (int) $r['id'] ?>, '<?= htmlspecialchars(addslashes($r['name']), ENT_QUOTES) ?>', '<?= htmlspecialchars(addslashes($r['description'] ?? ''), ENT_QUOTES) ?>', <?= json_encode(array_keys($granted), JSON_UNESCAPED_UNICODE) ?>)">
+                            onclick="openEditRole(<?= (int) $r['id'] ?>, '<?= htmlspecialchars(addslashes($r['name']), ENT_QUOTES) ?>', '<?= htmlspecialchars(addslashes($r['description'] ?? ''), ENT_QUOTES) ?>', <?= htmlspecialchars(json_encode(array_keys($granted), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>)">
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M9.5 1.5a1.414 1.414 0 0 1 2 2L4 11l-3 1 1-3Z"/>
                       </svg>
