@@ -69,7 +69,8 @@ class PageAccessMiddleware implements MiddlewareInterface
         $path = '/' . ltrim($path, '/');
 
         if ($path === '/' || $path === '' || $path === '/detail') {
-            return 'dashboard';
+            // главная всегда доступна — вкладки фильтрует клиент, данные защищены через /api
+            return null;
         }
         if (str_starts_with($path, '/admin')) {
             return 'admin';
