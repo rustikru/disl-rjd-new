@@ -26,6 +26,7 @@ class DashboardController
         $user     = $_SESSION['user'];
 
         $allowedPages = $this->resolveAllowedPages($user);
+        $navConfig    = require __DIR__ . '/../Navigation.php';
 
         ob_start();
         require __DIR__ . '/../../templates/app.php';

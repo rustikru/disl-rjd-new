@@ -4,10 +4,11 @@
  * Переменные из вызывающего шаблона:
  *   $basePath         (string) — базовый путь
  *   $activeAdminPage  (string) — ключ активной страницы: 'users' | 'roles' | ...
+ *
+ * Для добавления нового пункта admin-меню — добавить строку в $adminNavItems ниже.
  */
 $activeAdminPage = $activeAdminPage ?? '';
 
-// Чтобы добавить новый пункт — достаточно добавить строку здесь
 $adminNavItems = [
     ['key' => 'users', 'label' => 'Пользователи', 'url' => $basePath . '/admin/users'],
     ['key' => 'roles', 'label' => 'Роли',         'url' => $basePath . '/admin/roles'],

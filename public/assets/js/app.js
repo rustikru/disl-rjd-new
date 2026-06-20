@@ -1,58 +1,33 @@
 'use strict'
 
-var BASE = window.APP_BASE || ''
-
-// Список страниц, доступных текущему пользователю (передаётся с сервера)
+var BASE          = window.APP_BASE || ''
 var ALLOWED_PAGES = window.APP_ALLOWED_PAGES || []
 
-// Проверка доступа к вкладке:
-// если у вкладки нет свойства page — она всегда видна (внутренняя панель dashboard)
-// если есть — проверяем наличие в ALLOWED_PAGES (или что пользователь Admin)
+// Проверка доступа к вкладке по коду страницы (page из Navigation.php)
 function canSeeTab(tab) {
   if (!tab.page) return true
   if (window.APP_IS_ADMIN) return true
   return ALLOWED_PAGES.indexOf(tab.page) !== -1
 }
 
-// навигация (Боковое меню)
-// page: 'maps'   → скрывается, если роль не имеет доступа к разделу "Карта"
-// page: 'import' → скрывается, если роль не имеет доступа к разделу "Загрузка справок"
-var TAB_GROUPS = [
-  {
-    label: 'Движение вагонов',
-    tabs: [
-      { id: 'dislocation', label: 'Дислокация' },
-      { id: 'approach', label: 'Подход вагонов' },
-      { id: 'departure', label: 'Отправление вагонов' },
-      { id: 'loading', label: 'Погрузка' },
-      { id: 'raw-material', label: 'Сырьё' },
-    ],
-  },
-  {
-    label: 'Аналитика',
-    tabs: [
-      { id: 'analysis-period', label: 'Анализ данных за период' },
-      { id: 'maps', label: 'Карта', url: BASE + '/maps', target: '_blank', page: 'maps' },
-    ],
-  },
-  {
-    label: 'Простои и оборот',
-    tabs: [{ id: 'downtime', label: 'Простои' }],
-  },
-  {
-    label: 'Импорт',
-    tabs: [
-      {
-        id: 'import',
-        label: ' Загрузка справки РЖД ',
-        url: BASE + '/import',
-        page: 'import',
-      },
-    ],
-  },
-]
+// Навигация строится из APP_NAV_CONFIG, который экспортирует DashboardController
+// из единственного источника — src/Navigation.php
+var TAB_GROUPS = (window.APP_NAV_CONFIG || []).map(function (group) {
+  return {
+    label: group.group,
+    tabs: group.items.map(function (item) {
+      return {
+        id:     item.id,
+        label:  item.label,
+        page:   item.page   || null,
+        url:    item.url    ? (BASE + item.url) : null,
+        target: item.target || null,
+      }
+    }),
+  }
+})
 
-// Раздел администрирования виден только пользователю с ролью ADMIN
+// Раздел администрирования — только для роли ADMIN
 if (window.APP_IS_ADMIN) {
   TAB_GROUPS.push({
     label: 'Администрирование',
