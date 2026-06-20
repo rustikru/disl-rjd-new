@@ -2132,7 +2132,7 @@ $(function () {
 
   var hasDashboard = window.APP_IS_ADMIN || ALLOWED_PAGES.indexOf('dashboard') !== -1
 
-  // Если дашборд недоступен — скрываем все панели и показываем заглушку
+  // Если дашборд недоступен — скрываем все его панели и показываем заглушку
   if (!hasDashboard) {
     var allPanels = document.querySelectorAll('.tab-panel')
     for (var pi = 0; pi < allPanels.length; pi++) {
@@ -2142,10 +2142,19 @@ $(function () {
     if (mainContent) {
       var noAccess = document.createElement('div')
       noAccess.style.cssText = 'padding:80px 24px;text-align:center;color:#888;font-size:16px'
-      noAccess.innerHTML =
-        '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="margin-bottom:16px;opacity:.35"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/><path stroke-width="2" d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>' +
-        '<div style="font-weight:600;font-size:18px;margin-bottom:8px;color:#555">Нет доступных разделов</div>' +
-        '<div>Обратитесь к администратору для получения доступа</div>'
+      if (ALLOWED_PAGES.length === 0) {
+        // Совсем нет ролей
+        noAccess.innerHTML =
+          '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="margin-bottom:16px;opacity:.35"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/><path stroke-width="2" d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>' +
+          '<div style="font-weight:600;font-size:18px;margin-bottom:8px;color:#555">Нет доступных разделов</div>' +
+          '<div>Обратитесь к администратору для получения доступа</div>'
+      } else {
+        // Есть роли, но не дашборд — выбрать раздел из меню
+        noAccess.innerHTML =
+          '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="margin-bottom:16px;opacity:.35"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"/></svg>' +
+          '<div style="font-weight:600;font-size:18px;margin-bottom:8px;color:#555">Выберите раздел</div>' +
+          '<div>Используйте меню навигации слева</div>'
+      }
       mainContent.appendChild(noAccess)
     }
   }
