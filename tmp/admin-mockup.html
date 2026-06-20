@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Администрирование — Дислокация РЖД</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent:      #6B4EFF;
+      --accent-lt:   #EDE9FF;
+      --surface:     #FFFFFF;
+      --bg:          #F5F4F8;
+      --border:      #E2E1E7;
+      --text-1:      #1C1B2E;
+      --text-2:      #5C5B70;
+      --text-3:      #9B9AAD;
+      --hover-green: #F0EEF8;
+      --header-h:    56px;
+      --red:         #E8392A;
+      --red-lt:      #FEECEC;
+      --green:       #16A34A;
+      --green-lt:    #ECFDF5;
+      --yellow-lt:   #FFFBEB;
+      --yellow:      #D97706;
+    }
+
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text-1); font-size: 13px; }
+
+    /* HEADER */
+    .site-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      height: var(--header-h);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header-inner {
+      height: 100%; padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-icon { font-size: 22px; }
+    .brand-name { font-size: 15px; font-weight: 700; color: var(--text-1); }
+    .brand-sub  { font-size: 11px; color: var(--accent); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+    .user-info {
+      display: flex; align-items: center; gap: 4px;
+      background: var(--hover-green); border-radius: 99px; padding: 4px 6px 4px 4px;
+    }
+    .user-name { font-size: 13px; color: var(--accent); font-weight: 700; padding: 0 8px; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; border: none; cursor: pointer; transition: background .15s, color .15s; text-decoration: none; }
+    .btn-ghost { background: none; color: var(--text-2); }
+    .btn-ghost:hover { background: var(--hover-green); color: var(--accent); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #5840e0; }
+    .btn-sm { padding: 4px 12px; font-size: 12px; border-radius: 99px; }
+    .btn-danger { background: var(--red-lt); color: var(--red); }
+    .btn-danger:hover { background: #fecaca; }
+
+    /* LAYOUT */
+    .page-body { display: flex; min-height: calc(100vh - var(--header-h)); }
+    .sidebar {
+      width: 200px; flex-shrink: 0;
+      background: var(--surface); border-right: 1px solid var(--border);
+      padding: 16px 10px;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .nav-group-label { font-size: 10px; font-weight: 700; color: var(--text-3); letter-spacing: .08em; text-transform: uppercase; padding: 10px 8px 4px; }
+    .nav-item {
+      display: flex; align-items: center;
+      padding: 7px 10px; border-radius: 6px; cursor: pointer;
+      font-size: 13px; color: var(--text-2); border: none; background: none; width: 100%; text-align: left;
+      transition: background .12s, color .12s;
+      border-left: 2px solid transparent;
+    }
+    .nav-item:hover { background: var(--hover-green); color: var(--text-1); }
+    .nav-item.active { background: var(--accent-lt); color: var(--accent); font-weight: 600; border-left-color: var(--accent); }
+
+    /* MAIN */
+    .main { flex: 1; padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
+
+    /* STATS ROW */
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 16px 20px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .stat-label { font-size: 11px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+    .stat-value { font-size: 26px; font-weight: 700; color: var(--text-1); line-height: 1; }
+    .stat-sub { font-size: 11px; color: var(--text-3); }
+    .stat-badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+    .badge-green { background: var(--green-lt); color: var(--green); }
+    .badge-red   { background: var(--red-lt);   color: var(--red); }
+    .badge-gray  { background: var(--hover-green); color: var(--text-2); }
+    .badge-yellow{ background: var(--yellow-lt); color: var(--yellow); }
+
+    /* TABLE SECTION */
+    .table-section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .table-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+    }
+    .table-title { font-size: 14px; font-weight: 600; color: var(--text-1); }
+    .table-acts { display: flex; gap: 8px; align-items: center; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 700;
+      color: var(--text-3); text-transform: uppercase; letter-spacing: .05em;
+      border-bottom: 1px solid var(--border); background: var(--bg);
+    }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--text-1); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--hover-green); }
+
+    .user-avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--accent-lt); color: var(--accent);
+      font-size: 12px; font-weight: 700;
+      display: inline-flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .user-cell { display: flex; align-items: center; gap: 10px; }
+    .user-cell-name { font-weight: 600; font-size: 13px; }
+    .user-cell-login { font-size: 11px; color: var(--text-3); }
+
+    .role-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 600;
+    }
+    .role-admin   { background: #EDE9FF; color: #5840e0; }
+    .role-operator{ background: #E0F2FE; color: #0369A1; }
+    .role-viewer  { background: var(--hover-green); color: var(--text-2); }
+
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    .dot-active   { background: var(--green); }
+    .dot-inactive { background: var(--text-3); }
+
+    /* SELECT ROLE */
+    .role-select {
+      border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px;
+      font-size: 12px; color: var(--text-1); background: var(--surface); cursor: pointer;
+      outline: none;
+    }
+    .role-select:focus { border-color: var(--accent); }
+
+    /* MODAL OVERLAY (static preview) */
+    .modal-preview {
+      position: fixed; inset: 0; background: rgba(0,0,0,.35);
+      display: flex; align-items: center; justify-content: center; z-index: 200;
+    }
+    .modal {
+      background: var(--surface); border-radius: 12px; width: 420px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.18); overflow: hidden;
+    }
+    .modal-header {
+      padding: 18px 22px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-title { font-size: 15px; font-weight: 700; }
+    .modal-close { background: none; border: none; font-size: 18px; color: var(--text-3); cursor: pointer; line-height: 1; }
+    .modal-close:hover { color: var(--text-1); }
+    .modal-body { padding: 22px; display: flex; flex-direction: column; gap: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-label { font-size: 12px; font-weight: 600; color: var(--text-2); }
+    .form-input {
+      border: 1px solid var(--border); border-radius: 7px; padding: 8px 12px;
+      font-size: 13px; outline: none; color: var(--text-1);
+    }
+    .form-input:focus { border-color: var(--accent); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-footer {
+      padding: 14px 22px; border-top: 1px solid var(--border);
+      display: flex; justify-content: flex-end; gap: 8px;
+    }
+
+    /* toggle modal */
+    #toggleModal { display: none; }
+    #toggleModal:checked ~ .modal-preview { display: flex; }
+    .modal-preview { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-icon">⬡</div>
+      <div>
+        <div class="brand-name">АО Метафракс Кемикалс</div>
+        <div class="brand-sub">Администрирование</div>
+      </div>
+    </div>
+    <div class="user-info">
+      <span class="user-name">Администратор</span>
+      <button class="btn btn-ghost btn-sm">Выйти</button>
+    </div>
+  </div>
+</header>
+
+<div class="page-body">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="nav-group-label">Система</div>
+    <button class="nav-item active">Пользователи</button>
+    <button class="nav-item">Роли и права</button>
+    <button class="nav-item">Журнал входов</button>
+    <div class="nav-group-label">Данные</div>
+    <button class="nav-item">Справки РЖД</button>
+    <button class="nav-item">Настройки</button>
+    <div style="flex:1"></div>
+    <a href="/" class="nav-item" style="color:var(--text-3)">← К приложению</a>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- STATS -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Всего пользователей</div>
+        <div class="stat-value">8</div>
+        <div class="stat-sub"><span class="stat-badge badge-green">6 активных</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Администраторы</div>
+        <div class="stat-value">2</div>
+        <div class="stat-sub"><span class="stat-badge badge-gray">полный доступ</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Операторы</div>
+        <div class="stat-value">3</div>
+        <div class="stat-sub"><span class="stat-badge badge-yellow">импорт разрешён</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Наблюдатели</div>
+        <div class="stat-value">3</div>
+        <div class="stat-sub"><span class="stat-badge badge-gray">только просмотр</span></div>
+      </div>
+    </div>
+
+    <!-- USERS TABLE -->
+    <div class="table-section">
+      <div class="table-toolbar">
+        <span class="table-title">Пользователи</span>
+        <div class="table-acts">
+          <input style="border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;outline:none;color:var(--text-1)" placeholder="Поиск...">
+          <!-- кнопка открывает модальное окно -->
+          <label for="toggleModal" class="btn btn-primary btn-sm" style="cursor:pointer">+ Добавить</label>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Пользователь</th>
+            <th>Роль</th>
+            <th>Последний вход</th>
+            <th>Статус</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="user-cell"><div class="user-avatar">АД</div><div><div class="user-cell-name">Антонов Дмитрий</div><div class="user-cell-login">antonov_d</div></div></div></td>
+            <td><span class="role-badge role-admin">⬡ Администратор</span></td>
+            <td>20.06.2026, 09:14</td>
+            <td><span class="status-dot dot-active"></span>Активен</td>
+            <td><button class="btn btn-ghost btn-sm">Изменить</button></td>
+          </tr>
+          <tr>
+            <td><div class="user-cell"><div class="user-avatar" style="background:#E0F2FE;color:#0369A1">КИ</div><div><div class="user-cell-name">Климова Ирина</div><div class="user-cell-login">klimova_i</div></div></div></td>
+            <td><span class="role-badge role-operator">◈ Оператор</span></td>
+            <td>20.06.2026, 08:51</td>
+            <td><span class="status-dot dot-active"></span>Активен</td>
+            <td><button class="btn btn-ghost btn-sm">Изменить</button></td>
+          </tr>
+          <tr>
+            <td><div class="user-cell"><div class="user-avatar" style="background:#ECFDF5;color:#16A34A">ПС</div><div><div class="user-cell-name">Петров Сергей</div><div class="user-cell-login">petrov_s</div></div></div></td>
+            <td><span class="role-badge role-operator">◈ Оператор</span></td>
+            <td>19.06.2026, 17:22</td>
+            <td><span class="status-dot dot-active"></span>Активен</td>
+            <td><button class="btn btn-ghost btn-sm">Изменить</button></td>
+          </tr>
+          <tr>
+            <td><div class="user-cell"><div class="user-avatar" style="background:var(--hover-green);color:var(--text-2)">МА</div><div><div class="user-cell-name">Морозова Анна</div><div class="user-cell-login">morozova_a</div></div></div></td>
+            <td><span class="role-badge role-viewer">○ Наблюдатель</span></td>
+            <td>18.06.2026, 11:05</td>
+            <td><span class="status-dot dot-active"></span>Активен</td>
+            <td><button class="btn btn-ghost btn-sm">Изменить</button></td>
+          </tr>
+          <tr>
+            <td><div class="user-cell"><div class="user-avatar" style="background:var(--hover-green);color:var(--text-2)">ВН</div><div><div class="user-cell-name">Васильев Николай</div><div class="user-cell-login">vasiliev_n</div></div></div></td>
+            <td>
+              <select class="role-select">
+                <option>Наблюдатель</option>
+                <option>Оператор</option>
+                <option>Администратор</option>
+              </select>
+            </td>
+            <td>15.06.2026, 14:38</td>
+            <td><span class="status-dot dot-inactive"></span><span style="color:var(--text-3)">Неактивен</span></td>
+            <td>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-primary btn-sm">Сохранить</button>
+                <button class="btn btn-ghost btn-sm">Отмена</button>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td><div class="user-cell"><div class="user-avatar" style="background:var(--red-lt);color:var(--red)">ЗЕ</div><div><div class="user-cell-name">Зайцева Елена</div><div class="user-cell-login">zaitseva_e</div></div></div></td>
+            <td><span class="role-badge role-viewer">○ Наблюдатель</span></td>
+            <td>—</td>
+            <td><span class="status-dot dot-inactive"></span><span style="color:var(--text-3)">Заблокирован</span></td>
+            <td>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-ghost btn-sm">Изменить</button>
+                <button class="btn btn-danger btn-sm">Разблокировать</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL: добавить пользователя (показывается по клику на + Добавить) -->
+<input type="checkbox" id="toggleModal" style="display:none">
+<div class="modal-preview" onclick="document.getElementById('toggleModal').checked=false">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">Новый пользователь</span>
+      <label for="toggleModal" class="modal-close">✕</label>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Имя</label>
+          <input class="form-input" placeholder="Иван">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Фамилия</label>
+          <input class="form-input" placeholder="Иванов">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Логин (AD / LDAP)</label>
+        <input class="form-input" placeholder="ivanov_i">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Роль</label>
+        <select class="form-input" style="cursor:pointer">
+          <option>Наблюдатель — только просмотр</option>
+          <option>Оператор — просмотр + импорт справок</option>
+          <option>Администратор — полный доступ</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <label for="toggleModal" class="btn btn-ghost">Отмена</label>
+      <button class="btn btn-primary">Создать пользователя</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
