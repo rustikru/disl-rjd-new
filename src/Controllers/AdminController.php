@@ -267,23 +267,39 @@ class AdminController
         }
 
         $userId      = (int) ($body['user_id'] ?? 0);
+        $username    = trim((string) ($body['username'] ?? ''));
         $displayName = trim((string) ($body['display_name'] ?? ''));
         $email       = trim((string) ($body['email'] ?? ''));
         $password    = (string) ($body['password'] ?? '');
 
-        if ($userId <= 0 || $displayName === '') {
-            return $this->redirect($response, '/admin/users?err=' . urlencode('Укажите имя пользователя'));
+        if ($userId <= 0 || $username === '' || $displayName === '') {
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Укажите логин и имя пользователя'));
         }
 
+        $conflict = $this->db->fetchOne(
+            'SELECT id FROM xx_rjd_users WHERE username = :username AND id != :id',
+            ['username' => $username, 'id' => $userId]
+        );
+        if ($conflict) {
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Пользователь с таким логином уже существует'));
+        }
+
+        $bindings = [
+            'username'     => $username,
+            'display_name' => $displayName,
+            'email'        => $email !== '' ? $email : null,
+            'id'           => $userId,
+        ];
         if ($password !== '') {
+            $bindings['hash'] = password_hash($password, PASSWORD_BCRYPT);
             $this->db->execute(
-                'UPDATE xx_rjd_users SET display_name = :display_name, email = :email, password_hash = :hash WHERE id = :id',
-                ['display_name' => $displayName, 'email' => $email !== '' ? $email : null, 'hash' => password_hash($password, PASSWORD_BCRYPT), 'id' => $userId]
+                'UPDATE xx_rjd_users SET username = :username, display_name = :display_name, email = :email, password_hash = :hash WHERE id = :id',
+                $bindings
             );
         } else {
             $this->db->execute(
-                'UPDATE xx_rjd_users SET display_name = :display_name, email = :email WHERE id = :id',
-                ['display_name' => $displayName, 'email' => $email !== '' ? $email : null, 'id' => $userId]
+                'UPDATE xx_rjd_users SET username = :username, display_name = :display_name, email = :email WHERE id = :id',
+                $bindings
             );
         }
 

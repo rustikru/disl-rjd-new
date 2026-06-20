@@ -90,41 +90,6 @@ $roleClass = function (?string $code) {
     .icon-btn--lock:hover   { color:var(--brand-neg); }
     .icon-btn--unlock:hover { color:var(--brand-green,#2aa26b); }
 
-    /* Выпадающее меню редактирования пользователя */
-    .edit-picker { position:relative; display:inline-block; }
-    .edit-picker > summary { list-style:none; display:inline-flex; }
-    .edit-picker > summary::-webkit-details-marker { display:none; }
-    .edit-picker > summary::marker { display:none; }
-    .edit-drop {
-      position:absolute;
-      top:calc(100% + 4px);
-      right:0;
-      min-width:280px;
-      background:var(--surface);
-      border:1px solid var(--border);
-      border-radius:12px;
-      box-shadow:0 8px 28px rgba(27,23,38,.16);
-      padding:16px;
-      z-index:300;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
-    .edit-drop .ef { display:flex; flex-direction:column; gap:4px; }
-    .edit-drop .ef label { font-size:11.5px; font-weight:600; color:var(--text-2); }
-    .edit-drop .ef input {
-      border:1px solid var(--border);
-      border-radius:8px;
-      padding:7px 10px;
-      font-family:inherit;
-      font-size:13px;
-      outline:none;
-      color:var(--text-1);
-      width:100%;
-      box-sizing:border-box;
-    }
-    .edit-drop .ef input:focus { border-color:var(--accent); }
-
     .pager { display:flex; align-items:center; justify-content:flex-end; gap:10px; padding:12px 18px; border-top:1px solid var(--border-lt); font-size:12.5px; color:var(--text-2); }
     .pager button { border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:5px 11px; cursor:pointer; font-size:12.5px; color:var(--text-1); }
     .pager button:disabled { opacity:.4; cursor:default; }
@@ -132,7 +97,7 @@ $roleClass = function (?string $code) {
     /* Модалки на JS */
     .modal-wrap { position:fixed; inset:0; background:rgba(27,23,38,.45); display:none; align-items:center; justify-content:center; z-index:200; }
     .modal-wrap.open { display:flex; }
-    .modal { background:var(--surface); border-radius:14px; width:440px; max-width:92vw; overflow:hidden; box-shadow:0 24px 60px rgba(27,23,38,.25); }
+    .modal { background:var(--surface); border-radius:14px; width:520px; max-width:92vw; overflow:hidden; box-shadow:0 24px 60px rgba(27,23,38,.25); }
     .modal-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); }
     .modal-head .t { font-size:15px; font-weight:700; }
     .modal-x { cursor:pointer; color:var(--text-3); font-size:18px; line-height:1; background:none; border:none; }
@@ -275,36 +240,14 @@ $roleClass = function (?string $code) {
               <td>
                 <div class="row-actions">
                   <!-- Редактировать запись -->
-                  <details class="edit-picker" id="ep-<?= (int) $u['id'] ?>">
-                    <summary class="icon-btn icon-btn--edit" title="Редактировать">
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M9.5 1.5a1.414 1.414 0 0 1 2 2L4 11l-3 1 1-3Z"/>
-                      </svg>
-                    </summary>
-                    <div class="edit-drop" id="epd-<?= (int) $u['id'] ?>">
-                      <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/users/save">
-                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-                        <input type="hidden" name="user_id" value="<?= (int) $u['id'] ?>">
-                        <div class="ef">
-                          <label>Имя</label>
-                          <input type="text" name="display_name" value="<?= htmlspecialchars((string) ($u['display_name'] ?: $u['username'])) ?>" required>
-                        </div>
-                        <div class="ef">
-                          <label>E-mail</label>
-                          <input type="email" name="email" value="<?= htmlspecialchars($u['email'] ?? '') ?>" placeholder="user@mail.ru">
-                        </div>
-                        <div class="ef">
-                          <label>Новый пароль <span style="font-weight:400;color:var(--text-3)">(пусто — не менять)</span></label>
-                          <input type="password" name="password" placeholder="••••••••" autocomplete="new-password">
-                        </div>
-                        <div style="display:flex;justify-content:flex-end;margin-top:4px">
-                          <button type="submit" class="btn btn-primary btn-sm">
-                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-1px"><polyline points="1.5 6.5 4.5 9.5 10.5 2.5"/></svg>Сохранить
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-                  </details>
+                  <button type="button"
+                          class="icon-btn icon-btn--edit"
+                          title="Редактировать"
+                          onclick="openEditUser(<?= (int) $u['id'] ?>, '<?= htmlspecialchars(addslashes($u['username']), ENT_QUOTES) ?>', '<?= htmlspecialchars(addslashes((string) ($u['display_name'] ?: $u['username'])), ENT_QUOTES) ?>', '<?= htmlspecialchars(addslashes($u['email'] ?? ''), ENT_QUOTES) ?>')">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M9.5 1.5a1.414 1.414 0 0 1 2 2L4 11l-3 1 1-3Z"/>
+                    </svg>
+                  </button>
                   <!-- Заблокировать / Разблокировать -->
                   <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/users/active" class="inline-form">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
@@ -395,6 +338,42 @@ $roleClass = function (?string $code) {
   </form>
 </div>
 
+<!-- Модалка: редактировать пользователя -->
+<div class="modal-wrap" id="editUserModal">
+  <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/users/save" class="modal">
+    <div class="modal-head">
+      <span class="t">Редактирование пользователя</span>
+      <button type="button" class="modal-x" onclick="closeModal('editUserModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+      <input type="hidden" name="user_id" id="euId" value="">
+      <div class="fg2">
+        <div class="fg">
+          <label>Логин</label>
+          <input type="text" id="euLogin" name="username" required autocomplete="off">
+        </div>
+        <div class="fg">
+          <label>Имя</label>
+          <input type="text" id="euName" name="display_name" required>
+        </div>
+      </div>
+      <div class="fg">
+        <label>E-mail</label>
+        <input type="email" id="euEmail" name="email" placeholder="user@mail.ru">
+      </div>
+      <div class="fg">
+        <label>Новый пароль <span style="color:var(--text-3); font-weight:400">(пусто — не менять)</span></label>
+        <input type="password" id="euPwd" name="password" placeholder="••••••••" autocomplete="new-password">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-ghost" onclick="closeModal('editUserModal')">Отмена</button>
+      <button type="submit" class="btn btn-primary">Сохранить</button>
+    </div>
+  </form>
+</div>
+
 <script>
   'use strict'
   // --- Модалки ---
@@ -481,36 +460,15 @@ $roleClass = function (?string $code) {
     }
   })()
 
-  // --- Edit-picker: редактирование пользователя через выпадающую форму ---
-  ;(function () {
-    var eps = [].slice.call(document.querySelectorAll('.edit-picker'))
-    for (var i = 0; i < eps.length; i++) {
-      (function (picker) {
-        var dropId = picker.id.replace('ep-', 'epd-')
-        var drop   = document.getElementById(dropId)
-        if (!drop) return
-        picker.addEventListener('toggle', function () {
-          if (picker.open) {
-            var r = picker.getBoundingClientRect()
-            drop.style.position = 'fixed'
-            drop.style.top      = (r.bottom + 4) + 'px'
-            drop.style.right    = (window.innerWidth - r.right) + 'px'
-            drop.style.left     = 'auto'
-            drop.style.zIndex   = '500'
-          } else {
-            drop.style.cssText = ''
-          }
-        })
-      })(eps[i])
-    }
-    document.addEventListener('click', function (e) {
-      for (var i = 0; i < eps.length; i++) {
-        if (eps[i].open && !eps[i].contains(e.target)) {
-          eps[i].removeAttribute('open')
-        }
-      }
-    })
-  })()
+  // --- Открыть модалку редактирования пользователя ---
+  function openEditUser(id, login, name, email) {
+    document.getElementById('euId').value    = id
+    document.getElementById('euLogin').value = login
+    document.getElementById('euName').value  = name
+    document.getElementById('euEmail').value = email
+    document.getElementById('euPwd').value   = ''
+    openModal('editUserModal')
+  }
 </script>
 
 <script>
