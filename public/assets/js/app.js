@@ -2130,6 +2130,8 @@ $(function () {
   initSidebar()
   initInnerTabs()
 
+  var hasDashboard = window.APP_IS_ADMIN || ALLOWED_PAGES.indexOf('dashboard') !== -1
+
   // Восстанавливаем активную вкладку из URL hash (при возврате с детализации)
   var hashTab = (location.hash || '').replace('#', '')
   var startTab =
@@ -2138,8 +2140,8 @@ $(function () {
       : 'dislocation'
   if (startTab !== 'dislocation') switchTab(startTab)
 
-  var kpiXhrs = loadKPI()
-  var summaryXhr = initTab(WAGON_TABS[startTab] || WAGON_TABS.dislocation)
+  var kpiXhrs    = hasDashboard ? loadKPI() : null
+  var summaryXhr = hasDashboard ? initTab(WAGON_TABS[startTab] || WAGON_TABS.dislocation) : null
 
   // Скрываем оверлей когда готовы и KPI, и сводная таблица
   var allXhrs = (kpiXhrs || []).concat(summaryXhr ? [summaryXhr] : [])
