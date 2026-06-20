@@ -2,7 +2,21 @@
 
 var BASE = window.APP_BASE || ''
 
-// наивигация (Боковое меню)
+// Список страниц, доступных текущему пользователю (передаётся с сервера)
+var ALLOWED_PAGES = window.APP_ALLOWED_PAGES || []
+
+// Проверка доступа к вкладке:
+// если у вкладки нет свойства page — она всегда видна (внутренняя панель dashboard)
+// если есть — проверяем наличие в ALLOWED_PAGES (или что пользователь Admin)
+function canSeeTab(tab) {
+  if (!tab.page) return true
+  if (window.APP_IS_ADMIN) return true
+  return ALLOWED_PAGES.indexOf(tab.page) !== -1
+}
+
+// навигация (Боковое меню)
+// page: 'maps'   → скрывается, если роль не имеет доступа к разделу "Карта"
+// page: 'import' → скрывается, если роль не имеет доступа к разделу "Загрузка справок"
 var TAB_GROUPS = [
   {
     label: 'Движение вагонов',
@@ -18,7 +32,7 @@ var TAB_GROUPS = [
     label: 'Аналитика',
     tabs: [
       { id: 'analysis-period', label: 'Анализ данных за период' },
-      { id: 'maps', label: 'Карта', url: BASE + '/maps', target: '_blank' },
+      { id: 'maps', label: 'Карта', url: BASE + '/maps', target: '_blank', page: 'maps' },
     ],
   },
   {
@@ -32,6 +46,7 @@ var TAB_GROUPS = [
         id: 'import',
         label: ' Загрузка справки РЖД ',
         url: BASE + '/import',
+        page: 'import',
       },
     ],
   },
@@ -49,6 +64,11 @@ if (window.APP_IS_ADMIN) {
 function initSidebar() {
   var sidebar = document.getElementById('sidebar')
   TAB_GROUPS.forEach(function (group) {
+    // Отфильтровываем вкладки, к которым нет доступа
+    var visibleTabs = group.tabs.filter(canSeeTab)
+    // Если ни одной вкладки не осталось — группу не показываем
+    if (visibleTabs.length === 0) return
+
     var groupEl = document.createElement('div')
     groupEl.className = 'nav-group' + (!group.label ? ' nav-group--top' : '')
 
@@ -57,7 +77,7 @@ function initSidebar() {
     labelEl.textContent = group.label
     groupEl.appendChild(labelEl)
 
-    group.tabs.forEach(function (tab) {
+    visibleTabs.forEach(function (tab) {
       var el
       if (tab.url) {
         el = document.createElement('a')

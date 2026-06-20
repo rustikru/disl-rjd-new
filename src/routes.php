@@ -49,8 +49,8 @@ return function (App $app, array $config): void {
         // ==========================================
 
         // Главная страница дашборда
-        $group->get('/', function ($req, $res) use ($config) {
-            return (new \App\Controllers\DashboardController($config))->index($req, $res);
+        $group->get('/', function ($req, $res) use ($config, $getDb) {
+            return (new \App\Controllers\DashboardController($config, $getDb()))->index($req, $res);
         });
 
         // Страница импорта XLSX
