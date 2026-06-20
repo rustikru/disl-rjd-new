@@ -46,7 +46,7 @@ $totalPages = count($pages);
     .role-custom   { background:#fbf0e3; color:#a4671b; }
 
     /* --- Таблица --- */
-    .data-table { width:100%; border-collapse:collapse; }
+    .data-table { width:auto; border-collapse:collapse; }
     .data-table th {
       padding:9px 14px;
       text-align:left;
@@ -135,14 +135,14 @@ $totalPages = count($pages);
       font-style:italic;
     }
 
-    /* --- Кнопки-иконки действий --- */
-    .actions-cell { white-space:nowrap; display:flex; gap:2px; align-items:center; }
-    .icon-btn {
+    /* --- Кнопки действий --- */
+    .actions-cell { white-space:nowrap; display:flex; gap:6px; align-items:center; }
+    .btn-del {
       display:inline-flex;
       align-items:center;
       justify-content:center;
-      width:32px;
-      height:32px;
+      width:30px;
+      height:30px;
       border:none;
       border-radius:8px;
       background:transparent;
@@ -150,10 +150,9 @@ $totalPages = count($pages);
       color:var(--text-3);
       transition:background .15s, color .15s;
       padding:0;
+      flex-shrink:0;
     }
-    .icon-btn:hover { background:var(--hover-green,#f0eef8); color:var(--text-1); }
-    .icon-btn.icon-btn--save:hover { color:var(--accent); }
-    .icon-btn.icon-btn--del:hover  { color:var(--brand-neg); }
+    .btn-del:hover { background:#fbeaea; color:var(--brand-neg,#d94040); }
 
     /* --- Модалки --- */
     .modal-wrap { position:fixed; inset:0; background:rgba(27,23,38,.45); display:none; align-items:center; justify-content:center; z-index:200; }
@@ -234,11 +233,11 @@ $totalPages = count($pages);
       <table class="data-table">
         <thead>
           <tr>
-            <th>Код</th>
-            <th>Название</th>
+            <th style="width:1%;white-space:nowrap">Код</th>
+            <th style="width:160px">Название</th>
             <th>Описание</th>
-            <th>Разделы доступа</th>
-            <th></th>
+            <th style="width:1%;white-space:nowrap">Разделы доступа</th>
+            <th style="width:1%;white-space:nowrap"></th>
           </tr>
         </thead>
         <tbody>
@@ -260,7 +259,7 @@ $totalPages = count($pages);
               </td>
 
               <!-- Название -->
-              <td style="min-width:140px">
+              <td>
                 <?php if ($isAdmin): ?>
                   <span style="font-weight:600"><?= htmlspecialchars($r['name']) ?></span>
                 <?php else: ?>
@@ -318,18 +317,12 @@ $totalPages = count($pages);
               <td>
                 <?php if (!$isAdmin): ?>
                   <div class="actions-cell">
+                    <button type="submit" class="btn btn-primary btn-sm"
+                            form="rf-<?= (int) $r['id'] ?>">Сохранить</button>
                     <button type="submit"
-                            class="icon-btn icon-btn--save"
-                            form="rf-<?= (int) $r['id'] ?>"
-                            title="Сохранить">
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="2.5 8.5 6.5 12.5 13.5 4"/>
-                      </svg>
-                    </button>
-                    <button type="submit"
-                            class="icon-btn icon-btn--del"
+                            class="btn-del"
                             form="rfd-<?= (int) $r['id'] ?>"
-                            title="Удалить"
+                            title="Удалить роль"
                             onclick="return confirm('Удалить роль «<?= htmlspecialchars(addslashes($r['name']), ENT_QUOTES) ?>»?')">
                       <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="1 3.5 14 3.5"/>
