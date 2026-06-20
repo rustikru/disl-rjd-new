@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Схема приложения — Дислокация РЖД</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --accent:#46297f; --accent-h:#311a5c; --accent-lt:#ece6f8;
+    --blue:#2f7fc4; --green:#2e9e6b; --neg:#c23c3c; --amber:#a4671b;
+    --bg:#e9e8ee; --surface:#fff; --text-1:#1b1726; --text-2:#6b667a; --text-3:#9a95a8;
+    --border:#e0dee6; --border-lt:#ece9f1; --row-head:#faf9fc; --hover:#f0ebf9;
+    --radius:14px;
+  }
+  body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text-1);font-size:14px;line-height:1.5;padding:0 0 80px}
+  a{color:var(--accent)}
+  .top{background:linear-gradient(120deg,var(--accent),var(--accent-h));color:#fff;padding:34px 0}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  .top h1{font-size:26px;font-weight:800;margin-bottom:6px}
+  .top p{opacity:.85;font-size:14px}
+  .top .meta{margin-top:14px;font-size:12.5px;opacity:.8}
+
+  section{margin-top:38px}
+  h2{font-size:19px;font-weight:700;color:var(--accent);margin-bottom:4px;display:flex;align-items:center;gap:9px}
+  h2 .n{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:var(--accent-lt);color:var(--accent);font-size:13px;font-weight:800}
+  .sub{color:var(--text-2);margin:2px 0 16px;font-size:13.5px}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  .card+.card{margin-top:16px}
+  .card-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 18px;border-bottom:1px solid var(--border);background:var(--row-head)}
+  .card-h .tname{font-family:'SF Mono',ui-monospace,monospace;font-size:14px;font-weight:700;color:var(--accent)}
+  .card-h .tnote{font-size:12.5px;color:var(--text-2)}
+  .pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:700}
+  .pill-table{background:var(--accent-lt);color:var(--accent)}
+  .pill-view{background:#e4eefa;color:var(--blue)}
+  .pill-new{background:#e8f6ef;color:var(--green)}
+
+  table{width:100%;border-collapse:collapse}
+  th{padding:9px 18px;text-align:left;font-size:10.5px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+  td{padding:9px 18px;border-bottom:1px solid var(--border-lt);font-size:13px;vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:var(--hover)}
+  code{font-family:'SF Mono',ui-monospace,monospace;font-size:12.5px;background:var(--border-lt);padding:1px 6px;border-radius:5px;color:var(--accent-h)}
+  .t-type{font-family:'SF Mono',ui-monospace,monospace;font-size:12px;color:var(--text-2);white-space:nowrap}
+  .key{color:var(--amber);font-weight:700;font-size:11px}
+  .fk{color:var(--blue);font-weight:700;font-size:11px}
+
+  /* поток запроса */
+  .flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px}
+  .flow .box{flex:1;min-width:130px;background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:12px 14px}
+  .flow .box b{display:block;font-size:13.5px;margin-bottom:2px}
+  .flow .box span{font-size:12px;color:var(--text-2)}
+  .flow .arrow{display:flex;align-items:center;color:var(--text-3);font-size:20px}
+  .mw{background:var(--accent-lt);border-color:#d8cdf0}
+
+  /* матрица доступа */
+  .matrix th,.matrix td{text-align:center}
+  .matrix th:first-child,.matrix td:first-child{text-align:left;font-weight:600}
+  .yes{color:var(--green);font-weight:800}
+  .no{color:var(--text-3)}
+  .role-badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:11.5px;font-weight:700}
+  .r-admin{background:var(--accent-lt);color:var(--accent)}
+  .r-op{background:#e4eefa;color:var(--blue)}
+  .r-view{background:var(--hover);color:var(--text-2)}
+
+  .note{background:#fff8ec;border:1px solid #f0e2c4;border-radius:11px;padding:13px 16px;font-size:13px;color:#6b5326}
+  .note b{color:#8a5a12}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--text-2);margin-top:10px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="wrap">
+    <h1>Дислокация парка вагонов РЖД</h1>
+    <p>Схема базы данных и архитектуры приложения с описаниями</p>
+    <div class="meta">PHP 8 · Slim 4 · Oracle 23c · Vanilla JS (ES5) + jQuery</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- АРХИТЕКТУРА -->
+  <section>
+    <h2><span class="n">1</span> Поток запроса</h2>
+    <p class="sub">Каждый защищённый запрос проходит через цепочку middleware, затем попадает в контроллер и слой БД.</p>
+    <div class="flow">
+      <div class="box"><b>Браузер</b><span>GET/POST + сессия</span></div>
+      <div class="arrow">→</div>
+      <div class="box mw"><b>SessionMiddleware</b><span>сессия, CSRF-токен</span></div>
+      <div class="arrow">→</div>
+      <div class="box mw"><b>AuthMiddleware</b><span>авторизован?</span></div>
+      <div class="arrow">→</div>
+      <div class="box mw"><b>PageAccessMiddleware</b><span>роль → доступ к странице</span></div>
+      <div class="arrow">→</div>
+      <div class="box"><b>Controller</b><span>Dashboard / Api / Import / Maps / Admin</span></div>
+      <div class="arrow">→</div>
+      <div class="box"><b>DbInterface</b><span>OracleDb / PostgresDb</span></div>
+    </div>
+    <div class="legend">
+      <span><b style="color:var(--accent)">▣</b> middleware (src/Middleware)</span>
+      <span>маршруты — <code>src/routes.php</code></span>
+      <span>конфиг — <code>src/Config.php</code> / <code>.env</code></span>
+    </div>
+  </section>
+
+  <!-- ТАБЛИЦЫ -->
+  <section>
+    <h2><span class="n">2</span> Таблицы базы данных</h2>
+    <p class="sub">Префикс всех объектов — <code>xx_rjd_</code>. Идентификаторы заполняются последовательностью + триггером (формат <code>имя_таблицы_seq</code>).</p>
+
+    <!-- dislocation -->
+    <div class="card">
+      <div class="card-h">
+        <div><span class="tname">xx_dislocation_rjd</span> &nbsp;<span class="pill pill-table">таблица</span></div>
+        <span class="tnote">Центральная таблица. 1 строка = 1 вагон в одной справке. 126 колонок из XLSX + 3 служебных.</span>
+      </div>
+      <table>
+        <thead><tr><th style="width:230px">Колонка</th><th style="width:120px">Тип</th><th>Описание</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code> <span class="key">PK</span></td><td class="t-type">NUMBER</td><td>Автоинкремент (sequence + триггер)</td></tr>
+          <tr><td><code>report_dt</code></td><td class="t-type">TIMESTAMP</td><td>Дата и время справки (из ячейки A2 файла)</td></tr>
+          <tr><td><code>type_reference</code></td><td class="t-type">VARCHAR2</td><td><code>Подход</code> / <code>Отправка</code></td></tr>
+          <tr><td><code>wagon_no</code></td><td class="t-type">VARCHAR2</td><td>Номер вагона</td></tr>
+          <tr><td><code>wagon_type_code</code></td><td class="t-type">VARCHAR2</td><td>Тип вагона (Цистерны, Полувагоны…)</td></tr>
+          <tr><td><i>маршрут</i></td><td class="t-type">—</td><td><code>depart_road/station</code>, <code>dest_road/station</code>, <code>oper_road/station</code>, <code>oper_mnemonic</code></td></tr>
+          <tr><td><i>груз</i></td><td class="t-type">—</td><td><code>cargo_name</code>, <code>cargo_weight_kg</code>, <code>cargo_gng</code>, <code>consignor</code>, <code>consignee</code></td></tr>
+          <tr><td><i>пробег / простой</i></td><td class="t-type">—</td><td><code>mileage_*_km</code>, <code>dist_remain_km</code>, <code>idle_time_days</code>, <code>norm_delivery_dt</code></td></tr>
+          <tr><td><i>ремонт / тех.</i></td><td class="t-type">—</td><td><code>next_repair_dt</code>, <code>last_cap_repair_dt</code>, <code>tare_weight</code>, <code>axles_count</code>…</td></tr>
+          <tr><td><i>собственность</i></td><td class="t-type">—</td><td><code>owner</code>, <code>lessee</code>, <code>lease_end_date</code>, <code>park_type</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sub" style="margin-top:8px">Полные комментарии ко всем 126 колонкам — в DDL-файле (<code>COMMENT ON COLUMN</code>).</p>
+
+    <div class="grid2" style="margin-top:16px">
+      <!-- users -->
+      <div class="card">
+        <div class="card-h"><div><span class="tname">xx_rjd_users</span> &nbsp;<span class="pill pill-table">таблица</span></div></div>
+        <table>
+          <thead><tr><th>Колонка</th><th>Тип</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code> <span class="key">PK</span></td><td class="t-type">NUMBER</td><td>Идентификатор</td></tr>
+            <tr><td><code>username</code></td><td class="t-type">VARCHAR2</td><td>Логин (AD / локальный)</td></tr>
+            <tr><td><code>display_name</code></td><td class="t-type">VARCHAR2</td><td>Отображаемое имя</td></tr>
+            <tr><td><code>email</code></td><td class="t-type">VARCHAR2</td><td>E-mail</td></tr>
+            <tr><td><code>password_hash</code></td><td class="t-type">VARCHAR2</td><td>bcrypt; пусто — вход только через AD</td></tr>
+            <tr><td><code>is_active</code></td><td class="t-type">NUMBER(1)</td><td>1 — активен, 0 — заблокирован</td></tr>
+            <tr><td><code>role_id</code> <span class="fk">FK</span></td><td class="t-type">NUMBER</td><td>→ <code>xx_rjd_roles.id</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- roles -->
+      <div class="card">
+        <div class="card-h"><div><span class="tname">xx_rjd_roles</span> &nbsp;<span class="pill pill-new">новая</span></div></div>
+        <table>
+          <thead><tr><th>Колонка</th><th>Тип</th><th>Описание</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code> <span class="key">PK</span></td><td class="t-type">NUMBER</td><td>seq <code>xx_rjd_roles_seq</code></td></tr>
+            <tr><td><code>code</code></td><td class="t-type">VARCHAR2</td><td>Уникальный код: ADMIN / OPERATOR / VIEWER</td></tr>
+            <tr><td><code>name</code></td><td class="t-type">VARCHAR2</td><td>Название роли</td></tr>
+            <tr><td><code>description</code></td><td class="t-type">VARCHAR2</td><td>Описание</td></tr>
+            <tr><td><code>is_system</code></td><td class="t-type">NUMBER(1)</td><td>1 — системная (нельзя удалить)</td></tr>
+            <tr><td><code>created_at</code></td><td class="t-type">DATE</td><td>Дата создания</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- role_pages -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-h">
+        <div><span class="tname">xx_rjd_role_pages</span> &nbsp;<span class="pill pill-new">новая</span></div>
+        <span class="tnote">Доступ роли к страницам. Составной первичный ключ (role_id, page).</span>
+      </div>
+      <table>
+        <thead><tr><th style="width:230px">Колонка</th><th style="width:120px">Тип</th><th>Описание</th></tr></thead>
+        <tbody>
+          <tr><td><code>role_id</code> <span class="key">PK</span> <span class="fk">FK</span></td><td class="t-type">NUMBER</td><td>→ <code>xx_rjd_roles.id</code>, <code>ON DELETE CASCADE</code></td></tr>
+          <tr><td><code>page</code> <span class="key">PK</span></td><td class="t-type">VARCHAR2</td><td>Код страницы: <code>dashboard</code> / <code>maps</code> / <code>import</code> / <code>admin</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid2" style="margin-top:16px">
+      <div class="card">
+        <div class="card-h"><div><span class="tname">xx_rjd_stations</span> &nbsp;<span class="pill pill-table">таблица</span></div></div>
+        <table><tbody>
+          <tr><td colspan="3" style="color:var(--text-2)">Справочник станций (координаты для карты).</td></tr>
+        </tbody></table>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><span class="tname">XX_RJD_KPI_TBL_V</span> &nbsp;<span class="pill pill-view">представление</span></div></div>
+        <table><tbody>
+          <tr><td colspan="3" style="color:var(--text-2)">View с агрегатами для KPI-карточек дашборда.</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <!-- СВЯЗИ -->
+  <section>
+    <h2><span class="n">3</span> Связи</h2>
+    <div class="card"><table>
+      <thead><tr><th>Откуда</th><th>Куда</th><th>Правило</th></tr></thead>
+      <tbody>
+        <tr><td><code>xx_rjd_users.role_id</code></td><td><code>xx_rjd_roles.id</code></td><td>FK — у пользователя одна роль (или NULL)</td></tr>
+        <tr><td><code>xx_rjd_role_pages.role_id</code></td><td><code>xx_rjd_roles.id</code></td><td>FK, <code>ON DELETE CASCADE</code> — доступы удаляются вместе с ролью</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- РОЛИ И ДОСТУП -->
+  <section>
+    <h2><span class="n">4</span> Роли и доступ к разделам</h2>
+    <p class="sub">Системные роли создаются миграцией. Доступ проверяет <code>PageAccessMiddleware</code>. Роль <b>ADMIN</b> всегда имеет полный доступ.</p>
+    <div class="card"><table class="matrix">
+      <thead><tr>
+        <th>Раздел / роль</th>
+        <th><span class="role-badge r-admin">Администратор</span></th>
+        <th><span class="role-badge r-op">Оператор</span></th>
+        <th><span class="role-badge r-view">Наблюдатель</span></th>
+      </tr></thead>
+      <tbody>
+        <tr><td>Дашборд <span style="color:var(--text-3)">(<code>/</code>, <code>/api/*</code>, <code>/detail</code>)</span></td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>Карта <span style="color:var(--text-3)">(<code>/maps</code>)</span></td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>Загрузка справок <span style="color:var(--text-3)">(<code>/import</code>)</span></td><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td></tr>
+        <tr><td>Администрирование <span style="color:var(--text-3)">(<code>/admin</code>)</span></td><td class="yes">✓</td><td class="no">—</td><td class="no">—</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note" style="margin-top:14px">
+      <b>Первичная настройка.</b> Пока ни одному пользователю не назначена роль ADMIN (или инфраструктура ролей ещё не развёрнута), доступ открыт всем авторизованным — чтобы можно было назначить первого администратора. После назначения ограничения вступают в силу. Новые пользователи из AD получают роль <b>Наблюдатель (VIEWER)</b> автоматически.
+    </div>
+  </section>
+
+  <!-- МИГРАЦИЯ -->
+  <section>
+    <h2><span class="n">5</span> Миграция и развёртывание</h2>
+    <div class="card"><table>
+      <thead><tr><th style="width:240px">Объект</th><th>Действие миграции</th></tr></thead>
+      <tbody>
+        <tr><td><code>xx_users_rjd</code> → <code>xx_rjd_users</code></td><td>Переименование таблицы (код ожидает новое имя)</td></tr>
+        <tr><td><code>xx_rjd_roles</code></td><td>CREATE TABLE + <code>xx_rjd_roles_seq</code> + триггер <code>xx_rjd_roles_bi</code></td></tr>
+        <tr><td><code>xx_rjd_role_pages</code></td><td>CREATE TABLE (составной PK)</td></tr>
+        <tr><td><code>xx_rjd_users.role_id</code></td><td>ADD COLUMN + FK на <code>xx_rjd_roles</code></td></tr>
+        <tr><td>Сиды</td><td>3 системные роли + матрица доступа к страницам</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note" style="margin-top:14px">
+      <b>Важно.</b> Скрипт <code>db/migrations/001_xx_rjd_admin.sql</code> применять <b>вместе</b> с выкладкой кода — иначе вход сломается на переименовании таблицы. В конце скрипта — назначение первого администратора (раскомментировать и указать логин).
+    </div>
+  </section>
+
+  <p style="margin-top:40px;color:var(--text-3);font-size:12.5px;text-align:center">
+    Сгенерировано для проекта «Дислокация парка вагонов РЖД». Подробности — в <code>README.md</code>.
+  </p>
+
+</div>
+</body>
+</html>

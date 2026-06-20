@@ -215,6 +215,8 @@ return function (App $app, array $config): void {
 
         }); // Конец группы /api
 
-    })->add(new \App\Middleware\AuthMiddleware($config['base_path'] ?? ''));
+    })
+        ->add(new \App\Middleware\PageAccessMiddleware($getDb, $config['base_path'] ?? ''))
+        ->add(new \App\Middleware\AuthMiddleware($config['base_path'] ?? ''));
 
 };

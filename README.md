@@ -39,29 +39,42 @@ disl-rjd-new/
 │   │   ├── ApiController.php        # Все JSON API-методы
 │   │   ├── AuthController.php       # Логин/логаут
 │   │   ├── DashboardController.php  # Главная страница
-│   │   └── ImportController.php     # Загрузка XLSX (batch + AJAX)
+│   │   ├── ImportController.php     # Загрузка XLSX (batch + AJAX)
+│   │   ├── MapsController.php       # Интерактивная карта
+│   │   └── AdminController.php      # Пользователи и роли
 │   ├── Database/
 │   │   ├── DbInterface.php   # Контракт: fetchAll, fetchOne, execute
 │   │   ├── DbFactory.php     # Создаёт OracleDb или PostgresDb по конфигу
 │   │   ├── OracleDb.php      # OCI8-адаптер
 │   │   └── PostgresDb.php    # PDO PostgreSQL адаптер
 │   └── Middleware/
-│       ├── AuthMiddleware.php    # Редирект на /login без сессии
-│       └── SessionMiddleware.php # session_start()
+│       ├── AuthMiddleware.php        # Редирект на /login без сессии
+│       ├── PageAccessMiddleware.php  # Доступ к страницам по роли
+│       └── SessionMiddleware.php     # session_start()
 ├── templates/
 │   ├── app.php      # Основной SPA-шаблон (sidebar + панели)
 │   ├── detail.php   # Страница детализации (открывается в новой вкладке)
 │   ├── import.php   # Форма загрузки XLSX (AJAX, мультифайл)
-│   └── login.php    # Форма входа
+│   ├── admin.php    # Страница администрирования (пользователи, роли)
+│   ├── login.php    # Форма входа
+│   └── partials/
+│       └── header.php  # Единая шапка для всех страниц
 ├── bin/
 │   ├── create-user.php   # CLI: создать пользователя
 │   └── set-password.php  # CLI: сменить пароль
+├── db/
+│   └── migrations/
+│       └── 001_xx_rjd_admin.sql  # Переименование users + роли + доступ
+├── docs/
+│   └── schema.html  # Наглядная HTML-схема БД и архитектуры
 ├── sql/
 │   └── oracle_xx_dislocation_rjd.sql  # DDL таблицы + индексы + комментарии
 ├── .env.example     # Пример конфига
 ├── composer.json
 └── router.php       # Для PHP built-in server (php -S)
 ```
+
+> 📊 Наглядная схема БД и архитектуры с описаниями — `docs/schema.html` (открыть в браузере).
 
 ---
 
@@ -97,6 +110,43 @@ disl-rjd-new/
 | …                  | …         | Полный список — в `sql/oracle_xx_dislocation_rjd.sql` |
 
 Полные комментарии на русском ко всем 126 колонкам есть в DDL-файле (`COMMENT ON COLUMN`).
+
+### Пользователи, роли и доступ
+
+> Таблица пользователей переименована: `xx_users_rjd` → **`xx_rjd_users`** (единый префикс `xx_rjd_`).
+
+| Таблица              | Назначение                                                                 |
+| -------------------- | -------------------------------------------------------------------------- |
+| `xx_rjd_users`       | Пользователи. Колонка `role_id` (FK) — роль пользователя                    |
+| `xx_rjd_roles`       | Справочник ролей (`id`, `code`, `name`, `description`, `is_system`)         |
+| `xx_rjd_role_pages`  | Доступ роли к страницам, составной ключ (`role_id`, `page`)                 |
+
+`id` ролей заполняется последовательностью `xx_rjd_roles_seq` + триггером `xx_rjd_roles_bi`.
+
+**Системные роли** (создаются миграцией):
+
+| Код        | Роль          | Доступ                                       |
+| ---------- | ------------- | -------------------------------------------- |
+| `ADMIN`    | Администратор | Все разделы + управление пользователями      |
+| `OPERATOR` | Оператор      | Дашборд, карта, загрузка справок             |
+| `VIEWER`   | Наблюдатель   | Дашборд, карта (только просмотр)             |
+
+**Разграничение доступа** — `PageAccessMiddleware` сопоставляет путь запроса со «страницей» (`dashboard` / `maps` / `import` / `admin`) и проверяет её в `xx_rjd_role_pages` для роли пользователя:
+
+| Путь                              | Страница    |
+| --------------------------------- | ----------- |
+| `/`, `/api/*`, `/detail`          | `dashboard` |
+| `/maps`                           | `maps`      |
+| `/import`, `/api/import/*`        | `import`    |
+| `/admin*`                         | `admin`     |
+
+- Роль `ADMIN` имеет полный доступ всегда.
+- Пока ни один пользователь не назначен администратором (или таблицы ролей ещё нет) — доступ открыт всем авторизованным (режим первичной настройки).
+- Пользователи, впервые вошедшие через AD, получают роль `VIEWER` автоматически.
+
+**Раздел `/admin`** (`AdminController` + `templates/admin.php`) — управление из UI: список/поиск/пагинация пользователей, смена роли, блокировка, сброс пароля, создание пользователей; создание/редактирование/удаление ролей и настройка доступа к разделам галочками.
+
+Миграция — `db/migrations/001_xx_rjd_admin.sql` (см. раздел «Запуск»).
 
 ### Импорт данных
 
@@ -846,6 +896,10 @@ APP_DEBUG=false           # true → SQL-лог в tmp/log/sql_debug.log
 
 ## Управление пользователями
 
+Через веб-интерфейс — раздел **Администрирование** (`/admin`, доступен роли `ADMIN`): создание пользователей, смена роли, блокировка, сброс пароля, управление ролями и их доступом к разделам.
+
+Через CLI:
+
 ```bash
 # Создать нового пользователя
 php bin/create-user.php admin "Иван Иванов" admin@company.local secretpass
@@ -853,6 +907,11 @@ php bin/create-user.php admin "Иван Иванов" admin@company.local secret
 # Сменить пароль существующему
 php bin/set-password.php admin newpass
 ```
+
+> **Перед первым запуском раздела ролей** примените миграцию `db/migrations/001_xx_rjd_admin.sql`
+> (переименование `xx_users_rjd` → `xx_rjd_users`, таблицы ролей, доступ к страницам) и назначьте
+> первого администратора — раскомментируйте `UPDATE` в конце скрипта и укажите логин. Миграцию
+> применяйте **вместе** с выкладкой кода: после переименования таблицы старое имя сломает вход.
 
 ---
 
