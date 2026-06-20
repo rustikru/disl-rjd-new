@@ -18,8 +18,12 @@ $errorMiddleware = $app->addErrorMiddleware(
 $errorMiddleware->setErrorHandler(
     HttpNotFoundException::class,
     function ($request, $exception) use ($app, $config) {
-        $response = $app->getResponseFactory()->createResponse(404);
-        $basePath = $config['base_path'] ?? '';
+        $response    = $app->getResponseFactory()->createResponse(404);
+        $basePath    = $config['base_path'] ?? '';
+        $appName     = $config['app_name']  ?? '';
+        $user        = $_SESSION['user']    ?? [];
+        $headerSub   = '';
+        $headerRight = '';
 
         ob_start();
         require __DIR__ . '/../templates/404.php';

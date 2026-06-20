@@ -118,14 +118,16 @@ $roleClass = function (?string $code) {
 
     /* Компактный выпадающий селектор ролей */
     .role-picker { position:relative; display:inline-block; }
-    .role-picker-btn { cursor:pointer; display:flex; align-items:center; gap:4px; flex-wrap:wrap;
+    summary.role-picker-btn { cursor:pointer; display:flex; align-items:center; gap:4px; flex-wrap:wrap;
       padding:4px 8px 4px 6px; border:1px solid var(--border); border-radius:8px;
-      list-style:none; min-width:120px; }
-    .role-picker-btn::-webkit-details-marker { display:none; }
-    .rp-empty { font-size:12px; color:var(--text-3); }
-    .rp-arrow { font-size:10px; color:var(--text-3); margin-left:auto; flex:none; }
+      list-style:none; }
+    summary.role-picker-btn::marker,
+    summary.role-picker-btn::-webkit-details-marker { display:none; content:''; }
+    .rp-empty { font-size:12px; color:var(--text-3); white-space:nowrap; }
+    .rp-arrow { font-size:10px; color:var(--text-3); margin-left:4px; flex:none; transition:transform .15s; }
     .role-picker[open] .rp-arrow { transform:rotate(180deg); }
-    .role-picker-drop { position:absolute; top:calc(100% + 4px); left:0; z-index:20;
+    /* позиция переопределяется JS (fixed) чтобы вырваться из overflow:hidden панели */
+    .role-picker-drop { position:absolute; top:calc(100% + 4px); left:0; z-index:200;
       background:var(--surface); border:1px solid var(--border); border-radius:10px;
       box-shadow:0 6px 20px rgba(27,23,38,.14); min-width:180px; padding:8px 0 0; }
     .rp-item { display:flex; align-items:center; gap:8px; padding:6px 14px; cursor:pointer; }
@@ -164,6 +166,7 @@ $roleClass = function (?string $code) {
         <small>Управление доступом</small>
       </div>
       <div class="admin-actions">
+        <a href="<?= htmlspecialchars($basePath) ?>/" target="_blank" rel="noopener noreferrer" class="btn btn-ghost">← На главную</a>
         <button type="button" class="btn btn-primary" onclick="openModal('userModal')">+ Пользователь</button>
       </div>
     </div>
@@ -423,6 +426,29 @@ $roleClass = function (?string $code) {
     prevBtn.addEventListener('click', function () { if (page > 1) { page--; render() } })
     nextBtn.addEventListener('click', function () { if (page < totalPages()) { page++; render() } })
     render()
+  })()
+
+  // --- Role-picker: вырываем dropdown из overflow:hidden через position:fixed ---
+  ;(function () {
+    var pickers = [].slice.call(document.querySelectorAll('.role-picker'))
+    for (var i = 0; i < pickers.length; i++) {
+      (function (picker) {
+        var drop = picker.querySelector('.role-picker-drop')
+        if (!drop) return
+        picker.addEventListener('toggle', function () {
+          if (picker.open) {
+            var r = picker.getBoundingClientRect()
+            drop.style.position = 'fixed'
+            drop.style.top      = (r.bottom + 4) + 'px'
+            drop.style.left     = r.left + 'px'
+            drop.style.minWidth = Math.max(r.width, 200) + 'px'
+            drop.style.zIndex   = '500'
+          } else {
+            drop.style.cssText = ''
+          }
+        })
+      })(pickers[i])
+    }
   })()
 </script>
 

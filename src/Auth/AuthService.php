@@ -106,7 +106,8 @@ class AuthService
             return;
         }
 
-        // Новым AD-пользователям назначаем роль «Наблюдатель» (VIEWER) по умолчанию
+        // Создаём запись без роли — администратор назначит роль через /admin/users.
+        // Пока роль не назначена, пользователь получит 403 на всех защищённых страницах.
         $this->db->execute(
             'INSERT INTO xx_rjd_users (username, display_name, email, password_hash, is_active)
              VALUES (:username, :display_name, :email, :hash, 1)',
@@ -116,16 +117,6 @@ class AuthService
                 'email'        => $email,
                 'hash'         => '',
             ]
-        );
-
-        // Назначаем роль VIEWER через промежуточную таблицу
-        $this->db->execute(
-            "INSERT INTO xx_rjd_user_roles (user_id, role_id)
-             SELECT u.id, r.id
-               FROM xx_rjd_users u, xx_rjd_roles r
-              WHERE u.username = :username
-                AND r.code = 'VIEWER'",
-            ['username' => $username]
         );
     }
 

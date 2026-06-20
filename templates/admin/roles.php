@@ -27,6 +27,8 @@ $roleClass = function (?string $code) {
         default:         return 'role-custom';
     }
 };
+
+$totalPages = count($pages);
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -37,43 +39,123 @@ $roleClass = function (?string $code) {
   <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
   <style>
-    /* --- Раздел администрирования --- */
+    /* --- Заголовок раздела --- */
     .admin-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; flex-wrap:wrap; }
     .admin-title { font-size:18px; font-weight:700; color:var(--text-1); }
     .admin-title small { display:block; font-size:12px; font-weight:500; color:var(--text-3); margin-top:2px; }
     .admin-actions { display:flex; gap:8px; align-items:center; }
 
+    /* --- Flash-сообщения --- */
     .flash { padding:10px 14px; border-radius:9px; font-size:13px; margin-bottom:16px; }
     .flash-ok  { background:#e8f6ef; color:var(--brand-green); border:1px solid #bfe6d2; }
     .flash-err { background:#fbecec; color:var(--brand-neg);   border:1px solid #f0c9c9; }
 
-    .panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
-    .panel + .panel { margin-top:18px; }
+    /* --- Панель --- */
+    .panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:visible; }
     .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
     .panel-title { font-size:14px; font-weight:600; }
 
+    /* --- Бейджи ролей --- */
     .role-badge { display:inline-flex; align-items:center; padding:3px 11px; border-radius:99px; font-size:11.5px; font-weight:600; }
     .role-admin    { background:var(--accent-lt); color:var(--accent); }
     .role-operator { background:#e4eefa; color:var(--brand-blue); }
     .role-viewer   { background:var(--hover-green); color:var(--text-2); }
     .role-custom   { background:#fbf0e3; color:#a4671b; }
 
-    /* Роли — карточки */
-    .roles-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px; padding:18px; }
-    .role-card { border:1px solid var(--border); border-radius:11px; padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
-    .role-card-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-    .role-code { font-family:monospace; font-size:11px; color:var(--text-3); }
-    .role-card input.t-name { border:1px solid var(--border); border-radius:8px; padding:6px 9px; font-family:inherit; font-size:13px; font-weight:600; outline:none; color:var(--text-1); width:100%; }
-    .role-card input.t-desc { border:1px solid var(--border); border-radius:8px; padding:6px 9px; font-family:inherit; font-size:12px; outline:none; color:var(--text-2); width:100%; }
-    .role-card input:focus { border-color:var(--accent); }
-    .pages-list { display:flex; flex-direction:column; gap:7px; }
-    .pages-list .lbl { font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.05em; }
-    .pg { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-1); cursor:pointer; }
-    .pg input { width:15px; height:15px; accent-color:var(--accent); cursor:pointer; }
-    .role-card-foot { display:flex; gap:6px; margin-top:2px; }
-    .role-static-note { font-size:12px; color:var(--text-2); background:var(--accent-lt); border-radius:8px; padding:8px 10px; }
+    /* --- Таблица --- */
+    .data-table { width:100%; border-collapse:collapse; }
+    .data-table th {
+      padding:9px 14px;
+      text-align:left;
+      font-size:11px;
+      font-weight:700;
+      color:var(--text-3);
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      border-bottom:1px solid var(--border);
+      white-space:nowrap;
+    }
+    .data-table td {
+      padding:10px 14px;
+      vertical-align:middle;
+      border-bottom:1px solid var(--border);
+      font-size:13px;
+      color:var(--text-1);
+    }
+    .data-table tbody tr:last-child td { border-bottom:none; }
+    .data-table tbody tr:hover td { background:var(--hover-green,#f5f4f9); }
 
-    /* Модалки на JS */
+    /* --- Инпуты в таблице --- */
+    .tbl-input {
+      border:1px solid var(--border);
+      border-radius:7px;
+      padding:5px 9px;
+      font-family:inherit;
+      font-size:13px;
+      outline:none;
+      color:var(--text-1);
+      width:100%;
+      background:transparent;
+    }
+    .tbl-input:focus { border-color:var(--accent); background:var(--surface); }
+
+    /* --- Выпадающий список разделов --- */
+    details.pg-drop { position:relative; display:inline-block; }
+    summary.pg-drop-btn {
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:5px 10px;
+      border:1px solid var(--border);
+      border-radius:7px;
+      font-size:13px;
+      font-weight:500;
+      color:var(--text-1);
+      cursor:pointer;
+      list-style:none;
+      user-select:none;
+      white-space:nowrap;
+    }
+    summary.pg-drop-btn::-webkit-details-marker { display:none; }
+    summary.pg-drop-btn::marker { display:none; }
+    summary.pg-drop-btn::after { content:'▾'; font-size:11px; color:var(--text-3); }
+    details[open] summary.pg-drop-btn { border-color:var(--accent); }
+
+    .pg-drop-menu {
+      position:absolute;
+      top:calc(100% + 4px);
+      left:0;
+      min-width:180px;
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:9px;
+      box-shadow:0 6px 24px rgba(27,23,38,.13);
+      padding:8px 0;
+      z-index:300;
+    }
+    .pg-item {
+      display:flex;
+      align-items:center;
+      gap:9px;
+      padding:7px 14px;
+      font-size:13px;
+      color:var(--text-1);
+      cursor:pointer;
+    }
+    .pg-item:hover { background:var(--hover-green,#f5f4f9); }
+    .pg-item input { width:15px; height:15px; accent-color:var(--accent); cursor:pointer; flex-shrink:0; }
+
+    /* --- Примечание ADMIN --- */
+    .admin-note {
+      font-size:12px;
+      color:var(--text-3);
+      font-style:italic;
+    }
+
+    /* --- Кнопки действий --- */
+    .actions-cell { white-space:nowrap; display:flex; gap:6px; align-items:center; }
+
+    /* --- Модалки --- */
     .modal-wrap { position:fixed; inset:0; background:rgba(27,23,38,.45); display:none; align-items:center; justify-content:center; z-index:200; }
     .modal-wrap.open { display:flex; }
     .modal { background:var(--surface); border-radius:14px; width:440px; max-width:92vw; overflow:hidden; box-shadow:0 24px 60px rgba(27,23,38,.25); }
@@ -120,6 +202,7 @@ $roleClass = function (?string $code) {
         <small>Управление ролями и доступом</small>
       </div>
       <div class="admin-actions">
+        <a href="<?= htmlspecialchars($basePath) ?>/" target="_blank" class="btn btn-ghost btn-sm">← На главную</a>
         <button type="button" class="btn btn-primary" onclick="openModal('roleModal')">+ Добавить роль</button>
       </div>
     </div>
@@ -131,51 +214,140 @@ $roleClass = function (?string $code) {
       <div class="flash flash-err"><?= htmlspecialchars($flashErr) ?></div>
     <?php endif; ?>
 
-    <!-- Роли -->
+    <!--
+      Внешние формы (по одной на каждую редактируемую роль).
+      Поля таблицы ссылаются на форму через атрибут form="rf-{id}".
+    -->
+    <?php foreach ($roles as $r): ?>
+      <?php if (($r['code'] ?? '') !== 'ADMIN'): ?>
+        <form id="rf-<?= (int) $r['id'] ?>"
+              method="POST"
+              action="<?= htmlspecialchars($basePath) ?>/admin/roles/save"
+              style="display:none">
+          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+          <input type="hidden" name="role_id"    value="<?= (int) $r['id'] ?>">
+        </form>
+        <?php if ((int) ($r['is_system'] ?? 0) === 0): ?>
+          <form id="rfd-<?= (int) $r['id'] ?>"
+                method="POST"
+                action="<?= htmlspecialchars($basePath) ?>/admin/roles/delete"
+                style="display:none">
+            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+            <input type="hidden" name="role_id"    value="<?= (int) $r['id'] ?>">
+          </form>
+        <?php endif; ?>
+      <?php endif; ?>
+    <?php endforeach; ?>
+
+    <!-- Таблица ролей -->
     <div class="panel">
       <div class="panel-head">
-        <span class="panel-title">Роли</span>
+        <span class="panel-title">Роли (<?= count($roles) ?>)</span>
       </div>
-      <div class="roles-grid">
-        <?php foreach ($roles as $r): ?>
-          <?php $isAdminRole = ($r['code'] ?? '') === 'ADMIN'; ?>
-          <div class="role-card">
-            <div class="role-card-head">
-              <span class="role-badge <?= $roleClass($r['code']) ?>"><?= htmlspecialchars($r['name']) ?></span>
-              <span class="role-code"><?= htmlspecialchars($r['code']) ?></span>
-            </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Код</th>
+            <th>Название</th>
+            <th>Описание</th>
+            <th>Разделы доступа</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ($roles as $r): ?>
+            <?php $isAdmin = ($r['code'] ?? '') === 'ADMIN'; ?>
+            <?php
+              // Количество доступных разделов для этой роли
+              $grantedCount = count($rolePages[(int) $r['id']] ?? []);
+              $pgSummary = $grantedCount > 0
+                ? $grantedCount . ' из ' . $totalPages
+                : 'Не выбраны';
+            ?>
+            <tr>
+              <!-- Код роли -->
+              <td>
+                <span class="role-badge <?= $roleClass($r['code'] ?? null) ?>">
+                  <?= htmlspecialchars($r['code'] ?? '') ?>
+                </span>
+              </td>
 
-            <?php if ($isAdminRole): ?>
-              <div class="role-static-note">Полный доступ ко всем разделам. Доступ роли «Администратор» изменить нельзя.</div>
-            <?php else: ?>
-              <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/roles/save" style="display:flex; flex-direction:column; gap:10px">
-                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-                <input type="hidden" name="role_id" value="<?= (int) $r['id'] ?>">
-                <input class="t-name" name="name" value="<?= htmlspecialchars($r['name']) ?>" placeholder="Название роли">
-                <input class="t-desc" name="description" value="<?= htmlspecialchars($r['description'] ?? '') ?>" placeholder="Описание">
-                <div class="pages-list">
-                  <span class="lbl">Доступ к разделам</span>
-                  <?php foreach ($pages as $code => $label): ?>
-                    <label class="pg">
-                      <input type="checkbox" name="pages[]" value="<?= htmlspecialchars($code) ?>"
-                        <?= !empty($rolePages[(int) $r['id']][$code]) ? 'checked' : '' ?>>
-                      <?= htmlspecialchars($label) ?>
-                    </label>
-                  <?php endforeach; ?>
-                </div>
-                <div class="role-card-foot">
-                  <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
-                  <?php if ((int) ($r['is_system'] ?? 0) === 0): ?>
-                    <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--brand-neg)"
-                            formaction="<?= htmlspecialchars($basePath) ?>/admin/roles/delete"
-                            onclick="return confirm('Удалить роль «<?= htmlspecialchars(addslashes($r['name']), ENT_QUOTES) ?>»?')">Удалить</button>
-                  <?php endif; ?>
-                </div>
-              </form>
-            <?php endif; ?>
-          </div>
-        <?php endforeach; ?>
-      </div>
+              <!-- Название -->
+              <td style="min-width:140px">
+                <?php if ($isAdmin): ?>
+                  <span style="font-weight:600"><?= htmlspecialchars($r['name']) ?></span>
+                <?php else: ?>
+                  <input class="tbl-input"
+                         name="name"
+                         value="<?= htmlspecialchars($r['name']) ?>"
+                         placeholder="Название"
+                         form="rf-<?= (int) $r['id'] ?>">
+                <?php endif; ?>
+              </td>
+
+              <!-- Описание -->
+              <td style="min-width:160px">
+                <?php if ($isAdmin): ?>
+                  <span class="admin-note">Полный доступ ко всем разделам</span>
+                <?php else: ?>
+                  <input class="tbl-input"
+                         name="description"
+                         value="<?= htmlspecialchars($r['description'] ?? '') ?>"
+                         placeholder="Описание"
+                         form="rf-<?= (int) $r['id'] ?>">
+                <?php endif; ?>
+              </td>
+
+              <!-- Разделы доступа -->
+              <td>
+                <?php if ($isAdmin): ?>
+                  <span class="admin-note">Все</span>
+                <?php else: ?>
+                  <details class="pg-drop" id="pgd-<?= (int) $r['id'] ?>">
+                    <summary class="pg-drop-btn" id="pgds-<?= (int) $r['id'] ?>">
+                      <?= htmlspecialchars($pgSummary) ?>
+                    </summary>
+                    <div class="pg-drop-menu" id="pgdm-<?= (int) $r['id'] ?>">
+                      <?php foreach ($pages as $code => $label): ?>
+                        <label class="pg-item">
+                          <input type="checkbox"
+                                 name="pages[]"
+                                 value="<?= htmlspecialchars($code) ?>"
+                                 form="rf-<?= (int) $r['id'] ?>"
+                                 data-summary="pgds-<?= (int) $r['id'] ?>"
+                                 data-total="<?= $totalPages ?>"
+                                 data-menu="pgdm-<?= (int) $r['id'] ?>"
+                                 <?= !empty($rolePages[(int) $r['id']][$code]) ? 'checked' : '' ?>>
+                          <?= htmlspecialchars($label) ?>
+                        </label>
+                      <?php endforeach; ?>
+                    </div>
+                  </details>
+                <?php endif; ?>
+              </td>
+
+              <!-- Действия -->
+              <td>
+                <?php if (!$isAdmin): ?>
+                  <div class="actions-cell">
+                    <button type="submit" class="btn btn-primary btn-sm"
+                            form="rf-<?= (int) $r['id'] ?>">Сохранить</button>
+                    <?php if ((int) ($r['is_system'] ?? 0) === 0): ?>
+                      <button type="submit"
+                              class="btn btn-ghost btn-sm"
+                              style="color:var(--brand-neg)"
+                              form="rfd-<?= (int) $r['id'] ?>"
+                              onclick="return confirm('Удалить роль «<?= htmlspecialchars(addslashes($r['name']), ENT_QUOTES) ?>»?')">
+                        Удалить
+                      </button>
+                    <?php endif; ?>
+                  </div>
+                <?php endif; ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
     </div>
 
   </main>
@@ -206,9 +378,9 @@ $roleClass = function (?string $code) {
       </div>
       <div class="fg">
         <label>Доступ к разделам</label>
-        <div class="pages-list">
+        <div class="pages-list" style="display:flex;flex-direction:column;gap:7px">
           <?php foreach ($pages as $code => $label): ?>
-            <label class="pg">
+            <label class="pg-item" style="padding:0">
               <input type="checkbox" name="pages[]" value="<?= htmlspecialchars($code) ?>"
                 <?= in_array($code, ['dashboard', 'maps'], true) ? 'checked' : '' ?>>
               <?= htmlspecialchars($label) ?>
@@ -226,10 +398,10 @@ $roleClass = function (?string $code) {
 
 <script>
   'use strict'
-  // --- Модалки ---
+
+  /* --- Модалки --- */
   function openModal(id) { var m = document.getElementById(id); if (m) m.classList.add('open') }
   function closeModal(id) { var m = document.getElementById(id); if (m) m.classList.remove('open') }
-  // закрытие по клику на подложку и по Esc
   var wraps = document.querySelectorAll('.modal-wrap')
   for (var i = 0; i < wraps.length; i++) {
     wraps[i].addEventListener('click', function (e) {
@@ -241,6 +413,56 @@ $roleClass = function (?string $code) {
       for (var j = 0; j < wraps.length; j++) wraps[j].classList.remove('open')
     }
   })
+
+  /* --- Выпадающий список разделов: position:fixed чтобы не обрезался --- */
+  var drops = document.querySelectorAll('details.pg-drop')
+  for (var d = 0; d < drops.length; d++) {
+    (function (picker) {
+      var menuId = picker.id.replace('pgd-', 'pgdm-')
+      var drop   = document.getElementById(menuId)
+      if (!drop) return
+      picker.addEventListener('toggle', function () {
+        if (picker.open) {
+          var r = picker.getBoundingClientRect()
+          drop.style.position = 'fixed'
+          drop.style.top      = (r.bottom + 4) + 'px'
+          drop.style.left     = r.left + 'px'
+          drop.style.minWidth = Math.max(r.width, 180) + 'px'
+          drop.style.zIndex   = '500'
+        } else {
+          drop.style.cssText = ''
+        }
+      })
+    })(drops[d])
+  }
+
+  /* --- Закрытие dropdown при клике вне --- */
+  document.addEventListener('click', function (e) {
+    for (var d = 0; d < drops.length; d++) {
+      if (drops[d].open && !drops[d].contains(e.target)) {
+        drops[d].removeAttribute('open')
+      }
+    }
+  })
+
+  /* --- Обновление счётчика разделов в summary при изменении чекбоксов --- */
+  var boxes = document.querySelectorAll('.pg-drop-menu input[type="checkbox"]')
+  for (var b = 0; b < boxes.length; b++) {
+    boxes[b].addEventListener('change', function () {
+      var summId = this.getAttribute('data-summary')
+      var menuId = this.getAttribute('data-menu')
+      var total  = parseInt(this.getAttribute('data-total'), 10)
+      var summ   = document.getElementById(summId)
+      var menu   = document.getElementById(menuId)
+      if (!summ || !menu) return
+      var all     = menu.querySelectorAll('input[type="checkbox"]')
+      var checked = 0
+      for (var k = 0; k < all.length; k++) {
+        if (all[k].checked) checked++
+      }
+      summ.textContent = checked > 0 ? (checked + ' из ' + total) : 'Не выбраны'
+    })
+  }
 </script>
 
 </body>

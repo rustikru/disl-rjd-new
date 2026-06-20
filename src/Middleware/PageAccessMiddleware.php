@@ -27,11 +27,13 @@ class PageAccessMiddleware implements MiddlewareInterface
     /** @var callable():\App\Database\DbInterface */
     private $dbResolver;
     private string $basePath;
+    private array $config;
 
-    public function __construct(callable $dbResolver, string $basePath = '')
+    public function __construct(callable $dbResolver, string $basePath = '', array $config = [])
     {
         $this->dbResolver = $dbResolver;
-        $this->basePath = $basePath;
+        $this->basePath   = $basePath;
+        $this->config     = $config;
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -141,17 +143,17 @@ class PageAccessMiddleware implements MiddlewareInterface
             return $response->withHeader('Content-Type', 'application/json; charset=utf-8');
         }
 
-        $home = htmlspecialchars($this->basePath) . '/';
-        $response->getBody()->write(
-            '<!doctype html><meta charset="utf-8">'
-            . '<title>Нет доступа</title>'
-            . '<div style="font-family:system-ui,sans-serif;max-width:480px;margin:80px auto;text-align:center;color:#1b1726">'
-            . '<div style="font-size:48px;font-weight:800;color:#46297f">403</div>'
-            . '<h2 style="margin:8px 0 4px">Раздел недоступен</h2>'
-            . '<p style="color:#6b667a">У вашей роли нет доступа к этой странице.</p>'
-            . '<p><a style="color:#46297f" href="' . $home . '">← На главную</a></p>'
-            . '</div>'
-        );
+        $appName     = $this->config['app_name'] ?? '';
+        $basePath    = $this->basePath;
+        $user        = $_SESSION['user'] ?? [];
+        $headerSub   = '<div class="brand-sub">Ошибка доступа</div>';
+        $headerRight = '';
+
+        ob_start();
+        include __DIR__ . '/../../templates/403.php';
+        $html = ob_get_clean();
+
+        $response->getBody()->write((string) $html);
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 }
