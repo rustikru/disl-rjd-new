@@ -143,8 +143,8 @@ class AuthService
             'SELECT r.id, r.code, r.name
                FROM xx_rjd_roles r
                JOIN xx_rjd_user_roles ur ON ur.role_id = r.id
-              WHERE ur.user_id = :uid',
-            ['uid' => $userId]
+              WHERE ur.user_id = :user_id',
+            ['user_id' => $userId]
         );
     }
 }

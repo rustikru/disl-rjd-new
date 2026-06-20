@@ -117,11 +117,11 @@ class AdminController
 
         $this->db->beginTransaction();
         try {
-            $this->db->execute('DELETE FROM xx_rjd_user_roles WHERE user_id = :uid', ['uid' => $userId]);
+            $this->db->execute('DELETE FROM xx_rjd_user_roles WHERE user_id = :user_id', ['user_id' => $userId]);
             foreach ($roleIds as $roleId) {
                 $this->db->execute(
-                    'INSERT INTO xx_rjd_user_roles (user_id, role_id) VALUES (:uid, :rid)',
-                    ['uid' => $userId, 'rid' => $roleId]
+                    'INSERT INTO xx_rjd_user_roles (user_id, role_id) VALUES (:user_id, :role_id)',
+                    ['user_id' => $userId, 'role_id' => $roleId]
                 );
             }
             $this->db->commit();
@@ -215,8 +215,8 @@ class AdminController
                 $newUserId = (int) ($newUser['id'] ?? 0);
                 foreach ($roleIds as $roleId) {
                     $this->db->execute(
-                        'INSERT INTO xx_rjd_user_roles (user_id, role_id) VALUES (:uid, :rid)',
-                        ['uid' => $newUserId, 'rid' => $roleId]
+                        'INSERT INTO xx_rjd_user_roles (user_id, role_id) VALUES (:user_id, :role_id)',
+                        ['user_id' => $newUserId, 'role_id' => $roleId]
                     );
                 }
             }
