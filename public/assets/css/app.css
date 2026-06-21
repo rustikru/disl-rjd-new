@@ -199,21 +199,47 @@ body {
 .user-info {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 0;
   background: var(--hover-green);
+  border: 1px solid var(--border);
   border-radius: 99px;
-  padding: 4px 6px 4px 4px;
+  padding: 3px 3px 3px 10px;
 }
 
 .user-info .btn {
   border-radius: 99px;
 }
 
+.user-info-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+
 .user-name {
   font-size: 13px;
   color: var(--accent);
   font-weight: 700;
-  padding: 0 8px;
+  padding: 0 10px 0 0;
+  white-space: nowrap;
+}
+
+.user-info-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  flex-shrink: 0;
+  margin-right: 3px;
+}
+
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  flex-shrink: 0;
 }
 
 /* ==========================================================================
