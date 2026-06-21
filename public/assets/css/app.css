@@ -196,6 +196,30 @@ body {
   letter-spacing: 0.06em;
 }
 
+.btn-nav-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--hover-green);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 5px 13px 5px 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: inherit;
+  line-height: 1;
+  transition: background .15s, border-color .15s;
+}
+.btn-nav-back:hover {
+  background: var(--accent-lt);
+  border-color: var(--accent);
+}
+
 .user-info {
   display: flex;
   align-items: center;

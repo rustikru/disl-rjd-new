@@ -175,7 +175,8 @@ $basePath = $basePath ?? '';
 
 <?php
   $headerSub   = '<div class="brand-sub">Загрузка справки РЖД</div>';
-  $headerRight = '<button type="button" class="btn btn-ghost btn-sm" onclick="goBack()">← Назад</button>';
+  $headerLeft  = '<button type="button" class="btn-nav-back" onclick="goBack()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Назад</button>';
+  $headerRight = '';
   include __DIR__ . '/partials/header.php';
 ?>
 

@@ -1,9 +1,11 @@
 <?php
 $headerSub   = $headerSub   ?? '';
 $headerRight = $headerRight ?? '';
+$headerLeft  = $headerLeft  ?? '';
 ?>
 <header class="site-header">
   <div class="header-inner">
+    <?= $headerLeft ?>
     <div class="brand">
       <div class="brand-icon">
         <img src="<?= htmlspecialchars($basePath) ?>/assets/img/meta-logo.png" alt="" class="brand-logo">
