@@ -22,7 +22,6 @@ class ParseReportDateTest extends TestCase
         $this->controller = new ImportController($db, []);
 
         $this->method = new ReflectionMethod(ImportController::class, 'parseReportDate');
-        $this->method->setAccessible(true);
     }
 
     private function parse(string $raw): string

@@ -23,7 +23,6 @@ class DetectFileTypeTest extends TestCase
         $this->controller = new ImportController($db, []);
 
         $this->method = new ReflectionMethod(ImportController::class, 'detectFileType');
-        $this->method->setAccessible(true);
     }
 
     private function detect(array $columnLValues): string

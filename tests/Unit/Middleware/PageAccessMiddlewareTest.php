@@ -27,7 +27,6 @@ class PageAccessMiddlewareTest extends TestCase
     private function resolvePage(string $path, string $basePath = ''): ?string
     {
         $method = new ReflectionMethod(PageAccessMiddleware::class, 'resolvePage');
-        $method->setAccessible(true);
 
         $db = $this->createMock(DbInterface::class);
         $middleware = new PageAccessMiddleware(fn() => $db, $basePath);

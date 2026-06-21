@@ -22,7 +22,6 @@ class CastValueTest extends TestCase
         $this->controller = new ImportController($db, []);
 
         $this->method = new ReflectionMethod(ImportController::class, 'castValue');
-        $this->method->setAccessible(true);
     }
 
     private function cast(string $field, ?string $raw): mixed
