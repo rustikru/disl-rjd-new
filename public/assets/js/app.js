@@ -1,6 +1,6 @@
 'use strict'
 
-var BASE          = window.APP_BASE || ''
+var BASE = window.APP_BASE || ''
 var ALLOWED_PAGES = window.APP_ALLOWED_PAGES || []
 
 // Проверка доступа к вкладке по коду страницы (page из Navigation.php)
@@ -17,10 +17,10 @@ var TAB_GROUPS = (window.APP_NAV_CONFIG || []).map(function (group) {
     label: group.group,
     tabs: group.items.map(function (item) {
       return {
-        id:     item.id,
-        label:  item.label,
-        page:   item.page   || null,
-        url:    item.url    ? (BASE + item.url) : null,
+        id: item.id,
+        label: item.label,
+        page: item.page || null,
+        url: item.url ? BASE + item.url : null,
         target: item.target || null,
       }
     }),
@@ -217,6 +217,7 @@ var WAGON_TABS = {
         cargo: $('#fDislocationCargo').val().trim() || undefined,
       }
     },
+    totalColDims: ['wagon_type_code'], // Итог по строке в разрезе (пор. / гр.)
     fillFilters: function (data) {
       fillSelect('#fDislocationCargo', data.cargo || [])
     },
@@ -2130,7 +2131,8 @@ $(function () {
   initSidebar()
   initInnerTabs()
 
-  var hasDashboard = window.APP_IS_ADMIN || ALLOWED_PAGES.indexOf('dashboard') !== -1
+  var hasDashboard =
+    window.APP_IS_ADMIN || ALLOWED_PAGES.indexOf('dashboard') !== -1
 
   // Если дашборд недоступен — скрываем все его панели и показываем заглушку
   if (!hasDashboard) {
@@ -2141,7 +2143,8 @@ $(function () {
     var mainContent = document.querySelector('.main-content')
     if (mainContent) {
       var noAccess = document.createElement('div')
-      noAccess.style.cssText = 'padding:80px 24px;text-align:center;color:#888;font-size:16px'
+      noAccess.style.cssText =
+        'padding:80px 24px;text-align:center;color:#888;font-size:16px'
       if (ALLOWED_PAGES.length === 0) {
         // Совсем нет ролей
         noAccess.innerHTML =
@@ -2167,8 +2170,10 @@ $(function () {
       : 'dislocation'
   if (startTab !== 'dislocation') switchTab(startTab)
 
-  var kpiXhrs    = hasDashboard ? loadKPI() : null
-  var summaryXhr = hasDashboard ? initTab(WAGON_TABS[startTab] || WAGON_TABS.dislocation) : null
+  var kpiXhrs = hasDashboard ? loadKPI() : null
+  var summaryXhr = hasDashboard
+    ? initTab(WAGON_TABS[startTab] || WAGON_TABS.dislocation)
+    : null
 
   // Скрываем оверлей когда готовы и KPI, и сводная таблица
   var allXhrs = (kpiXhrs || []).concat(summaryXhr ? [summaryXhr] : [])
