@@ -36,30 +36,9 @@ class OracleDb implements DbInterface
         oci_free_statement($stmt);
     }
 
-    /** Подставляет bind-значения в SQL для читаемого лога (только для отладки). */
-    private static function interpolate(string $sql, array $params): string
-    {
-        // Сортируем по убыванию длины ключа, чтобы :gf_10 заменялся раньше :gf_1
-        $keys = array_keys($params);
-        usort($keys, fn($a, $b) => strlen((string)$b) - strlen((string)$a));
-        foreach ($keys as $k) {
-            $v = $params[$k];
-            $key = ltrim((string)$k, ':');
-            $quoted = $v === null ? 'NULL'
-                : (is_numeric($v) ? (string)$v : "'" . str_replace("'", "''", (string)$v) . "'");
-            $sql = preg_replace('/:' . preg_quote($key, '/') . '\b/', $quoted, $sql);
-        }
-        return $sql;
-    }
-
     public function fetchAll(string $sql, array $params = []): array
     {
-        if (($_ENV['APP_DEBUG'] ?? '') === 'true') {
-            $interpolated = self::interpolate($sql, $params);
-            $ts = date('Y-m-d H:i:s');
-            file_put_contents(__DIR__ . '/../../tmp/log/sql_debug.log', "[$ts]\n$interpolated\n\n", FILE_APPEND | LOCK_EX);
-        }
-
+        $t0   = QueryLogger::isEnabled() ? microtime(true) : 0.0;
         $stmt = oci_parse($this->connection, $sql);
         if (!$stmt) {
             $err = oci_error($this->connection);
@@ -89,6 +68,10 @@ class OracleDb implements DbInterface
         }
         oci_free_statement($stmt);
 
+        if ($t0 > 0.0) {
+            QueryLogger::log('Oracle', 'fetchAll', $sql, $params, (microtime(true) - $t0) * 1000);
+        }
+
         return $rows;
     }
 
@@ -100,6 +83,7 @@ class OracleDb implements DbInterface
 
     public function execute(string $sql, array $params = []): int
     {
+        $t0   = QueryLogger::isEnabled() ? microtime(true) : 0.0;
         $stmt = oci_parse($this->connection, $sql);
         if (!$stmt) {
             $err = oci_error($this->connection);
@@ -127,6 +111,10 @@ class OracleDb implements DbInterface
         }
         $count = oci_num_rows($stmt);
         oci_free_statement($stmt);
+
+        if ($t0 > 0.0) {
+            QueryLogger::log('Oracle', 'execute', $sql, $params, (microtime(true) - $t0) * 1000);
+        }
 
         return $count;
     }

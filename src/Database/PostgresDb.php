@@ -27,24 +27,38 @@ class PostgresDb implements DbInterface
 
     public function fetchAll(string $sql, array $params = []): array
     {
+        $t0   = QueryLogger::isEnabled() ? microtime(true) : 0.0;
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
-        return $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+        if ($t0 > 0.0) {
+            QueryLogger::log('Postgres', 'fetchAll', $sql, $params, (microtime(true) - $t0) * 1000);
+        }
+        return $rows;
     }
 
     public function fetchOne(string $sql, array $params = []): ?array
     {
+        $t0   = QueryLogger::isEnabled() ? microtime(true) : 0.0;
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
         $row = $stmt->fetch();
+        if ($t0 > 0.0) {
+            QueryLogger::log('Postgres', 'fetchOne', $sql, $params, (microtime(true) - $t0) * 1000);
+        }
         return $row ?: null;
     }
 
     public function execute(string $sql, array $params = []): int
     {
+        $t0   = QueryLogger::isEnabled() ? microtime(true) : 0.0;
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
-        return $stmt->rowCount();
+        $count = $stmt->rowCount();
+        if ($t0 > 0.0) {
+            QueryLogger::log('Postgres', 'execute', $sql, $params, (microtime(true) - $t0) * 1000);
+        }
+        return $count;
     }
 
     public function beginTransaction(): void
