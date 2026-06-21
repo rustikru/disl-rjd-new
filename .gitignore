@@ -7,3 +7,12 @@ sql
 docker-compose.yml
 .vscode
 .phpunit.result.cache
+vendor/bin/php-parse
+vendor/bin/phpunit
+vendor/myclabs/
+vendor/nikic/
+vendor/phar-io/
+vendor/phpunit/
+vendor/sebastian/
+vendor/staabm/
+vendor/theseer/
