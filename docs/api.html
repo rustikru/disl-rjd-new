@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Reference — Дислокация РЖД</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      color: #1a1a2e;
+      background: #fff;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    nav {
+      width: 260px;
+      min-width: 260px;
+      background: #0f172a;
+      color: #cbd5e1;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      overflow-y: auto;
+      padding-bottom: 40px;
+    }
+    nav .nav-logo {
+      padding: 24px 20px 20px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      border-bottom: 1px solid #1e293b;
+    }
+    nav .nav-logo span { color: #38bdf8; }
+    nav .nav-group {
+      padding: 20px 20px 4px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #475569;
+    }
+    nav a {
+      display: block;
+      padding: 7px 20px;
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 13px;
+      border-left: 3px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    nav a:hover { color: #e2e8f0; border-left-color: #334155; }
+    nav a.active { color: #38bdf8; border-left-color: #38bdf8; }
+
+    /* ── Main ── */
+    main {
+      margin-left: 260px;
+      flex: 1;
+      padding: 48px 56px;
+      max-width: 900px;
+    }
+
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; color: #0f172a; }
+    .page-sub { color: #64748b; font-size: 14px; margin-bottom: 40px; line-height: 1.6; }
+
+    /* ── Section ── */
+    .section { margin-bottom: 64px; }
+    .section-title {
+      font-size: 20px; font-weight: 700;
+      color: #0f172a;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 24px;
+    }
+
+    /* ── Endpoint card ── */
+    .endpoint { margin-bottom: 48px; }
+    .endpoint-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .method {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .method-get  { background: #dbeafe; color: #1d4ed8; }
+    .method-post { background: #dcfce7; color: #15803d; }
+
+    .endpoint-path {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 15px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .endpoint-desc {
+      color: #475569;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    /* ── Auth badge ── */
+    .auth-note {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #fef3c7;
+      color: #92400e;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      margin-bottom: 16px;
+    }
+
+    /* ── Params table ── */
+    .params-label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 13px;
+    }
+    th {
+      background: #f8fafc;
+      text-align: left;
+      padding: 8px 12px;
+      font-weight: 600;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+      font-size: 12px;
+    }
+    td {
+      padding: 8px 12px;
+      border: 1px solid #e2e8f0;
+      vertical-align: top;
+      line-height: 1.5;
+    }
+    td code {
+      font-family: 'SFMono-Regular', Consolas, monospace;
+      background: #f1f5f9;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 12px;
+      color: #0f172a;
+    }
+    .optional { color: #94a3b8; font-size: 11px; }
+    .required { color: #dc2626; font-size: 11px; font-weight: 600; }
+
+    /* ── Code blocks ── */
+    .code-block {
+      background: #0f172a;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .code-block-label {
+      background: #1e293b;
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 7px 16px;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+    .code-block pre {
+      padding: 16px;
+      color: #e2e8f0;
+      font-family: 'SFMono-Regular', Consolas, monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .c-key    { color: #7dd3fc; }
+    .c-str    { color: #86efac; }
+    .c-num    { color: #fda4af; }
+    .c-null   { color: #94a3b8; }
+    .c-url    { color: #c4b5fd; }
+    .c-comment{ color: #475569; }
+
+    /* ── Divider ── */
+    hr { border: none; border-top: 1px solid #e2e8f0; margin: 32px 0; }
+
+    /* ── Scrollbar ── */
+    nav::-webkit-scrollbar { width: 4px; }
+    nav::-webkit-scrollbar-track { background: transparent; }
+    nav::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">Дислокация <span>РЖД</span><br><small style="font-weight:400;color:#64748b;font-size:12px">API Reference</small></div>
+
+  <div class="nav-group">Общее</div>
+  <a href="#intro">Введение</a>
+  <a href="#auth">Аутентификация</a>
+
+  <div class="nav-group">Дашборд</div>
+  <a href="#dashboard">Dashboard</a>
+  <a href="#kpi">KPI карточки</a>
+
+  <div class="nav-group">Дислокация</div>
+  <a href="#disl-filters">Фильтры</a>
+  <a href="#disl-summary">Сводная</a>
+  <a href="#disl-detail">Подробная</a>
+
+  <div class="nav-group">Подход</div>
+  <a href="#approach-filters">Фильтры</a>
+  <a href="#approach-summary">Сводная</a>
+  <a href="#approach-detail">Подробная</a>
+
+  <div class="nav-group">Отправление</div>
+  <a href="#departure-filters">Фильтры</a>
+  <a href="#departure-summary">Сводная</a>
+  <a href="#departure-detail">Подробная</a>
+
+  <div class="nav-group">Погрузка</div>
+  <a href="#loading-filters">Фильтры</a>
+  <a href="#loading-summary">Сводная</a>
+  <a href="#loading-detail">Подробная</a>
+
+  <div class="nav-group">Простои</div>
+  <a href="#downtime-filters">Фильтры</a>
+  <a href="#downtime-summary">Сводная</a>
+  <a href="#downtime-detail">Подробная</a>
+
+  <div class="nav-group">Сырьё</div>
+  <a href="#raw-summary">Сводная</a>
+  <a href="#raw-detail">Подробная</a>
+
+  <div class="nav-group">Анализ за период</div>
+  <a href="#analysis-filters">Фильтры</a>
+  <a href="#analysis-period">Подробная</a>
+
+  <div class="nav-group">Импорт</div>
+  <a href="#import-file">Загрузка файла</a>
+</nav>
+
+<main>
+  <h1>API Reference</h1>
+  <p class="page-sub">
+    Внутренний REST API системы дислокации вагонов.<br>
+    Все эндпоинты требуют активной сессии (cookie). Данные возвращаются в формате <strong>JSON</strong>.
+    Базовый путь зависит от конфигурации сервера (<code>base_path</code>).
+  </p>
+
+  <!-- ═══════════════════════════════ ВВЕДЕНИЕ ═══════════════════════════════ -->
+  <div class="section" id="intro">
+    <div class="section-title">Введение</div>
+
+    <p style="color:#475569;line-height:1.7;margin-bottom:16px">
+      API работает поверх сессионной аутентификации. Все запросы к <code>/api/*</code>
+      должны содержать действующий session cookie, полученный через форму входа
+      <code>POST /login</code>. Доступ к отдельным разделам ограничен ролями пользователя.
+    </p>
+
+    <div class="params-label">Общие параметры (применимы к большинству эндпоинтов)</div>
+    <table>
+      <tr><th>Параметр</th><th>Тип</th><th>Описание</th></tr>
+      <tr><td><code>report_dt</code></td><td>string</td><td>Дата справки <code>YYYY-MM-DD</code>. Если не указана — берётся последняя загруженная.</td></tr>
+      <tr><td><code>cargo</code></td><td>string</td><td>Фильтр по наименованию груза (точное совпадение, без учёта регистра и буквы Ё/Е).</td></tr>
+      <tr><td><code>wagon_no</code></td><td>string</td><td>Номер(а) вагона через точку с запятой: <code>12345678;87654321</code>.</td></tr>
+      <tr><td><code>group_by</code></td><td>string</td><td>Поле(а) группировки строк сводной таблицы через запятую.</td></tr>
+      <tr><td><code>col_by</code></td><td>string</td><td>Поле(а) группировки колонок сводной таблицы через запятую.</td></tr>
+      <tr><td><code>fields</code></td><td>string</td><td>Список полей для возврата в подробной таблице через запятую.</td></tr>
+      <tr><td><code>sort_by</code></td><td>string</td><td>Поле сортировки подробной таблицы.</td></tr>
+      <tr><td><code>sort_dir</code></td><td>string</td><td><code>asc</code> или <code>desc</code> (по умолчанию <code>asc</code>).</td></tr>
+    </table>
+
+    <div class="params-label">Формат ответа об ошибке</div>
+    <div class="code-block">
+      <div class="code-block-label">JSON</div>
+      <pre>{
+  <span class="c-key">"status"</span>: <span class="c-str">"error"</span>,
+  <span class="c-key">"message"</span>: <span class="c-str">"Недостаточно прав для доступа к разделу"</span>
+}</pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ AUTH ═══════════════════════════════════ -->
+  <div class="section" id="auth">
+    <div class="section-title">Аутентификация</div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-post">POST</span>
+        <span class="endpoint-path">/login</span>
+      </div>
+      <p class="endpoint-desc">Вход в систему. При успехе устанавливает session cookie.</p>
+
+      <div class="params-label">Тело запроса (application/x-www-form-urlencoded)</div>
+      <table>
+        <tr><th>Параметр</th><th>Обязательный</th><th>Описание</th></tr>
+        <tr><td><code>username</code></td><td><span class="required">да</span></td><td>Логин пользователя</td></tr>
+        <tr><td><code>password</code></td><td><span class="required">да</span></td><td>Пароль</td></tr>
+        <tr><td><code>csrf_token</code></td><td><span class="required">да</span></td><td>CSRF-токен из формы</td></tr>
+      </table>
+
+      <div class="code-block">
+        <div class="code-block-label">Запрос</div>
+        <pre><span class="c-comment"># При успехе — редирект 302 на /</span>
+<span class="c-comment"># При ошибке  — редирект 302 на /login?error=...</span>
+curl -c cookies.txt -d "username=admin&password=secret&csrf_token=TOKEN" /login</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ DASHBOARD ══════════════════════════════ -->
+  <div class="section" id="dashboard">
+    <div class="section-title">Дашборд</div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/dashboard</span>
+      </div>
+      <p class="endpoint-desc">Возвращает дату последней загруженной справки.</p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+      <div class="code-block">
+        <div class="code-block-label">Пример ответа</div>
+        <pre>{
+  <span class="c-key">"updated_at"</span>: <span class="c-str">"20.06.2026 16:01"</span>,
+  <span class="c-key">"sections"</span>: [],
+  <span class="c-key">"trends"</span>: <span class="c-str">""</span>
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ KPI ════════════════════════════════════ -->
+  <div class="section" id="kpi">
+    <div class="section-title">KPI карточки</div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/kpi/summary</span>
+      </div>
+      <p class="endpoint-desc">
+        Возвращает набор KPI-карточек с текущим значением и трендом относительно предыдущей справки.
+        Значения вычисляются Oracle-пакетом <code>xx_rjd_dislocation_new_pkg</code>.
+      </p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+      <div class="params-label">Query-параметры</div>
+      <table>
+        <tr><th>Параметр</th><th>Обязательный</th><th>Описание</th></tr>
+        <tr><td><code>kpi_type</code></td><td><span class="optional">нет</span></td><td>Фильтр по типу карточки (например, <code>wagon</code>, <code>cargo</code>).</td></tr>
+      </table>
+
+      <div class="code-block">
+        <div class="code-block-label">Запрос</div>
+        <pre><span class="c-url">GET /api/kpi/summary</span>
+<span class="c-url">GET /api/kpi/summary?kpi_type=wagon</span></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block-label">Пример ответа</div>
+        <pre>{
+  <span class="c-key">"updated_at"</span>: <span class="c-str">"20.06.2026 16:01"</span>,
+  <span class="c-key">"sections"</span>: [
+    {
+      <span class="c-key">"values"</span>: [
+        {
+          <span class="c-key">"id"</span>: <span class="c-str">"1"</span>,
+          <span class="c-key">"label"</span>: <span class="c-str">"Всего вагонов"</span>,
+          <span class="c-key">"value"</span>: <span class="c-str">"1 842"</span>,
+          <span class="c-key">"trend"</span>: <span class="c-str">"up"</span>,
+          <span class="c-key">"change"</span>: <span class="c-str">"+2.3%"</span>
+        },
+        {
+          <span class="c-key">"id"</span>: <span class="c-str">"2"</span>,
+          <span class="c-key">"label"</span>: <span class="c-str">"Гружёных"</span>,
+          <span class="c-key">"value"</span>: <span class="c-str">"934"</span>,
+          <span class="c-key">"trend"</span>: <span class="c-str">"down"</span>,
+          <span class="c-key">"change"</span>: <span class="c-str">"-1.1%"</span>
+        }
+      ]
+    }
+  ]
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ DISLOCATION ════════════════════════════ -->
+  <div class="section" id="disl-filters">
+    <div class="section-title">Дислокация</div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/dislocation/filters</span>
+      </div>
+      <p class="endpoint-desc">Возвращает список доступных справок (по датам) и грузов для фильтрации.</p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+      <div class="code-block">
+        <div class="code-block-label">Пример ответа</div>
+        <pre>{
+  <span class="c-key">"reports"</span>: [
+    {
+      <span class="c-key">"report_dt"</span>: <span class="c-str">"2026-06-20"</span>,
+      <span class="c-key">"type_reference"</span>: <span class="c-str">"Подход"</span>,
+      <span class="c-key">"label"</span>: <span class="c-str">"20.06.2026 (Подход)"</span>,
+      <span class="c-key">"cnt"</span>: <span class="c-num">1024</span>
+    }
+  ],
+  <span class="c-key">"cargo"</span>: [<span class="c-str">"Аммиак жидкий"</span>, <span class="c-str">"Карбамид"</span>, <span class="c-str">"Метанол"</span>]
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="disl-summary">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/api/dislocation/summary</span>
+    </div>
+    <p class="endpoint-desc">Сводная таблица дислокации. Объединяет данные справок «Подход» и «Отправка».</p>
+    <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+    <div class="params-label">Query-параметры</div>
+    <table>
+      <tr><th>Параметр</th><th>Обязательный</th><th>Описание</th></tr>
+      <tr><td><code>report_dt</code></td><td><span class="optional">нет</span></td><td>Дата справки <code>YYYY-MM-DD</code>. По умолчанию — последняя.</td></tr>
+      <tr><td><code>cargo</code></td><td><span class="optional">нет</span></td><td>Фильтр по грузу.</td></tr>
+      <tr><td><code>wagon_no</code></td><td><span class="optional">нет</span></td><td>Номер(а) вагона через <code>;</code>.</td></tr>
+      <tr><td><code>group_by</code></td><td><span class="optional">нет</span></td><td>Группировка строк. По умолчанию: <code>dest_state,dest_road</code>.</td></tr>
+      <tr><td><code>col_by</code></td><td><span class="optional">нет</span></td><td>Группировка колонок. По умолчанию: <code>wagon_type_code,cargo_w_type</code>.</td></tr>
+    </table>
+
+    <div class="code-block">
+      <div class="code-block-label">Запрос</div>
+      <pre><span class="c-url">GET /api/dislocation/summary</span>
+<span class="c-url">GET /api/dislocation/summary?report_dt=2026-06-20&cargo=Метанол&group_by=dest_road</span></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-block-label">Пример ответа</div>
+      <pre>{
+  <span class="c-key">"cols"</span>: [
+    { <span class="c-key">"alias"</span>: <span class="c-str">"wagon_type_code"</span>, <span class="c-key">"label"</span>: <span class="c-str">"Тип вагона"</span> }
+  ],
+  <span class="c-key">"roads"</span>: [<span class="c-str">"СВЕРДЛОВСКАЯ"</span>, <span class="c-str">"ПЕРМСКАЯ"</span>],
+  <span class="c-key">"metrics"</span>: [
+    {
+      <span class="c-key">"dest_state"</span>: <span class="c-str">"РФ"</span>,
+      <span class="c-key">"dest_road"</span>: <span class="c-str">"СВЕРДЛОВСКАЯ"</span>,
+      <span class="c-key">"cnt"</span>: <span class="c-num">128</span>
+    }
+  ],
+  <span class="c-key">"total"</span>: <span class="c-num">1842</span>
+}</pre>
+    </div>
+  </div>
+
+  <div class="endpoint" id="disl-detail">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/api/dislocation/detail</span>
+    </div>
+    <p class="endpoint-desc">Подробная таблица дислокации — строки по вагонам.</p>
+    <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+    <div class="params-label">Query-параметры</div>
+    <table>
+      <tr><th>Параметр</th><th>Обязательный</th><th>Описание</th></tr>
+      <tr><td><code>report_dt</code></td><td><span class="optional">нет</span></td><td>Дата справки.</td></tr>
+      <tr><td><code>cargo</code></td><td><span class="optional">нет</span></td><td>Фильтр по грузу.</td></tr>
+      <tr><td><code>wagon_no</code></td><td><span class="optional">нет</span></td><td>Номер(а) вагона через <code>;</code>.</td></tr>
+      <tr><td><code>group_by</code></td><td><span class="optional">нет</span></td><td>Фильтр по значению группировки (например, конкретная дорога).</td></tr>
+      <tr><td><code>fields</code></td><td><span class="optional">нет</span></td><td>Поля для возврата через <code>,</code>.</td></tr>
+      <tr><td><code>sort_by</code></td><td><span class="optional">нет</span></td><td>Поле сортировки.</td></tr>
+      <tr><td><code>sort_dir</code></td><td><span class="optional">нет</span></td><td><code>asc</code> / <code>desc</code>.</td></tr>
+      <tr><td><code>kpi_id</code></td><td><span class="optional">нет</span></td><td>ID KPI-карточки — возвращает только вагоны этой карточки.</td></tr>
+    </table>
+
+    <div class="code-block">
+      <div class="code-block-label">Запрос</div>
+      <pre><span class="c-url">GET /api/dislocation/detail?fields=wagon_no,cargo_name,oper_station,oper_dt&sort_by=oper_dt&sort_dir=desc</span></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-block-label">Пример ответа</div>
+      <pre>{
+  <span class="c-key">"rows"</span>: [
+    {
+      <span class="c-key">"wagon_no"</span>: <span class="c-str">"52345678"</span>,
+      <span class="c-key">"cargo_name"</span>: <span class="c-str">"Метанол"</span>,
+      <span class="c-key">"oper_station"</span>: <span class="c-str">"ПЕРМЬ-СОРТИРОВОЧНАЯ"</span>,
+      <span class="c-key">"oper_dt"</span>: <span class="c-str">"2026-06-20 14:32:00"</span>
+    }
+  ]
+}</pre>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ═══════════════════════════════ APPROACH ═══════════════════════════════ -->
+  <div class="section" id="approach-filters">
+    <div class="section-title">Подход</div>
+    <p class="endpoint-desc" style="margin-bottom:24px">Вагоны в подходе к ст. Углеуральская (справка типа «Подход»).</p>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/approach/filters</span>
+      </div>
+      <p class="endpoint-desc">Списки грузов и ранее выгруженных грузов для фильтрации.</p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+      <div class="params-label">Query-параметры</div>
+      <table>
+        <tr><th>Параметр</th><th>Обязательный</th><th>Описание</th></tr>
+        <tr><td><code>report_dt</code></td><td><span class="optional">нет</span></td><td>Дата справки.</td></tr>
+      </table>
+
+      <div class="code-block">
+        <div class="code-block-label">Пример ответа</div>
+        <pre>{
+  <span class="c-key">"cargo"</span>: [<span class="c-str">"Аммиак жидкий"</span>, <span class="c-str">"Метанол"</span>],
+  <span class="c-key">"prev_cargo"</span>: [<span class="c-str">"Карбамид"</span>, <span class="c-str">"Пустой"</span>]
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="approach-summary">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/api/approach/summary</span>
+    </div>
+    <p class="endpoint-desc">Сводная таблица подхода.</p>
+    <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+    <div class="params-label">Query-параметры</div>
+    <table>
+      <tr><th>Параметр</th><th>Обязательный</th><th>Описание</th></tr>
+      <tr><td><code>report_dt</code></td><td><span class="optional">нет</span></td><td>Дата справки.</td></tr>
+      <tr><td><code>cargo</code></td><td><span class="optional">нет</span></td><td>Фильтр по грузу.</td></tr>
+      <tr><td><code>prev_cargo</code></td><td><span class="optional">нет</span></td><td>Фильтр по ранее выгруженному грузу.</td></tr>
+      <tr><td><code>wagon_no</code></td><td><span class="optional">нет</span></td><td>Номер(а) вагона через <code>;</code>.</td></tr>
+      <tr><td><code>group_by</code></td><td><span class="optional">нет</span></td><td>По умолчанию: <code>dest_road,dest_station</code>.</td></tr>
+      <tr><td><code>col_by</code></td><td><span class="optional">нет</span></td><td>По умолчанию: <code>wagon_type_code,cargo_w_type</code>.</td></tr>
+    </table>
+  </div>
+
+  <div class="endpoint" id="approach-detail">
+    <div class="endpoint-header">
+      <span class="method method-get">GET</span>
+      <span class="endpoint-path">/api/approach/detail</span>
+    </div>
+    <p class="endpoint-desc">Подробная таблица подхода по вагонам.</p>
+    <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+    <div class="params-label">Дополнительные параметры</div>
+    <table>
+      <tr><th>Параметр</th><th>Обязательный</th><th>Описание</th></tr>
+      <tr><td><code>exclude_station</code></td><td><span class="optional">нет</span></td><td>Исключить вагоны на указанной станции (частичное совпадение).</td></tr>
+      <tr><td><code>prev_cargo</code></td><td><span class="optional">нет</span></td><td>Фильтр по ранее выгруженному грузу.</td></tr>
+    </table>
+  </div>
+
+  <hr>
+
+  <!-- ═══════════════════════════════ DEPARTURE ══════════════════════════════ -->
+  <div class="section" id="departure-filters">
+    <div class="section-title">Отправление</div>
+    <p class="endpoint-desc" style="margin-bottom:24px">Вагоны в отправлении (справка типа «Отправка», станция назначения ≠ Углеуральская).</p>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/departure/filters</span>
+      </div>
+      <p class="endpoint-desc">Списки грузов и станций назначения.</p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+      <div class="code-block">
+        <div class="code-block-label">Пример ответа</div>
+        <pre>{
+  <span class="c-key">"cargo"</span>: [<span class="c-str">"Карбамид"</span>, <span class="c-str">"Метанол"</span>],
+  <span class="c-key">"dest_station"</span>: [<span class="c-str">"МОСКВА-ТОВАРНАЯ"</span>, <span class="c-str">"НОВОСИБИРСК"</span>]
+}</pre>
+      </div>
+    </div>
+
+    <div class="endpoint" id="departure-summary">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/departure/summary</span>
+      </div>
+      <p class="endpoint-desc">Сводная таблица отправления.</p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+      <div class="params-label">Query-параметры</div>
+      <table>
+        <tr><th>Параметр</th><th>Обязательный</th><th>Описание</th></tr>
+        <tr><td><code>report_dt</code></td><td><span class="optional">нет</span></td><td>Дата справки.</td></tr>
+        <tr><td><code>cargo</code></td><td><span class="optional">нет</span></td><td>Фильтр по грузу.</td></tr>
+        <tr><td><code>dest_station</code></td><td><span class="optional">нет</span></td><td>Фильтр по станции назначения.</td></tr>
+        <tr><td><code>wagon_no</code></td><td><span class="optional">нет</span></td><td>Номер(а) вагона через <code>;</code>.</td></tr>
+        <tr><td><code>group_by</code></td><td><span class="optional">нет</span></td><td>По умолчанию: <code>depart_road,depart_station</code>.</td></tr>
+        <tr><td><code>col_by</code></td><td><span class="optional">нет</span></td><td>По умолчанию: <code>wagon_type_code</code>.</td></tr>
+      </table>
+    </div>
+
+    <div class="endpoint" id="departure-detail">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/departure/detail</span>
+      </div>
+      <p class="endpoint-desc">Подробная таблица отправления по вагонам.</p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ═══════════════════════════════ LOADING ════════════════════════════════ -->
+  <div class="section" id="loading-filters">
+    <div class="section-title">Погрузка</div>
+    <p class="endpoint-desc" style="margin-bottom:24px">Гружёные вагоны (cargo_weight_kg &gt; 0).</p>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/loading/filters</span>
+      </div>
+      <p class="endpoint-desc">Список грузов для фильтрации.</p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+      <div class="code-block">
+        <div class="code-block-label">Пример ответа</div>
+        <pre>{ <span class="c-key">"cargo"</span>: [<span class="c-str">"Аммиак жидкий"</span>, <span class="c-str">"Карбамид"</span>] }</pre>
+      </div>
+    </div>
+
+    <div class="endpoint" id="loading-summary">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/loading/summary</span>
+      </div>
+      <p class="endpoint-desc">Сводная таблица погрузки.</p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+      <div class="params-label">Query-параметры</div>
+      <table>
+        <tr><th>Параметр</th><th>Обязательный</th><th>Описание</th></tr>
+        <tr><td><code>report_dt</code></td><td><span class="optional">нет</span></td><td>Дата справки.</td></tr>
+        <tr><td><code>cargo</code></td><td><span class="optional">нет</span></td><td>Фильтр по грузу.</td></tr>
+        <tr><td><code>wagon_no</code></td><td><span class="optional">нет</span></td><td>Номер(а) вагона через <code>;</code>.</td></tr>
+        <tr><td><code>group_by</code></td><td><span class="optional">нет</span></td><td>По умолчанию: <code>depart_road,depart_station</code>.</td></tr>
+        <tr><td><code>col_by</code></td><td><span class="optional">нет</span></td><td>По умолчанию: <code>wagon_type_code</code>.</td></tr>
+      </table>
+    </div>
+
+    <div class="endpoint" id="loading-detail">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/loading/detail</span>
+      </div>
+      <p class="endpoint-desc">Подробная таблица погрузки по вагонам.</p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ═══════════════════════════════ DOWNTIME ═══════════════════════════════ -->
+  <div class="section" id="downtime-filters">
+    <div class="section-title">Простои</div>
+    <p class="endpoint-desc" style="margin-bottom:24px">Вагоны с ненулевым временем простоя (idle_time_days &gt; 0).</p>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/downtime/filters</span>
+      </div>
+      <p class="endpoint-desc">Список станций назначения для фильтрации.</p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+      <div class="code-block">
+        <div class="code-block-label">Пример ответа</div>
+        <pre>{ <span class="c-key">"dest_station"</span>: [<span class="c-str">"УГЛЕУРАЛЬСКАЯ (768207)"</span>, <span class="c-str">"ПЕРМЬ-СОРТИРОВОЧНАЯ"</span>] }</pre>
+      </div>
+    </div>
+
+    <div class="endpoint" id="downtime-summary">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/downtime/summary</span>
+      </div>
+      <p class="endpoint-desc">Сводная таблица простоев с группировкой по диапазону дней.</p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+      <div class="params-label">Query-параметры</div>
+      <table>
+        <tr><th>Параметр</th><th>Обязательный</th><th>Описание</th></tr>
+        <tr><td><code>report_dt</code></td><td><span class="optional">нет</span></td><td>Дата справки.</td></tr>
+        <tr><td><code>min_days</code></td><td><span class="optional">нет</span></td><td>Минимальное количество дней простоя (по умолчанию <code>1</code>).</td></tr>
+        <tr><td><code>max_days</code></td><td><span class="optional">нет</span></td><td>Максимальное количество дней простоя.</td></tr>
+        <tr><td><code>dest_station</code></td><td><span class="optional">нет</span></td><td>Фильтр по станции назначения.</td></tr>
+        <tr><td><code>wagon_no</code></td><td><span class="optional">нет</span></td><td>Номер(а) вагона через <code>;</code>.</td></tr>
+        <tr><td><code>group_by</code></td><td><span class="optional">нет</span></td><td>По умолчанию: <code>oper_road,oper_station</code>.</td></tr>
+        <tr><td><code>col_by</code></td><td><span class="optional">нет</span></td><td>По умолчанию: <code>fixed_col_label,m_wagon_type_code</code>.</td></tr>
+      </table>
+    </div>
+
+    <div class="endpoint" id="downtime-detail">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/downtime/detail</span>
+      </div>
+      <p class="endpoint-desc">Подробная таблица простоев по вагонам.</p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+      <div class="params-label">Query-параметры</div>
+      <table>
+        <tr><th>Параметр</th><th>Обязательный</th><th>Описание</th></tr>
+        <tr><td><code>min_days</code></td><td><span class="optional">нет</span></td><td>Минимальный простой в днях.</td></tr>
+        <tr><td><code>max_days</code></td><td><span class="optional">нет</span></td><td>Максимальный простой в днях.</td></tr>
+        <tr><td><code>dest_station</code></td><td><span class="optional">нет</span></td><td>Фильтр по станции.</td></tr>
+        <tr><td><code>fields</code></td><td><span class="optional">нет</span></td><td>Поля для возврата. Поле <code>wagon_type_code</code> возвращается через Oracle-функцию маппинга.</td></tr>
+        <tr><td><code>sort_by</code></td><td><span class="optional">нет</span></td><td>По умолчанию сортировка по <code>idle_time_days DESC</code>.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ═══════════════════════════════ RAW MATERIAL ═══════════════════════════ -->
+  <div class="section" id="raw-summary">
+    <div class="section-title">Сырьё</div>
+    <p class="endpoint-desc" style="margin-bottom:24px">Гружёные вагоны с ненулевым простоем (пересечение погрузки и простоев).</p>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/raw-material/summary</span>
+      </div>
+      <p class="endpoint-desc">Сводная таблица сырья. Дополнительно возвращает максимальный простой.</p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+      <div class="params-label">Query-параметры</div>
+      <table>
+        <tr><th>Параметр</th><th>Обязательный</th><th>Описание</th></tr>
+        <tr><td><code>report_dt</code></td><td><span class="optional">нет</span></td><td>Дата справки.</td></tr>
+        <tr><td><code>wagon_no</code></td><td><span class="optional">нет</span></td><td>Номер(а) вагона через <code>;</code>.</td></tr>
+        <tr><td><code>group_by</code></td><td><span class="optional">нет</span></td><td>По умолчанию: <code>cargo_name</code>.</td></tr>
+        <tr><td><code>col_by</code></td><td><span class="optional">нет</span></td><td>По умолчанию: <code>wagon_type_code</code>.</td></tr>
+      </table>
+
+      <div class="code-block">
+        <div class="code-block-label">Пример ответа</div>
+        <pre>{
+  <span class="c-key">"cols"</span>: [{ <span class="c-key">"alias"</span>: <span class="c-str">"wagon_type_code"</span>, <span class="c-key">"label"</span>: <span class="c-str">"Тип вагона"</span> }],
+  <span class="c-key">"roads"</span>: [<span class="c-str">"Аммиак жидкий"</span>],
+  <span class="c-key">"metrics"</span>: [{ <span class="c-key">"cargo_name"</span>: <span class="c-str">"Аммиак жидкий"</span>, <span class="c-key">"cnt"</span>: <span class="c-num">42</span> }],
+  <span class="c-key">"total"</span>: <span class="c-num">42</span>,
+  <span class="c-key">"max_idle"</span>: <span class="c-num">18.5</span>
+}</pre>
+      </div>
+    </div>
+
+    <div class="endpoint" id="raw-detail">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/raw-material/detail</span>
+      </div>
+      <p class="endpoint-desc">Подробная таблица сырья по вагонам, сортировка по убыванию простоя.</p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ═══════════════════════════════ ANALYSIS ═══════════════════════════════ -->
+  <div class="section" id="analysis-filters">
+    <div class="section-title">Анализ за период</div>
+    <p class="endpoint-desc" style="margin-bottom:24px">История операций из всех загруженных справок за произвольный период.</p>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/analysis/filters</span>
+      </div>
+      <p class="endpoint-desc">Список грузов для указанных вагонов и периода.</p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+      <div class="params-label">Query-параметры</div>
+      <table>
+        <tr><th>Параметр</th><th>Обязательный</th><th>Описание</th></tr>
+        <tr><td><code>wagon_no</code></td><td><span class="optional">нет</span></td><td>Номер(а) вагона через <code>;</code>.</td></tr>
+        <tr><td><code>date_from</code></td><td><span class="optional">нет</span></td><td>Начало периода <code>YYYY-MM-DD</code> (по дате операции).</td></tr>
+        <tr><td><code>date_to</code></td><td><span class="optional">нет</span></td><td>Конец периода <code>YYYY-MM-DD</code>.</td></tr>
+      </table>
+    </div>
+
+    <div class="endpoint" id="analysis-period">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/analysis/period/detail</span>
+      </div>
+      <p class="endpoint-desc">
+        История операций вагона(ов) за период. Запрашивается напрямую из таблицы справок
+        по полю <code>oper_dt</code>. Если <code>date_to</code> не указан — берётся сегодняшняя дата.
+      </p>
+      <div class="auth-note">🔒 Требует роль <strong>dashboard</strong></div>
+
+      <div class="params-label">Query-параметры</div>
+      <table>
+        <tr><th>Параметр</th><th>Обязательный</th><th>Описание</th></tr>
+        <tr><td><code>wagon_no</code></td><td><span class="optional">нет</span></td><td>Номер(а) вагона через <code>;</code>.</td></tr>
+        <tr><td><code>date_from</code></td><td><span class="optional">нет</span></td><td>Начало периода <code>YYYY-MM-DD</code>.</td></tr>
+        <tr><td><code>date_to</code></td><td><span class="optional">нет</span></td><td>Конец периода. По умолчанию — сегодня.</td></tr>
+        <tr><td><code>cargo</code></td><td><span class="optional">нет</span></td><td>Фильтр по грузу.</td></tr>
+        <tr><td><code>fields</code></td><td><span class="optional">нет</span></td><td>Поля для возврата через <code>,</code>.</td></tr>
+      </table>
+
+      <div class="code-block">
+        <div class="code-block-label">Запрос</div>
+        <pre><span class="c-url">GET /api/analysis/period/detail?wagon_no=52345678&date_from=2026-06-01&date_to=2026-06-20&fields=wagon_no,oper_dt,operation,oper_station,cargo_name</span></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block-label">Пример ответа</div>
+        <pre>{
+  <span class="c-key">"rows"</span>: [
+    {
+      <span class="c-key">"wagon_no"</span>: <span class="c-str">"52345678"</span>,
+      <span class="c-key">"oper_dt"</span>: <span class="c-str">"2026-06-20 14:32:00"</span>,
+      <span class="c-key">"operation"</span>: <span class="c-str">"Прибытие"</span>,
+      <span class="c-key">"oper_station"</span>: <span class="c-str">"УГЛЕУРАЛЬСКАЯ"</span>,
+      <span class="c-key">"cargo_name"</span>: <span class="c-str">"Аммиак жидкий"</span>
+    }
+  ]
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- ═══════════════════════════════ IMPORT ═════════════════════════════════ -->
+  <div class="section" id="import-file">
+    <div class="section-title">Импорт</div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-post">POST</span>
+        <span class="endpoint-path">/api/import/file</span>
+      </div>
+      <p class="endpoint-desc">
+        Загружает один XLSX-файл справки РЖД. Автоматически определяет тип справки
+        («Подход» / «Отправка») по значению станции назначения (колонка L).
+        При импорте удаляет предыдущую справку того же типа за тот же день и заменяет её новой.
+      </p>
+      <div class="auth-note">🔒 Требует роль <strong>import</strong></div>
+
+      <div class="params-label">Тело запроса (multipart/form-data)</div>
+      <table>
+        <tr><th>Параметр</th><th>Обязательный</th><th>Описание</th></tr>
+        <tr><td><code>file</code></td><td><span class="required">да</span></td><td>XLSX-файл справки РЖД. Дата справки считывается из ячейки <code>A2</code>. Данные — с 5-й строки, 126 колонок.</td></tr>
+      </table>
+
+      <div class="code-block">
+        <div class="code-block-label">Запрос</div>
+        <pre>curl -b cookies.txt -F "file=@spravka_20062026.xlsx" /api/import/file</pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block-label">Успешный ответ (200)</div>
+        <pre>{
+  <span class="c-key">"status"</span>: <span class="c-str">"ok"</span>,
+  <span class="c-key">"message"</span>: <span class="c-str">"Загружено 2000 строк"</span>,
+  <span class="c-key">"rows"</span>: <span class="c-num">2000</span>,
+  <span class="c-key">"report_dt"</span>: <span class="c-str">"20.06.2026 16:01"</span>,
+  <span class="c-key">"type"</span>: <span class="c-str">"Подход"</span>
+}</pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-block-label">Ошибка (422 / 500)</div>
+        <pre>{
+  <span class="c-key">"status"</span>: <span class="c-str">"error"</span>,
+  <span class="c-key">"message"</span>: <span class="c-str">"Допускаются только .xlsx"</span>
+}</pre>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // Подсветка активного пункта меню при скролле
+  var sections = document.querySelectorAll('[id]');
+  var links    = document.querySelectorAll('nav a[href^="#"]');
+
+  function onScroll() {
+    var scrollY = window.scrollY + 80;
+    var active  = null;
+    sections.forEach(function(s) {
+      if (s.offsetTop <= scrollY) active = s.id;
+    });
+    links.forEach(function(a) {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + active);
+    });
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+</body>
+</html>

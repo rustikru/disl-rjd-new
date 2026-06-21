@@ -20,9 +20,108 @@ class ApiController
     }
 
     // =========================================================================
-    // Публичные endpoint
+    // endpoint
     // =========================================================================
 
+    /** GET /api/dashboard */
+    public function dashboard(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $dtsByType = $this->getLatestDtsByType(null, ['Подход', 'Отправка']);
+
+        if (empty($dtsByType)) {
+            return $this->json($response, ['updated_at' => null, 'sections' => [], 'trends' => []]);
+        }
+
+        $dt = max($dtsByType);
+
+        $sections = [];
+
+        try {
+            $dtLabel = (new \DateTime($dt))->format('d.m.Y H:i');
+        } catch (\Exception $e) {
+            $dtLabel = $dt;
+        }
+
+        return $this->json($response, [
+            'updated_at' => $dtLabel,
+            'sections' => array_values($sections),
+            'trends' => '',
+        ]);
+    }
+    /** GET /api/kpi/summary */
+    public function kpiSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params = $request->getQueryParams();
+        $bindings = [];
+        $whereCond = '1=1';
+
+        $kpiType = trim($params['kpi_type'] ?? '');
+        if ($kpiType !== '') {
+            $whereCond .= ' AND type = :kpi_type';
+            $bindings['kpi_type'] = $kpiType;
+        }
+
+        // Прогрессивный fallback:
+        //   1. get_kpi_row — pipelined-функция: prv_kpi_trend вызывается 1 раз на карточку 
+        $queries = [
+            "SELECT /*+ CARDINALITY(t 1) */ kpi.id, kpi.type, kpi.label AS x_label,
+                    t.x_value, t.trend_pct, t.trend_dir
+             FROM XX_RJD_KPI_TBL_V kpi,
+                  TABLE(xx_rjd_dislocation_new_pkg.get_kpi_row(kpi.id)) t
+             WHERE $whereCond
+            order by kpi.ORDER_BY",
+
+            "SELECT kpi.id, kpi.type, kpi.label AS x_label,
+                    xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id)         AS x_value,
+                    xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_pct(kpi.id) AS trend_pct,
+                    xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_dir(kpi.id) AS trend_dir
+             FROM XX_RJD_KPI_TBL_V kpi
+             WHERE $whereCond
+            order by kpi.ORDER_BY",
+
+            "SELECT kpi.id, kpi.type, kpi.label AS x_label,
+                    xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id) AS x_value,
+                    NULL AS trend_pct,
+                    NULL AS trend_dir
+             FROM XX_RJD_KPI_TBL_V kpi
+             WHERE $whereCond
+            order by kpi.ORDER_BY",
+        ];
+        $rows = null;
+        foreach ($queries as $sql) {
+            try {
+                $rows = $this->db->fetchAll($sql, $bindings);
+                break;
+            } catch (\Throwable $e) {
+                continue;
+            }
+        }
+        $rows ??= [];
+
+        $values = [];
+        foreach ($rows as $r) {
+            $values[] = [
+                'id' => $r['id'] ?? '',
+                'value' => $r['x_value'] ?? '0',
+                'label' => $r['x_label'] ?? '',
+                'trend' => $r['trend_dir'] ?? '',
+                'change' => $r['trend_pct'] ?? '',
+            ];
+        }
+
+        $dtRow = $this->db->fetchAll("SELECT MAX(report_dt) AS latest_dt FROM xx_dislocation_rjd");
+        $latestDt = $dtRow[0]['latest_dt'] ?? null;
+        try {
+            $updatedAt = $latestDt ? (new \DateTime($latestDt))->format('d.m.Y H:i') : null;
+        } catch (\Exception $e) {
+            $updatedAt = $latestDt;
+        }
+
+        return $this->json($response, [
+            'updated_at' => $updatedAt,
+            'sections' => [['values' => $values]],
+        ]);
+    }
     /** GET /api/dislocation/filters */
     public function dislFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
@@ -32,6 +131,12 @@ class ApiController
              GROUP BY TRUNC(report_dt), type_reference
              ORDER BY TRUNC(report_dt) DESC, type_reference'
         );
+
+        $source = $this->dislFrom([]);
+        $cargo = $source['reportDt'] ? $this->db->fetchAll(
+            "SELECT DISTINCT cargo_name FROM {$source['from']} WHERE cargo_name IS NOT NULL ORDER BY cargo_name",
+            $source['bindings']
+        ) : [];
 
         $reports = array_map(function (array $r) {
             $dt = (string) ($r['report_date'] ?? '');
@@ -48,70 +153,9 @@ class ApiController
             ];
         }, $rows);
 
-        return $this->json($response, ['reports' => $reports]);
-    }
-
-    /** GET /api/dashboard */
-    public function dashboard(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
-    {
-        $dtsByType = $this->getLatestDtsByType(null, ['Подход', 'Отправка']);
-
-        if (empty($dtsByType)) {
-            return $this->json($response, ['updated_at' => null, 'sections' => [], 'trends' => []]);
-        }
-
-        $rows = $this->db->fetchAll(
-            "SELECT * FROM TABLE(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_set_dashboard())"
-        );
-        $dt = max($dtsByType);
-
-        $sections = [];
-        $trends = [];
-
-        foreach ($rows as $r) {
-            $sectionName = trim(explode(',', (string) ($r['id'] ?? ''))[0]);
-            if (!isset($sections[$sectionName])) {
-                $sections[$sectionName] = [
-                    'total' => 0,
-                    'tank_total' => 0,
-                    'comming_to_ugl' => 0,
-                    'arrived_today_ugl' => 0,
-                    'arrived_ugl' => 0,
-                    'loaded_transit' => 0,
-                ];
-            }
-            $sections[$sectionName]['total'] = (int) $r['total'];
-            $sections[$sectionName]['tank_total'] = (int) $r['tank_total'];
-            $sections[$sectionName]['comming_to_ugl'] = (int) $r['comming_to_ugl'];
-            $sections[$sectionName]['arrived_today_ugl'] = (int) $r['arrived_today_ugl'];
-            $sections[$sectionName]['loaded_transit'] = (int) $r['loaded_transit'];
-
-            $trends = [
-                'total' => null,
-                'total_dir' => null,
-                'tank' => null,
-                'tank_dir' => null,
-                'other' => null,
-                'other_dir' => null,
-                'met_arrived_ugl' => $r['met_arrived_ugl'],
-                'met_arrived_ugl_dir' => $r['met_arrived_ugl_dir'],
-                'met_loaded_transit' => $r['met_loaded_transit'],
-                'met_loaded_transit_dir' => $r['met_loaded_transit_dir'],
-                'met_comming_to_ugl' => $r['met_comming_to_ugl'],
-                'met_comming_to_ugl_dir' => $r['met_comming_to_ugl_dir'],
-            ];
-        }
-
-        try {
-            $dtLabel = (new \DateTime($dt))->format('d.m.Y H:i');
-        } catch (\Exception $e) {
-            $dtLabel = $dt;
-        }
-
         return $this->json($response, [
-            'updated_at' => $dtLabel,
-            'sections' => array_values($sections),
-            'trends' => $trends,
+            'reports' => $reports,
+            'cargo' => array_column($cargo, 'cargo_name')
         ]);
     }
 
@@ -119,20 +163,14 @@ class ApiController
     public function dislSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
-        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state', 'dest_road']);
+        $source = $this->dislFrom($params);
 
-        if (empty($dtsByType)) {
+        if (!$source['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
+        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state', 'dest_road']);
         $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
-        $cond = $this->latestDtCondition($dtsByType);
-        $bindings = $cond['params'];
-        $source = [
-            'from' => "(SELECT * FROM xx_dislocation_rjd WHERE {$cond['sql']}" . $this->wagonNoCond($params, $bindings) . ")",
-            'bindings' => $bindings,
-        ];
 
         return $this->json($response, $this->summaryReport($source, $rowDims, $colDefs));
     }
@@ -141,20 +179,28 @@ class ApiController
     public function dislDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
+        $source = $this->dislFrom($params);
+
+        if (!$source['reportDt']) {
+            return $this->json($response, ['rows' => []]);
+        }
+
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state']);
-        $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
-        $cond = $this->latestDtCondition($dtsByType, 'xdr');
-        $bindings = $cond['params'];
+        $bindings = $source['bindings'];
         $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
-        $whereCond .= $this->wagonNoCond($params, $bindings);
+
+        // Детализация для карточек KPI по ID карточки
+        $kpiId = trim($params['kpi_id'] ?? '');
+        if ($kpiId !== '') {
+            $whereCond .= ' AND CASE WHEN XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.fnc_check_kpi(:kpi_id, xdr.id) = 1 THEN 1 ELSE 0 END = 1';
+            $bindings['kpi_id'] = (int) $kpiId;
+        }
+
         $selectCols = $this->selectFields($params['fields'] ?? '');
         $orderBy = $this->orderBY($params, implode(', ', $rowDims) . ', oper_station');
 
         $rows = $this->db->fetchAll(
-            "SELECT $selectCols
-             FROM xx_dislocation_rjd xdr
-             WHERE {$cond['sql']} $whereCond
-             ORDER BY $orderBy",
+            "SELECT $selectCols FROM {$source['from']} xdr WHERE 1=1 $whereCond ORDER BY $orderBy",
             $bindings
         );
 
@@ -218,6 +264,13 @@ class ApiController
 
         $bindings = $source['bindings'];
         $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
+
+        $excl = $params['exclude_station'] ?? null;
+        if ($excl) {
+            $whereCond .= " AND UPPER(oper_station) NOT LIKE '%' || UPPER(:excl_st) || '%'";
+            $bindings['excl_st'] = strtoupper($excl);
+        }
+
         $selectCols = $this->selectFields($params['fields'] ?? '');
         $orderBy = $this->orderBY($params, implode(', ', $rowDims));
 
@@ -244,7 +297,7 @@ class ApiController
             $source['bindings']
         );
         $destStation = $this->db->fetchAll(
-            "SELECT DISTINCT dest_station FROM {$source['from']} WHERE dest_station IS NOT NULL ORDER BY dest_station " . $this->db->limit(300),
+            "SELECT DISTINCT dest_station FROM {$source['from']} WHERE dest_station IS NOT NULL ORDER BY dest_station ",
             $source['bindings']
         );
 
@@ -254,7 +307,9 @@ class ApiController
         ]);
     }
 
-    /** GET /api/departure/summary */
+    /** GET /api/departure/summary 
+     * Отправление вагонов
+     */
     public function departureSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
@@ -292,6 +347,7 @@ class ApiController
 
         return $this->json($response, ['rows' => $rows]);
     }
+
 
     /** GET /api/loading/filters */
     public function loadingFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -478,8 +534,7 @@ class ApiController
         return $this->json($response, ['rows' => $rows]);
     }
 
-    /** GET /api/analysis/period/detail */
-    public function analysisPeriod(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    public function analysisFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
         $bindings = [];
@@ -502,6 +557,49 @@ class ApiController
             $bindings['date_to'] = $dateTo;
         }
 
+        $cargo = $this->db->fetchAll(
+            "SELECT DISTINCT cargo_name
+             FROM xx_dislocation_rjd
+             WHERE $whereCond
+             ORDER BY cargo_name",
+            $bindings
+        );
+
+        return $this->json($response, [
+            'cargo' => array_column($cargo, 'cargo_name'),
+        ]);
+    }
+    /** GET /api/analysis/period/detail */
+    public function analysisPeriod(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $params = $request->getQueryParams();
+        $bindings = [];
+        $whereCond = '1=1';
+
+        $wagonNo = trim($params['wagon_no'] ?? '');
+        if ($wagonNo !== '') {
+            $whereCond .= ' AND wagon_no IN (' . $this->parserInValues($wagonNo, ';', 'wagon_no', $bindings) . ')';
+        }
+
+        $dateFrom = $params['date_from'] ?? '';
+        if ($dateFrom !== '') {
+            $whereCond .= " AND TRUNC(oper_dt) >= TO_DATE(:date_from, 'YYYY-MM-DD')";
+            $bindings['date_from'] = $dateFrom;
+        }
+
+        $dateTo = $params['date_to'] ?? '';
+        if ($dateTo === '') {
+            $dateTo = date('Y-m-d');
+        }
+        $whereCond .= " AND TRUNC(oper_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
+        $bindings['date_to'] = $dateTo;
+
+        $cargo = $params['cargo'] ?? '';
+        if ($cargo !== '') {
+            $whereCond .= " AND cargo_name = :cargo";
+            $bindings['cargo'] = $cargo;
+        }
+
         $selectCols = $this->selectFields($params['fields'] ?? '');
 
         $rows = $this->db->fetchAll(
@@ -520,7 +618,32 @@ class ApiController
     // Каждый возвращает: ['from' => <subquery>, 'bindings' => [...], 'reportDt' => string|null]
     // =========================================================================
 
-    /** Подход: вагоны с ненулевым остатком пути (type_reference='Подход'). */
+    /** Дислокация: объединение двух типов справок ('Подход' + 'Отправка'). */
+    private function dislFrom(array $params): array
+    {
+        $dtsByType = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
+        if (empty($dtsByType)) {
+            return ['from' => '', 'bindings' => [], 'reportDt' => null];
+        }
+        $cond = $this->latestDtCondition($dtsByType);
+        $bindings = $cond['params'];
+        $whereCond = $cond['sql'];
+
+        $cargo = $params['cargo'] ?? null;
+        if ($cargo) {
+            $whereCond .= " AND UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е')) = UPPER(REPLACE(:cargo_f, 'Ё', 'Е'))";
+            $bindings['cargo_f'] = $cargo;
+        }
+        $whereCond .= $this->wagonNoCond($params, $bindings);
+
+        return [
+            'from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)",
+            'bindings' => $bindings,
+            'reportDt' => max($dtsByType),
+        ];
+    }
+
+    /** Подход: вагоны станция назначения УГЛ  (type_reference='Подход'). */
     private function approachFrom(array $params): array
     {
         $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Подход');
@@ -546,7 +669,7 @@ class ApiController
         return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
 
-    /** Отправление: вагоны с oper_mnemonic='ОТПР' (type_reference='Отправка'). */
+    /** Отправление: вагоны станция назначения не УГЛ (type_reference='Отправка'). */
     private function departureFrom(array $params): array
     {
         $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Отправка');
@@ -555,7 +678,7 @@ class ApiController
         }
 
         $bindings = ['report_dt' => $reportDt];
-        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Отправка' AND oper_mnemonic = 'ОТПР' and upper(dest_station) not like '%УГЛ%'";
+        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') and upper(dest_station) not like '%УГЛ%'";
 
         $cargo = $params['cargo'] ?? null;
         if ($cargo) {
@@ -617,17 +740,20 @@ class ApiController
         $cond = $this->latestDtCondition($dtsByType, 'xdr');
         $bindings = $cond['params'];
         $whereCond = "{$cond['sql']} AND idle_time_days IS NOT NULL AND nvl(idle_time_days,0) != 0";
-
+        // Параметр диапазон простоя
+        // минимальное 
         $minDays = max(0, (int) ($params['min_days'] ?? 1));
         if ($minDays > 0) {
             $whereCond .= ' AND idle_time_days >= :min_days';
             $bindings['min_days'] = $minDays;
         }
+        // максимальное 
         $maxDays = isset($params['max_days']) && $params['max_days'] !== '' ? (int) $params['max_days'] : null;
         if ($maxDays !== null) {
             $whereCond .= ' AND idle_time_days <= :max_days';
             $bindings['max_days'] = $maxDays;
         }
+        // Станция назначения
         $destStation = trim($params['dest_station'] ?? '');
         if ($destStation !== '') {
             $whereCond .= ' AND dest_station = :dest_station';
@@ -655,7 +781,7 @@ class ApiController
 
     /**
      * Строит и выполняет запрос сводной таблицы.
-     * Единый метод для всех разделов 
+     * Общий метод для всех разделов 
      *
      * $source   — источник данных из *From(): ['from', 'bindings']
      * $rowDims  — поля строк сводной (GROUP BY строки)
@@ -857,7 +983,7 @@ class ApiController
     }
 
     /** [type_reference => MAX(report_dt)] для всех указанных типов. */
-    private function getLatestDtsByType(?string $dt = null, ?array $types = null): array
+    public function getLatestDtsByType(?string $dt = null, ?array $types = null): array
     {
         if ($types !== null && count($types) === 0) {
             return [];
@@ -884,7 +1010,7 @@ class ApiController
      * Строит WHERE-фрагмент для фильтрации по нескольким report_dt (один на тип справки).
      * $alias — псевдоним таблицы, например 'xdr' → 'xdr.type_reference'.
      */
-    private function latestDtCondition(array $dtsByType, string $alias = ''): array
+    public function latestDtCondition(array $dtsByType, string $alias = ''): array
     {
         if (empty($dtsByType)) {
             return ['sql' => '1=0', 'params' => []];

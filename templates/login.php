@@ -19,6 +19,11 @@ $basePath = $basePath ?? '';
 
   <div class="login-wrap">
 
+    <div class="brand">
+      <!-- <img class="brand-logo" src="<?= htmlspecialchars($basePath) ?>/assets/img/meta-logo.png" alt=""> -->
+      <!-- <div class="brand-name"><?= htmlspecialchars($appName ?? 'Дислокация') ?></div> -->
+    </div>
+
     <div class="card">
       <div class="card-title">Вход в систему</div>
 
@@ -27,6 +32,7 @@ $basePath = $basePath ?? '';
       <?php endif; ?>
 
       <form method="POST" action="<?= htmlspecialchars($basePath) ?>/login" id="loginForm">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
         <div class="field">
           <label class="field-label" for="username">Логин</label>
           <input class="field-input<?= $error ? ' error' : '' ?>" type="text" id="username" name="username"

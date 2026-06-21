@@ -13,41 +13,29 @@ $basePath = $basePath ?? '';
   <title><?= htmlspecialchars($appName) ?> — Дислокация</title>
   <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
-  <script>window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';</script>
+  <script>
+    window.APP_BASE          = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
+    window.APP_IS_ADMIN      = <?= !empty($user['is_admin']) ? 'true' : 'false' ?>;
+    window.APP_ALLOWED_PAGES = <?= json_encode($allowedPages ?? [], JSON_UNESCAPED_UNICODE) ?>;
+    window.APP_NAV_CONFIG    = <?= json_encode($navConfig    ?? [], JSON_UNESCAPED_UNICODE) ?>;
+  </script>
 </head>
 
 <body>
 
-  <header class="site-header">
-    <div class="header-inner">
-      <div class="brand">
-        <div class="brand-icon">
-        </div>
-        <div class="brand-text">
-          <div class="brand-name"><?= htmlspecialchars($appName) ?></div>
-          <div id="brandDateSub" class="brand-date-sub"></div>
-        </div>
-      </div>
-      <div class="header-meta">
-        <div class="user-info">
-          <span class="user-name" title="<?= htmlspecialchars($user['auth_source'] ?? '') ?>">
-            <?= htmlspecialchars($user['display_name'] ?? $user['username']) ?>
-          </span>
-          <form method="POST" action="<?= htmlspecialchars($basePath) ?>/logout" style="display:inline">
-            <button type="submit" class="btn btn-ghost btn-sm">Выйти</button>
-          </form>
-        </div>
-      </div>
-    </div>
-  </header>
+<?php
+  $headerSub   = '<div id="brandDateSub" class="brand-date-sub"></div>';
+  $headerRight = '';
+  include __DIR__ . '/partials/header.php';
+?>
 
   <div class="app-body">
 
     <aside class="sidebar" id="sidebar"></aside>
 
     <main class="main-content">
+      <div id="pageLoadOverlay" aria-hidden="true"></div>
 
-      <!-- Dashboard (скрыт — KPI перенесены на вкладку Дислокация) -->
       <div id="panel-dashboard" class="tab-panel"></div>
 
       <!-- Дислокация -->
@@ -55,15 +43,22 @@ $basePath = $basePath ?? '';
         <div class="kpi-grid" id="kpiGrid" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="disl-summary">Сводная дислокация</button>
-          <button class="inner-tab" data-inner="disl-extended">Детализация</button>
+          <button class="inner-tab" data-inner="disl-extended">Подробная</button>
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fDislocationWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fDislocationWagonNo" placeholder="52345678; 52345679; ...">
+              <input class="filter-input" type="text" id="fDislocationWagonNo"
+                placeholder="Номер вагона1; Номер вагона2; ...">
             </div>
-            <div class="filter-actions">
+            <div class="filter-item">
+              <label class="filter-label" for="fDislocationCargo">Груз</label>
+              <select class="filter-input" id="fDislocationCargo">
+                <option value="">— Все —</option>
+              </select>
+            </div>
+            <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnDislocationApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnDislocationReset">Сбросить</button>
             </div>
@@ -78,8 +73,7 @@ $basePath = $basePath ?? '';
                 <span class="table-sub" id="mainTableSub"></span>
               </div>
               <div class="table-acts">
-                <button class="btn btn-ghost btn-sm" data-collapse-table="mainTable">Свернуть все</button>
-                <button class="btn btn-ghost btn-sm" data-expand-table="mainTable">Отобразить все</button>
+                <button class="btn btn-ghost btn-sm" data-toggle-table="mainTable">Свернуть все</button>
               </div>
             </div>
             <div class="table-scroll">
@@ -91,7 +85,8 @@ $basePath = $basePath ?? '';
         <div id="disl-extended" class="inner-panel">
           <section class="table-section">
             <div class="table-toolbar">
-              <div class="table-info"><span class="table-title">Детализация дислокация</span></div>
+              <div class="table-info"><span class="table-title">Подробная</span><span class="table-sub"
+                  id="dislDetSub"></span></div>
               <div class="table-acts"></div>
             </div>
             <div id="dislExtTable"></div>
@@ -102,13 +97,12 @@ $basePath = $basePath ?? '';
       <!-- Подход -->
       <div id="panel-approach" class="tab-panel">
 
-        <!-- Метрики по дорогам -->
         <div class="kpi-grid" id="approachMetrics" style="margin-bottom:16px"></div>
 
         <!-- Внутренние вкладки -->
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="approach-summary">Сводная</button>
-          <button class="inner-tab" data-inner="approach-detail">Детализация</button>
+          <button class="inner-tab" data-inner="approach-detail">Подробная</button>
         </div>
 
         <!-- Фильтры -->
@@ -116,7 +110,8 @@ $basePath = $basePath ?? '';
           <div class="filters-inner">
             <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fApproachWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fApproachWagonNo" placeholder="52345678; 52345679; ...">
+              <input class="filter-input" type="text" id="fApproachWagonNo"
+                placeholder="Номер вагона1; Номер вагона2; ...">
             </div>
             <div class="filter-item">
               <label class="filter-label" for="fApproachCargo">Груз</label>
@@ -130,7 +125,7 @@ $basePath = $basePath ?? '';
                 <option value="">— Все —</option>
               </select>
             </div> -->
-            <div class="filter-actions">
+            <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnApproachApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnApproachReset">Сбросить</button>
             </div>
@@ -145,8 +140,7 @@ $basePath = $basePath ?? '';
                 <span class="table-sub" id="approachSumSub"></span>
               </div>
               <div class="table-acts">
-                <button class="btn btn-ghost btn-sm" data-collapse-table="approachSumTable">Свернуть все</button>
-                <button class="btn btn-ghost btn-sm" data-expand-table="approachSumTable">Отобразить все</button>
+                <button class="btn btn-ghost btn-sm" data-toggle-table="approachSumTable">Свернуть все</button>
               </div>
             </div>
             <div class="table-scroll">
@@ -159,7 +153,7 @@ $basePath = $basePath ?? '';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title">Детализация в подходе</span>
+                <span class="table-title">Подробная в подходе</span>
                 <span class="table-sub" id="approachDetSub"></span>
               </div>
               <div class="table-acts"></div>
@@ -175,13 +169,14 @@ $basePath = $basePath ?? '';
         <div class="kpi-grid" id="departureMetrics" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="departure-summary">Сводная</button>
-          <button class="inner-tab" data-inner="departure-detail">Детализация</button>
+          <button class="inner-tab" data-inner="departure-detail">Подробная</button>
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fDepartureWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fDepartureWagonNo" placeholder="52345678; 52345679; ...">
+              <input class="filter-input" type="text" id="fDepartureWagonNo"
+                placeholder="Номер вагона1; Номер вагона2; ...">
             </div>
             <div class="filter-item">
               <label class="filter-label" for="fDepartureCargo">Груз</label>
@@ -195,7 +190,7 @@ $basePath = $basePath ?? '';
                 <option value="">— Все —</option>
               </select>
             </div>
-            <div class="filter-actions">
+            <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnDepartureApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnDepartureReset">Сбросить</button>
             </div>
@@ -205,12 +200,11 @@ $basePath = $basePath ?? '';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title">Отправление вагонов — сводная</span>
+                <span class="table-title">Отправление вагонов со ст.Углеуральская — сводная</span>
                 <span class="table-sub" id="departureSumSub"></span>
               </div>
               <div class="table-acts">
-                <button class="btn btn-ghost btn-sm" data-collapse-table="departureSumTable">Свернуть все</button>
-                <button class="btn btn-ghost btn-sm" data-expand-table="departureSumTable">Отобразить все</button>
+                <button class="btn btn-ghost btn-sm" data-toggle-table="departureSumTable">Свернуть все</button>
               </div>
             </div>
             <div class="table-scroll">
@@ -237,13 +231,14 @@ $basePath = $basePath ?? '';
         <div class="kpi-grid" id="loadingMetrics" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="loading-summary">Сводная</button>
-          <button class="inner-tab" data-inner="loading-detail">Детализация</button>
+          <button class="inner-tab" data-inner="loading-detail">Подробная</button>
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fLoadingWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fLoadingWagonNo" placeholder="52345678; 52345679; ...">
+              <input class="filter-input" type="text" id="fLoadingWagonNo"
+                placeholder="Номер вагона1; Номер вагона2; ...">
             </div>
             <div class="filter-item">
               <label class="filter-label" for="fLoadingCargo">Груз</label>
@@ -251,7 +246,7 @@ $basePath = $basePath ?? '';
                 <option value="">— Все —</option>
               </select>
             </div>
-            <div class="filter-actions">
+            <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnLoadingApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnLoadingReset">Сбросить</button>
             </div>
@@ -265,8 +260,7 @@ $basePath = $basePath ?? '';
                 <span class="table-sub" id="loadingSumSub"></span>
               </div>
               <div class="table-acts">
-                <button class="btn btn-ghost btn-sm" data-collapse-table="loadingSumTable">Свернуть все</button>
-                <button class="btn btn-ghost btn-sm" data-expand-table="loadingSumTable">Отобразить все</button>
+                <button class="btn btn-ghost btn-sm" data-toggle-table="loadingSumTable">Свернуть все</button>
               </div>
             </div>
             <div class="table-scroll">
@@ -292,13 +286,14 @@ $basePath = $basePath ?? '';
       <div id="panel-downtime" class="tab-panel">
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="downtime-summary">Сводная по станциям</button>
-          <button class="inner-tab" data-inner="downtime-detail">Детализация</button>
+          <button class="inner-tab" data-inner="downtime-detail">Подробная</button>
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fDowntimeWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fDowntimeWagonNo" placeholder="52345678; 52345679; ...">
+              <input class="filter-input" type="text" id="fDowntimeWagonNo"
+                placeholder="Номер вагона1; Номер вагона2; ...">
             </div>
             <div class="filter-item">
               <label class="filter-label">Ст. назначения</label>
@@ -306,7 +301,7 @@ $basePath = $basePath ?? '';
                 <option value="">— Все —</option>
               </select>
             </div>
-            <div class="filter-actions">
+            <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnDowntimeApply">Применить</button>
             </div>
           </div>
@@ -319,8 +314,7 @@ $basePath = $basePath ?? '';
                 <span class="table-sub" id="downtimeSumSub"></span>
               </div>
               <div class="table-acts">
-                <button class="btn btn-ghost btn-sm" data-collapse-table="downtimeSumTable">Свернуть все</button>
-                <button class="btn btn-ghost btn-sm" data-expand-table="downtimeSumTable">Отобразить все</button>
+                <button class="btn btn-ghost btn-sm" data-toggle-table="downtimeSumTable">Свернуть все</button>
               </div>
             </div>
             <div class="table-scroll">
@@ -347,15 +341,15 @@ $basePath = $basePath ?? '';
         <div class="kpi-grid" id="rawMetrics" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="raw-summary">Сводная по грузам</button>
-          <button class="inner-tab" data-inner="raw-detail">Детализация</button>
+          <button class="inner-tab" data-inner="raw-detail">Подробная</button>
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label" for="fRawWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fRawWagonNo" placeholder="52345678; 52345679; ...">
+              <input class="filter-input" type="text" id="fRawWagonNo" placeholder="Номер вагона1; Номер вагона2; ...">
             </div>
-            <div class="filter-actions">
+            <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnRawApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnRawReset">Сбросить</button>
             </div>
@@ -379,7 +373,7 @@ $basePath = $basePath ?? '';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title">Детализация с сырьём</span>
+                <span class="table-title">Подробная с сырьём</span>
                 <span class="table-sub" id="rawDetSub"></span>
               </div>
               <div class="table-acts"></div>
@@ -395,10 +389,17 @@ $basePath = $basePath ?? '';
           <div class="filters-inner" style="flex-wrap:wrap;gap:8px 16px">
             <div class="filter-item" style="flex-basis:100%">
               <label class="filter-label">№ вагона</label>
-              <input class="filter-input" type="text" id="fAnalysisPeriodWagonNo" placeholder="52345678; 52345679; ..."">
+              <input class="filter-input" type="text" id="fAnalysisPeriodWagonNo"
+                placeholder="Номер вагона1; Номер вагона2; ..."">
+            </div>
+            <div class=" filter-item" style="flex-basis:100%">
+              <label class="filter-label" for="fAnalysisPeriodCargo">Груз</label>
+              <select class="filter-input" id="fAnalysisPeriodCargo">
+                <option value="">— Все —</option>
+              </select>
             </div>
             <div class=" filter-item">
-              <label class="filter-label">Операция с</label>
+              <label class="filter-label">Дата операции с</label>
               <input class="filter-input" type="date" id="fAnalysisPeriodDateFrom" value="<?= date('Y-m-01') ?>"
                 style="width:145px">
             </div>
@@ -407,8 +408,9 @@ $basePath = $basePath ?? '';
               <input class="filter-input" type="date" id="fAnalysisPeriodDateTo" value="<?= date('Y-m-d') ?>"
                 style="width:145px">
             </div>
-            <div class="filter-actions">
+            <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnAnalysisPeriodApply">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="btnAnalysisPeriodReset">Сбросить</button>
             </div>
           </div>
         </div>

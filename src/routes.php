@@ -22,12 +22,26 @@ return function (App $app, array $config): void {
     $app->get('/login', function ($req, $res) use ($getAuth, $config) {
         return (new \App\Controllers\AuthController($getAuth(), $config))->showLogin($req, $res);
     });
+    // Публичные маршруты
+    $app->get('/tmp/admin-mockup.html', function ($req, $res) {
+        $file = __DIR__ . '/../tmp/admin-mockup.html';
+        if (file_exists($file)) {
+            $res->getBody()->write(file_get_contents($file));
+            return $res->withHeader('Content-Type', 'text/html; charset=utf-8');
+        }
+        return $res->withStatus(404)->write('File not found');
+    });
 
     $app->post('/login', function ($req, $res) use ($getAuth, $config) {
         return (new \App\Controllers\AuthController($getAuth(), $config))->handleLogin($req, $res);
     });
 
     $app->post('/logout', function ($req, $res) use ($config) {
+        $body = (array) $req->getParsedBody();
+        $csrf = $body['csrf_token'] ?? '';
+        if ($csrf === '' || !hash_equals($_SESSION['csrf_token'] ?? '', $csrf)) {
+            return $res->withHeader('Location', ($config['base_path'] ?? '') . '/')->withStatus(302);
+        }
         session_destroy();
         return $res->withHeader('Location', ($config['base_path'] ?? '') . '/login')->withStatus(302);
     });
@@ -39,8 +53,13 @@ return function (App $app, array $config): void {
     // маршруты
     $app->group('', function ($group) use ($config, $getDb) {
 
-        $group->get('/', function ($req, $res) use ($config) {
-            return (new \App\Controllers\DashboardController($config))->index($req, $res);
+        // ==========================================
+        // WEB VIEW
+        // ==========================================
+
+        // Главная страница дашборда
+        $group->get('/', function ($req, $res) use ($config, $getDb) {
+            return (new \App\Controllers\DashboardController($config, $getDb()))->index($req, $res);
         });
 
         // Страница импорта XLSX
@@ -52,88 +71,47 @@ return function (App $app, array $config): void {
             return (new \App\Controllers\ImportController($getDb(), $config))->handleUpload($req, $res);
         });
 
-        $group->post('/api/import/file', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\ImportController($getDb(), $config))->handleUploadJson($req, $res);
+        // Интерактивная карта
+        $group->get('/maps', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\MapsController($getDb(), $config))->showMaps($req, $res);
         });
 
-        // API эндпоинты
-        $group->get('/api/dashboard', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->dashboard($req, $res);
+        // Администрирование (пользователи и роли)
+        $group->get('/admin', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->index($req, $res);
+        });
+        $group->get('/admin/users', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->usersPage($req, $res);
+        });
+        $group->get('/admin/roles', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->rolesPage($req, $res);
+        });
+        $group->post('/admin/users', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->createUser($req, $res);
+        });
+        $group->post('/admin/users/roles', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->saveUserRoles($req, $res);
+        });
+        $group->post('/admin/users/save', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->saveUser($req, $res);
+        });
+        $group->post('/admin/users/active', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->toggleActive($req, $res);
+        });
+        $group->post('/admin/users/password', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->resetPassword($req, $res);
+        });
+        $group->post('/admin/roles', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->createRole($req, $res);
+        });
+        $group->post('/admin/roles/save', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->saveRolePages($req, $res);
+        });
+        $group->post('/admin/roles/delete', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->deleteRole($req, $res);
         });
 
-        $group->get('/api/dislocation/filters', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->dislFilters($req, $res);
-        });
-
-        $group->get('/api/dislocation/summary', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->dislSummary($req, $res);
-        });
-
-        $group->get('/api/dislocation/detail', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->dislDetail($req, $res);
-        });
-        // Подход сводная 
-        $group->get('/api/approach/summary', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->approachSummary($req, $res);
-        });
-
-        $group->get('/api/approach/detail', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->approachDetail($req, $res);
-        });
-
-        $group->get('/api/approach/filters', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->approachFilters($req, $res);
-        });
-
-        // Отправление
-        $group->get('/api/departure/filters', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->departureFilters($req, $res);
-        });
-        $group->get('/api/departure/summary', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->departureSummary($req, $res);
-        });
-        $group->get('/api/departure/detail', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->departureDetail($req, $res);
-        });
-
-        // Погрузка
-        $group->get('/api/loading/filters', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->loadingFilters($req, $res);
-        });
-        $group->get('/api/loading/summary', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->loadingSummary($req, $res);
-        });
-        $group->get('/api/loading/detail', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->loadingDetail($req, $res);
-        });
-
-        // Простои
-        $group->get('/api/downtime/filters', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->downtimeFilters($req, $res);
-        });
-        $group->get('/api/downtime/summary', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->downtimeSummary($req, $res);
-        });
-        $group->get('/api/downtime/detail', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->downtimeDetail($req, $res);
-        });
-
-        // Сырьё
-        $group->get('/api/raw-material/summary', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->rawSummary($req, $res);
-        });
-
-        $group->get('/api/raw-material/detail', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->rawDetail($req, $res);
-        });
-
-        //Анализ за период
-        $group->get('/api/analysis/period/detail', function ($req, $res) use ($getDb) {
-            return (new \App\Controllers\ApiController($getDb()))->analysisPeriod($req, $res);
-        });
-
-
-
+        // Детальная страница (статический шаблон)
         $group->get('/detail', function ($req, $res) use ($config) {
             $appName = $config['app_name'] ?? 'Метафракс';
             $basePath = $config['base_path'] ?? '';
@@ -145,5 +123,118 @@ return function (App $app, array $config): void {
             return $res->withHeader('Content-Type', 'text/html; charset=utf-8');
         });
 
-    })->add(new \App\Middleware\AuthMiddleware($config['base_path'] ?? ''));
+
+        // ==========================================
+        // API (`/api`)
+        // ==========================================
+        $group->group('/api', function ($api) use ($getDb, $config) {
+
+            // --- Главный Дашборд ---
+            $api->get('/dashboard', function ($req, $res) use ($getDb) {
+                return (new \App\Controllers\ApiController($getDb()))->dashboard($req, $res);
+            });
+            // --- Загрузка файлов через API ---
+            $api->post('/import/file', function ($req, $res) use ($getDb, $config) {
+                return (new \App\Controllers\ImportController($getDb(), $config))->handleUploadJson($req, $res);
+            });
+
+            // --- Дислокация РЖД ---
+            $api->group('/dislocation', function ($sub) use ($getDb) {
+                $sub->get('/filters', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->dislFilters($req, $res);
+                });
+                $sub->get('/summary', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->dislSummary($req, $res);
+                });
+                $sub->get('/detail', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->dislDetail($req, $res);
+                });
+            });
+
+            // --- Подход (сводная) ---
+            $api->group('/approach', function ($sub) use ($getDb) {
+                $sub->get('/filters', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->approachFilters($req, $res);
+                });
+                $sub->get('/summary', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->approachSummary($req, $res);
+                });
+                $sub->get('/detail', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->approachDetail($req, $res);
+                });
+
+            });
+
+            // --- Отправление ---
+            $api->group('/departure', function ($sub) use ($getDb) {
+                $sub->get('/filters', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->departureFilters($req, $res);
+                });
+                $sub->get('/summary', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->departureSummary($req, $res);
+                });
+                $sub->get('/detail', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->departureDetail($req, $res);
+                });
+
+            });
+
+            // --- Погрузка ---
+            $api->group('/loading', function ($sub) use ($getDb) {
+                $sub->get('/filters', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->loadingFilters($req, $res);
+                });
+                $sub->get('/summary', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->loadingSummary($req, $res);
+                });
+                $sub->get('/detail', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->loadingDetail($req, $res);
+                });
+            });
+
+            // --- Простои ---
+            $api->group('/downtime', function ($sub) use ($getDb) {
+                $sub->get('/filters', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->downtimeFilters($req, $res);
+                });
+                $sub->get('/summary', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->downtimeSummary($req, $res);
+                });
+                $sub->get('/detail', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->downtimeDetail($req, $res);
+                });
+            });
+
+            // --- Сырьё ---
+            $api->group('/raw-material', function ($sub) use ($getDb) {
+                $sub->get('/summary', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->rawSummary($req, $res);
+                });
+                $sub->get('/detail', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->rawDetail($req, $res);
+                });
+            });
+
+            // --- Анализ за период ---
+            $api->group('/analysis', function ($sub) use ($getDb) {
+                $sub->get('/filters', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->analysisFilters($req, $res);
+                });
+                $sub->get('/period/detail', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->analysisPeriod($req, $res);
+                });
+            });
+            // --- Карточки KPI ---
+            $api->group('/kpi', function ($sub) use ($getDb) {
+                $sub->get('/summary', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->kpiSummary($req, $res);
+                });
+            });
+
+        }); // Конец группы /api
+
+    })
+        ->add(new \App\Middleware\PageAccessMiddleware($getDb, $config['base_path'] ?? '', $config))
+        ->add(new \App\Middleware\AuthMiddleware($config['base_path'] ?? ''));
+
 };

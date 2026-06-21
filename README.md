@@ -21,7 +21,7 @@
 ```
 disl-rjd-new/
 ├── public/
-│   ├── index.php            # Точка входа (bootstrap)
+│   ├── index.php            # bootstrap
 │   ├── .htaccess            # mod_rewrite → index.php
 │   └── assets/
 │       ├── css/app.css      # Все стили (включая шапки таблиц bisque)
@@ -39,29 +39,42 @@ disl-rjd-new/
 │   │   ├── ApiController.php        # Все JSON API-методы
 │   │   ├── AuthController.php       # Логин/логаут
 │   │   ├── DashboardController.php  # Главная страница
-│   │   └── ImportController.php     # Загрузка XLSX (batch + AJAX)
+│   │   ├── ImportController.php     # Загрузка XLSX (batch + AJAX)
+│   │   ├── MapsController.php       # Интерактивная карта
+│   │   └── AdminController.php      # Пользователи и роли
 │   ├── Database/
 │   │   ├── DbInterface.php   # Контракт: fetchAll, fetchOne, execute
 │   │   ├── DbFactory.php     # Создаёт OracleDb или PostgresDb по конфигу
 │   │   ├── OracleDb.php      # OCI8-адаптер
 │   │   └── PostgresDb.php    # PDO PostgreSQL адаптер
 │   └── Middleware/
-│       ├── AuthMiddleware.php    # Редирект на /login без сессии
-│       └── SessionMiddleware.php # session_start()
+│       ├── AuthMiddleware.php        # Редирект на /login без сессии
+│       ├── PageAccessMiddleware.php  # Доступ к страницам по роли
+│       └── SessionMiddleware.php     # session_start()
 ├── templates/
 │   ├── app.php      # Основной SPA-шаблон (sidebar + панели)
 │   ├── detail.php   # Страница детализации (открывается в новой вкладке)
 │   ├── import.php   # Форма загрузки XLSX (AJAX, мультифайл)
-│   └── login.php    # Форма входа
+│   ├── admin.php    # Страница администрирования (пользователи, роли)
+│   ├── login.php    # Форма входа
+│   └── partials/
+│       └── header.php  # Единая шапка для всех страниц
 ├── bin/
 │   ├── create-user.php   # CLI: создать пользователя
 │   └── set-password.php  # CLI: сменить пароль
+├── db/
+│   └── migrations/
+│       └── 001_xx_rjd_admin.sql  # Переименование users + роли + доступ
+├── docs/
+│   └── schema.html  # Наглядная HTML-схема БД и архитектуры
 ├── sql/
 │   └── oracle_xx_dislocation_rjd.sql  # DDL таблицы + индексы + комментарии
 ├── .env.example     # Пример конфига
 ├── composer.json
 └── router.php       # Для PHP built-in server (php -S)
 ```
+
+> 📊 Наглядная схема БД и архитектуры с описаниями — `docs/schema.html` (открыть в браузере).
 
 ---
 
@@ -97,6 +110,43 @@ disl-rjd-new/
 | …                  | …         | Полный список — в `sql/oracle_xx_dislocation_rjd.sql` |
 
 Полные комментарии на русском ко всем 126 колонкам есть в DDL-файле (`COMMENT ON COLUMN`).
+
+### Пользователи, роли и доступ
+
+> Таблица пользователей переименована: `xx_users_rjd` → **`xx_rjd_users`** (единый префикс `xx_rjd_`).
+
+| Таблица              | Назначение                                                                 |
+| -------------------- | -------------------------------------------------------------------------- |
+| `xx_rjd_users`       | Пользователи. Колонка `role_id` (FK) — роль пользователя                    |
+| `xx_rjd_roles`       | Справочник ролей (`id`, `code`, `name`, `description`, `is_system`)         |
+| `xx_rjd_role_pages`  | Доступ роли к страницам, составной ключ (`role_id`, `page`)                 |
+
+`id` ролей заполняется последовательностью `xx_rjd_roles_seq` + триггером `xx_rjd_roles_bi`.
+
+**Системные роли** (создаются миграцией):
+
+| Код        | Роль          | Доступ                                       |
+| ---------- | ------------- | -------------------------------------------- |
+| `ADMIN`    | Администратор | Все разделы + управление пользователями      |
+| `OPERATOR` | Оператор      | Дашборд, карта, загрузка справок             |
+| `VIEWER`   | Наблюдатель   | Дашборд, карта (только просмотр)             |
+
+**Разграничение доступа** — `PageAccessMiddleware` сопоставляет путь запроса со «страницей» (`dashboard` / `maps` / `import` / `admin`) и проверяет её в `xx_rjd_role_pages` для роли пользователя:
+
+| Путь                              | Страница    |
+| --------------------------------- | ----------- |
+| `/`, `/api/*`, `/detail`          | `dashboard` |
+| `/maps`                           | `maps`      |
+| `/import`, `/api/import/*`        | `import`    |
+| `/admin*`                         | `admin`     |
+
+- Роль `ADMIN` имеет полный доступ всегда.
+- Пока ни один пользователь не назначен администратором (или таблицы ролей ещё нет) — доступ открыт всем авторизованным (режим первичной настройки).
+- Пользователи, впервые вошедшие через AD, получают роль `VIEWER` автоматически.
+
+**Раздел `/admin`** (`AdminController` + `templates/admin.php`) — управление из UI: список/поиск/пагинация пользователей, смена роли, блокировка, сброс пароля, создание пользователей; создание/редактирование/удаление ролей и настройка доступа к разделам галочками.
+
+Миграция — `db/migrations/001_xx_rjd_admin.sql` (см. раздел «Запуск»).
 
 ### Импорт данных
 
@@ -252,7 +302,7 @@ disl-rjd-new/
 │  └── GROUP BY: rowDims, applyFormat(colDef)  ← без алиаса                          │
 │                                                                                     │
 │  selectFields($fields)                                                              │
-│  └── isSafeField() → whitelist [a-z0-9_.] + проверка user_tab_columns              │
+│  └── isSafeField() → whitelist [a-z0-9_.] + проверка по user_tab_columns           │
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -260,42 +310,274 @@ disl-rjd-new/
 
 ## Конфигурация KPI-карточек
 
-KPI-карточки рендерятся в `#kpiGrid` (вкладка Дислокация). Данные берутся из `GET /api/dashboard`.
+KPI-карточки рендерятся через универсальную функцию `loadKpi(cfg)`.  
+Все блоки KPI описываются в объекте `KPI_BOARDS` в `app.js`.
+
+---
 
 ### Объект карточки
 
 ```js
 {
   label:   'Всего вагонов',  // подпись
-  value:   1234,             // значение
-  accent:  true,             // синяя рамка (выделение главного показателя)
-  detail: {                  // клик → открыть детализацию (опционально)
-    ctx:       'dislocation',       // контекст (ключ DETAIL_CONTEXTS)
-    road:      'ГОРЬКОВСКАЯ',       // фильтр по дороге (опционально)
-    kpi_type:  'idle',              // произвольный параметр для бэкенда (опционально)
-    _endpoint: '/api/custom/detail' // переопределить URL, сохранив колонки ctx (опционально)
+  value:   1234,             // числовое значение
+  accent:  true,             // фиолетовая рамка — главный показатель
+  variant: 'pill',           // альтернативный стиль (таблеточка)
+  sub:     '← 3 от плана',  // дополнительная строка под значением (серый текст)
+  trend: {                   // стрелка тренда (опционально)
+    pct: 5.2,                // процент изменения
+    dir: 'up'                // 'up' | 'down' | 'neutral'
+  },
+  detail: {                  // клик → открыть страницу /detail (опционально)
+    ctx:       'dislocation',        // контекст (ключ DETAIL_CONTEXTS)
+    road:      'ГОРЬКОВСКАЯ',        // фильтр по дороге (опционально)
+    _endpoint: '/api/custom/detail', // переопределить URL API (опционально)
+    params:    { kpi_type: 'tank' }  // доп. параметры запроса к детализации
   }
 }
 ```
 
-### Переопределение эндпоинта для KPI (`_endpoint`)
+Все поля объекта карточки:
 
-Если на стороне Oracle данные считаются в пакете и требуют отдельного API, но структура колонок совпадает с существующим контекстом — используйте `_endpoint`:
+| Поле      | Тип     | Описание |
+|-----------|---------|----------|
+| `label`   | string  | Подпись карточки |
+| `value`   | number  | Основное значение |
+| `accent`  | boolean | Фиолетовая рамка (главный показатель раздела) |
+| `variant` | string  | `'pill'` — компактный стиль |
+| `sub`     | string  | Мелкий текст под значением |
+| `trend`   | object  | `{ pct, dir }` — стрелка и процент изменения |
+| `detail`  | object  | Конфиг drill-down (см. ниже) |
+
+Поля `detail`:
+
+| Поле        | Описание |
+|-------------|----------|
+| `ctx`       | Ключ `DETAIL_CONTEXTS` — определяет колонки страницы детализации |
+| `road`      | Фильтр по дороге (передаётся в URL) |
+| `station`   | Фильтр по станции |
+| `groupBy`   | `group_by` параметр для строк детализации |
+| `_endpoint` | Переопределить URL API (данные из другого источника, колонки — из `ctx`) |
+| `params`    | Объект доп. параметров, добавляемых в URL запроса детализации |
+
+---
+
+### Вспомогательные функции
+
+#### `makeTrend(pct, dir)`
+
+Создаёт объект тренда или `null` если `pct` пустой:
 
 ```js
-// В kpi(data) функции WAGON_TABS или KPI_BOARDS:
+makeTrend(5.2, 'up')      // → { pct: 5.2, dir: 'up' }
+makeTrend(null)            // → null  (карточка без стрелки)
+makeTrend(tr.tank, tr.tank_dir)  // из ответа API
+```
+
+#### `metricsCards(data, mainLabel, ctx, groupBy)`
+
+Стандартный билдер для API, которые возвращают `{ total, metrics: [{label, total}] }`:
+
+```js
+// API возвращает: { total: 500, metrics: [{ label: 'СВЕРДЛОВСКАЯ', total: 120 }, ...] }
+metricsCards(data, 'Всего вагонов', 'dislocation', 'dest_road')
+// Генерирует:
+// [
+//   { label: 'Всего вагонов', value: 500, accent: true, detail: { ctx: 'dislocation' } },
+//   { label: 'СВЕРДЛОВСКАЯ',  value: 120, detail: { ctx: 'dislocation', road: 'СВЕРДЛОВСКАЯ', groupBy: 'dest_road' } },
+//   ...
+// ]
+```
+
+---
+
+### Как добавить произвольный блок KPI
+
+#### Вариант 1 — стандартный API (`total` + `metrics[]`)
+
+Если API возвращает `{ total, metrics: [{label, total}] }`, достаточно добавить запись в `KPI_BOARDS`:
+
+```js
+var KPI_BOARDS = {
+  // ...
+  myBlock: {
+    containerId: 'myKpiGrid',          // id HTML-контейнера
+    dataUrl:     BASE + '/api/my/kpi', // GET-эндпоинт
+    mainLabel:   'Всего вагонов',      // подпись главной карточки
+    ctx:         'dislocation',        // контекст для drill-down
+    groupBy:     'dest_road',          // параметр группировки для detail
+  },
+}
+```
+
+Запустить вручную:
+
+```js
+loadKpi(KPI_BOARDS.myBlock)
+```
+
+#### Вариант 2 — произвольный формат ответа
+
+Если API возвращает нестандартную структуру — добавьте функцию `cards`:
+
+```js
+myBlock: {
+  containerId: 'myKpiGrid',
+  dataUrl:     BASE + '/api/my/kpi',
+  cards: function (data) {
+    return [
+      { label: 'Груженые',  value: data.loaded,  accent: true },
+      { label: 'Порожние',  value: data.empty,   trend: makeTrend(data.empty_pct, data.empty_dir) },
+      { label: 'Простой >5', value: data.idle,   detail: { ctx: 'downtime', _endpoint: '/api/downtime/detail' } },
+    ]
+  },
+}
+```
+
+#### Вариант 3 — динамические параметры запроса
+
+Если нужно передавать параметры из формы (фильтры, дата):
+
+```js
+myBlock: {
+  containerId: 'myKpiGrid',
+  dataUrl:     BASE + '/api/my/kpi',
+  params: function () {
+    return { report_dt: $('#fDate').val() }
+  },
+  mainLabel: 'Показатель',
+  ctx:       'dislocation',
+}
+```
+
+#### Вариант 4 — KPI на вкладке (через `WAGON_TABS`)
+
+Если KPI нужен внутри вкладки раздела (рендерится при загрузке сводной), задайте `metricsId` и `kpi` в `WAGON_TABS`:
+
+```js
+mySection: {
+  // ...обязательные поля вкладки...
+  metricsId: 'mySectionMetrics',   // id контейнера в HTML
+  kpi: function (data) {           // data — ответ summaryUrl
+    return [
+      { label: 'Всего',    value: data.total, accent: true },
+      { label: 'Цистерны', value: data.tank,  trend: makeTrend(data.tank_pct, 'up') },
+    ]
+  },
+}
+```
+
+> Если `kpi` не задан, но задан `metricsId` и `metricsLabel`, KPI строится автоматически через `metricsCards`.
+
+---
+
+### Поля `KPI_BOARDS[key]`
+
+| Поле          | Тип      | Обязательно | Описание                                                                        |
+| ------------- | -------- | ----------- | ------------------------------------------------------------------------------- |
+| `containerId` | string   | да          | `id` HTML-контейнера (`<div id="...">`)                                         |
+| `dataUrl`     | string   | да          | URL GET-запроса                                                                 |
+| `cards`       | function | нет         | `function(data) → [{label,value,...}]`. Если задана — `mainLabel/ctx/groupBy` игнорируются |
+| `params`      | function | нет         | `function() → {param: value}` — параметры запроса                               |
+| `mainLabel`   | string   | нет         | Подпись главной карточки при использовании `metricsCards`                       |
+| `ctx`         | string   | нет         | Контекст drill-down (`DETAIL_CONTEXTS`)                                         |
+| `groupBy`     | string   | нет         | `groupBy` для строк детализации из `metrics[]`                                  |
+
+---
+
+### KPI из Oracle-пакета
+
+Когда расчёт показателей идёт в PL/SQL-пакете (`TABLE(MY_PKG.fnc_kpi())`), на бэкенде создаётся тонкий API-метод, который вызывает функцию и маппит строки в объект нужной формы.
+
+**Пример: Oracle-пакет возвращает таблицу строк**
+
+```php
+// ApiController.php
+public function myKpi(Request $req, Response $res): Response
+{
+    $rows = $this->db->fetchAll(
+        "SELECT * FROM TABLE(XX_ETW.MY_PKG.fnc_kpi())"
+    );
+    // fnc_kpi() возвращает: ID, VALUE, LABEL, TREND_PCT, TREND_DIR
+    $cards = [];
+    foreach ($rows as $r) {
+        $cards[] = [
+            'id'        => $r['id'],
+            'value'     => (int) $r['value'],
+            'label'     => $r['label'],
+            'trend_pct' => $r['trend_pct'],
+            'trend_dir' => $r['trend_dir'],
+        ];
+    }
+    return $this->json($res, ['cards' => $cards, 'updated_at' => /* ... */]);
+}
+```
+
+**В `app.js` — карточки из произвольного формата:**
+
+```js
+var KPI_BOARDS = {
+  mySection: {
+    containerId: 'myKpiGrid',
+    dataUrl:     BASE + '/api/my/kpi',
+    cards: function (data) {
+      return (data.cards || []).map(function (r) {
+        return {
+          label:  r.label,
+          value:  r.value,
+          accent: r.id === 'total',
+          trend:  makeTrend(r.trend_pct, r.trend_dir),
+          detail: {
+            ctx:       'approach',
+            _endpoint: '/api/approach/detail',
+            params:    { kpi_type: r.id }   // передаётся в запрос детализации
+          }
+        }
+      })
+    },
+  },
+}
+```
+
+**Бэкенд детализации** — получает `kpi_type` и применяет нужный фильтр:
+
+```php
+public function myDetail(Request $req, Response $res): Response
+{
+    $params   = $req->getQueryParams();
+    $kpiType  = $params['kpi_type'] ?? null;
+    $source   = $this->approachFrom($params);
+    $bindings = $source['bindings'];
+    $where    = $this->applyDetailFilters($rowDims, $params, $bindings);
+    if ($kpiType) {
+        $where .= " AND kpi_category = :kpi_type";
+        $bindings['kpi_type'] = $kpiType;
+    }
+    // ...
+}
+```
+
+**Существующий пример — `dashboardKPI`:** вызывает `fnc_set_dashboard()` и маппит поля `total`, `tank_total`, `comming_to_ugl` и т.д. в карточки через `dashboardCards(data)` в `app.js`.
+
+---
+
+### Переопределение эндпоинта для drill-down (`_endpoint`)
+
+Если данные считаются в Oracle-пакете и нужен отдельный API, но колонки детализации совпадают с существующим контекстом:
+
+```js
 {
   label: 'Нестандартный показатель',
   value: data.custom_value,
   detail: {
-    ctx: 'dislocation',              // берём колонки из DETAIL_CONTEXTS['dislocation']
-    _endpoint: '/api/custom/detail', // но данные запрашиваем отсюда
-    kpi_type: 'my_type'             // произвольный доп. параметр
+    ctx:       'dislocation',              // берём колонки из DETAIL_CONTEXTS['dislocation']
+    _endpoint: '/api/custom/detail',       // данные запрашиваем отсюда
+    kpi_type:  'my_type'                   // произвольный доп. параметр для бэкенда
   }
 }
 ```
 
-URL страницы детализации будет:
+URL страницы детализации:
 ```
 /detail?ctx=dislocation&_endpoint=/api/custom/detail&kpi_type=my_type
 ```
@@ -340,6 +622,12 @@ URL страницы детализации будет:
 | `colDims`           | array    | Колонки сводной. `{ key, paramName }` — реальное поле → URL-параметр фильтра. `{ key, synthetic: true }` — метка-псевдоколонка, не передаётся как фильтр |
 | `detSubId`          | string   | `id` подписи под заголовком расширенной («Строк: N»)                                              |
 | `draw(data, cfg)`   | function | Переопределяет стандартный рендер сводной. Нужен когда структура ответа API нестандартна. Пример: Дислокация использует `{sections, cols}` и рендерит через `drawMain` |
+| `totalColDims`      | array    | Ключи из `colDims[].key`, по которым строятся столбцы подытогов в строке. Пример: `['wagon_type_code']` — итог по типу вагона без разбивки по грузу |
+| `totalText`         | string   | Текст строки «Общий итог» сводной. По умолчанию `'Общий итог'`. Можно использовать как пояснение: `'Общий итог - ст.Углеуральская'` |
+| `pinnedRowLabel`    | string   | Подпись закреплённой строки вверху таблицы (перед «Общий итог»). Пример: `'ст. Углеуральская'` |
+| `pinnedStationKey`  | string   | Подстрока имени станции для закрепления. Станция извлекается из дерева до отрисовки. Пример: `'УГЛЕУР'` |
+| `firstRoadKey`      | string   | Подстрока имени дороги, которую нужно поставить первой в дереве (после «Общий итог»). Пример: `'СВЕРДЛ'` |
+| `showList(data, cfg)` | function | Переопределяет рендер расширенной таблицы (вместо `showTable()`). Нужен когда API возвращает не массив `{rows}` |
 | `listParams()`      | function | Переопределяет параметры запроса к `detailUrl`                                                    |
 
 ### Поля элемента `colDims[]`
@@ -404,7 +692,7 @@ DETAIL_CONTEXTS['my-ctx'] = {
 
 ---
 
-## Принцип «один источник правды»
+## Откуда что берётся
 
 | Что                       | Где задаётся                     | Куда попадает                                  |
 | ------------------------- | -------------------------------- | ---------------------------------------------- |
@@ -413,7 +701,7 @@ DETAIL_CONTEXTS['my-ctx'] = {
 | Поля SELECT детализации   | `DETAIL_CONTEXTS[ctx].cols[].key` | `?fields=` → `selectFields()` → SQL `SELECT`   |
 | Сортировка детализации    | `DETAIL_CONTEXTS[ctx].sort`      | `?sort=&sort_dir=&sort_type=`                  |
 | Тип вагона (Oracle функция) | `ApiController::WAG_TYPE_EXPR` | Все summary и detail методы через константу    |
-| Валидация полей           | `isSafeField()` + `user_tab_columns` | Единственная точка безопасности              |
+| Валидация полей           | `isSafeField()` + `user_tab_columns` | Единственная проверка безопасности           |
 
 ---
 
@@ -608,6 +896,10 @@ APP_DEBUG=false           # true → SQL-лог в tmp/log/sql_debug.log
 
 ## Управление пользователями
 
+Через веб-интерфейс — раздел **Администрирование** (`/admin`, доступен роли `ADMIN`): создание пользователей, смена роли, блокировка, сброс пароля, управление ролями и их доступом к разделам.
+
+Через CLI:
+
 ```bash
 # Создать нового пользователя
 php bin/create-user.php admin "Иван Иванов" admin@company.local secretpass
@@ -615,6 +907,11 @@ php bin/create-user.php admin "Иван Иванов" admin@company.local secret
 # Сменить пароль существующему
 php bin/set-password.php admin newpass
 ```
+
+> **Перед первым запуском раздела ролей** примените миграцию `db/migrations/001_xx_rjd_admin.sql`
+> (переименование `xx_users_rjd` → `xx_rjd_users`, таблицы ролей, доступ к страницам) и назначьте
+> первого администратора — раскомментируйте `UPDATE` в конце скрипта и укажите логин. Миграцию
+> применяйте **вместе** с выкладкой кода: после переименования таблицы старое имя сломает вход.
 
 ---
 

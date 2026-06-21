@@ -46,6 +46,12 @@ class AuthController
 
         $base = $this->config['base_path'] ?? '';
 
+        $csrf = $body['csrf_token'] ?? '';
+        if ($csrf === '' || !hash_equals($_SESSION['csrf_token'] ?? '', $csrf)) {
+            $_SESSION['login_error'] = 'Ошибка запроса. Попробуйте снова.';
+            return $response->withHeader('Location', $base . '/login')->withStatus(302);
+        }
+
         if ($username === '' || $password === '') {
             $_SESSION['login_error'] = 'Введите логин и пароль';
             return $response->withHeader('Location', $base . '/login')->withStatus(302);
@@ -58,6 +64,7 @@ class AuthController
             return $response->withHeader('Location', $base . '/login')->withStatus(302);
         }
 
+        session_regenerate_id(true);
         $_SESSION['user'] = $user;
         return $response->withHeader('Location', $base . '/')->withStatus(302);
     }

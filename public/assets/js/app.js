@@ -1,46 +1,49 @@
 'use strict'
 
 var BASE = window.APP_BASE || ''
+var ALLOWED_PAGES = window.APP_ALLOWED_PAGES || []
 
-// наивигация (Боковое меню)
-var TAB_GROUPS = [
-  {
-    label: 'Движение вагонов',
-    tabs: [
-      { id: 'dislocation', label: 'Дислокация' },
-      { id: 'approach', label: 'Подход вагонов' },
-      { id: 'departure', label: 'Отправление вагонов' },
-      { id: 'loading', label: 'Погрузка' },
-      { id: 'raw-material', label: 'Сырьё' },
-    ],
-  },
-  {
-    label: 'Аналитика',
-    tabs: [
-      { id: 'analysis-period', label: 'Анализ за период' },
-      { id: 'maps', label: 'Карта', url: BASE + '/maps' },
-    ],
-  },
-  {
-    label: 'Простои и оборот',
-    tabs: [{ id: 'downtime', label: 'Простои' }],
-  },
-  {
-    label: 'Импорт',
-    tabs: [
-      {
-        id: 'import',
-        label: ' Загрузка справки РЖД ',
-        url: BASE + '/import',
-      },
-    ],
-  },
-]
+// Проверка доступа к вкладке по коду страницы (page из Navigation.php)
+function canSeeTab(tab) {
+  if (!tab.page) return true
+  if (window.APP_IS_ADMIN) return true
+  return ALLOWED_PAGES.indexOf(tab.page) !== -1
+}
+
+// Навигация строится из APP_NAV_CONFIG, который экспортирует DashboardController
+// из единственного источника — src/Navigation.php
+var TAB_GROUPS = (window.APP_NAV_CONFIG || []).map(function (group) {
+  return {
+    label: group.group,
+    tabs: group.items.map(function (item) {
+      return {
+        id: item.id,
+        label: item.label,
+        page: item.page || null,
+        url: item.url ? BASE + item.url : null,
+        target: item.target || null,
+      }
+    }),
+  }
+})
+
+// Раздел администрирования — только для роли ADMIN
+if (window.APP_IS_ADMIN) {
+  TAB_GROUPS.push({
+    label: 'Администрирование',
+    tabs: [{ id: 'admin', label: 'Перейти', url: BASE + '/admin/users' }],
+  })
+}
 
 // Сайдбар
 function initSidebar() {
   var sidebar = document.getElementById('sidebar')
   TAB_GROUPS.forEach(function (group) {
+    // Отфильтровываем вкладки, к которым нет доступа
+    var visibleTabs = group.tabs.filter(canSeeTab)
+    // Если ни одной вкладки не осталось — группу не показываем
+    if (visibleTabs.length === 0) return
+
     var groupEl = document.createElement('div')
     groupEl.className = 'nav-group' + (!group.label ? ' nav-group--top' : '')
 
@@ -49,21 +52,23 @@ function initSidebar() {
     labelEl.textContent = group.label
     groupEl.appendChild(labelEl)
 
-    group.tabs.forEach(function (tab) {
-      var btn = document.createElement('button')
-      btn.className = 'nav-item' + (tab.id === 'dislocation' ? ' active' : '')
-      btn.textContent = tab.label
-      btn.dataset.tab = tab.id
+    visibleTabs.forEach(function (tab) {
+      var el
       if (tab.url) {
-        btn.addEventListener('click', function () {
-          window.location.href = tab.url
-        })
+        el = document.createElement('a')
+        el.href = tab.url
+        if (tab.target) el.target = tab.target
+        el.rel = 'noopener noreferrer'
       } else {
-        btn.addEventListener('click', function () {
+        el = document.createElement('button')
+        el.addEventListener('click', function () {
           switchTab(tab.id)
         })
       }
-      groupEl.appendChild(btn)
+      el.className = 'nav-item' + (tab.id === 'dislocation' ? ' active' : '')
+      el.textContent = tab.label
+      el.dataset.tab = tab.id
+      groupEl.appendChild(el)
     })
 
     sidebar.appendChild(groupEl)
@@ -78,6 +83,7 @@ function switchTab(tabId) {
   document.querySelectorAll('.tab-panel').forEach(function (panel) {
     panel.classList.toggle('active', panel.id === 'panel-' + tabId)
   })
+  history.replaceState(null, '', '#' + tabId)
   Object.keys(WAGON_TABS).forEach(function (k) {
     var cfg = WAGON_TABS[k]
     if (tabId === k && !window[cfg.loadedKey]) {
@@ -116,64 +122,43 @@ function initInnerTabs() {
 }
 
 // Dashboard
-function loadDashboard() {
-  $.getJSON(KPI_BOARDS.dashboard.dataUrl).done(function (data) {
-    var label = data.updated_at || '—'
-    $('#brandDateSub').text('Дислокация РЖД на ' + label)
-    $('#headerDate').text(label)
-    showDashKpi(data)
+function loadKPI() {
+  return Object.keys(KPI_BOARDS).map(function (key) {
+    var board = KPI_BOARDS[key]
+    return $.getJSON(board.dataUrl, board.params ? board.params() : {}).done(
+      function (data) {
+        //console.log('Ключ:', data)
+        if (data.updated_at) {
+          $('#brandDateSub').text('Дислокация РЖД на ' + data.updated_at)
+          $('#headerDate').text(data.updated_at)
+        }
+        showKpi(data, board.containerId)
+      },
+    )
   })
 }
 
-// KPI карточки дашборда
-function showDashKpi(data) {
-  var cards = KPI_BOARDS.dashboard.cards(data)
-  $('#kpiGrid').html(cards.map(kpiCard).join(''))
+// KPI карточки
+function showKpi(data, containerId) {
+  // 1. Если containerId не передан, берем дефолтный от dashboard
+  var targetContainer = containerId || KPI_BOARDS.dashboard.containerId
+
+  // в объекте KPI_BOARDS  ищем конфигурацию
+  var currentBoard = Object.values(KPI_BOARDS).find(function (board) {
+    return board.containerId === targetContainer
+  })
+
+  // Если вдруг не нашли
+  if (!currentBoard) {
+    return
+  }
+
+  var cardsHtml = currentBoard.cards(data).map(kpiCard).join('')
+
+  $('#' + targetContainer).html(cardsHtml)
 }
 
-// SVG
-var BAR_COLORS = [
-  '#4A7FCB',
-  '#5B9E6B',
-  '#8B62C4',
-  '#3B9EAF',
-  '#6B7EC4',
-  '#D4622A',
-  '#E8A530',
-]
-
-// Конфиг вкладок: сводные таблицы и детализации
-/*
-  Структура WAGON_TABS — поля в стандартном порядке:
-
-  Обязательные:
-    ctx            — ключ контекста (data-ctx в ссылках, ключ в DETAIL_CONTEXTS)
-    summaryUrl     — URL сводной таблицы (отсутствует у detail-only вкладок)
-    detailUrl      — URL расширенной/детализации
-    csvFilename    — префикс CSV сводной (кнопка не появится, если не задан)
-    csvDetFilename — префикс CSV расширенной
-    sumTableId     — id <table> сводной
-    sumSubId       — id подписи «Итого: N» под сводной
-    sumSubLabel    — текст-префикс подписи
-    detTableId     — id <table> расширенной
-    detSubId       — id подписи «Строк: N» под расширенной (опционально)
-    detPanelId     — id панели расширенной (для ленивой загрузки при открытии)
-    loadedKey      — ключ window[...] — флаг загрузки сводной
-    loadedDetKey   — ключ window[...] — флаг загрузки расширенной
-    groupCols[]    — измерения строк сводной: [{key, label}]
-    colDims[]      — измерения колонок: [{key, paramName}] или [{key, synthetic:true}]
-    getParams()    — доп. параметры из формы фильтров → передаются в оба URL
-
-  Опциональные:
-    filtersUrl     — URL для заполнения <select> фильтров
-    fillFilters(d) — заполняет <select> данными из filtersUrl
-    resetFilters() — сбрасывает фильтры
-    applyBtnId     — id кнопки «Применить» (без неё загрузка при открытии вкладки)
-    resetBtnId     — id кнопки «Сбросить» (если не задан — вычисляется как btn{TabId}Reset)
-    metricsId      — id контейнера KPI-карточек
-    metricsLabel   — подпись главной KPI-карточки (если kpi() не задан)
-    kpi(data)      — генерирует [{label, value, accent?, detail?}] из ответа сводной
-*/
+// Конфиг вкладок
 
 // Общий построитель KPI для табов с группировкой по дороге
 function makeRoadKpi(cfg, data, mainLabel) {
@@ -204,6 +189,7 @@ var WAGON_TABS = {
     ctx: 'dislocation',
     summaryUrl: BASE + '/api/dislocation/summary',
     detailUrl: BASE + '/api/dislocation/detail',
+    filtersUrl: BASE + '/api/dislocation/filters',
     csvFilename: 'дислокация',
     csvDetFilename: 'дислокация-расширенная',
     totalText: 'Общий итог',
@@ -211,6 +197,7 @@ var WAGON_TABS = {
     sumSubId: 'mainTableSub',
     sumSubLabel: 'Итого по дислокации',
     detTableId: 'dislExtTable',
+    detSubId: 'dislDetSub',
     detPanelId: 'disl-extended',
     loadedKey: '_dislLoaded',
     loadedDetKey: '_extLoaded',
@@ -225,10 +212,18 @@ var WAGON_TABS = {
       { key: 'cargo_w_type', paramName: 'cargo_state' },
     ],
     getParams: function () {
-      return { wagon_no: $('#fDislocationWagonNo').val().trim() || undefined }
+      return {
+        wagon_no: $('#fDislocationWagonNo').val().trim() || undefined,
+        cargo: $('#fDislocationCargo').val().trim() || undefined,
+      }
+    },
+    totalColDims: ['wagon_type_code'], // Итог по строке в разрезе (пор. / гр.)
+    fillFilters: function (data) {
+      fillSelect('#fDislocationCargo', data.cargo || [])
     },
     resetFilters: function () {
       $('#fDislocationWagonNo').val('')
+      $('#fDislocationCargo').val('')
     },
   },
 
@@ -238,13 +233,16 @@ var WAGON_TABS = {
     summaryUrl: BASE + '/api/approach/summary',
     detailUrl: BASE + '/api/approach/detail',
     filtersUrl: BASE + '/api/approach/filters',
-    metricsId: 'approachMetrics',
+    /*metricsId: 'approachMetrics',
     kpi: function (data) {
       return makeRoadKpi(this, data, 'Всего в подходе')
-    },
+    },*/
     csvFilename: 'подход',
     csvDetFilename: 'подход-расширенная',
-    totalText: 'Общий итог - ст.Углеуральская',
+    totalText: 'Общий итог',
+    pinnedRowLabel: 'ст. Углеуральская',
+    pinnedStationKey: 'УГЛЕУР',
+    firstRoadKey: 'СВЕРДЛ',
     sumTableId: 'approachSumTable',
     sumSubId: 'approachSumSub',
     sumSubLabel: 'Всего в подходе',
@@ -286,13 +284,13 @@ var WAGON_TABS = {
     summaryUrl: BASE + '/api/departure/summary',
     detailUrl: BASE + '/api/departure/detail',
     filtersUrl: BASE + '/api/departure/filters',
-    metricsId: 'departureMetrics',
+    /* metricsId: 'departureMetrics',
     kpi: function (data) {
       return makeRoadKpi(this, data, 'Всего отправлено')
-    },
+    }, */
     csvFilename: 'отправление',
     csvDetFilename: 'отправление-расширенная',
-    totalText: 'Всего отправлено',
+    totalText: 'Всего отправлено со ст.Углеуральская',
     sumTableId: 'departureSumTable',
     sumSubId: 'departureSumSub',
     sumSubLabel: 'Всего',
@@ -330,10 +328,12 @@ var WAGON_TABS = {
     summaryUrl: BASE + '/api/loading/summary',
     detailUrl: BASE + '/api/loading/detail',
     filtersUrl: BASE + '/api/loading/filters',
+    /*
     metricsId: 'loadingMetrics',
     kpi: function (data) {
       return makeRoadKpi(this, data, 'Всего погружено')
     },
+    */
     csvFilename: 'погрузка',
     csvDetFilename: 'погрузка-расширенная',
     totalText: 'Всего погружено',
@@ -390,7 +390,7 @@ var WAGON_TABS = {
     colDims: [
       //{ key: 'fixed_col_label', synthetic: true },
       { key: 'm_wagon_type_code', paramName: 'wagon_type' },
-      { key: 'm_wag_state', paramName: 'wag_state' },
+      { key: 'm_wag_state', paramName: 'cargo_state' },
     ],
     totalColDims: ['m_wagon_type_code'], // Итог по строке в разрезе (пор. / гр.)
     getParams: function () {
@@ -414,10 +414,10 @@ var WAGON_TABS = {
     ctx: 'raw-material',
     summaryUrl: BASE + '/api/raw-material/summary',
     detailUrl: BASE + '/api/raw-material/detail',
-    metricsId: 'rawMetrics',
+    /*metricsId: 'rawMetrics',
     kpi: function (data) {
       return makeRoadKpi(this, data, 'Гружёных вагонов')
-    },
+    },*/
     csvFilename: 'сырьё',
     csvDetFilename: 'сырьё-расширенная',
     totalText: 'Гружёных вагонов',
@@ -448,6 +448,7 @@ var WAGON_TABS = {
   'analysis-period': {
     ctx: 'analysis-period',
     detailUrl: BASE + '/api/analysis/period/detail',
+    filtersUrl: BASE + '/api/analysis/filters',
     csvDetFilename: 'анализ-за-период',
     detTableId: 'analysisPeriodDetTable',
     detSubId: 'analysisPeriodDetSub',
@@ -455,73 +456,97 @@ var WAGON_TABS = {
     loadedKey: '_analysisPeriodLoaded',
     loadedDetKey: '_analysisPeriodDetLoaded',
     applyBtnId: 'btnAnalysisPeriodApply',
+    resetBtnId: 'btnAnalysisPeriodReset',
     getParams: function () {
       return {
         wagon_no: $('#fAnalysisPeriodWagonNo').val().trim() || undefined,
         date_from: $('#fAnalysisPeriodDateFrom').val() || undefined,
         date_to: $('#fAnalysisPeriodDateTo').val() || undefined,
+        cargo: $('#fAnalysisPeriodCargo').val() || undefined,
       }
+    },
+    fillFilters: function (data) {
+      fillSelect('#fAnalysisPeriodCargo', data.cargo || [])
+    },
+
+    validate: function () {
+      if (!$('#fAnalysisPeriodDateFrom').val())
+        return 'Укажите дату начала периода'
+      return null
+    },
+    resetFilters: function () {
+      $('#fAnalysisPeriodWagonNo').val('')
+      $('#fAnalysisPeriodDateFrom').val('')
+      $('#fAnalysisPeriodDateTo').val('')
+      $('#fAnalysisPeriodCargo').val('')
     },
   },
 }
 
+function makeTrend(pct, dir) {
+  return pct ? { pct: pct, dir: dir || 'neutral' } : null
+}
+// для сводных карточек с разбивкой по groupBy (дорогам и т.д)
+function metricsCards(data, mainLabel, ctx, groupBy) {
+  return [
+    {
+      label: mainLabel,
+      value: data.total,
+      accent: true,
+      detail: ctx ? { ctx: ctx } : null,
+    },
+  ].concat(
+    (data.metrics || []).map(function (m) {
+      return {
+        label: m.label,
+        value: m.total,
+        detail: ctx ? { ctx: ctx, road: m.label, groupBy: groupBy } : null,
+      }
+    }),
+  )
+}
+function kpiCards(data) {
+  var valuesArray =
+    (data.sections && data.sections[0] && data.sections[0].values) || []
+
+  return valuesArray.map(function (item) {
+    return {
+      label: item.label,
+      value: item.value,
+      variant: 'pill',
+      trend: makeTrend(item.change, item.trend),
+      detail: item.id
+        ? { ctx: 'dislocation', params: { kpi_id: item.id } }
+        : null,
+    }
+  })
+}
+
 // KPI-карточки для дашборда и отдельных блоков
 var KPI_BOARDS = {
-  // GET /api/dashboard
   dashboard: {
-    dataUrl: BASE + '/api/dashboard',
-    cards: function (data) {
-      var grandTotal = 0,
-        tankTotal = 0,
-        commingToUgl = 0,
-        arrivedTodayUgl = 0,
-        loadedTransit = 0
-      ;(data.sections || []).forEach(function (x) {
-        grandTotal += x.total || 0
-        tankTotal += x.tank_total || 0
-        commingToUgl += x.comming_to_ugl || 0
-        arrivedTodayUgl += x.arrived_today_ugl || 0
-        loadedTransit += x.loaded_transit || 0
-      })
-
-      var tr = data.trends || {}
-      function makeTrend(pct, dir) {
-        return pct ? { pct: pct, dir: dir || 'neutral' } : null
-      }
-
-      return [
-        {
-          label: 'Груженые в пути c УГЛ',
-          value: loadedTransit,
-          variant: 'pill',
-          trend: makeTrend(tr.met_loaded_transit, tr.met_loaded_transit_dir),
-        },
-        {
-          label: 'Цистерны',
-          value: tankTotal,
-          variant: 'pill',
-          trend: makeTrend(tr.tank, tr.tank_dir),
-        },
-        {
-          label: 'Прочие вагоны',
-          value: grandTotal - tankTotal,
-          variant: 'pill',
-          trend: makeTrend(tr.other, tr.other_dir),
-        },
-        {
-          label: 'В пути на УГЛ',
-          value: commingToUgl,
-          variant: 'pill',
-          trend: makeTrend(tr.met_comming_to_ugl, tr.met_comming_to_ugl_dir),
-        },
-        {
-          label: 'Прибыло сегодня (УГЛ)',
-          value: arrivedTodayUgl,
-          variant: 'pill',
-          trend: makeTrend(tr.met_arrived_ugl, tr.met_arrived_ugl_dir),
-        },
-      ]
+    containerId: 'kpiGrid',
+    dataUrl: BASE + '/api/kpi/summary',
+    params: function () {
+      return { kpi_type: 'dashboard_kpi' }
     },
+    cards: kpiCards,
+  },
+  departure: {
+    containerId: 'departureMetrics',
+    dataUrl: BASE + '/api/kpi/summary',
+    params: function () {
+      return { kpi_type: 'departue_kpi' }
+    },
+    cards: kpiCards,
+  },
+  approach: {
+    containerId: 'approachMetrics',
+    dataUrl: BASE + '/api/kpi/summary',
+    params: function () {
+      return { kpi_type: 'approach_kpi' }
+    },
+    cards: kpiCards,
   },
 }
 
@@ -550,11 +575,21 @@ function initTab(cfg) {
     }
   }
   loadFilters(cfg)
-  loadSummary(cfg)
+  var _sumXhr = loadSummary(cfg)
   if (!cfg.summaryUrl && cfg.detailUrl && !window[cfg.loadedDetKey]) {
-    window[cfg.loadedDetKey] = true
-    loadDetail(cfg)
+    var initHint = cfg.validate ? cfg.validate() : null
+    if (initHint) {
+      $('#' + cfg.detTableId).html(
+        '<div style="text-align:center;padding:60px;color:#E8392A;font-size:15px;font-weight:600">' +
+          esc(initHint) +
+          '</div>',
+      )
+    } else {
+      window[cfg.loadedDetKey] = true
+      loadDetail(cfg)
+    }
   }
+  return _sumXhr
 }
 /* Загрузка и отображение фильтров, если они есть настроены */
 function loadFilters(cfg) {
@@ -565,7 +600,7 @@ function loadFilters(cfg) {
 }
 /* Загрузка сводной таблицы и KPI, если они есть настроены */
 function loadSummary(cfg) {
-  if (!cfg.summaryUrl) return
+  if (!cfg.summaryUrl) return $.when()
   var $sub = $('#' + cfg.sumSubId)
   var $table = $('#' + cfg.sumTableId)
   $sub.text('Загрузка...')
@@ -587,7 +622,7 @@ function loadSummary(cfg) {
   if (cby) summaryParams.col_by = cby
 
   /* Получаем сводную информацию  */
-  $.getJSON(cfg.summaryUrl, summaryParams)
+  return $.getJSON(cfg.summaryUrl, summaryParams)
     .done(function (data) {
       if (cfg.metricsId) {
         var items = cfg.kpi
@@ -618,7 +653,62 @@ function loadSummary(cfg) {
             subtotalDepth = idx
         })
       }
-      drawSummary(
+      var pinnedStation = null
+      if (cfg.pinnedStationKey && data.roads) {
+        var stationField = (cfg.groupCols[cfg.groupCols.length - 1] || {}).key
+        var pinKey = cfg.pinnedStationKey.toUpperCase()
+        var pinVals = []
+        var pinTotal = 0
+        var pinName = ''
+        data.roads.forEach(function (road) {
+          var kept = []
+          ;(road.stations || []).forEach(function (st) {
+            if ((st[stationField] || '').toUpperCase().indexOf(pinKey) !== -1) {
+              if (!pinName) pinName = st[stationField] || ''
+              ;(st.v || []).forEach(function (val, i) {
+                pinVals[i] = (pinVals[i] || 0) + (val || 0)
+              })
+              var stSum = (st.v || []).reduce(function (a, b) {
+                return a + (b || 0)
+              }, 0)
+              pinTotal += stSum
+              ;(st.v || []).forEach(function (val, i) {
+                road.total[i] = (road.total[i] || 0) - (val || 0)
+              })
+              road.grand_total = (road.grand_total || 0) - stSum
+            } else {
+              kept.push(st)
+            }
+          })
+          road.stations = kept
+        })
+        if (pinTotal > 0) {
+          pinnedStation = { v: pinVals, grand_total: pinTotal, name: pinName }
+          var totalBeforePin = data.total || 0
+          data.total = totalBeforePin - pinTotal
+          data._totalWithPin = totalBeforePin
+          data.roads = data.roads.filter(function (road) {
+            return (
+              (road.stations && road.stations.length > 0) ||
+              road.grand_total > 0
+            )
+          })
+        }
+      }
+
+      if (cfg.firstRoadKey && data.roads && data.roads.length > 1) {
+        var roadField = (cfg.groupCols[0] || {}).key
+        var firstKey = cfg.firstRoadKey.toUpperCase()
+        data.roads.sort(function (a, b) {
+          var aFirst =
+            (a[roadField] || '').toUpperCase().indexOf(firstKey) !== -1 ? 0 : 1
+          var bFirst =
+            (b[roadField] || '').toUpperCase().indexOf(firstKey) !== -1 ? 0 : 1
+          return aFirst - bFirst
+        })
+      }
+
+      var cells = drawSummary(
         '#' + cfg.sumTableId,
         data.roads,
         data,
@@ -627,10 +717,89 @@ function loadSummary(cfg) {
         subtotalDepth,
         cfg.totalText,
       )
+
+      if (pinnedStation && cells && cells.length) {
+        var $grandRow = $table.find('tr.row-grand').first()
+        if ($grandRow.length) {
+          var hasSubtotals = cells[0] && cells[0].isSubtotal
+          var linkAttrs =
+            ' data-ctx="' +
+            esc(cfg.ctx || '') +
+            '" data-road="" data-station="' +
+            esc(pinnedStation.name) +
+            '" data-group-by="' +
+            esc(
+              (cfg.groupCols || [])
+                .map(function (g) {
+                  return g.key
+                })
+                .join(','),
+            ) +
+            '"'
+          var pinnedCells = [
+            '<td class="col-meta col-meta--l0">' +
+              esc(cfg.pinnedRowLabel) +
+              '</td>',
+          ]
+          if (!hasSubtotals) {
+            pinnedCells.push(
+              '<td class="col-total-col cell-link"' +
+                linkAttrs +
+                ' data-col="">' +
+                pinnedStation.grand_total.toLocaleString('ru-RU') +
+                '</td>',
+            )
+          }
+          cells.forEach(function (dc) {
+            var v
+            if (dc.isSubtotal) {
+              v = 0
+              ;(dc.indices || []).forEach(function (i) {
+                v += pinnedStation.v[i] || 0
+              })
+            } else {
+              v = pinnedStation.v[dc.dataIdx] || 0
+            }
+            var disp = v ? v.toLocaleString('ru-RU') : ''
+            var subAttrs = ''
+            ;(dc.subs || []).forEach(function (sv, si) {
+              if (sv)
+                subAttrs +=
+                  ' data-sub' + (si ? si + 1 : '') + '="' + esc(sv) + '"'
+            })
+            pinnedCells.push(
+              dc.isSubtotal
+                ? '<td class="col-subtotal cell-link"' +
+                    linkAttrs +
+                    ' data-col=""' +
+                    subAttrs +
+                    '>' +
+                    disp +
+                    '</td>'
+                : '<td class="cell-link"' +
+                    linkAttrs +
+                    ' data-col="' +
+                    esc(dc.col) +
+                    '"' +
+                    subAttrs +
+                    '>' +
+                    disp +
+                    '</td>',
+            )
+          })
+          $grandRow.before(
+            $('<tr class="row-pinned">' + pinnedCells.join('') + '</tr>'),
+          )
+        }
+      }
+
       $sub.text(
         cfg.sumSubLabel +
           ': ' +
-          (data.total || 0).toLocaleString('ru-RU') +
+          (data._totalWithPin !== undefined
+            ? data._totalWithPin
+            : data.total || 0
+          ).toLocaleString('ru-RU') +
           ' ваг.',
       )
     })
@@ -648,7 +817,12 @@ function loadSummary(cfg) {
 function loadDetail(cfg) {
   var $sub = $('#' + cfg.detSubId)
   var $table = $('#' + cfg.detTableId)
-  var cols = DETAIL_CONTEXTS[cfg.ctx] ? DETAIL_CONTEXTS[cfg.ctx].cols : []
+  // showInline: false — поле скрыто из inline-детализации (но видно на странице detail.php)
+  var cols = DETAIL_CONTEXTS[cfg.ctx]
+    ? DETAIL_CONTEXTS[cfg.ctx].cols.filter(function (c) {
+        return c.showInline !== false
+      })
+    : []
   $sub.text('Загрузка...')
   var ctxSortRaw = DETAIL_CONTEXTS[cfg.ctx]
     ? DETAIL_CONTEXTS[cfg.ctx].sort
@@ -710,7 +884,7 @@ function loadDetail(cfg) {
         var $acts = $table.closest('.table-section').find('.table-acts')
         if ($acts.length && !$acts.find('.btn-csv-det').length) {
           var $btn = $(
-            '<button class="btn btn-ghost btn-sm btn-csv-det">Скачать CSV</button>',
+            '<button class="btn btn-ghost btn-sm btn-csv-det">Выгрузить в Excel</button>',
           )
           $btn.on('click', function () {
             saveCSVfromVT(cfg.detTableId, cfg.csvDetFilename)
@@ -952,6 +1126,9 @@ function showTable($container, rows, colDefs) {
         })
     lastFirst = lastLast = -1
     render(true)
+    var $subEl = $container.closest('.table-section').find('.table-sub')
+    if ($subEl.length)
+      $subEl.text('Строк: ' + data.filtered.length.toLocaleString('ru-RU'))
   })
 
   var ticking = false
@@ -1496,12 +1673,13 @@ function drawSummary(
   $(selector).html(
     h.join('') + '<tbody>' + totalH.join('') + bodyH.join('') + '</tbody>',
   )
+  return displayCells
 }
 
 // CSV-экспорт виртуальной таблицы (детализация) — берёт данные из _vtInline
 function saveCSVfromVT(tableId, filename) {
   var vt = _vtInline[tableId]
-  if (!vt || !vt.all.length) return
+  if (!vt || !vt.filtered.length) return
   var cols = vt.cols
   var rows = [
     cols
@@ -1510,7 +1688,7 @@ function saveCSVfromVT(tableId, filename) {
       })
       .join(';'),
   ]
-  vt.all.forEach(function (row) {
+  vt.filtered.forEach(function (row) {
     var cells = cols.map(function (c) {
       var v = c.fmt
         ? c.fmt(row[c.key])
@@ -1652,20 +1830,6 @@ function idleStyle(days) {
   return ''
 }
 
-// HTML одной KPI-карточки. Поля: label, value (или total), accent, sub, detail.
-// detail: { ctx, road, station, col, groupBy, subs, params } — открыть детализацию по клику
-// detail: { url } — открыть произвольный URL по клику
-/*
-  kpiCard — рендерит одну KPI-карточку.
-  Атрибуты item:
-    label   — подпись
-    value   — число
-    accent  — синий фон
-    detail  — объект для перехода в детализацию
-    sub     — мелкий текст под значением
-    variant — 'pill': label сверху, value + бейдж в строку (для дашборда)
-    trend   — { pct: '-8.7%', dir: 'up'|'down'|'neutral' } — бейдж с трендом
-*/
 function kpiCard(item) {
   var val = item.value != null ? item.value : item.total || 0
   var hasDetail = !!item.detail
@@ -1707,10 +1871,9 @@ function kpiCard(item) {
       '</div>' +
       '<div class="kpi-value-row"><span class="kpi-value">' +
       valStr +
-      '</span>' +
-      badgeHtml +
-      '</div>' +
+      '</span></div>' +
       (item.sub ? '<div class="kpi-delta">' + esc(item.sub) + '</div>' : '') +
+      (badgeHtml ? '<div class="kpi-trend-row">' + badgeHtml + '</div>' : '') +
       '</div>'
     )
   }
@@ -1782,6 +1945,17 @@ $(document).on('click', '[data-collapse-table]', function () {
 $(document).on('click', '[data-expand-table]', function () {
   expandAll($('#' + $(this).data('expand-table')))
 })
+$(document).on('click', '[data-toggle-table]', function () {
+  var $btn = $(this)
+  var $table = $('#' + $btn.data('toggle-table'))
+  if ($btn.data('collapsed')) {
+    expandAll($table)
+    $btn.text('Свернуть все').data('collapsed', false)
+  } else {
+    collapseAll($table)
+    $btn.text('Отобразить все').data('collapsed', true)
+  }
+})
 
 // Поиск по столбцам:  строку-фильтр под заголовком таблицы
 function matchFilter(q, text) {
@@ -1814,18 +1988,20 @@ $(document).on('input', '.col-search-input', function () {
       return $(this).val().toLowerCase().trim()
     })
     .get()
+  var visible = 0
   $table.find('tbody tr:not(.search-row)').each(function () {
     var $cells = $(this).find('td')
     var show = filters.every(function (q, ci) {
       return !q || matchFilter(q, $cells.eq(ci).text().toLowerCase())
     })
     $(this).toggle(show)
+    if (show) visible++
   })
+  var $sub = $table.closest('.table-section').find('.table-sub')
+  if ($sub.length) $sub.text('Строк: ' + visible.toLocaleString('ru-RU'))
 })
 
-// Открыть URL в новой вкладке через <a>, а не window.open:
-// jQuery-делегированные обработчики блокируются попап-блокировщиком при window.open,
-// тогда как клик по якорю всегда проходит как пользовательский жест.
+// <a>.click() вместо window.open — попап-блокировщик не режет
 function navNewTab(url) {
   var a = document.createElement('a')
   a.href = url
@@ -1836,10 +2012,7 @@ function navNewTab(url) {
   document.body.removeChild(a)
 }
 
-// Drill-down: открыть страницу детализации в новой вкладке.
-// road/station → заголовок страницы + реальные поля groupCols[0]/groupCols[last].
-// col/subs → маппятся через colDims из WAGON_TABS (synthetic=true — не передаётся).
-// extra — доп. фильтры из getParams(), не перетирают явно заданные.
+// synthetic-колонки в colDims не передаются в URL
 function openDetail(ctx, road, station, col, groupBy, subs, extra) {
   var p = new URLSearchParams()
   p.set('ctx', ctx)
@@ -1878,6 +2051,12 @@ function openDetail(ctx, road, station, col, groupBy, subs, extra) {
     )
       p.set(k, extra[k])
   })
+  if (tabCfg && tabCfg.pinnedStationKey && !p.has('exclude_station')) {
+    var stKey = (station || '').toUpperCase()
+    var pinKey = tabCfg.pinnedStationKey.toUpperCase()
+    if (stKey.indexOf(pinKey) === -1)
+      p.set('exclude_station', tabCfg.pinnedStationKey)
+  }
   navNewTab(BASE + '/detail?' + p.toString())
 }
 
@@ -1951,8 +2130,62 @@ $(document).on('click', '.row-sub-parent', function (e) {
 $(function () {
   initSidebar()
   initInnerTabs()
-  loadDashboard()
-  initTab(WAGON_TABS.dislocation)
+
+  var hasDashboard =
+    window.APP_IS_ADMIN || ALLOWED_PAGES.indexOf('dashboard') !== -1
+
+  // Если дашборд недоступен — скрываем все его панели и показываем заглушку
+  if (!hasDashboard) {
+    var allPanels = document.querySelectorAll('.tab-panel')
+    for (var pi = 0; pi < allPanels.length; pi++) {
+      allPanels[pi].style.display = 'none'
+    }
+    var mainContent = document.querySelector('.main-content')
+    if (mainContent) {
+      var noAccess = document.createElement('div')
+      noAccess.style.cssText =
+        'padding:80px 24px;text-align:center;color:#888;font-size:16px'
+      if (ALLOWED_PAGES.length === 0) {
+        // Совсем нет ролей
+        noAccess.innerHTML =
+          '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="margin-bottom:16px;opacity:.35"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/><path stroke-width="2" d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>' +
+          '<div style="font-weight:600;font-size:18px;margin-bottom:8px;color:#555">Нет доступных разделов</div>' +
+          '<div>Обратитесь к администратору для получения доступа</div>'
+      } else {
+        // Есть роли, но не дашборд — выбрать раздел из меню
+        noAccess.innerHTML =
+          '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="margin-bottom:16px;opacity:.35"><path stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"/></svg>' +
+          '<div style="font-weight:600;font-size:18px;margin-bottom:8px;color:#555">Выберите раздел</div>' +
+          '<div>Используйте меню навигации слева</div>'
+      }
+      mainContent.appendChild(noAccess)
+    }
+  }
+
+  // Восстанавливаем активную вкладку из URL hash (при возврате с детализации)
+  var hashTab = (location.hash || '').replace('#', '')
+  var startTab =
+    hashTab && document.getElementById('panel-' + hashTab)
+      ? hashTab
+      : 'dislocation'
+  if (startTab !== 'dislocation') switchTab(startTab)
+
+  var kpiXhrs = hasDashboard ? loadKPI() : null
+  var summaryXhr = hasDashboard
+    ? initTab(WAGON_TABS[startTab] || WAGON_TABS.dislocation)
+    : null
+
+  // Скрываем оверлей когда готовы и KPI, и сводная таблица
+  var allXhrs = (kpiXhrs || []).concat(summaryXhr ? [summaryXhr] : [])
+  $.when.apply($, allXhrs).always(function () {
+    var el = document.getElementById('pageLoadOverlay')
+    if (el && el.parentNode) el.parentNode.removeChild(el)
+  })
+  // Страховка: показать страницу не позже чем через 1.5 секунды
+  setTimeout(function () {
+    var el = document.getElementById('pageLoadOverlay')
+    if (el && el.parentNode) el.parentNode.removeChild(el)
+  }, 1500)
 
   Object.keys(WAGON_TABS).forEach(function (k) {
     var cfg = WAGON_TABS[k]
@@ -1960,6 +2193,15 @@ $(function () {
     var applyId = cfg.applyBtnId || 'btn' + capKey + 'Apply'
     var resetId = cfg.resetBtnId || 'btn' + capKey + 'Reset'
     $('#' + applyId).on('click', function () {
+      var applyHint = cfg.validate ? cfg.validate() : null
+      if (applyHint) {
+        $('#' + cfg.detTableId).html(
+          '<div style="text-align:center;padding:60px;color:#E8392A;font-size:15px;font-weight:600">' +
+            esc(applyHint) +
+            '</div>',
+        )
+        return
+      }
       window[cfg.loadedDetKey] = false
       loadSummary(cfg)
       if ($('#' + cfg.detPanelId).hasClass('active')) {

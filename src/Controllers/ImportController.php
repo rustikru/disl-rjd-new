@@ -82,8 +82,9 @@ class ImportController
              ORDER BY (report_dt) DESC, type_reference"
         );
 
-        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
+        $user     = $_SESSION['user'] ?? [];
 
         ob_start();
         include __DIR__ . '/../../templates/import.php';
@@ -234,20 +235,20 @@ class ImportController
         // Определяем тип справки по dest_station (кол. 12) первой непустой строки
         $fileType = $this->detectFileType($sheet, $highestRow);
 
-        $reportDate = substr($reportDt, 0, 10); // 'YYYY-MM-DD'
-        $exists = $this->db->fetchOne(
-            "SELECT COUNT(*) AS cnt FROM xx_dislocation_rjd
-             WHERE report_dt = TO_DATE(:dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = :type",
-            ['dt' => $reportDt, 'type' => $fileType]
-        );
-        if ((int) ($exists['cnt'] ?? 0) > 0) {
-            return ['skipped' => true, 'report_dt' => $rawDt, 'type' => $fileType, 'rows' => 0];
-        }
-
         $fields = $this->columnFieldNames();
         $placeholders = array_map(fn($f) => ':' . $f, $fields);
         $insertSql = 'INSERT INTO xx_dislocation_rjd (report_dt, type_reference, ' . implode(', ', $fields) . ')'
             . ' VALUES (:report_dt, :type_reference, ' . implode(', ', $placeholders) . ')';
+
+        // Удаляем предыдущую справку того же дня и того же типа —
+        // оставляем только максимальную (последнюю по времени) за каждый день.
+        $reportDate = substr($reportDt, 0, 10); // 'YYYY-MM-DD'
+        $this->db->execute(
+            "DELETE FROM xx_dislocation_rjd
+              WHERE TRUNC(report_dt) = TO_DATE(:date, 'YYYY-MM-DD')
+                AND type_reference   = :type",
+            ['date' => $reportDate, 'type' => $fileType]
+        );
 
         $inserted = 0;
 
@@ -293,7 +294,7 @@ class ImportController
         if (preg_match('/^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}:\d{2})/', $raw, $m)) {
             return "{$m[3]}-{$m[2]}-{$m[1]} {$m[4]}:00";
         }
-        throw new \RuntimeException("Не удалось разобрать дату справки из ячейки A2: «$raw»");
+        throw new \RuntimeException("Не удалось разобрать дату справки из ячейки A2: «{$raw}»");
     }
 
     private function columnFieldNames(): array

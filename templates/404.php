@@ -1,87 +1,79 @@
-<?php $basePath = $basePath ?? ''; ?>
+<?php
+$basePath    = $basePath    ?? '';
+$appName     = $appName     ?? '';
+$user        = $user        ?? [];
+$headerSub   = $headerSub   ?? '';
+$headerRight = $headerRight ?? '';
+?>
 <!DOCTYPE html>
 <html lang="ru">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>404 — Страница не найдена</title>
-    <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f4f6f9;
-            /* Мягкий фон вашего дашборда */
-            color: #2d3748;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            text-align: center;
-        }
-
-        .container {
-            padding: 20px;
-        }
-
-        .error-code {
-            font-size: 140px;
-            font-weight: 700;
-            line-height: 1;
-            color: #2b4c7e;
-            /* Спокойный, глубокий приглушенный синий */
-            letter-spacing: -3px;
-            margin-bottom: 8px;
-            opacity: 0.85;
-        }
-
-        .error-title {
-            font-size: 20px;
-            font-weight: 500;
-            color: #1a202c;
-            margin-bottom: 10px;
-        }
-
-        .error-message {
-            font-size: 14px;
-            color: #718096;
-            /* Приглушенный серый для текста */
-            margin-bottom: 28px;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 10px 20px;
-            font-size: 13px;
-            font-weight: 500;
-            color: #ffffff;
-            background-color: #2b4c7e;
-            /* Цвет кнопки в тон цифрам */
-            border-radius: 5px;
-            text-decoration: none;
-            transition: background-color 0.15s ease;
-        }
-
-        .btn:hover {
-            background-color: #1e3a61;
-            /* Чуть темнее при наведении */
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 — Страница не найдена</title>
+  <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
+  <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
+  <style>
+    .error-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 56px);
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .error-num {
+      font-size: 96px;
+      font-weight: 800;
+      color: var(--accent, #46297f);
+      line-height: 1;
+      opacity: .18;
+    }
+    .error-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-1, #1b1726);
+      margin: -12px 0 8px;
+    }
+    .error-desc {
+      font-size: 14px;
+      color: var(--text-3, #6b667a);
+      max-width: 400px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+  </style>
 </head>
-
 <body>
-    <div class="container">
-        <div class="error-code">404</div>
-        <h1 class="error-title">Страница не найдена</h1>
-        <p class="error-message">Запрашиваемый адрес не существует или был перемещен.</p>
-        <a href="<?= htmlspecialchars($basePath) ?>/" class="btn">Вернуться на главную</a>
-    </div>
-</body>
 
+<?php if (!empty($user)): ?>
+  <?php include __DIR__ . '/partials/header.php'; ?>
+<?php else: ?>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-icon">
+          <img src="<?= htmlspecialchars($basePath) ?>/assets/img/meta-logo.png" alt="" class="brand-logo">
+        </div>
+        <div class="brand-text">
+          <div class="brand-name"><?= htmlspecialchars($appName) ?></div>
+        </div>
+      </div>
+    </div>
+  </header>
+<?php endif; ?>
+
+<div class="error-block">
+  <div class="error-num">404</div>
+  <h1 class="error-title">Страница не найдена</h1>
+  <p class="error-desc">Запрашиваемый адрес не существует или был перемещён.</p>
+  <?php if (!empty($user)): ?>
+    <a href="<?= htmlspecialchars($basePath) ?>/" class="btn btn-primary">Вернуться на главную</a>
+  <?php else: ?>
+    <a href="<?= htmlspecialchars($basePath) ?>/login" class="btn btn-primary">Войти в систему</a>
+  <?php endif; ?>
+</div>
+
+</body>
 </html>

@@ -3,11 +3,11 @@
         'name' => 'metafraks/disl-rzd',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '172ec7a1a7295bd8df9bd01ebb6297d949513348',
+        'reference' => '111280530b12ad32fcca647530802d7f6f4c272b',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
-        'dev' => true,
+        'dev' => false,
     ),
     'versions' => array(
         'composer/pcre' => array(
@@ -58,7 +58,7 @@
         'metafraks/disl-rzd' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '172ec7a1a7295bd8df9bd01ebb6297d949513348',
+            'reference' => '111280530b12ad32fcca647530802d7f6f4c272b',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
