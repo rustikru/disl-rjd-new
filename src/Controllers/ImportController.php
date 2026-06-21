@@ -294,7 +294,7 @@ class ImportController
         if (preg_match('/^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}:\d{2})/', $raw, $m)) {
             return "{$m[3]}-{$m[2]}-{$m[1]} {$m[4]}:00";
         }
-        throw new \RuntimeException("Не удалось разобрать дату справки из ячейки A2: «$raw»");
+        throw new \RuntimeException("Не удалось разобрать дату справки из ячейки A2: «{$raw}»");
     }
 
     private function columnFieldNames(): array
