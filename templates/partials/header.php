@@ -27,7 +27,11 @@ $headerRight = $headerRight ?? '';
         <form method="POST" action="<?= htmlspecialchars($basePath) ?>/logout" style="display:inline">
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
           <button type="submit" class="btn btn-ghost btn-icon btn-sm" title="Выйти">
-            &#8594;
+            <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
           </button>
         </form>
       </div>
