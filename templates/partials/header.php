@@ -27,11 +27,7 @@ $headerRight = $headerRight ?? '';
         <form method="POST" action="<?= htmlspecialchars($basePath) ?>/logout" style="display:inline">
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
           <button type="submit" class="btn btn-ghost btn-icon btn-sm" title="Выйти">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M16 17l5-5-5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M21 12H9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-              <path d="M12 3H5a2 2 0 00-2 2v14a2 2 0 002 2h7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            &#8594;
           </button>
         </form>
       </div>
