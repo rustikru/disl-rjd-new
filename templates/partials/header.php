@@ -5,14 +5,16 @@ $headerLeft  = $headerLeft  ?? '';
 ?>
 <header class="site-header">
   <div class="header-inner">
-    <div class="header-left"><?= $headerLeft ?></div>
-    <div class="brand">
-      <div class="brand-icon">
-        <img src="<?= htmlspecialchars($basePath) ?>/assets/img/meta-logo.png" alt="" class="brand-logo">
-      </div>
-      <div class="brand-text">
-        <div class="brand-name"><?= htmlspecialchars($appName) ?></div>
-        <?= $headerSub ?>
+    <div class="header-left">
+      <?= $headerLeft ?>
+      <div class="brand">
+        <div class="brand-icon">
+          <img src="<?= htmlspecialchars($basePath) ?>/assets/img/meta-logo.png" alt="" class="brand-logo">
+        </div>
+        <div class="brand-text">
+          <div class="brand-name"><?= htmlspecialchars($appName) ?></div>
+          <?= $headerSub ?>
+        </div>
       </div>
     </div>
     <div class="header-meta">

@@ -119,15 +119,17 @@ body {
 .header-inner {
   height: 100%;
   padding: 0 24px;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
 }
 
 .header-left {
   display: flex;
   align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .brand {
@@ -175,7 +177,7 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  justify-self: end;
+  flex-shrink: 0;
 }
 
 .header-meta a {
@@ -202,22 +204,19 @@ body {
 }
 
 .btn-nav-back {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
   background: var(--hover-green);
   border: 1px solid var(--border);
-  border-radius: 99px;
-  padding: 5px 13px 5px 9px;
-  font-size: 13px;
-  font-weight: 600;
   color: var(--accent);
-  text-decoration: none;
   cursor: pointer;
-  white-space: nowrap;
   flex-shrink: 0;
   font-family: inherit;
-  line-height: 1;
+  text-decoration: none;
   transition: background .15s, border-color .15s;
 }
 .btn-nav-back:hover {
