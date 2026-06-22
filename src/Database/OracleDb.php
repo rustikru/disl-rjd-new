@@ -55,6 +55,8 @@ class OracleDb implements DbInterface
             }
         }
 
+        oci_set_prefetch($stmt, 5000);
+
         $ok = oci_execute($stmt, OCI_DEFAULT);
         if (!$ok) {
             $err = oci_error($stmt);
@@ -62,11 +64,14 @@ class OracleDb implements DbInterface
             throw new \RuntimeException('Oracle fetchAll: ' . ($err['message'] ?? 'unknown error'));
         }
 
-        $rows = [];
-        while ($row = oci_fetch_assoc($stmt)) {
-            $rows[] = array_change_key_case($row, CASE_LOWER);
-        }
+        $data = [];
+        oci_fetch_all($stmt, $data, 0, -1, OCI_FETCHSTATEMENT_BY_ROW + OCI_ASSOC);
         oci_free_statement($stmt);
+
+        $rows = array_map(
+            static fn(array $row) => array_change_key_case($row, CASE_LOWER),
+            $data
+        );
 
         if ($t0 > 0.0) {
             QueryLogger::log('Oracle', 'fetchAll', $sql, $params, (microtime(true) - $t0) * 1000);
