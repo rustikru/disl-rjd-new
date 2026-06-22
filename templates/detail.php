@@ -139,6 +139,7 @@ $basePath = $basePath ?? '';
 
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jquery/jquery-3.7.1.min.js"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js"></script>
+  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/csv-export.js"></script>
   <script>
     'use strict';
 
@@ -464,25 +465,9 @@ $basePath = $basePath ?? '';
     }
 
     function saveCSV(filename) {
-      function cleanCell(v) {
-        return '"' + String(v == null ? '' : v).trim().replace(/\r?\n|\r/g, ' ').replace(/"/g, '""') + '"';
-      }
       // Используем все колонки (все вкладки), а не только активную
       var csvCols = _vtAllCols.length ? _vtAllCols : _vtCols;
-      var lines = [];
-      lines.push(csvCols.map(function (c) { return cleanCell(c.label); }).join(';'));
-      _vtFiltered.forEach(function (row) {
-        lines.push(csvCols.map(function (c) {
-          var v = row[c.key];
-          return cleanCell(c.fmt ? c.fmt(v) : v);
-        }).join(';'));
-      });
-      var blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = (filename || 'детализация') + '_' + new Date().toISOString().slice(0, 10) + '.csv';
-      a.click();
-      URL.revokeObjectURL(a.href);
+      saveCSVFromData(csvCols, _vtFiltered, filename);
     }
 
     $('#btnDetailCSV').on('click', function () {
