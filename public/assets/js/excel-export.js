@@ -14,7 +14,7 @@ function saveExcelfromVT(tableId, filename) {
 
   var vt = _vtInline[tableId]
   var cols = vt.cols || []
-  var rows = vt.rows || []
+  var rows = vt.filtered || []  // было: vt.rows (неверно — поле называется filtered)
 
   // Упаковываем только нужные для бэкенда поля: ключ колонки и её название
   var cleanCols = cols.map(function (c) {
@@ -22,9 +22,10 @@ function saveExcelfromVT(tableId, filename) {
   })
 
   // Отправляем данные POST-запросом через скрытую форму
+  var BASE = window.APP_BASE || ''
   var form = document.createElement('form')
   form.method = 'POST'
-  form.action = '/api/export/vt-table'
+  form.action = BASE + '/api/export/vt-table'
   form.style.display = 'none'
 
   var dataInput = document.createElement('input')
@@ -46,19 +47,28 @@ function saveExcelfromVT(tableId, filename) {
 
 /**
  * 2. Выгрузка сложных многоуровневых матриц (шахматок дашборда)
+ *    Принимает tableId (DOM id сводной таблицы) и filename.
+ *    Данные берёт из глобального _matrixData, который заполняется при загрузке сводной.
  */
-function saveExcelMatrix(colGroups, roads, filename) {
-  if (!colGroups || !roads) {
+function saveExcelMatrix(tableId, filename) {
+  if (typeof _matrixData === 'undefined' || !_matrixData[tableId]) {
     console.error(
-      'Ошибка экспорта матрицы: Отсутствуют данные col_groups или roads.',
+      'Ошибка экспорта матрицы: Данные для таблицы "' +
+        tableId +
+        '" не найдены в _matrixData. Попробуйте обновить данные.',
     )
     return
   }
 
+  var data = _matrixData[tableId]
+  var colGroups = data.col_groups
+  var roads = data.roads
+
   // Создаем форму для отправки структуры на новый эндпоинт
+  var BASE = window.APP_BASE || ''
   var form = document.createElement('form')
   form.method = 'POST'
-  form.action = '/api/export/matrix'
+  form.action = BASE + '/api/export/matrix'
   form.style.display = 'none'
 
   var dataInput = document.createElement('input')

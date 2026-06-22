@@ -709,6 +709,8 @@ function loadSummary(cfg) {
         })
       }
 
+      _matrixData[cfg.sumTableId] = { col_groups: data.col_groups || null, roads: data.roads || [] }
+
       var cells = drawSummary(
         '#' + cfg.sumTableId,
         data.roads,
@@ -905,6 +907,8 @@ function loadDetail(cfg) {
 }
 /* Детализация — виртуальная таблица */
 var _vtInline = {}
+/* Матричные данные сводных таблиц (для Excel-экспорта) */
+var _matrixData = {}
 
 function oracleMaskFmt(v, mask) {
   if (v == null || v === '') return ''
