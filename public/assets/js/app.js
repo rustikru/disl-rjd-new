@@ -569,7 +569,8 @@ function initTab(cfg) {
         '<button class="btn btn-ghost btn-sm btn-csv-tab">Выгрузить в Excel</button>',
       )
       $btn.on('click', function () {
-        saveCSV(cfg.sumTableId, cfg.csvFilename)
+        //saveCSV(cfg.sumTableId, cfg.csvFilename)
+        saveExcelMatrix(cfg.sumTableId, cfg.csvFilename)
       })
       $acts.append($btn)
     }
@@ -887,7 +888,8 @@ function loadDetail(cfg) {
             '<button class="btn btn-ghost btn-sm btn-csv-det">Выгрузить в Excel</button>',
           )
           $btn.on('click', function () {
-            saveCSVfromVT(cfg.detTableId, cfg.csvDetFilename)
+            //saveCSVfromVT(cfg.detTableId, cfg.csvDetFilename)
+            saveExcelfromVT(cfg.detTableId, cfg.csvDetFilename)
           })
           $acts.append($btn)
         }

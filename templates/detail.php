@@ -109,11 +109,11 @@ $basePath = $basePath ?? '';
 
 <body>
 
-<?php
-  $headerSub   = '<div id="brandDateSub" class="brand-date-sub"></div>';
+  <?php
+  $headerSub = '<div id="brandDateSub" class="brand-date-sub"></div>';
   $headerRight = '';
   include __DIR__ . '/partials/header.php';
-?>
+  ?>
 
   <div class="detail-page-body">
 
@@ -140,6 +140,7 @@ $basePath = $basePath ?? '';
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jquery/jquery-3.7.1.min.js"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/csv-export.js"></script>
+  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/excel-export.js"></script>
   <script>
     'use strict';
 
@@ -471,8 +472,10 @@ $basePath = $basePath ?? '';
     }
 
     $('#btnDetailCSV').on('click', function () {
+      //var title = $('#detailTitle').text().replace(/[\\/:*?"<>|]/g, '_');
+      //saveCSV(title);
       var title = $('#detailTitle').text().replace(/[\\/:*?"<>|]/g, '_');
-      saveCSV(title);
+      saveExcelfromVT('detailTable', title);
     });
   </script>
 </body>

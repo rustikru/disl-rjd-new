@@ -1120,6 +1120,36 @@ class ApiController
         return ['col_groups' => $buildColTree(0), 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
     }
 
+    /**
+     * Экспорт виртуальной таблицы (динамической детализации) из JS
+     */
+    public function exportVirtualTable(\Psr\Http\Message\ServerRequestInterface $request, \Psr\Http\Message\ResponseInterface $response): \Psr\Http\Message\ResponseInterface
+    {
+        $parsedBody = $request->getParsedBody();
+        $rawData = json_decode($parsedBody['export_data'] ?? '[]', true);
+        $filename = $parsedBody['filename'] ?? 'детализация';
+
+        $cols = $rawData['cols'] ?? [];
+        $rows = $rawData['rows'] ?? [];
+
+        return \App\ExcelExporter::download($response, $cols, $rows, $filename);
+    }
+
+    /**
+     * Экспорт сложных матричных таблиц (двухуровневых шахматок дашборда)
+     */
+    public function exportMatrixTable(\Psr\Http\Message\ServerRequestInterface $request, \Psr\Http\Message\ResponseInterface $response): \Psr\Http\Message\ResponseInterface
+    {
+        $parsedBody = $request->getParsedBody();
+        $rawData = json_decode($parsedBody['matrix_data'] ?? '[]', true);
+        $filename = $parsedBody['filename'] ?? 'Сводный_отчет';
+
+        $colGroups = $rawData['col_groups'] ?? [];
+        $roads = $rawData['roads'] ?? [];
+
+        return \App\ExcelExporter::downloadMatrix($response, $colGroups, $roads, $filename);
+    }
+
     private function json(ResponseInterface $response, $data): ResponseInterface
     {
         $response->getBody()->write(json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));

@@ -14,20 +14,20 @@ $basePath = $basePath ?? '';
   <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
   <script>
-    window.APP_BASE          = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
-    window.APP_IS_ADMIN      = <?= !empty($user['is_admin']) ? 'true' : 'false' ?>;
+    window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
+    window.APP_IS_ADMIN = <?= !empty($user['is_admin']) ? 'true' : 'false' ?>;
     window.APP_ALLOWED_PAGES = <?= json_encode($allowedPages ?? [], JSON_UNESCAPED_UNICODE) ?>;
-    window.APP_NAV_CONFIG    = <?= json_encode($navConfig    ?? [], JSON_UNESCAPED_UNICODE) ?>;
+    window.APP_NAV_CONFIG = <?= json_encode($navConfig ?? [], JSON_UNESCAPED_UNICODE) ?>;
   </script>
 </head>
 
 <body>
 
-<?php
-  $headerSub   = '<div id="brandDateSub" class="brand-date-sub"></div>';
+  <?php
+  $headerSub = '<div id="brandDateSub" class="brand-date-sub"></div>';
   $headerRight = '';
   include __DIR__ . '/partials/header.php';
-?>
+  ?>
 
   <div class="app-body">
 
@@ -433,6 +433,7 @@ $basePath = $basePath ?? '';
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jquery/jquery-3.7.1.min.js"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/csv-export.js"></script>
+  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/excel-export.js"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/app.js"></script>
 </body>
 

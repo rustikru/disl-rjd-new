@@ -230,8 +230,17 @@ return function (App $app, array $config): void {
                     return (new \App\Controllers\ApiController($getDb()))->kpiSummary($req, $res);
                 });
             });
+            // --- Экспорт виртуальной таблицы в Excel ---
+            $api->post('/export/vt-table', function ($req, $res) use ($getDb) {
+                return (new \App\Controllers\ApiController($getDb()))->exportVirtualTable($req, $res);
+            });
 
-        }); // Конец группы /api
+            // --- Экспорт сложных матриц (шахматок дашборда) в Excel ---
+            $api->post('/export/matrix', function ($req, $res) use ($getDb) {
+                return (new \App\Controllers\ApiController($getDb()))->exportMatrixTable($req, $res);
+            });
+
+        });
 
     })
         ->add(new \App\Middleware\PageAccessMiddleware($getDb, $config['base_path'] ?? '', $config))
