@@ -262,7 +262,10 @@ $basePath = $basePath ?? '';
 
       function getTabCols(tab) {
         if (!tab) return allCols
-        return allCols.filter(function (c) { return (c.tab || 'main') === tab })
+        var tabCols = allCols.filter(function (c) { return (c.tab || 'main') === tab })
+        if (tab === 'main') return tabCols
+        var pinned = allCols.filter(function (c) { return c.pinned && (c.tab || 'main') !== tab })
+        return pinned.concat(tabCols)
       }
 
       function renderTabs() {
@@ -370,8 +373,8 @@ $basePath = $basePath ?? '';
 
       var hHtml = '', fHtml = '';
       cols.forEach(function (c) {
-        hHtml += '<div class="vt-th' + (c.meta ? ' col-meta' : '') + '">' + esc(c.label) + '</div>';
-        fHtml += '<div class="vt-fc"><input data-k="' + c.key + '" type="text" placeholder=""></div>';
+        hHtml += '<div class="vt-th' + (c.pinned ? ' col-pinned' : '') + (c.meta ? ' col-meta' : '') + '">' + esc(c.label) + '</div>';
+        fHtml += '<div class="vt-fc' + (c.pinned ? ' col-pinned' : '') + '"><input data-k="' + c.key + '" type="text" placeholder=""></div>';
       });
       document.getElementById('vtHead').innerHTML = hHtml;
       document.getElementById('vtFilter').innerHTML = fHtml;
@@ -380,7 +383,7 @@ $basePath = $basePath ?? '';
         var v = row[c.key];
         var display = (v !== null && v !== undefined && v !== '') ? v : '';
         if (c.fmt) display = c.fmt(v);
-        var cls = 'vt-cell' + (c.meta ? ' col-meta' : '') + (c.right ? ' vt-right' : '');
+        var cls = 'vt-cell' + (c.pinned ? ' col-pinned' : '') + (c.meta ? ' col-meta' : '') + (c.right ? ' vt-right' : '');
         var style = '';
         if (c.danger) {
           var d = parseFloat(display) || 0;

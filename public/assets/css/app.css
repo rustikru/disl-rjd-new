@@ -1213,6 +1213,21 @@ tr.lv-station td {
   color: var(--text-2);
 }
 
+.vt-th.col-pinned {
+  background: var(--accent-lt);
+  border-right: 2px solid #b8a7d8;
+}
+
+.vt-fc.col-pinned {
+  background: #f4effe;
+  border-right: 2px solid #b8a7d8;
+}
+
+.vt-cell.col-pinned {
+  background: #f9f6fd;
+  border-right: 2px solid #b8a7d8;
+}
+
 .vt-cell.vt-right {
   justify-content: flex-end;
 }

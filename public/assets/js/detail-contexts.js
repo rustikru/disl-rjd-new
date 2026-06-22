@@ -25,7 +25,7 @@ var BASE_COLS = [
   // ============================================================
   // ВКЛАДКА: ОСНОВНАЯ ИНФОРМАЦИЯ (main) — ключевые оперативные поля
   // ============================================================
-  { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number', w: 110, tab: 'main', showInline: true},
+  { key: 'wagon_no', label: '№ вагона', meta: true, type: 'number', w: 110, tab: 'main', pinned: true, showInline: true},
   { key: 'wagon_type_code', label: 'Тип вагона', meta: true, w: 120, tab: 'main', showInline: true},
   { key: 'idle_time_days', label: 'Простой (сут.)', right: true, w: 100, tab: 'main', showInline: true},
   { key: 'park_type', label: 'Признак парка', meta: true, w: 180, tab: 'main', showInline: false},
