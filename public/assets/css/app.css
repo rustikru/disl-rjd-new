@@ -1214,18 +1214,27 @@ tr.lv-station td {
 }
 
 .vt-th.col-pinned {
-  background: var(--accent-lt);
-  border-right: 2px solid #b8a7d8;
+  /* background: var(--accent-lt); */
+  /* border-right: 2px solid #b8a7d8; */
+  position: sticky;
+  left: 0;
+  z-index: 4;
 }
 
 .vt-fc.col-pinned {
-  background: #f4effe;
-  border-right: 2px solid #b8a7d8;
+  /* background: #f4effe; */
+  /* border-right: 2px solid #b8a7d8; */
+  position: sticky;
+  left: 0;
+  z-index: 3;
 }
 
 .vt-cell.col-pinned {
-  background: #f9f6fd;
-  border-right: 2px solid #b8a7d8;
+  /* background: #f9f6fd; */
+  /* border-right: 2px solid #b8a7d8; */
+  position: sticky;
+  left: 0;
+  z-index: 1;
 }
 
 .vt-cell.vt-right {
