@@ -4,6 +4,7 @@ $appName = $appName ?? 'АО Метафракс Кемикалс';
 $basePath = $basePath ?? '';
 $user = $user ?? ['display_name' => 'Пользователь'];
 $reportDtLabel = $reportDtLabel ?? '';
+$stationsWithoutCoordinatesJson = $stationsWithoutCoordinatesJson ?? '[]';
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -253,6 +254,38 @@ $reportDtLabel = $reportDtLabel ?? '';
             font-family: var(--mono);
         }
 
+        .missing-coordinates {
+            border-bottom: 1px solid var(--border);
+            padding: 10px 14px;
+            background: #fff9ec;
+            color: #4b3a16;
+        }
+
+        .missing-coordinates summary {
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .missing-coordinates-list {
+            margin-top: 8px;
+            max-height: 140px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .missing-coordinate-item {
+            font-size: 12px;
+            line-height: 1.35;
+        }
+
+        .missing-coordinate-item span {
+            color: var(--muted);
+            font-size: 11px;
+        }
+
         .no-results {
             padding: 20px;
             text-align: center;
@@ -365,6 +398,10 @@ $reportDtLabel = $reportDtLabel ?? '';
 
                 <button class="btn-reset" id="btn-reset">Сбросить</button>
             </div>
+            <details class="missing-coordinates" id="missing-coordinates" style="display:none">
+                <summary id="missing-coordinates-title"></summary>
+                <div class="missing-coordinates-list" id="missing-coordinates-list"></div>
+            </details>
             <div class="sidebar-summary" id="sidebar-summary"></div>
             <div class="station-list" id="station-list"></div>
         </div>
@@ -390,6 +427,7 @@ $reportDtLabel = $reportDtLabel ?? '';
         var CARGOS = <?= $cargosJson ?? '[]' ?>;
         var LESSEES = <?= $lesseesJson ?? '[]' ?>;
         var LEASESTATIONS = <?= $leaseStationsJson ?? '[]' ?>;
+        var STATIONS_WITHOUT_COORDINATES = <?= $stationsWithoutCoordinatesJson ?>;
 
         var activeFilter = 'all', activeStation = null, markerGroup = null;
 
@@ -474,6 +512,28 @@ $reportDtLabel = $reportDtLabel ?? '';
                     }
                 });
             });
+        }
+
+        function renderStationsWithoutCoordinates() {
+            var block = document.getElementById('missing-coordinates');
+            var title = document.getElementById('missing-coordinates-title');
+            var list = document.getElementById('missing-coordinates-list');
+
+            if (!STATIONS_WITHOUT_COORDINATES.length) {
+                block.style.display = 'none';
+                return;
+            }
+
+            title.textContent = 'Без координат: ' + STATIONS_WITHOUT_COORDINATES.length;
+            list.innerHTML = STATIONS_WITHOUT_COORDINATES.map(function (station) {
+                var esrCode = station.esr_code ? 'ЕСР ' + station.esr_code : 'ЕСР не указан';
+                var wagonCount = station.wagon_count ? ', вагонов: ' + station.wagon_count : '';
+                return '<div class="missing-coordinate-item">' +
+                    station.station_name +
+                    '<br><span>' + esrCode + wagonCount + '</span>' +
+                    '</div>';
+            }).join('');
+            block.style.display = '';
         }
 
         function isStationMatchSearch(station, query) {
@@ -639,6 +699,7 @@ $reportDtLabel = $reportDtLabel ?? '';
         });
 
         // Полный запуск цепочки фильтров при старте
+        renderStationsWithoutCoordinates();
         updateAll();
     </script>
 </body>

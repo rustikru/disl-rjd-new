@@ -1,0 +1,33 @@
+[2026-07-02 11:10:31] ERR-20260702-111031-4e0a5b
+Module: App\Controllers\AdminController
+Function: importStationFromFreicon
+Error: RuntimeException: В ответе FreiCON нет названия, кода или координат станции
+Location: /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/src/Services/FreiconStationClient.php:33
+Request: POST http://localhost:8082/admin/directories/stations/import-freicon
+User: Администратор
+Params: {"esr_code":"731726"}
+Trace:
+#0 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/src/Controllers/AdminController.php(562): App\Services\FreiconStationClient->getStation('731726')
+#1 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/src/routes.php(126): App\Controllers\AdminController->importStationFromFreicon(Object(Slim\Psr7\Request), Object(Slim\Psr7\Response))
+#2 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/vendor/slim/slim/Slim/Handlers/Strategies/RequestResponse.php(39): {closure:{closure:{closure:/Users/ru.bekmansurov/Documents/Programmer/Web/rjd/src/routes.php:6}:60}:125}(Object(Slim\Psr7\Request), Object(Slim\Psr7\Response), Array)
+#3 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/vendor/slim/slim/Slim/Routing/Route.php(362): Slim\Handlers\Strategies\RequestResponse->__invoke(Object(Closure), Object(Slim\Psr7\Request), Object(Slim\Psr7\Response), Array)
+#4 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/vendor/slim/slim/Slim/MiddlewareDispatcher.php(73): Slim\Routing\Route->handle(Object(Slim\Psr7\Request))
+#5 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/src/Middleware/PageAccessMiddleware.php(42): Slim\MiddlewareDispatcher->handle(Object(Slim\Psr7\Request))
+#6 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/vendor/slim/slim/Slim/MiddlewareDispatcher.php(129): App\Middleware\PageAccessMiddleware->process(Object(Slim\Psr7\Request), Object(Slim\MiddlewareDispatcher))
+#7 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/src/Middleware/AuthMiddleware.php(30): Psr\Http\Server\RequestHandlerInterface@anonymous->handle(Object(Slim\Psr7\Request))
+#8 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/vendor/slim/slim/Slim/MiddlewareDispatcher.php(129): App\Middleware\AuthMiddleware->process(Object(Slim\Psr7\Request), Object(Psr\Http\Server\RequestHandlerInterface@anonymous))
+#9 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/vendor/slim/slim/Slim/MiddlewareDispatcher.php(73): Psr\Http\Server\RequestHandlerInterface@anonymous->handle(Object(Slim\Psr7\Request))
+#10 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/vendor/slim/slim/Slim/Routing/Route.php(321): Slim\MiddlewareDispatcher->handle(Object(Slim\Psr7\Request))
+#11 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/vendor/slim/slim/Slim/Routing/RouteRunner.php(74): Slim\Routing\Route->run(Object(Slim\Psr7\Request))
+#12 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/vendor/slim/slim/Slim/Middleware/ErrorMiddleware.php(77): Slim\Routing\RouteRunner->handle(Object(Slim\Psr7\Request))
+#13 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/vendor/slim/slim/Slim/MiddlewareDispatcher.php(129): Slim\Middleware\ErrorMiddleware->process(Object(Slim\Psr7\Request), Object(Slim\Routing\RouteRunner))
+#14 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/vendor/slim/slim/Slim/Middleware/BodyParsingMiddleware.php(64): Psr\Http\Server\RequestHandlerInterface@anonymous->handle(Object(Slim\Psr7\Request))
+#15 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/vendor/slim/slim/Slim/MiddlewareDispatcher.php(129): Slim\Middleware\BodyParsingMiddleware->process(Object(Slim\Psr7\Request), Object(Psr\Http\Server\RequestHandlerInterface@anonymous))
+#16 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/src/Middleware/SessionMiddleware.php(32): Psr\Http\Server\RequestHandlerInterface@anonymous->handle(Object(Slim\Psr7\Request))
+#17 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/vendor/slim/slim/Slim/MiddlewareDispatcher.php(129): App\Middleware\SessionMiddleware->process(Object(Slim\Psr7\Request), Object(Psr\Http\Server\RequestHandlerInterface@anonymous))
+#18 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/vendor/slim/slim/Slim/MiddlewareDispatcher.php(73): Psr\Http\Server\RequestHandlerInterface@anonymous->handle(Object(Slim\Psr7\Request))
+#19 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/vendor/slim/slim/Slim/App.php(209): Slim\MiddlewareDispatcher->handle(Object(Slim\Psr7\Request))
+#20 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/vendor/slim/slim/Slim/App.php(193): Slim\App->handle(Object(Slim\Psr7\Request))
+#21 /Users/ru.bekmansurov/Documents/Programmer/Web/rjd/public/index.php(56): Slim\App->run()
+#22 {main}
+------------------------------------------------------------------------------------------

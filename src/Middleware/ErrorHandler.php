@@ -3,20 +3,13 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Logging\ErrorLogger;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Exception\HttpException;
 use Throwable;
 
-/**
- * Централизованный обработчик необработанных исключений.
- *
- * — /api/* → JSON {"status":"error","message":"..."}
- * — Остальные пути → HTML-шаблон templates/500.php
- * — В режиме development показывает детали исключения
- * — Все ошибки 5xx пишет в tmp/log/error.log
- */
 class ErrorHandler
 {
     public function __construct(
@@ -31,21 +24,19 @@ class ErrorHandler
         bool $logErrors,
         bool $logErrorDetails
     ): ResponseInterface {
-        $status  = $this->httpStatus($exception);
-        $isApi   = $this->isApiRequest($request);
-
-        if ($logErrors) {
-            $this->writeLog($request, $exception, $logErrorDetails);
-        }
+        $status = $this->httpStatus($exception);
+        $isApi = $this->isApiRequest($request);
+        $errorId = ErrorLogger::logThrowable($exception, [
+            'module' => self::class,
+            'function' => '__invoke',
+        ], $request);
 
         $response = $this->responseFactory->createResponse($status);
 
         return $isApi
-            ? $this->jsonResponse($response, $exception, $status, $displayErrorDetails)
-            : $this->htmlResponse($response, $exception, $status, $displayErrorDetails);
+            ? $this->jsonResponse($response, $exception, $status, $displayErrorDetails, $errorId)
+            : $this->htmlResponse($response, $exception, $status, $displayErrorDetails, $errorId);
     }
-
-    // -------------------------------------------------------------------------
 
     private function httpStatus(Throwable $e): int
     {
@@ -60,7 +51,6 @@ class ErrorHandler
         $basePath = rtrim($this->config['base_path'] ?? '', '/');
         $path     = $request->getUri()->getPath();
 
-        // Убираем базовый путь перед проверкой
         if ($basePath !== '' && str_starts_with($path, $basePath)) {
             $path = substr($path, strlen($basePath));
         }
@@ -68,19 +58,19 @@ class ErrorHandler
         return str_starts_with($path, '/api/');
     }
 
-    // -------------------------------------------------------------------------
-
     private function jsonResponse(
         ResponseInterface $response,
         Throwable $exception,
         int $status,
-        bool $details
+        bool $details,
+        string $errorId
     ): ResponseInterface {
         $body = [
             'status'  => 'error',
             'message' => $status >= 500
-                ? 'Внутренняя ошибка сервера'
+                ? 'Внутренняя ошибка сервера. Код ошибки: ' . $errorId
                 : $exception->getMessage(),
+            'error_id' => $errorId,
         ];
 
         if ($details) {
@@ -100,7 +90,8 @@ class ErrorHandler
         ResponseInterface $response,
         Throwable $exception,
         int $status,
-        bool $details
+        bool $details,
+        string $errorId
     ): ResponseInterface {
         $tpl = __DIR__ . '/../../templates/' . $status . '.php';
         if (!file_exists($tpl)) {
@@ -129,27 +120,5 @@ class ErrorHandler
 
         $response->getBody()->write($html);
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
-    }
-
-    // -------------------------------------------------------------------------
-
-    private function writeLog(ServerRequestInterface $request, Throwable $exception, bool $details): void
-    {
-        $ts     = date('Y-m-d H:i:s');
-        $method = $request->getMethod();
-        $path   = $request->getUri()->getPath();
-        $class  = get_class($exception);
-        $msg    = $exception->getMessage();
-        $where  = $exception->getFile() . ':' . $exception->getLine();
-
-        $line = "[$ts] [$method $path] $class: $msg in $where";
-        if ($details) {
-            $line .= "\n" . $exception->getTraceAsString();
-        }
-        $line .= "\n";
-
-        $logFile = __DIR__ . '/../../tmp/log/error.log';
-        @mkdir(dirname($logFile), 0777, true);
-        file_put_contents($logFile, $line, FILE_APPEND | LOCK_EX);
     }
 }

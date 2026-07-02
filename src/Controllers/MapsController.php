@@ -5,6 +5,8 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Controllers\ApiController;
+use App\Repositories\StationDirectoryRepository;
+use App\Services\StationDirectoryService;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -26,8 +28,10 @@ class MapsController
         $user = $_SESSION['user'] ?? ['display_name' => '', 'username' => '', 'auth_source' => ''];
 
         $apiController = new ApiController($this->db);
+        $stationService = new StationDirectoryService(new StationDirectoryRepository($this->db));
         $dtsByType = $apiController->getLatestDtsByType(null, ['Подход', 'Отправка']);
         $cond = $apiController->latestDtCondition($dtsByType, 'xdr');
+        $stationsWithoutCoordinates = $stationService->getStationsWithoutCoordinates();
 
         $reportDtLabel = '';
         if (!empty($dtsByType)) {
@@ -70,6 +74,9 @@ class MapsController
         foreach ($rows as $r) {
             $code = (string) ($r['esr_code'] ?? $r['dest_station_esr_code'] ?? '');
             if (!$code) {
+                continue;
+            }
+            if ($r['latitude'] === null || $r['longitude'] === null) {
                 continue;
             }
             if (!isset($stationsMap[$code])) {
@@ -126,6 +133,7 @@ class MapsController
         $cargosJson = json_encode($cargos, JSON_UNESCAPED_UNICODE);
         $lesseesJson = json_encode($lessees, JSON_UNESCAPED_UNICODE);
         $leaseStationsJson = json_encode($leaseStations, JSON_UNESCAPED_UNICODE);
+        $stationsWithoutCoordinatesJson = json_encode($stationsWithoutCoordinates, JSON_UNESCAPED_UNICODE);
 
         ob_start();
         include __DIR__ . '/../../templates/maps.php';

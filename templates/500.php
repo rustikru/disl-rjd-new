@@ -4,6 +4,7 @@ $appName      = $appName      ?? '';
 $user         = $user         ?? [];
 $headerSub    = $headerSub    ?? '';
 $headerRight  = $headerRight  ?? '';
+$errorId      = $errorId      ?? '';
 $errorMessage = $errorMessage ?? '';
 $errorTrace   = $errorTrace   ?? '';
 ?>
@@ -44,6 +45,11 @@ $errorTrace   = $errorTrace   ?? '';
       max-width: 400px;
       line-height: 1.6;
       margin-bottom: 24px;
+    }
+    .error-id {
+      font-size: 12px;
+      color: var(--text-3, #6b667a);
+      margin: -12px 0 20px;
     }
     .error-trace {
       text-align: left;
@@ -87,6 +93,9 @@ $errorTrace   = $errorTrace   ?? '';
     Что-то пошло не так. Попробуйте обновить страницу или вернитесь позже.<br>
     Если проблема повторяется — обратитесь к администратору.
   </p>
+  <?php if ($errorId !== ''): ?>
+    <div class="error-id">Код ошибки: <?= htmlspecialchars($errorId) ?></div>
+  <?php endif; ?>
   <?php if (!empty($user)): ?>
     <a href="<?= htmlspecialchars($basePath) ?>/" class="btn btn-primary">Вернуться на главную</a>
   <?php else: ?>

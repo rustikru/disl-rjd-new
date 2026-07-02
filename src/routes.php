@@ -122,6 +122,9 @@ return function (App $app, array $config): void {
         $group->post('/admin/directories/stations/save', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->saveStation($req, $res);
         });
+        $group->post('/admin/directories/stations/import-freicon', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->importStationFromFreicon($req, $res);
+        });
         $group->post('/admin/directories/stations/delete', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->deleteStation($req, $res);
         });

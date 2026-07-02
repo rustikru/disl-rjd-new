@@ -35,6 +35,7 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
     .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
     .panel-title { font-size:14px; font-weight:600; }
     .station-form { display:grid; grid-template-columns:130px minmax(220px, 1fr) 140px 140px auto; gap:10px; padding:16px 18px; align-items:end; }
+    .freicon-form { display:grid; grid-template-columns:180px auto 1fr; gap:10px; padding:16px 18px; align-items:end; }
     .fg { display:flex; flex-direction:column; gap:5px; }
     .fg label { font-size:12px; font-weight:600; color:var(--text-2); }
     .fg input { border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-family:inherit; font-size:13px; color:var(--text-1); outline:none; width:100%; box-sizing:border-box; }
@@ -56,6 +57,7 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
     .pager .btn[aria-disabled="true"] { opacity:.45; pointer-events:none; }
     @media (max-width: 980px) {
       .station-form { grid-template-columns:1fr 1fr; }
+      .freicon-form { grid-template-columns:1fr; }
       .station-form .btn { align-self:end; }
     }
   </style>
@@ -119,6 +121,20 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
 
     <div class="panel">
       <div class="panel-head">
+        <span class="panel-title">Загрузить из FreiCON</span>
+      </div>
+      <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/directories/stations/import-freicon" class="freicon-form">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+        <div class="fg">
+          <label for="freicon_esr">Код ЕСР</label>
+          <input id="freicon_esr" name="esr_code" required maxlength="20" placeholder="000010">
+        </div>
+        <button type="submit" class="btn btn-primary">Загрузить</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
         <span class="panel-title">Станции (<?= (int) $totalStations ?>)</span>
       </div>
 
@@ -144,9 +160,11 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
                 $lon = $s['longitude'] ?? '';
                 $formId = 'station-save-' . preg_replace('/[^A-Za-z0-9_-]/', '_', $code);
                 $deleteFormId = 'station-delete-' . preg_replace('/[^A-Za-z0-9_-]/', '_', $code);
+                $importFormId = 'station-import-' . preg_replace('/[^A-Za-z0-9_-]/', '_', $code);
               ?>
               <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/directories/stations/save" id="<?= htmlspecialchars($formId) ?>"></form>
               <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/directories/stations/delete" id="<?= htmlspecialchars($deleteFormId) ?>"></form>
+              <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/directories/stations/import-freicon" id="<?= htmlspecialchars($importFormId) ?>"></form>
               <tr>
                 <td>
                   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>" form="<?= htmlspecialchars($formId) ?>">
@@ -164,8 +182,11 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
                 <td>
                   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>" form="<?= htmlspecialchars($deleteFormId) ?>">
                   <input type="hidden" name="esr_code" value="<?= htmlspecialchars($code) ?>" form="<?= htmlspecialchars($deleteFormId) ?>">
+                  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>" form="<?= htmlspecialchars($importFormId) ?>">
+                  <input type="hidden" name="esr_code" value="<?= htmlspecialchars($code) ?>" form="<?= htmlspecialchars($importFormId) ?>">
                   <div class="actions-cell">
                     <button type="submit" class="btn btn-primary btn-sm" form="<?= htmlspecialchars($formId) ?>">Сохранить</button>
+                    <button type="submit" class="btn btn-ghost btn-sm" form="<?= htmlspecialchars($importFormId) ?>">FreiCON</button>
                     <button type="submit" class="btn btn-ghost btn-sm" form="<?= htmlspecialchars($deleteFormId) ?>" onclick="return confirm('Удалить станцию «<?= htmlspecialchars(addslashes($name), ENT_QUOTES) ?>»?')">Удалить</button>
                   </div>
                 </td>

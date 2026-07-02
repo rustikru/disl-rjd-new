@@ -106,6 +106,14 @@ create or replace package xx_rjd_dislocation_new_pkg as
 
    type station_tab is table of station_rec;
 
+   type station_without_coordinates_rec is record (
+      esr_code     varchar2(20),
+      station_name varchar2(255),
+      wagon_count  number
+   );
+
+   type station_without_coordinates_tab is table of station_without_coordinates_rec;
+
    function stations_pipe (
       p_search in varchar2 default null,
       p_offset in number default 0,
@@ -116,6 +124,10 @@ create or replace package xx_rjd_dislocation_new_pkg as
    function stations_count (
       p_search in varchar2 default null
    ) return number;
+
+   function stations_without_coordinates_pipe
+      return station_without_coordinates_tab
+      pipelined;
 
    procedure save_station (
       p_esr_code     in varchar2,
@@ -1085,6 +1097,44 @@ create or replace package body xx_rjd_dislocation_new_pkg as
 
       return l_count;
    end stations_count;
+
+   function stations_without_coordinates_pipe
+      return station_without_coordinates_tab
+      pipelined is
+   begin
+      for station_row in (
+         select xdr.oper_station_esr_code as esr_code,
+                max(nvl(rs.station_name, xdr.oper_station)) as station_name,
+                count(*) as wagon_count
+           from xx_dislocation_rjd xdr
+           left join xx_rjd_stations rs
+             on rs.esr_code = xdr.oper_station_esr_code
+          where xdr.oper_station_esr_code is not null
+            and xdr.type_reference in ('Подход', 'Отправка')
+            and xdr.report_dt = (
+               select max(latest_rows.report_dt)
+                 from xx_dislocation_rjd latest_rows
+                where latest_rows.type_reference = xdr.type_reference
+            )
+            and (
+               rs.esr_code is null
+               or rs.latitude is null
+               or rs.longitude is null
+            )
+          group by xdr.oper_station_esr_code
+          order by max(nvl(rs.station_name, xdr.oper_station))
+      ) loop
+         pipe row (
+            station_without_coordinates_rec(
+               station_row.esr_code,
+               station_row.station_name,
+               station_row.wagon_count
+            )
+         );
+      end loop;
+
+      return;
+   end stations_without_coordinates_pipe;
 
    procedure validate_station (
       p_esr_code     in varchar2,
