@@ -92,6 +92,9 @@ return function (App $app, array $config): void {
         $group->get('/admin/roles', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->rolesPage($req, $res);
         });
+        $group->get('/admin/directories/stations', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->stationsPage($req, $res);
+        });
         $group->post('/admin/users', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->createUser($req, $res);
         });
@@ -115,6 +118,12 @@ return function (App $app, array $config): void {
         });
         $group->post('/admin/roles/delete', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->deleteRole($req, $res);
+        });
+        $group->post('/admin/directories/stations/save', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->saveStation($req, $res);
+        });
+        $group->post('/admin/directories/stations/delete', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->deleteStation($req, $res);
         });
 
         // Детальная страница (статический шаблон)

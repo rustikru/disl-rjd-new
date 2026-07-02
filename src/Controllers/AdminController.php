@@ -121,6 +121,52 @@ class AdminController
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 
+    /** GET /admin/directories/stations */
+    public function stationsPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isAdmin()) {
+            return $this->forbidden($response);
+        }
+
+        $query = $request->getQueryParams();
+        $search = trim((string) ($query['q'] ?? ''));
+        $perPage = 50;
+        $page = max(1, (int) ($query['page'] ?? 1));
+        $offset = ($page - 1) * $perPage;
+        $countRow = $this->db->fetchOne(
+            'SELECT xx_rjd_dislocation_new_pkg.stations_count(:p_search) AS cnt FROM dual',
+            ['p_search' => $search !== '' ? $search : null]
+        );
+        $totalStations = (int) ($countRow['cnt'] ?? 0);
+        $totalPages = max(1, (int) ceil($totalStations / $perPage));
+        if ($page > $totalPages) {
+            $page = $totalPages;
+            $offset = ($page - 1) * $perPage;
+        }
+        $stations = $this->db->fetchAll(
+            'SELECT * FROM TABLE(xx_rjd_dislocation_new_pkg.stations_pipe(:p_search, :p_offset, :p_limit))',
+            [
+                'p_search' => $search !== '' ? $search : null,
+                'p_offset' => $offset,
+                'p_limit' => $perPage,
+            ]
+        );
+
+        $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user     = $_SESSION['user'] ?? [];
+        $flashOk  = $query['ok']  ?? null;
+        $flashErr = $query['err'] ?? null;
+        $csrf     = $_SESSION['csrf_token'] ?? '';
+
+        ob_start();
+        include __DIR__ . '/../../templates/admin/stations.php';
+        $html = ob_get_clean();
+
+        $response->getBody()->write($html);
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
     /** POST /admin/users/roles — изменить роли пользователя */
     public function saveUserRoles(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
@@ -459,6 +505,65 @@ class AdminController
         return $this->redirect($response, '/admin/roles?ok=' . urlencode('Роль удалена'));
     }
 
+    /** POST /admin/directories/stations/save */
+    public function saveStation(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isAdmin()) {
+            return $this->forbidden($response);
+        }
+
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body)) {
+            return $this->redirect($response, '/admin/directories/stations?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+        }
+
+        $esrCode = trim((string) ($body['esr_code'] ?? ''));
+        $stationName = trim((string) ($body['station_name'] ?? ''));
+        $latitude = $this->decimalOrNull($body['latitude'] ?? null);
+        $longitude = $this->decimalOrNull($body['longitude'] ?? null);
+
+        try {
+            $this->db->execute(
+                'BEGIN xx_rjd_dislocation_new_pkg.save_station(:p_esr_code, :p_station_name, :p_latitude, :p_longitude); END;',
+                [
+                    'p_esr_code' => $esrCode,
+                    'p_station_name' => $stationName,
+                    'p_latitude' => $latitude,
+                    'p_longitude' => $longitude,
+                ]
+            );
+        } catch (\Throwable $e) {
+            return $this->redirect($response, '/admin/directories/stations?err=' . urlencode($this->cleanDbMessage($e)));
+        }
+
+        return $this->redirect($response, '/admin/directories/stations?ok=' . urlencode('Станция сохранена'));
+    }
+
+    /** POST /admin/directories/stations/delete */
+    public function deleteStation(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isAdmin()) {
+            return $this->forbidden($response);
+        }
+
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body)) {
+            return $this->redirect($response, '/admin/directories/stations?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+        }
+
+        $esrCode = trim((string) ($body['esr_code'] ?? ''));
+        try {
+            $this->db->execute(
+                'BEGIN xx_rjd_dislocation_new_pkg.delete_station(:p_esr_code); END;',
+                ['p_esr_code' => $esrCode]
+            );
+        } catch (\Throwable $e) {
+            return $this->redirect($response, '/admin/directories/stations?err=' . urlencode($this->cleanDbMessage($e)));
+        }
+
+        return $this->redirect($response, '/admin/directories/stations?ok=' . urlencode('Станция удалена'));
+    }
+
     /** Записывает доступ роли к страницам, отфильтровав по белому списку PAGES */
     private function savePages(int $roleId, array $pages): void
     {
@@ -471,6 +576,21 @@ class AdminController
                 ['id' => $roleId, 'page' => $page]
             );
         }
+    }
+
+    private function decimalOrNull(mixed $value): float|null
+    {
+        $text = str_replace(',', '.', trim((string) $value));
+        return $text === '' ? null : (float) $text;
+    }
+
+    private function cleanDbMessage(\Throwable $e): string
+    {
+        $message = $e->getMessage();
+        if (preg_match('/ORA-\d+:\s*([^\n]+)/u', $message, $m)) {
+            return trim($m[1]);
+        }
+        return $message !== '' ? $message : 'Операция не выполнена';
     }
 
     /** Текущий пользователь — администратор? */
