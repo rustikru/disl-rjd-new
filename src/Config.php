@@ -5,11 +5,16 @@ declare(strict_types=1);
 $envFile = __DIR__ . '/../.env';
 if (file_exists($envFile)) {
     foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-        if (strncmp(trim($line), '#', 1) === 0) {
+        $line = trim($line);
+        if ($line === '' || strncmp($line, '#', 1) === 0 || !str_contains($line, '=')) {
             continue;
         }
         [$key, $value] = array_pad(explode('=', $line, 2), 2, '');
-        $_ENV[trim($key)] = trim($value);
+        $key = trim($key);
+        if ($key === '' || getenv($key) !== false || array_key_exists($key, $_ENV)) {
+            continue;
+        }
+        $_ENV[$key] = trim($value);
     }
 }
 
@@ -18,7 +23,11 @@ if (file_exists($envFile)) {
  */
 function env(string $key, string $default = ''): string
 {
-    return $_ENV[$key] ?? ((string) getenv($key)) ?: $default;
+    $value = getenv($key);
+    if ($value !== false) {
+        return (string) $value;
+    }
+    return $_ENV[$key] ?? $default;
 }
 
 return [

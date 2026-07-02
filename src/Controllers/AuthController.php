@@ -9,10 +9,10 @@ use Psr\Http\Message\ServerRequestInterface;
 
 class AuthController
 {
-    private AuthService $auth;
-    private array       $config;
+    private ?AuthService $auth;
+    private array        $config;
 
-    public function __construct(AuthService $auth, array $config)
+    public function __construct(?AuthService $auth, array $config)
     {
         $this->auth   = $auth;
         $this->config = $config;
@@ -54,6 +54,11 @@ class AuthController
 
         if ($username === '' || $password === '') {
             $_SESSION['login_error'] = 'Введите логин и пароль';
+            return $response->withHeader('Location', $base . '/login')->withStatus(302);
+        }
+
+        if ($this->auth === null) {
+            $_SESSION['login_error'] = 'Сервис авторизации недоступен';
             return $response->withHeader('Location', $base . '/login')->withStatus(302);
         }
 

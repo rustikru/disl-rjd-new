@@ -85,6 +85,8 @@ class ImportController
         $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
         $user     = $_SESSION['user'] ?? [];
+        $uploadLimit = ini_get('upload_max_filesize') ?: 'не задан';
+        $postLimit   = ini_get('post_max_size') ?: 'не задан';
 
         ob_start();
         include __DIR__ . '/../../templates/import.php';
@@ -127,11 +129,10 @@ class ImportController
             }
 
             $tmpPath = sys_get_temp_dir() . '/rzd_import_' . uniqid() . '.' . $ext;
-            $file->moveTo($tmpPath);
-
             try {
+                $file->moveTo($tmpPath);
                 $result = $this->importFile($tmpPath);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 @unlink($tmpPath);
                 $errors[] = '«' . $name . '»: ' . $e->getMessage();
                 continue;
@@ -171,7 +172,7 @@ class ImportController
         if ($file->getError() !== UPLOAD_ERR_OK) {
             return $this->jsonResponse($response, 422, [
                 'status' => 'error',
-                'message' => 'Ошибка загрузки (код ' . $file->getError() . ')',
+                'message' => $this->uploadErrorMessage($file->getError()),
             ]);
         }
 
@@ -182,11 +183,10 @@ class ImportController
         }
 
         $tmpPath = sys_get_temp_dir() . '/rzd_import_' . uniqid() . '.' . $ext;
-        $file->moveTo($tmpPath);
-
         try {
+            $file->moveTo($tmpPath);
             $result = $this->importFile($tmpPath);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             @unlink($tmpPath);
             return $this->jsonResponse($response, 500, ['status' => 'error', 'message' => $e->getMessage()]);
         }
@@ -217,6 +217,20 @@ class ImportController
         return $response->withStatus($status)->withHeader('Content-Type', 'application/json; charset=utf-8');
     }
 
+    private function uploadErrorMessage(int $error): string
+    {
+        return match ($error) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'Файл превышает лимит загрузки PHP: upload_max_filesize='
+                . ini_get('upload_max_filesize') . ', post_max_size=' . ini_get('post_max_size'),
+            UPLOAD_ERR_PARTIAL => 'Файл загружен не полностью',
+            UPLOAD_ERR_NO_FILE => 'Файл не передан',
+            UPLOAD_ERR_NO_TMP_DIR => 'Не найдена временная папка для загрузки',
+            UPLOAD_ERR_CANT_WRITE => 'Не удалось записать файл на диск',
+            UPLOAD_ERR_EXTENSION => 'Загрузка остановлена расширением PHP',
+            default => 'Ошибка загрузки файла (код ' . $error . ')',
+        };
+    }
+
     private function importFile(string $path): array
     {
         ini_set('memory_limit', '512M');
@@ -236,18 +250,18 @@ class ImportController
         $fileType = $this->detectFileType($sheet, $highestRow);
 
         $fields = $this->columnFieldNames();
-        $placeholders = array_map(fn($f) => ':' . $f, $fields);
+        $placeholders = array_map(fn($i) => ':p' . $i, array_keys($fields));
         $insertSql = 'INSERT INTO xx_dislocation_rjd (report_dt, type_reference, ' . implode(', ', $fields) . ')'
-            . ' VALUES (:report_dt, :type_reference, ' . implode(', ', $placeholders) . ')';
+            . ' VALUES (:p_report_dt, :p_type_reference, ' . implode(', ', $placeholders) . ')';
 
         // Удаляем предыдущую справку того же дня и того же типа —
         // оставляем только максимальную (последнюю по времени) за каждый день.
         $reportDate = substr($reportDt, 0, 10); // 'YYYY-MM-DD'
         $this->db->execute(
             "DELETE FROM xx_dislocation_rjd
-              WHERE TRUNC(report_dt) = TO_DATE(:date, 'YYYY-MM-DD')
-                AND type_reference   = :type",
-            ['date' => $reportDate, 'type' => $fileType]
+              WHERE TRUNC(report_dt) = TO_DATE(:p_report_date, 'YYYY-MM-DD')
+                AND type_reference   = :p_file_type",
+            ['p_report_date' => $reportDate, 'p_file_type' => $fileType]
         );
 
         $inserted = 0;
@@ -269,15 +283,15 @@ class ImportController
                 $destStation = $vals[11] ?? '';
                 $typeRef = ($destStation === 'УГЛЕУРАЛЬСКАЯ (768207)') ? 'Подход' : 'Отправка';
 
-                $params = ['report_dt' => $reportDt, 'type_reference' => $typeRef];
+                $params = ['p_report_dt' => $reportDt, 'p_type_reference' => $typeRef];
                 foreach ($fields as $i => $field) {
-                    $params[$field] = $this->castValue($field, $vals[$i] ?? null);
+                    $params['p' . $i] = $this->castValue($field, $vals[$i] ?? null);
                 }
                 $this->db->execute($insertSql, $params);
                 $inserted++;
             }
             $this->db->commit();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->db->rollback();
             throw $e;
         } finally {

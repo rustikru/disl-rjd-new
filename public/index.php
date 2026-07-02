@@ -49,6 +49,8 @@ if ($config['base_path'] !== '') {
     $app->setBasePath($config['base_path']);
 }
 
+$app->addBodyParsingMiddleware();
+
 (require __DIR__ . '/../src/routes.php')($app, $config);
 
 $app->run();

@@ -19,8 +19,8 @@ return function (App $app, array $config): void {
     };
 
     // Публичные маршруты
-    $app->get('/login', function ($req, $res) use ($getAuth, $config) {
-        return (new \App\Controllers\AuthController($getAuth(), $config))->showLogin($req, $res);
+    $app->get('/login', function ($req, $res) use ($config) {
+        return (new \App\Controllers\AuthController(null, $config))->showLogin($req, $res);
     });
     // Публичные маршруты
     $app->get('/tmp/admin-mockup.html', function ($req, $res) {
@@ -33,7 +33,13 @@ return function (App $app, array $config): void {
     });
 
     $app->post('/login', function ($req, $res) use ($getAuth, $config) {
-        return (new \App\Controllers\AuthController($getAuth(), $config))->handleLogin($req, $res);
+        try {
+            $auth = $getAuth();
+        } catch (\Throwable $e) {
+            $_SESSION['login_error'] = 'База данных недоступна. Проверьте подключение к Oracle.';
+            return $res->withHeader('Location', ($config['base_path'] ?? '') . '/login')->withStatus(302);
+        }
+        return (new \App\Controllers\AuthController($auth, $config))->handleLogin($req, $res);
     });
 
     $app->post('/logout', function ($req, $res) use ($config) {

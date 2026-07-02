@@ -19,7 +19,7 @@ class OracleDb implements DbInterface
 
         $dsn = sprintf('//%s:%s/%s', $config['db_host'], $config['db_port'] ?: 1521, $config['db_name']);
 
-        $this->connection = oci_connect($config['db_user'], $config['db_pass'], $dsn, 'AL32UTF8');
+        $this->connection = @oci_connect($config['db_user'], $config['db_pass'], $dsn, 'AL32UTF8');
 
         if (!$this->connection) {
             $err = oci_error();
@@ -57,7 +57,7 @@ class OracleDb implements DbInterface
 
         oci_set_prefetch($stmt, 5000);
 
-        $ok = oci_execute($stmt, OCI_DEFAULT);
+        $ok = @oci_execute($stmt, OCI_DEFAULT);
         if (!$ok) {
             $err = oci_error($stmt);
             oci_free_statement($stmt);
@@ -108,7 +108,7 @@ class OracleDb implements DbInterface
         }
 
         $mode = $this->inTransaction ? OCI_NO_AUTO_COMMIT : OCI_COMMIT_ON_SUCCESS;
-        $ok = oci_execute($stmt, $mode);
+        $ok = @oci_execute($stmt, $mode);
         if (!$ok) {
             $err = oci_error($stmt);
             oci_free_statement($stmt);
