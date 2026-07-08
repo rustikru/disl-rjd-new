@@ -61,7 +61,7 @@ class StationDirectoryRepository
     public function getStationsWithoutCoordinates(): array
     {
         return $this->db->fetchAll(
-            'SELECT * FROM TABLE(xx_rjd_dislocation_new_pkg.stations_without_coordinates_pipe())'
+            'SELECT * FROM TABLE(xx_rjd_dislocation_new_pkg.station_without_coor())'
         );
     }
 }
