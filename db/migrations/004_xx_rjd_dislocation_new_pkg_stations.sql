@@ -106,13 +106,13 @@ create or replace package xx_rjd_dislocation_new_pkg as
 
    type station_tab is table of station_rec;
 
-   type station_without_coordinates_rec is record (
+   type station_no_coord_rec is record (
       esr_code     varchar2(20),
       station_name varchar2(255),
       wagon_count  number
    );
 
-   type station_without_coordinates_tab is table of station_without_coordinates_rec;
+   type station_no_coord_tab is table of station_no_coord_rec;
 
    function stations (
       p_search in varchar2 default null,
@@ -125,8 +125,8 @@ create or replace package xx_rjd_dislocation_new_pkg as
       p_search in varchar2 default null
    ) return number;
 
-   function station_without_coor
-      return station_without_coordinates_tab
+   function stations_no_coord
+      return station_no_coord_tab
       pipelined;
 
    procedure save_station (
@@ -1104,10 +1104,10 @@ create or replace package body xx_rjd_dislocation_new_pkg as
       return l_count;
    end stations_count;
 
-   function station_without_coor
-      return station_without_coordinates_tab
+   function stations_no_coord
+      return station_no_coord_tab
       pipelined is
-      l_row station_without_coordinates_rec;
+      l_row station_no_coord_rec;
    begin
       for station_row in (
          select xdr.oper_station_esr_code as esr_code,
@@ -1139,7 +1139,7 @@ create or replace package body xx_rjd_dislocation_new_pkg as
       end loop;
 
       return;
-   end station_without_coor;
+   end stations_no_coord;
 
    procedure validate_station (
       p_esr_code     in varchar2,

@@ -29,7 +29,7 @@ class MapsController
         $dtsByType = $apiController->getLatestDtsByType(null, ['Подход', 'Отправка']);
         $cond = $apiController->latestDtCondition($dtsByType, 'xdr');
         $stationsWithoutCoordinates = $this->db->fetchAll(
-            'SELECT * FROM TABLE(xx_rjd_dislocation_new_pkg.station_without_coor())'
+            'SELECT * FROM TABLE(xx_rjd_dislocation_new_pkg.stations_no_coord())'
         );
 
         $reportDtLabel = '';
