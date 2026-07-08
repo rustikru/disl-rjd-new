@@ -1,7 +1,7 @@
 -- =====================================================================
 --  Справочник станций РЖД в основном package xx_rjd_dislocation_new_pkg.
 --  PHP читает справочник только через:
---    SELECT * FROM TABLE(xx_rjd_dislocation_new_pkg.stations_pipe(:p_search))
+--    SELECT * FROM TABLE(xx_rjd_dislocation_new_pkg.stations(:p_search))
 -- =====================================================================
 
 BEGIN
@@ -114,7 +114,7 @@ create or replace package xx_rjd_dislocation_new_pkg as
 
    type station_without_coordinates_tab is table of station_without_coordinates_rec;
 
-   function stations_pipe (
+   function stations (
       p_search in varchar2 default null,
       p_offset in number default 0,
       p_limit  in number default 50
@@ -125,7 +125,7 @@ create or replace package xx_rjd_dislocation_new_pkg as
       p_search in varchar2 default null
    ) return number;
 
-   function stations_without_coordinates_pipe
+   function station_without_coor
       return station_without_coordinates_tab
       pipelined;
 
@@ -1048,14 +1048,15 @@ create or replace package body xx_rjd_dislocation_new_pkg as
          raise;
    end get_rjd_excel_file;
 
-   function stations_pipe (
+   function stations (
       p_search in varchar2 default null,
       p_offset in number default 0,
       p_limit  in number default 50
    ) return station_tab
       pipelined is
+      l_row station_rec;
    begin
-      for r in (
+      for station_row in (
          select esr_code,
                 station_name,
                 latitude,
@@ -1077,11 +1078,16 @@ create or replace package body xx_rjd_dislocation_new_pkg as
             and rn <= nvl(p_offset, 0) + nvl(p_limit, 50)
           order by rn
       ) loop
-         pipe row (station_rec(r.esr_code, r.station_name, r.latitude, r.longitude));
+         l_row.esr_code := station_row.esr_code;
+         l_row.station_name := station_row.station_name;
+         l_row.latitude := station_row.latitude;
+         l_row.longitude := station_row.longitude;
+
+         pipe row (l_row);
       end loop;
 
       return;
-   end stations_pipe;
+   end stations;
 
    function stations_count (
       p_search in varchar2 default null
@@ -1098,9 +1104,10 @@ create or replace package body xx_rjd_dislocation_new_pkg as
       return l_count;
    end stations_count;
 
-   function stations_without_coordinates_pipe
+   function station_without_coor
       return station_without_coordinates_tab
       pipelined is
+      l_row station_without_coordinates_rec;
    begin
       for station_row in (
          select xdr.oper_station_esr_code as esr_code,
@@ -1124,17 +1131,15 @@ create or replace package body xx_rjd_dislocation_new_pkg as
           group by xdr.oper_station_esr_code
           order by max(nvl(rs.station_name, xdr.oper_station))
       ) loop
-         pipe row (
-            station_without_coordinates_rec(
-               station_row.esr_code,
-               station_row.station_name,
-               station_row.wagon_count
-            )
-         );
+         l_row.esr_code := station_row.esr_code;
+         l_row.station_name := station_row.station_name;
+         l_row.wagon_count := station_row.wagon_count;
+
+         pipe row (l_row);
       end loop;
 
       return;
-   end stations_without_coordinates_pipe;
+   end station_without_coor;
 
    procedure validate_station (
       p_esr_code     in varchar2,

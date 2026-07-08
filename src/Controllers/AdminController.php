@@ -5,9 +5,6 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Logging\ErrorLogger;
-use App\Repositories\StationDirectoryRepository;
-use App\Services\FreiconStationClient;
-use App\Services\StationDirectoryService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -127,12 +124,27 @@ class AdminController
 
         $query = $request->getQueryParams();
         $search = trim((string) ($query['q'] ?? ''));
-        $pageData = $this->stationService()->getPage($search, (int) ($query['page'] ?? 1));
-        $stations = $pageData['stations'];
-        $totalStations = $pageData['totalStations'];
-        $totalPages = $pageData['totalPages'];
-        $page = $pageData['page'];
-        $perPage = $pageData['perPage'];
+        $perPage = 50;
+        $page = max(1, (int) ($query['page'] ?? 1));
+        $countRow = $this->db->fetchOne(
+            'SELECT xx_rjd_dislocation_new_pkg.stations_count(:p_search) AS cnt FROM dual',
+            ['p_search' => $search !== '' ? $search : null]
+        );
+        $totalStations = (int) ($countRow['cnt'] ?? 0);
+        $totalPages = max(1, (int) ceil($totalStations / $perPage));
+
+        if ($page > $totalPages) {
+            $page = $totalPages;
+        }
+
+        $stations = $this->db->fetchAll(
+            'SELECT * FROM TABLE(xx_rjd_dislocation_new_pkg.stations(:p_search, :p_offset, :p_limit))',
+            [
+                'p_search' => $search !== '' ? $search : null,
+                'p_offset' => ($page - 1) * $perPage,
+                'p_limit' => $perPage,
+            ]
+        );
 
         $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
@@ -490,11 +502,17 @@ class AdminController
         $stationName = trim((string) ($body['station_name'] ?? ''));
 
         try {
-            $this->stationService()->saveStation(
-                $esrCode,
-                $stationName,
-                $body['latitude'] ?? null,
-                $body['longitude'] ?? null
+            $latitude = $this->decimalOrNull($body['latitude'] ?? null, 'широта');
+            $longitude = $this->decimalOrNull($body['longitude'] ?? null, 'долгота');
+
+            $this->db->execute(
+                'BEGIN xx_rjd_dislocation_new_pkg.save_station(:p_esr_code, :p_station_name, :p_latitude, :p_longitude); END;',
+                [
+                    'p_esr_code' => $esrCode,
+                    'p_station_name' => $stationName,
+                    'p_latitude' => $latitude,
+                    'p_longitude' => $longitude,
+                ]
             );
         } catch (\Throwable $error) {
             $errorId = ErrorLogger::logThrowable($error, [
@@ -529,7 +547,10 @@ class AdminController
 
         $esrCode = trim((string) ($body['esr_code'] ?? ''));
         try {
-            $this->stationService()->deleteStation($esrCode);
+            $this->db->execute(
+                'BEGIN xx_rjd_dislocation_new_pkg.delete_station(:p_esr_code); END;',
+                ['p_esr_code' => $esrCode]
+            );
         } catch (\Throwable $error) {
             $errorId = ErrorLogger::logThrowable($error, [
                 'module' => self::class,
@@ -545,46 +566,6 @@ class AdminController
         return $this->redirect($response, '/admin/directories/stations?ok=' . urlencode('Станция удалена'));
     }
 
-    public function importStationFromFreicon(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
-    {
-        if (!$this->isAdmin()) {
-            return $this->forbidden($response);
-        }
-
-        $body = (array) $request->getParsedBody();
-        if (!$this->checkCsrf($body)) {
-            return $this->redirect($response, '/admin/directories/stations?err=' . urlencode('Ошибка запроса, попробуйте снова'));
-        }
-
-        $esrCode = trim((string) ($body['esr_code'] ?? ''));
-
-        try {
-            $stationFromFreicon = (new FreiconStationClient())->getStation($esrCode);
-            $this->stationService()->saveStation(
-                $stationFromFreicon['esr_code'],
-                $stationFromFreicon['station_name'],
-                $stationFromFreicon['latitude'],
-                $stationFromFreicon['longitude']
-            );
-        } catch (\Throwable $error) {
-            $errorId = ErrorLogger::logThrowable($error, [
-                'module' => self::class,
-                'function' => 'importStationFromFreicon',
-                'params' => ['esr_code' => $esrCode],
-            ], $request);
-            return $this->redirect(
-                $response,
-                '/admin/directories/stations?err=' . urlencode($this->cleanDbMessage($error) . '. Код ошибки: ' . $errorId)
-            );
-        }
-
-        return $this->redirect(
-            $response,
-            '/admin/directories/stations?q=' . urlencode($stationFromFreicon['esr_code'])
-            . '&ok=' . urlencode('Станция загружена из FreiCON')
-        );
-    }
-
     private function savePages(int $roleId, array $pages): void
     {
         foreach ($pages as $page) {
@@ -598,9 +579,18 @@ class AdminController
         }
     }
 
-    private function stationService(): StationDirectoryService
+    private function decimalOrNull(mixed $value, string $fieldName): ?float
     {
-        return new StationDirectoryService(new StationDirectoryRepository($this->db));
+        $text = str_replace(',', '.', trim((string) $value));
+        if ($text === '') {
+            return null;
+        }
+
+        if (!is_numeric($text)) {
+            throw new \InvalidArgumentException('Поле "' . $fieldName . '" должно быть числом');
+        }
+
+        return (float) $text;
     }
 
     private function cleanDbMessage(\Throwable $error): string

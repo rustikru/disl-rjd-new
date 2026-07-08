@@ -5,8 +5,6 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Controllers\ApiController;
-use App\Repositories\StationDirectoryRepository;
-use App\Services\StationDirectoryService;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -28,10 +26,11 @@ class MapsController
         $user = $_SESSION['user'] ?? ['display_name' => '', 'username' => '', 'auth_source' => ''];
 
         $apiController = new ApiController($this->db);
-        $stationService = new StationDirectoryService(new StationDirectoryRepository($this->db));
         $dtsByType = $apiController->getLatestDtsByType(null, ['Подход', 'Отправка']);
         $cond = $apiController->latestDtCondition($dtsByType, 'xdr');
-        $stationsWithoutCoordinates = $stationService->getStationsWithoutCoordinates();
+        $stationsWithoutCoordinates = $this->db->fetchAll(
+            'SELECT * FROM TABLE(xx_rjd_dislocation_new_pkg.station_without_coor())'
+        );
 
         $reportDtLabel = '';
         if (!empty($dtsByType)) {
