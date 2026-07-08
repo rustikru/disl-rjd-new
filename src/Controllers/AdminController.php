@@ -502,8 +502,8 @@ class AdminController
         $stationName = trim((string) ($body['station_name'] ?? ''));
 
         try {
-            $latitude = $this->decimalOrNull($body['latitude'] ?? null, 'широта');
-            $longitude = $this->decimalOrNull($body['longitude'] ?? null, 'долгота');
+            $latitude = $this->coordinateOrNull($body['latitude'] ?? null, 'широта', -90, 90);
+            $longitude = $this->coordinateOrNull($body['longitude'] ?? null, 'долгота', -180, 180);
 
             $this->db->execute(
                 'BEGIN xx_rjd_dislocation_new_pkg.save_station(:p_esr_code, :p_station_name, :p_latitude, :p_longitude); END;',
@@ -579,7 +579,7 @@ class AdminController
         }
     }
 
-    private function decimalOrNull(mixed $value, string $fieldName): ?float
+    private function coordinateOrNull(mixed $value, string $fieldName, float $min, float $max): ?string
     {
         $text = str_replace(',', '.', trim((string) $value));
         if ($text === '') {
@@ -590,7 +590,14 @@ class AdminController
             throw new \InvalidArgumentException('Поле "' . $fieldName . '" должно быть числом');
         }
 
-        return (float) $text;
+        $number = (float) $text;
+        if ($number < $min || $number > $max) {
+            throw new \InvalidArgumentException(
+                'Поле "' . $fieldName . '" должно быть в диапазоне от ' . $min . ' до ' . $max
+            );
+        }
+
+        return $text;
     }
 
     private function cleanDbMessage(\Throwable $error): string

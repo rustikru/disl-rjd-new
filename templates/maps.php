@@ -409,8 +409,8 @@ $stationsWithoutCoordinatesJson = $stationsWithoutCoordinatesJson ?? '[]';
         <div id="map"></div>
     </div>
     <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jquery/jquery-3.7.1.min.js"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="<?= htmlspecialchars($basePath) ?>/assets/js/Leaflet/leaflet.js"></script>
+    <script src="<?= htmlspecialchars($basePath) ?>/assets/js/Leaflet/leaflet.markercluster.js"></script>
     <script>
         'use strict';
 

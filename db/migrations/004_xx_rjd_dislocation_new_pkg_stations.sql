@@ -9,8 +9,8 @@ BEGIN
     CREATE TABLE xx_rjd_stations (
       esr_code      VARCHAR2(20)  NOT NULL,
       station_name  VARCHAR2(255) NOT NULL,
-      latitude      NUMBER,
-      longitude     NUMBER,
+      latitude      VARCHAR2(50),
+      longitude     VARCHAR2(50),
       CONSTRAINT pk_xx_rjd_stations PRIMARY KEY (esr_code)
     )
   ]';
@@ -100,8 +100,8 @@ create or replace package xx_rjd_dislocation_new_pkg as
    type station_rec is record (
       esr_code     varchar2(20),
       station_name varchar2(255),
-      latitude     number,
-      longitude    number
+      latitude     varchar2(50),
+      longitude    varchar2(50)
    );
 
    type station_tab is table of station_rec;
@@ -132,8 +132,8 @@ create or replace package xx_rjd_dislocation_new_pkg as
    procedure save_station (
       p_esr_code     in varchar2,
       p_station_name in varchar2,
-      p_latitude     in number,
-      p_longitude    in number
+      p_latitude     in varchar2,
+      p_longitude    in varchar2
    );
 
    procedure delete_station (
@@ -1144,8 +1144,8 @@ create or replace package body xx_rjd_dislocation_new_pkg as
    procedure validate_station (
       p_esr_code     in varchar2,
       p_station_name in varchar2,
-      p_latitude     in number,
-      p_longitude    in number
+      p_latitude     in varchar2,
+      p_longitude    in varchar2
    ) is
    begin
       if trim(p_esr_code) is null then
@@ -1156,20 +1156,24 @@ create or replace package body xx_rjd_dislocation_new_pkg as
          raise_application_error(-20002, 'Не указано название станции');
       end if;
 
-      if p_latitude is not null and (p_latitude < -90 or p_latitude > 90) then
-         raise_application_error(-20003, 'Широта должна быть в диапазоне от -90 до 90');
+      if trim(p_latitude) is not null then
+         if not regexp_like(trim(p_latitude), '^-?[0-9]+([,.][0-9]+)?$') then
+            raise_application_error(-20003, 'Широта должна быть числом');
+         end if;
       end if;
 
-      if p_longitude is not null and (p_longitude < -180 or p_longitude > 180) then
-         raise_application_error(-20004, 'Долгота должна быть в диапазоне от -180 до 180');
+      if trim(p_longitude) is not null then
+         if not regexp_like(trim(p_longitude), '^-?[0-9]+([,.][0-9]+)?$') then
+            raise_application_error(-20004, 'Долгота должна быть числом');
+         end if;
       end if;
    end validate_station;
 
    procedure save_station (
       p_esr_code     in varchar2,
       p_station_name in varchar2,
-      p_latitude     in number,
-      p_longitude    in number
+      p_latitude     in varchar2,
+      p_longitude    in varchar2
    ) is
    begin
       validate_station(p_esr_code, p_station_name, p_latitude, p_longitude);
@@ -1178,8 +1182,8 @@ create or replace package body xx_rjd_dislocation_new_pkg as
       using (
          select trim(p_esr_code) as esr_code,
                 trim(p_station_name) as station_name,
-                p_latitude as latitude,
-                p_longitude as longitude
+                replace(trim(p_latitude), ',', '.') as latitude,
+                replace(trim(p_longitude), ',', '.') as longitude
            from dual
       ) src
          on (s.esr_code = src.esr_code)

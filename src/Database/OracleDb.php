@@ -30,7 +30,8 @@ class OracleDb implements DbInterface
         $stmt = oci_parse(
             $this->connection,
             "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD HH24:MI:SS' " .
-            "NLS_TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF'"
+            "NLS_TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF' " .
+            "NLS_NUMERIC_CHARACTERS = '.,'"
         );
         oci_execute($stmt);
         oci_free_statement($stmt);
