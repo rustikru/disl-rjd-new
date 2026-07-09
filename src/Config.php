@@ -1,55 +1,47 @@
 <?php
 declare(strict_types=1);
 
-// Загружаем .env файл 
-$envFile = __DIR__ . '/../.env';
-if (file_exists($envFile)) {
-    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-        $line = trim($line);
-        if ($line === '' || strncmp($line, '#', 1) === 0 || !str_contains($line, '=')) {
-            continue;
-        }
-        [$key, $value] = array_pad(explode('=', $line, 2), 2, '');
-        $key = trim($key);
-        if ($key === '' || getenv($key) !== false || array_key_exists($key, $_ENV)) {
-            continue;
-        }
-        $_ENV[$key] = trim($value);
-    }
+$configFile = __DIR__ . '/../rjd_config.php';
+
+if (!file_exists($configFile)) {
+    throw new RuntimeException('Не найден файл конфигурации rjd_config.php');
 }
 
-/**
- * Читает переменную окружения, возвращает $default если не задана.
- */
-function env(string $key, string $default = ''): string
-{
-    $value = getenv($key);
-    if ($value !== false) {
-        return (string) $value;
-    }
-    return $_ENV[$key] ?? $default;
+$config = require $configFile;
+
+if (!is_array($config)) {
+    throw new RuntimeException('Файл rjd_config.php должен возвращать массив');
 }
+
+$bool = static function (mixed $value): bool {
+    if (is_bool($value)) {
+        return $value;
+    }
+
+    return in_array(strtolower((string) $value), ['1', 'true', 'yes', 'on'], true);
+};
 
 return [
-    'app_env' => env('APP_ENV', 'development'), //
-    'app_name' => env('APP_NAME', 'АО «Метафракс Кемикалс»'),
+    'app_env' => (string) ($config['app_env'] ?? 'development'),
+    'app_debug' => $bool($config['app_debug'] ?? false),
+    'app_name' => (string) ($config['app_name'] ?? 'АО «Метафракс Кемикалс»'),
 
+    'db_driver' => (string) ($config['db_driver'] ?? 'oracle'),
+    'db_host' => (string) ($config['db_host'] ?? 'localhost'),
+    'db_port' => (string) ($config['db_port'] ?? '1521'),
+    'db_name' => (string) ($config['db_name'] ?? ''),
+    'db_user' => (string) ($config['db_user'] ?? ''),
+    'db_pass' => (string) ($config['db_pass'] ?? ''),
 
-    'db_driver' => env('DB_DRIVER', 'oracle'), // 'oracle' или 'pgsql'
-    'db_host' => env('DB_HOST', 'localhost'),
-    'db_port' => env('DB_PORT', '5432'),
-    'db_name' => env('DB_NAME', 'disl_rzd'),
-    'db_user' => env('DB_USER', ''),
-    'db_pass' => env('DB_PASS', ''),
+    'ad_debug' => $bool($config['ad_debug'] ?? false),
+    'ad_enabled' => $bool($config['ad_enabled'] ?? false),
+    'ad_host' => (string) ($config['ad_host'] ?? ''),
+    'ad_domain' => (string) ($config['ad_domain'] ?? ''),
+    'ad_base_dn' => (string) ($config['ad_base_dn'] ?? ''),
 
-    // AD_ENABLED=true → сначала проверяем AD, затем локальный пароль
-    'ad_enabled' => env('AD_ENABLED', 'false') === 'true',
-    'ad_host' => env('AD_HOST', ''),
-    'ad_domain' => env('AD_DOMAIN', ''),
-    'ad_base_dn' => env('AD_BASE_DN', ''),
+    'auth_log_file' => (string) ($config['auth_log_file'] ?? '/tmp/auth_debug.log'),
+    'ldap_log_file' => (string) ($config['ldap_log_file'] ?? '/tmp/ldap_debug.log'),
 
-    'session_name' => env('SESSION_NAME', 'disl_session'),
-
-    // Базовый путь приложение 
-    'base_path' => env('APP_BASE_PATH', ''),
+    'session_name' => (string) ($config['session_name'] ?? 'disl_session'),
+    'base_path' => rtrim((string) ($config['base_path'] ?? ''), '/'),
 ];

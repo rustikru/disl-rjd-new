@@ -10,7 +10,7 @@ require __DIR__ . '/../vendor/autoload.php';
 $config = require __DIR__ . '/../src/Config.php';
 
 // Включаем лог SQL-запросов в режиме отладки
-if (($_ENV['APP_DEBUG'] ?? '') === 'true') {
+if (!empty($config['app_debug'])) {
     QueryLogger::enable(__DIR__ . '/../tmp/log/sql_debug.log');
 }
 
