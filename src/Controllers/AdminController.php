@@ -5,6 +5,7 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Logging\ErrorLogger;
+use App\Services\FreiConStationService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -159,6 +160,40 @@ class AdminController
 
         $response->getBody()->write($html);
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function findFreiConStation(
+        ServerRequestInterface $request,
+        ResponseInterface $response
+    ): ResponseInterface {
+        if (!$this->isAdmin()) {
+            return $this->json($response, ['error' => 'Доступ запрещён'], 403);
+        }
+
+        $esrCode = trim((string) ($request->getQueryParams()['esr_code'] ?? ''));
+        if (!preg_match('/^\d{1,6}$/D', $esrCode)) {
+            return $this->json(
+                $response,
+                ['error' => 'Введите код ЕСР — до шести цифр'],
+                422
+            );
+        }
+
+        try {
+            $station = (new FreiConStationService())->find($esrCode);
+            return $this->json($response, ['station' => $station]);
+        } catch (\Throwable $e) {
+            ErrorLogger::logThrowable($e, [
+                'module' => self::class,
+                'function' => 'findFreiConStation',
+                'params' => ['esr_code' => $esrCode],
+            ], $request);
+            return $this->json(
+                $response,
+                ['error' => 'Не удалось получить данные из FreiCON'],
+                502
+            );
+        }
     }
 
     public function saveUserRoles(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -643,6 +678,20 @@ class AdminController
             . '<p><a href="' . htmlspecialchars($this->config['base_path'] ?? '') . '/">← На главную</a></p></div>'
         );
         return $response->withStatus(403)->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    private function json(
+        ResponseInterface $response,
+        array $data,
+        int $status = 200
+    ): ResponseInterface {
+        $response->getBody()->write(
+            json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
+
+        return $response
+            ->withStatus($status)
+            ->withHeader('Content-Type', 'application/json; charset=utf-8');
     }
 
     private function redirect(ResponseInterface $response, string $url): ResponseInterface

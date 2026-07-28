@@ -2,6 +2,7 @@
 /** @var string $appName */
 /** @var string $basePath */
 /** @var string|null $error */
+/** @var bool $kerberosEnabled */
 $basePath = $basePath ?? '';
 ?>
 <!DOCTYPE html>
@@ -31,6 +32,13 @@ $basePath = $basePath ?? '';
         <div class="error-msg visible"><?= htmlspecialchars($error) ?></div>
       <?php endif; ?>
 
+      <?php if ($kerberosEnabled): ?>
+        <a class="btn-login btn-auto" href="<?= htmlspecialchars($basePath) ?>/auth/kerberos">
+          Войти автоматически
+        </a>
+        <div class="login-separator"><span>или</span></div>
+      <?php endif; ?>
+
       <form method="POST" action="<?= htmlspecialchars($basePath) ?>/login" id="loginForm">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
         <div class="field">
@@ -47,7 +55,7 @@ $basePath = $basePath ?? '';
         </div>
 
         <button class="btn-login" type="submit" id="submitBtn">
-          <span class="btn-text">Войти</span>
+          <span class="btn-text">Войти с логином и паролем</span>
           <span class="btn-spinner" aria-hidden="true"></span>
         </button>
       </form>

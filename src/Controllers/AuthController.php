@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Auth\AuthService;
+use App\Auth\KerberosAuth;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -28,6 +29,7 @@ class AuthController
         $appName  = $this->config['app_name'];
         $basePath = $this->config['base_path'] ?? '';
         $error    = $_SESSION['login_error'] ?? null;
+        $kerberosEnabled = (bool) ($this->config['kerberos_enabled'] ?? false);
         unset($_SESSION['login_error']);
 
         ob_start();
@@ -35,6 +37,31 @@ class AuthController
         $response->getBody()->write(ob_get_clean());
 
         return $response;
+    }
+
+    /** GET /auth/kerberos */
+    public function handleKerberos(
+        ServerRequestInterface $request,
+        ResponseInterface $response
+    ): ResponseInterface {
+        $base = $this->config['base_path'] ?? '';
+        $identity = (new KerberosAuth($this->config))->authenticate($request);
+
+        if ($identity === null || $this->auth === null) {
+            $_SESSION['login_error'] = 'Автоматический вход недоступен';
+            return $response->withHeader('Location', $base . '/login')->withStatus(302);
+        }
+
+        $user = $this->auth->loginKerberos($identity);
+        if ($user === null) {
+            $_SESSION['login_error'] = 'Учётная запись отключена или автоматический вход запрещён';
+            return $response->withHeader('Location', $base . '/login')->withStatus(302);
+        }
+
+        session_regenerate_id(true);
+        $_SESSION['user'] = $user;
+
+        return $response->withHeader('Location', $base . '/')->withStatus(302);
     }
 
     /** POST /login */

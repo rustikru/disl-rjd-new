@@ -64,6 +64,14 @@ class MapsController
              FROM xx_dislocation_rjd xdr
              LEFT JOIN xx_rjd_stations rs ON xdr.oper_station_esr_code = rs.esr_code
              WHERE {$cond['sql']}
+               AND NOT EXISTS (
+                   SELECT 1
+                     FROM xx_disl_idle_control_v dic
+                    WHERE TRIM(dic.car_number) = TRIM(TO_CHAR(xdr.wagon_no))
+                      AND UPPER(TRIM(dic.is_excluded)) = 'Y'
+                      AND UPPER(REPLACE(TRIM(dic.idle_reasons_name), 'Ё', 'Е'))
+                          IN ('ЛОМ', 'МЕТАЛЛОЛОМ')
+               )
                ",
             $cond['params']
         );

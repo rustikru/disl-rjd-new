@@ -39,6 +39,13 @@ return [
     'ad_domain' => (string) ($config['ad_domain'] ?? ''),
     'ad_base_dn' => (string) ($config['ad_base_dn'] ?? ''),
 
+    'kerberos_enabled' => $bool($config['kerberos_enabled'] ?? false),
+    'kerberos_mode' => (string) ($config['kerberos_mode'] ?? 'local'),
+    'kerberos_server_key' => (string) ($config['kerberos_server_key'] ?? 'REMOTE_USER'),
+    'kerberos_local_username' => (string) ($config['kerberos_local_username'] ?? 'administrator'),
+    'kerberos_strip_realm' => $bool($config['kerberos_strip_realm'] ?? true),
+    'kerberos_auto_create_user' => $bool($config['kerberos_auto_create_user'] ?? true),
+
     'auth_log_file' => (string) ($config['auth_log_file'] ?? '/tmp/auth_debug.log'),
     'ldap_log_file' => (string) ($config['ldap_log_file'] ?? '/tmp/ldap_debug.log'),
 

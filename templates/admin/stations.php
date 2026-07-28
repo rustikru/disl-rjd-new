@@ -34,7 +34,7 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
     .panel + .panel { margin-top:18px; }
     .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
     .panel-title { font-size:14px; font-weight:600; }
-    .station-form { display:grid; grid-template-columns:130px minmax(220px, 1fr) 140px 140px auto; gap:10px; padding:16px 18px; align-items:end; }
+    .station-form { display:grid; grid-template-columns:130px minmax(220px, 1fr) 140px 140px auto auto; gap:10px; padding:16px 18px; align-items:end; }
     .fg { display:flex; flex-direction:column; gap:5px; }
     .fg label { font-size:12px; font-weight:600; color:var(--text-2); }
     .fg input { border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-family:inherit; font-size:13px; color:var(--text-1); outline:none; width:100%; box-sizing:border-box; }
@@ -49,6 +49,8 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
     .data-table tbody tr:hover td { background:var(--hover-green,#f5f4f9); }
     .station-code { font-weight:700; font-family:var(--mono, monospace); color:var(--accent); }
     .station-muted { color:var(--text-3); }
+    .station-lookup-status { grid-column:1 / -1; min-height:18px; font-size:12.5px; color:var(--text-2); }
+    .station-lookup-status.error { color:var(--brand-neg,#d94040); }
     .actions-cell { white-space:nowrap; display:flex; justify-content:flex-end; gap:4px; align-items:center; }
     .inline-form { display:contents; }
     .icon-btn {
@@ -156,7 +158,14 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
           <label for="new_lon">Долгота</label>
           <input id="new_lon" name="longitude" inputmode="decimal" placeholder="56.2502">
         </div>
+        <button type="button"
+                class="btn btn-ghost"
+                id="btnFreiCon"
+                data-url="<?= htmlspecialchars($basePath) ?>/admin/directories/stations/freicon">
+          Данные из FreiCON
+        </button>
         <button type="submit" class="btn btn-primary">Сохранить</button>
+        <div class="station-lookup-status" id="freiConStatus" aria-live="polite"></div>
       </form>
     </div>
 
@@ -278,6 +287,54 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
 </div>
 
 <script>
+  document.getElementById('btnFreiCon').addEventListener('click', function () {
+    var button = this;
+    var esrCode = document.getElementById('new_esr').value.trim();
+    var status = document.getElementById('freiConStatus');
+
+    status.classList.remove('error');
+    if (!/^\d{1,6}$/.test(esrCode)) {
+      status.textContent = 'Сначала введите код ЕСР — до шести цифр.';
+      status.classList.add('error');
+      document.getElementById('new_esr').focus();
+      return;
+    }
+
+    button.disabled = true;
+    status.textContent = 'Получение данных из FreiCON...';
+
+    fetch(button.dataset.url + '?esr_code=' + encodeURIComponent(esrCode), {
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(function (response) {
+        return response.json().then(function (data) {
+          if (!response.ok) {
+            throw new Error(data.error || 'Ошибка поиска');
+          }
+          return data;
+        });
+      })
+      .then(function (data) {
+        var station = data.station;
+        if (!station) {
+          status.textContent = 'Станция не найдена. Заполните данные вручную.';
+          return;
+        }
+        document.getElementById('new_esr').value = station.esr_code || esrCode;
+        document.getElementById('new_name').value = station.station_name || '';
+        document.getElementById('new_lat').value = station.latitude || '';
+        document.getElementById('new_lon').value = station.longitude || '';
+        status.textContent = 'Данные станции заполнены из FreiCON.';
+      })
+      .catch(function (error) {
+        status.textContent = error.message || 'Не удалось выполнить поиск.';
+        status.classList.add('error');
+      })
+      .finally(function () {
+        button.disabled = false;
+      });
+  });
+
   function openStationModal(button) {
     document.getElementById('edit_esr').value = button.dataset.code || '';
     document.getElementById('edit_name').value = button.dataset.name || '';

@@ -11,6 +11,15 @@ class ApiController
 {
     private const WAG_TYPE_EXPR = "xx_etw.xx_rjd_dislocation_new_pkg.fnc_mapping_wag_type(wagon_type_code)";
     private const WAG_STATE = "xx_etw.xx_rjd_dislocation_new_pkg.fnc_get_state_wagon(cargo_weight_kg)";
+    private const EXCLUDED_WAGONS_COND = "
+        AND NOT EXISTS (
+            SELECT 1
+              FROM xx_disl_idle_control_v dic
+             WHERE 1=1 and TRIM(dic.car_number) = TRIM(TO_CHAR(wagon_no))
+               AND UPPER(TRIM(dic.is_excluded)) = 'Y'
+               AND UPPER(REPLACE(TRIM(dic.idle_reasons_name), 'Ё', 'Е'))
+                   IN ('ЛОМ', 'МЕТАЛЛОЛОМ')
+        )";
 
     private DbInterface $db;
 
@@ -635,6 +644,7 @@ class ApiController
             $bindings['cargo_f'] = $cargo;
         }
         $whereCond .= $this->wagonNoCond($params, $bindings);
+        $whereCond .= self::EXCLUDED_WAGONS_COND;
 
         return [
             'from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)",
@@ -665,6 +675,7 @@ class ApiController
             $bindings['prev_cargo_f'] = $prevCargo;
         }
         $whereCond .= $this->wagonNoCond($params, $bindings);
+        $whereCond .= self::EXCLUDED_WAGONS_COND;
 
         return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
@@ -691,6 +702,7 @@ class ApiController
             $bindings['dest_station'] = $destStation;
         }
         $whereCond .= $this->wagonNoCond($params, $bindings);
+        $whereCond .= self::EXCLUDED_WAGONS_COND;
 
         return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
@@ -712,6 +724,7 @@ class ApiController
             $bindings['cargo_f'] = $cargo;
         }
         $whereCond .= $this->wagonNoCond($params, $bindings);
+        $whereCond .= self::EXCLUDED_WAGONS_COND;
 
         return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
@@ -729,6 +742,7 @@ class ApiController
             . " AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0"
             . " AND idle_time_days IS NOT NULL AND idle_time_days != 0";
         $whereCond .= $this->wagonNoCond($params, $bindings);
+        $whereCond .= self::EXCLUDED_WAGONS_COND;
 
         return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
@@ -760,6 +774,7 @@ class ApiController
             $bindings['dest_station'] = $destStation;
         }
         $whereCond .= $this->wagonNoCond($params, $bindings);
+        $whereCond .= self::EXCLUDED_WAGONS_COND;
 
         $reportDt = !empty($dtsByType) ? max($dtsByType) : null;
         $from = "(SELECT xdr.*

@@ -19,6 +19,14 @@ return [
     'ad_domain' => 'mf.metafrax.ru',
     'ad_base_dn' => 'DC=mf,DC=metafrax,DC=ru',
 
+    // Локальная имитация Kerberos. На PROD: kerberos_mode => 'server'.
+    'kerberos_enabled' => true,
+    'kerberos_mode' => 'local',
+    'kerberos_server_key' => 'REMOTE_USER',
+    'kerberos_local_username' => 'user1',
+    'kerberos_strip_realm' => true,
+    'kerberos_auto_create_user' => true,
+
     'auth_log_file' => '/tmp/auth_debug.log',
     'ldap_log_file' => '/tmp/ldap_debug.log',
 

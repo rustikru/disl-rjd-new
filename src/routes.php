@@ -42,6 +42,16 @@ return function (App $app, array $config): void {
         return (new \App\Controllers\AuthController($auth, $config))->handleLogin($req, $res);
     });
 
+    $app->get('/auth/kerberos', function ($req, $res) use ($getAuth, $config) {
+        try {
+            $auth = $getAuth();
+        } catch (\Throwable $e) {
+            $_SESSION['login_error'] = 'База данных недоступна. Проверьте подключение к Oracle.';
+            return $res->withHeader('Location', ($config['base_path'] ?? '') . '/login')->withStatus(302);
+        }
+        return (new \App\Controllers\AuthController($auth, $config))->handleKerberos($req, $res);
+    });
+
     $app->post('/logout', function ($req, $res) use ($config) {
         $body = (array) $req->getParsedBody();
         $csrf = $body['csrf_token'] ?? '';
@@ -94,6 +104,9 @@ return function (App $app, array $config): void {
         });
         $group->get('/admin/directories/stations', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->stationsPage($req, $res);
+        });
+        $group->get('/admin/directories/stations/freicon', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->findFreiConStation($req, $res);
         });
         $group->post('/admin/users', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->createUser($req, $res);
@@ -218,6 +231,11 @@ return function (App $app, array $config): void {
                 $sub->get('/detail', function ($req, $res) use ($getDb) {
                     return (new \App\Controllers\ApiController($getDb()))->downtimeDetail($req, $res);
                 });
+            });
+
+            // --- Контроль простоев ---
+            $api->get('/downtime-control/detail', function ($req, $res) use ($getDb) {
+                return (new \App\Controllers\DowntimeControlController($getDb()))->detail($req, $res);
             });
 
             // --- Сырьё ---

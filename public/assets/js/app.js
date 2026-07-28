@@ -409,6 +409,34 @@ var WAGON_TABS = {
     },
   },
 
+  // Контроль простоев
+  'downtime-control': {
+    ctx: 'downtime-control',
+    detailUrl: BASE + '/api/downtime-control/detail',
+    csvDetFilename: 'контроль-простоев',
+    detTableId: 'downtimeControlTable',
+    detSubId: 'idleControlSub',
+    detPanelId: 'panel-downtime-control',
+    loadedKey: '_downtimeControlLoaded',
+    loadedDetKey: '_downtimeControlDetLoaded',
+    applyBtnId: 'btnDowntimeControlApply',
+    resetBtnId: 'btnDowntimeControlReset',
+    groupCols: [],
+    colDims: [],
+    getParams: function () {
+      return {
+        wagon_no: $('#fDowntimeControlWagonNo').val().trim() || undefined,
+        date_from: $('#fDowntimeControlDateFrom').val() || undefined,
+        date_to: $('#fDowntimeControlDateTo').val() || undefined,
+      }
+    },
+    resetFilters: function () {
+      $('#fDowntimeControlWagonNo').val('')
+      $('#fDowntimeControlDateFrom').val('')
+      $('#fDowntimeControlDateTo').val('')
+    },
+  },
+
   // Сырьё
   'raw-material': {
     ctx: 'raw-material',
@@ -2103,9 +2131,10 @@ $(function () {
   if (startTab !== 'dislocation') switchTab(startTab)
 
   var kpiXhrs = hasDashboard ? loadKPI() : null
-  var summaryXhr = hasDashboard
-    ? initTab(WAGON_TABS[startTab] || WAGON_TABS.dislocation)
-    : null
+  var summaryXhr = null
+  if (hasDashboard) {
+    summaryXhr = initTab(WAGON_TABS[startTab] || WAGON_TABS.dislocation)
+  }
 
   // Скрываем оверлей когда готовы и KPI, и сводная таблица
   var allXhrs = (kpiXhrs || []).concat(summaryXhr ? [summaryXhr] : [])
@@ -2145,6 +2174,10 @@ $(function () {
       if (cfg.resetFilters) cfg.resetFilters()
       window[cfg.loadedDetKey] = false
       loadSummary(cfg)
+      if (!cfg.summaryUrl && $('#' + cfg.detPanelId).hasClass('active')) {
+        window[cfg.loadedDetKey] = true
+        loadDetail(cfg)
+      }
     })
   })
 })

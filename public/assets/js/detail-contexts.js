@@ -259,6 +259,22 @@ var DETAIL_CONTEXTS = {
     cols: buildCols([]),
   },
 
+  /**** Контроль простоев */
+  'downtime-control': {
+    label: 'Контроль простоев',
+    endpoint: '/api/downtime-control/detail',
+    sort: { field: 'id_control', type: 'number', dir: 'desc' },
+    cols: [
+      { key: 'car_number', label: '№ вагона', meta: true },
+      { key: 'start_date', label: 'Дата начала', formatData: 'DD.MM.YYYY' },
+      { key: 'end_date', label: 'Дата окончания', formatData: 'DD.MM.YYYY' },
+      { key: 'idle_reasons_name', label: 'Причина простоя', meta: true },
+      { key: 'note', label: 'Примечание', meta: true },
+      { key: 'is_excluded', label: 'Исключён', meta: true },
+      { key: 'created_name', label: 'Создал', meta: true },
+    ],
+  },
+
   /**** Сырьё */
   'raw-material': {
     label: 'Сырьё',

@@ -143,4 +143,23 @@ class AuthServiceTest extends TestCase
         $this->assertSame([], $result['role_codes']);
         $this->assertFalse($result['is_admin']);
     }
+
+    public function testKerberosIdentityUsesLocalUserAndRoles(): void
+    {
+        $db = $this->makeDb(
+            ['id' => 1, 'username' => 'administrator', 'display_name' => 'Administrator', 'email' => '', 'is_active' => 1],
+            [['id' => 1, 'code' => 'ADMIN', 'name' => 'Администратор']]
+        );
+
+        $result = $this->makeService($db)->loginKerberos([
+            'username' => 'administrator',
+            'display_name' => 'administrator',
+            'email' => '',
+            'auth_source' => 'kerberos',
+        ]);
+
+        $this->assertNotNull($result);
+        $this->assertSame('kerberos', $result['auth_source']);
+        $this->assertTrue($result['is_admin']);
+    }
 }

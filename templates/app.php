@@ -429,7 +429,41 @@ $basePath = $basePath ?? '';
       </div>
 
       <!-- Контроль простоев -->
-      <div id="panel-downtime-control" class="tab-panel"></div>
+      <div id="panel-downtime-control" class="tab-panel">
+        <div class="filters-bar">
+          <div class="filters-inner">
+            <div class="filter-item" style="flex-basis:100%">
+              <label class="filter-label" for="fDowntimeControlWagonNo">№ вагона</label>
+              <input class="filter-input" type="text" id="fDowntimeControlWagonNo"
+                placeholder="Номер вагона1; Номер вагона2; ...">
+            </div>
+            <div class="filter-item">
+              <label class="filter-label" for="fDowntimeControlDateFrom">Дата действия с</label>
+              <input class="filter-input" type="date" id="fDowntimeControlDateFrom" value="<?= date('Y-m-01') ?>"
+                style="width:145px">
+            </div>
+            <div class="filter-item">
+              <label class="filter-label" for="fDowntimeControlDateTo">по</label>
+              <input class="filter-input" type="date" id="fDowntimeControlDateTo" value="<?= date('Y-m-d') ?>"
+                style="width:145px">
+            </div>
+            <div class="filter-actions" style="flex-basis:100%">
+              <button class="btn btn-primary btn-sm" id="btnDowntimeControlApply">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="btnDowntimeControlReset">Сбросить</button>
+            </div>
+          </div>
+        </div>
+        <section class="table-section">
+          <div class="table-toolbar">
+            <div class="table-info">
+              <span class="table-title">Контроль простоев</span>
+              <span class="table-sub" id="idleControlSub"></span>
+            </div>
+            <div class="table-acts"></div>
+          </div>
+          <div id="downtimeControlTable"></div>
+        </section>
+      </div>
     </main>
   </div>
 
