@@ -27,6 +27,12 @@ return [
         ],
     ],
     [
+        'group' => 'Реестр',
+        'items' => [
+            ['id' => 'downtime-control', 'label' => 'Контроль простоев', 'page' => 'dashboard'],
+        ],
+    ],
+    [
         'group' => 'Импорт',
         'items' => [
             ['id' => 'import', 'label' => 'Загрузка справки РЖД', 'page' => 'import', 'url' => '/import'],

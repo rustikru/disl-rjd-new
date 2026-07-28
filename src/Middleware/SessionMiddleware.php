@@ -13,6 +13,8 @@ use Psr\Http\Server\RequestHandlerInterface;
  */
 class SessionMiddleware implements MiddlewareInterface
 {
+    private const SESSION_LIFETIME = 28800; // 8 часов
+
     private string $sessionName;
 
     public function __construct(string $sessionName)
@@ -23,6 +25,8 @@ class SessionMiddleware implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         if (session_status() === PHP_SESSION_NONE) {
+            ini_set('session.gc_maxlifetime', (string) self::SESSION_LIFETIME);
+            ini_set('session.cookie_lifetime', '0');
             session_name($this->sessionName);
             session_start();
         }

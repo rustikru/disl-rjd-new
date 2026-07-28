@@ -427,6 +427,9 @@ $basePath = $basePath ?? '';
           </section>
         </div>
       </div>
+
+      <!-- Контроль простоев -->
+      <div id="panel-downtime-control" class="tab-panel"></div>
     </main>
   </div>
 
