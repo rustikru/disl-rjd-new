@@ -1160,9 +1160,11 @@ class ApiController
         $filename = $parsedBody['filename'] ?? 'Сводный_отчет';
 
         $colGroups = $rawData['col_groups'] ?? [];
+        $cols = $rawData['cols'] ?? [];
+        $groupCols = $rawData['group_cols'] ?? [];
         $roads = $rawData['roads'] ?? [];
 
-        return \App\ExcelExporter::downloadMatrix($response, $colGroups, $roads, $filename);
+        return \App\ExcelExporter::downloadMatrix($response, $colGroups, $roads, $filename, $groupCols, $cols);
     }
 
     private function json(ResponseInterface $response, $data): ResponseInterface

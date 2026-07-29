@@ -737,7 +737,12 @@ function loadSummary(cfg) {
         })
       }
 
-      _matrixData[cfg.sumTableId] = { col_groups: data.col_groups || null, roads: data.roads || [] }
+      _matrixData[cfg.sumTableId] = {
+        col_groups: data.col_groups || null,
+        cols: data.cols || [],
+        group_cols: cfg.groupCols || [],
+        roads: data.roads || [],
+      }
 
       var cells = drawSummary(
         '#' + cfg.sumTableId,

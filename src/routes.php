@@ -66,6 +66,16 @@ return function (App $app, array $config): void {
         return $res->withHeader('Location', ($config['base_path'] ?? '') . '/login')->withStatus(302);
     });
 
+    // Отдельная ручная страница: берёт последние XLSX из уже обработанных писем.
+    // Маршрут не включён в навигацию, но требует обычной авторизации приложения.
+    $app->map(['GET', 'POST'], '/bin/downloads_mail_rjd.php', function ($req, $res) {
+        ob_start();
+        require __DIR__ . '/../bin/downloads_mail_rjd.php';
+        $html = (string) ob_get_clean();
+        $res->getBody()->write($html);
+        return $res->withHeader('Content-Type', 'text/html; charset=utf-8');
+    })->add(new \App\Middleware\AuthMiddleware($config['base_path'] ?? ''));
+
     // маршруты
     $app->group('', function ($group) use ($config, $getDb) {
 

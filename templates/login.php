@@ -55,7 +55,7 @@ $basePath = $basePath ?? '';
         </div>
 
         <button class="btn-login" type="submit" id="submitBtn">
-          <span class="btn-text">Войти с логином и паролем</span>
+          <span class="btn-text">Войти</span>
           <span class="btn-spinner" aria-hidden="true"></span>
         </button>
       </form>

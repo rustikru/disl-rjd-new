@@ -131,7 +131,7 @@ class ImportController
             $tmpPath = sys_get_temp_dir() . '/rzd_import_' . uniqid() . '.' . $ext;
             try {
                 $file->moveTo($tmpPath);
-                $result = $this->importFile($tmpPath);
+                $result = $this->importLocalFile($tmpPath);
             } catch (\Throwable $e) {
                 @unlink($tmpPath);
                 $errors[] = '«' . $name . '»: ' . $e->getMessage();
@@ -185,7 +185,7 @@ class ImportController
         $tmpPath = sys_get_temp_dir() . '/rzd_import_' . uniqid() . '.' . $ext;
         try {
             $file->moveTo($tmpPath);
-            $result = $this->importFile($tmpPath);
+            $result = $this->importLocalFile($tmpPath);
         } catch (\Throwable $e) {
             @unlink($tmpPath);
             return $this->jsonResponse($response, 500, ['status' => 'error', 'message' => $e->getMessage()]);
@@ -231,7 +231,11 @@ class ImportController
         };
     }
 
-    private function importFile(string $path): array
+    /**
+     * Импорт локального XLSX теми же правилами, что и ручная форма.
+     * Используется также отдельной ручной страницей из bin.
+     */
+    public function importLocalFile(string $path): array
     {
         ini_set('memory_limit', '512M');
 
