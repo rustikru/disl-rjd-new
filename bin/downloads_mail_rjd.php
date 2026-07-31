@@ -639,7 +639,18 @@ function import_saved_file(string $path): array
         require_once $autoload;
         $config = require $configFile;
         $db = \App\Database\DbFactory::create($config);
-        $controller = new \App\Controllers\ImportController($db, $config);
+        $organization = $db->fetchOne(
+            'SELECT id FROM xx_rjd_organizations WHERE code = :code AND is_active = 1',
+            ['code' => 'MTF']
+        );
+        if (!$organization) {
+            throw new RuntimeException('Организация MTF не найдена или отключена');
+        }
+        $organizations = new \App\Services\OrganizationService(
+            $db,
+            (int) $organization['id']
+        );
+        $controller = new \App\Controllers\ImportController($db, $config, $organizations);
     }
     return $controller->importLocalFile($path);
 }

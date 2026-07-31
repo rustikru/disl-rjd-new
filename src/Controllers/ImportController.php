@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Database\DbInterface;
+use App\Services\OrganizationService;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Psr\Http\Message\ResponseInterface;
@@ -14,6 +15,7 @@ class ImportController
 {
     private DbInterface $db;
     private array $config;
+    private OrganizationService $organizations;
 
     /** Поля, которые хранятся как DATE в БД (Excel: 'DD.MM.YYYY' или 'DD.MM.YYYY HH:MI') */
     private const DATE_FIELDS = [
@@ -66,20 +68,28 @@ class ImportController
         'boiler_caliber',
     ];
 
-    public function __construct(DbInterface $db, array $config = [])
+    public function __construct(
+        DbInterface $db,
+        array $config = [],
+        ?OrganizationService $organizations = null
+    )
     {
         $this->db = $db;
         $this->config = $config;
+        $this->organizations = $organizations ?? new OrganizationService($db);
     }
 
     /** GET /import */
     public function showForm(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        $filter = $this->organizations->filter();
         $reports = $this->db->fetchAll(
             "SELECT to_char((report_dt),'DD.MM.YYYY HH24:MI:SS') AS report_date, type_reference, COUNT(*) AS cnt
              FROM xx_dislocation_rjd
+             WHERE {$filter['sql']}
              GROUP BY to_char((report_dt),'DD.MM.YYYY HH24:MI:SS'), (report_dt), type_reference
-             ORDER BY (report_dt) DESC, type_reference"
+             ORDER BY (report_dt) DESC, type_reference",
+            $filter['params']
         );
 
         $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
@@ -239,6 +249,14 @@ class ImportController
     {
         ini_set('memory_limit', '512M');
 
+        $organizationId = $this->organizations->id();
+        if ($organizationId === null) {
+            throw new \RuntimeException('Пользователю не назначена организация');
+        }
+        if (!$this->organizations->isMtf()) {
+            throw new \RuntimeException('Для выбранной организации не настроено определение типа справки');
+        }
+
         $reader = IOFactory::createReaderForFile($path);
         $reader->setReadDataOnly(true);
         $spreadsheet = $reader->load($path);
@@ -255,8 +273,8 @@ class ImportController
 
         $fields = $this->columnFieldNames();
         $placeholders = array_map(fn($i) => ':p' . $i, array_keys($fields));
-        $insertSql = 'INSERT INTO xx_dislocation_rjd (report_dt, type_reference, ' . implode(', ', $fields) . ')'
-            . ' VALUES (:p_report_dt, :p_type_reference, ' . implode(', ', $placeholders) . ')';
+        $insertSql = 'INSERT INTO xx_dislocation_rjd (organization_id, report_dt, type_reference, ' . implode(', ', $fields) . ')'
+            . ' VALUES (:p_organization_id, :p_report_dt, :p_type_reference, ' . implode(', ', $placeholders) . ')';
 
         // Удаляем предыдущую справку того же дня и того же типа —
         // оставляем только максимальную (последнюю по времени) за каждый день.
@@ -264,8 +282,13 @@ class ImportController
         $this->db->execute(
             "DELETE FROM xx_dislocation_rjd
               WHERE TRUNC(report_dt) = TO_DATE(:p_report_date, 'YYYY-MM-DD')
-                AND type_reference   = :p_file_type",
-            ['p_report_date' => $reportDate, 'p_file_type' => $fileType]
+                AND type_reference   = :p_file_type
+                AND organization_id  = :p_organization_id",
+            [
+                'p_report_date' => $reportDate,
+                'p_file_type' => $fileType,
+                'p_organization_id' => $organizationId,
+            ]
         );
 
         $inserted = 0;
@@ -287,7 +310,11 @@ class ImportController
                 $destStation = $vals[11] ?? '';
                 $typeRef = ($destStation === 'УГЛЕУРАЛЬСКАЯ (768207)') ? 'Подход' : 'Отправка';
 
-                $params = ['p_report_dt' => $reportDt, 'p_type_reference' => $typeRef];
+                $params = [
+                    'p_organization_id' => $organizationId,
+                    'p_report_dt' => $reportDt,
+                    'p_type_reference' => $typeRef,
+                ];
                 foreach ($fields as $i => $field) {
                     $params['p' . $i] = $this->castValue($field, $vals[$i] ?? null);
                 }

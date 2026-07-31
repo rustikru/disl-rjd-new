@@ -24,7 +24,7 @@ $bool = static function (mixed $value): bool {
 return [
     'app_env' => (string) ($config['app_env'] ?? 'development'),
     'app_debug' => $bool($config['app_debug'] ?? false),
-    'app_name' => (string) ($config['app_name'] ?? 'АО «Метафракс Кемикалс»'),
+    'app_name' => (string) ($config['app_name'] ?? 'Дислокация РЖД'),
 
     'db_driver' => (string) ($config['db_driver'] ?? 'oracle'),
     'db_host' => (string) ($config['db_host'] ?? 'localhost'),

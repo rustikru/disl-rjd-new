@@ -1,6 +1,6 @@
 <?php
 
-$appName = $appName ?? 'АО Метафракс Кемикалс';
+$appName = $appName ?? 'Дислокация РЖД';
 $basePath = $basePath ?? '';
 $user = $user ?? ['display_name' => 'Пользователь'];
 $reportDtLabel = $reportDtLabel ?? '';

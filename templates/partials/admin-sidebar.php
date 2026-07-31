@@ -7,6 +7,7 @@ $adminNavItems = [
 ];
 
 $directoryNavItems = [
+    ['key' => 'organizations', 'label' => 'Организации',          'url' => $basePath . '/admin/directories/organizations'],
     ['key' => 'stations', 'label' => 'Станции и координаты', 'url' => $basePath . '/admin/directories/stations'],
 ];
 ?>

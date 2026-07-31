@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Database\DbInterface;
+use App\Services\OrganizationService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -22,10 +23,12 @@ class ApiController
         )";
 
     private DbInterface $db;
+    private OrganizationService $organizations;
 
-    public function __construct(DbInterface $db)
+    public function __construct(DbInterface $db, ?OrganizationService $organizations = null)
     {
         $this->db = $db;
+        $this->organizations = $organizations ?? new OrganizationService($db);
     }
 
     // =========================================================================
@@ -60,6 +63,27 @@ class ApiController
     /** GET /api/kpi/summary */
     public function kpiSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        $filter = $this->organizations->filter();
+        $dtRow = $this->db->fetchAll(
+            "SELECT MAX(report_dt) AS latest_dt
+               FROM xx_dislocation_rjd
+              WHERE {$filter['sql']}",
+            $filter['params']
+        );
+        $latestDt = $dtRow[0]['latest_dt'] ?? null;
+        try {
+            $updatedAt = $latestDt ? (new \DateTime($latestDt))->format('d.m.Y H:i') : null;
+        } catch (\Exception $e) {
+            $updatedAt = $latestDt;
+        }
+
+        if (!$this->organizations->isMtf()) {
+            return $this->json($response, [
+                'updated_at' => $updatedAt,
+                'sections' => [['values' => []]],
+            ]);
+        }
+
         $params = $request->getQueryParams();
         $bindings = [];
         $whereCond = '1=1';
@@ -118,14 +142,6 @@ class ApiController
             ];
         }
 
-        $dtRow = $this->db->fetchAll("SELECT MAX(report_dt) AS latest_dt FROM xx_dislocation_rjd");
-        $latestDt = $dtRow[0]['latest_dt'] ?? null;
-        try {
-            $updatedAt = $latestDt ? (new \DateTime($latestDt))->format('d.m.Y H:i') : null;
-        } catch (\Exception $e) {
-            $updatedAt = $latestDt;
-        }
-
         return $this->json($response, [
             'updated_at' => $updatedAt,
             'sections' => [['values' => $values]],
@@ -134,11 +150,14 @@ class ApiController
     /** GET /api/dislocation/filters */
     public function dislFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        $filter = $this->organizations->filter();
         $rows = $this->db->fetchAll(
             'SELECT TRUNC(report_dt) AS report_date, type_reference, COUNT(*) AS cnt
              FROM xx_dislocation_rjd
+             WHERE ' . $filter['sql'] . '
              GROUP BY TRUNC(report_dt), type_reference
-             ORDER BY TRUNC(report_dt) DESC, type_reference'
+             ORDER BY TRUNC(report_dt) DESC, type_reference',
+            $filter['params']
         );
 
         $source = $this->dislFrom([]);
@@ -548,6 +567,7 @@ class ApiController
         $params = $request->getQueryParams();
         $bindings = [];
         $whereCond = '1=1';
+        $this->organizations->addFilter($whereCond, $bindings);
 
         $wagonNo = trim($params['wagon_no'] ?? '');
         if ($wagonNo !== '') {
@@ -584,6 +604,7 @@ class ApiController
         $params = $request->getQueryParams();
         $bindings = [];
         $whereCond = '1=1';
+        $this->organizations->addFilter($whereCond, $bindings);
 
         $wagonNo = trim($params['wagon_no'] ?? '');
         if ($wagonNo !== '') {
@@ -644,7 +665,7 @@ class ApiController
             $bindings['cargo_f'] = $cargo;
         }
         $whereCond .= $this->wagonNoCond($params, $bindings);
-        $whereCond .= self::EXCLUDED_WAGONS_COND;
+        $whereCond .= $this->excludedWagonsCondition();
 
         return [
             'from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)",
@@ -662,7 +683,11 @@ class ApiController
         }
 
         $bindings = ['report_dt' => $reportDt];
-        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Подход' and upper(dest_station) like '%УГЛ%'";
+        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Подход'";
+        if ($this->organizations->isMtf()) {
+            $whereCond .= " AND UPPER(dest_station) LIKE '%УГЛ%'";
+        }
+        $this->organizations->addFilter($whereCond, $bindings);
 
         $cargo = $params['cargo'] ?? null;
         if ($cargo) {
@@ -675,7 +700,7 @@ class ApiController
             $bindings['prev_cargo_f'] = $prevCargo;
         }
         $whereCond .= $this->wagonNoCond($params, $bindings);
-        $whereCond .= self::EXCLUDED_WAGONS_COND;
+        $whereCond .= $this->excludedWagonsCondition();
 
         return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
@@ -689,7 +714,11 @@ class ApiController
         }
 
         $bindings = ['report_dt' => $reportDt];
-        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') and upper(dest_station) not like '%УГЛ%'";
+        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Отправка'";
+        if ($this->organizations->isMtf()) {
+            $whereCond .= " AND UPPER(dest_station) NOT LIKE '%УГЛ%'";
+        }
+        $this->organizations->addFilter($whereCond, $bindings);
 
         $cargo = $params['cargo'] ?? null;
         if ($cargo) {
@@ -702,7 +731,7 @@ class ApiController
             $bindings['dest_station'] = $destStation;
         }
         $whereCond .= $this->wagonNoCond($params, $bindings);
-        $whereCond .= self::EXCLUDED_WAGONS_COND;
+        $whereCond .= $this->excludedWagonsCondition();
 
         return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
@@ -717,6 +746,7 @@ class ApiController
 
         $bindings = ['report_dt' => $reportDt];
         $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
+        $this->organizations->addFilter($whereCond, $bindings);
 
         $cargo = $params['cargo'] ?? null;
         if ($cargo) {
@@ -724,7 +754,7 @@ class ApiController
             $bindings['cargo_f'] = $cargo;
         }
         $whereCond .= $this->wagonNoCond($params, $bindings);
-        $whereCond .= self::EXCLUDED_WAGONS_COND;
+        $whereCond .= $this->excludedWagonsCondition();
 
         return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
@@ -741,8 +771,9 @@ class ApiController
         $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')"
             . " AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0"
             . " AND idle_time_days IS NOT NULL AND idle_time_days != 0";
+        $this->organizations->addFilter($whereCond, $bindings);
         $whereCond .= $this->wagonNoCond($params, $bindings);
-        $whereCond .= self::EXCLUDED_WAGONS_COND;
+        $whereCond .= $this->excludedWagonsCondition();
 
         return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
     }
@@ -774,7 +805,7 @@ class ApiController
             $bindings['dest_station'] = $destStation;
         }
         $whereCond .= $this->wagonNoCond($params, $bindings);
-        $whereCond .= self::EXCLUDED_WAGONS_COND;
+        $whereCond .= $this->excludedWagonsCondition();
 
         $reportDt = !empty($dtsByType) ? max($dtsByType) : null;
         $from = "(SELECT xdr.*
@@ -977,6 +1008,11 @@ class ApiController
         return $f !== '' && (bool) preg_match('/^[a-z_][a-z0-9_]*$/iD', $f);
     }
 
+    private function excludedWagonsCondition(): string
+    {
+        return $this->organizations->isMtf() ? self::EXCLUDED_WAGONS_COND : '';
+    }
+
     // =========================================================================
     // Вспомогательные методы для работы с датами справок
     // =========================================================================
@@ -988,9 +1024,11 @@ class ApiController
             return $dt;
         }
         $sql = 'SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd';
-        $params = [];
+        $filter = $this->organizations->filter();
+        $sql .= ' WHERE ' . $filter['sql'];
+        $params = $filter['params'];
         if ($typeRef !== null) {
-            $sql .= ' WHERE type_reference = :type_ref';
+            $sql .= ' AND type_reference = :type_ref';
             $params['type_ref'] = $typeRef;
         }
         $row = $this->db->fetchOne($sql, $params);
@@ -1004,10 +1042,12 @@ class ApiController
             return [];
         }
         $sql = 'SELECT type_reference, MAX(report_dt) AS dt FROM xx_dislocation_rjd';
-        $params = [];
+        $filter = $this->organizations->filter();
+        $sql .= ' WHERE ' . $filter['sql'];
+        $params = $filter['params'];
         if ($types !== null) {
             $placeholders = implode(',', array_map(fn($i) => ":t$i", array_keys($types)));
-            $sql .= " WHERE type_reference IN ($placeholders)";
+            $sql .= " AND type_reference IN ($placeholders)";
             foreach ($types as $i => $t) {
                 $params["t$i"] = $t;
             }
@@ -1040,7 +1080,9 @@ class ApiController
             $params["ldt_dt_{$i}"] = $dt;
             $i++;
         }
-        return ['sql' => '(' . implode(' OR ', $parts) . ')', 'params' => $params];
+        $sql = '(' . implode(' OR ', $parts) . ')';
+        $this->organizations->addFilter($sql, $params, $alias);
+        return ['sql' => $sql, 'params' => $params];
     }
 
     // =========================================================================

@@ -240,9 +240,12 @@ var WAGON_TABS = {
     csvFilename: 'подход',
     csvDetFilename: 'подход-расширенная',
     totalText: 'Общий итог',
-    pinnedRowLabel: 'ст. Углеуральская',
-    pinnedStationKey: 'УГЛЕУР',
-    firstRoadKey: 'СВЕРДЛ',
+    pinnedRowLabel:
+      window.APP_ORGANIZATION_CODE === 'MTF' ? 'ст. Углеуральская' : undefined,
+    pinnedStationKey:
+      window.APP_ORGANIZATION_CODE === 'MTF' ? 'УГЛЕУР' : undefined,
+    firstRoadKey:
+      window.APP_ORGANIZATION_CODE === 'MTF' ? 'СВЕРДЛ' : undefined,
     sumTableId: 'approachSumTable',
     sumSubId: 'approachSumSub',
     sumSubLabel: 'Всего в подходе',
@@ -290,7 +293,10 @@ var WAGON_TABS = {
     }, */
     csvFilename: 'отправление',
     csvDetFilename: 'отправление-расширенная',
-    totalText: 'Всего отправлено со ст.Углеуральская',
+    totalText:
+      window.APP_ORGANIZATION_CODE === 'MTF'
+        ? 'Всего отправлено со ст. Углеуральская'
+        : 'Всего отправлено',
     sumTableId: 'departureSumTable',
     sumSubId: 'departureSumSub',
     sumSubLabel: 'Всего',

@@ -1,7 +1,7 @@
 create or replace package xx_rjd_dislocation_new_pkg as
     /******************************************************************************
     NAME:  xx_etw.xx_rjd_dislocation_new_pkg
-    PURPOSE:   Метафракс: Дислокация РЖД (справка из кабинета)
+    PURPOSE:   Дислокация РЖД (справка из кабинета)
     REVISIONS:
     Ver        Date        Author           Description
     ---------  ----------  ---------------  ------------------------------------

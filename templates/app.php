@@ -3,6 +3,18 @@
 /** @var string $basePath */
 /** @var array  $user  ['username', 'display_name', 'email', 'auth_source'] */
 $basePath = $basePath ?? '';
+$activeOrganizationCode = '';
+$activeOrganizationName = '';
+foreach ($_SESSION['organizations'] ?? [] as $organization) {
+    if ((int) ($organization['id'] ?? 0) === (int) ($_SESSION['organization_id'] ?? 0)) {
+        $activeOrganizationCode = (string) ($organization['code'] ?? '');
+        $activeOrganizationName = (string) (
+            ($organization['short_name'] ?? '') ?: ($organization['name'] ?? '')
+        );
+        break;
+    }
+}
+$isMtf = strtoupper($activeOrganizationCode) === 'MTF';
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -18,12 +30,14 @@ $basePath = $basePath ?? '';
     window.APP_IS_ADMIN = <?= !empty($user['is_admin']) ? 'true' : 'false' ?>;
     window.APP_ALLOWED_PAGES = <?= json_encode($allowedPages ?? [], JSON_UNESCAPED_UNICODE) ?>;
     window.APP_NAV_CONFIG = <?= json_encode($navConfig ?? [], JSON_UNESCAPED_UNICODE) ?>;
+    window.APP_ORGANIZATION_CODE = <?= json_encode($activeOrganizationCode, JSON_UNESCAPED_UNICODE) ?>;
   </script>
 </head>
 
 <body>
 
   <?php
+  $headerName = $activeOrganizationName !== '' ? $activeOrganizationName : $appName;
   $headerSub = '<div id="brandDateSub" class="brand-date-sub"></div>';
   $headerRight = '';
   include __DIR__ . '/partials/header.php';
@@ -69,7 +83,9 @@ $basePath = $basePath ?? '';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title">Сводная дислокация <?= htmlspecialchars($appName) ?></span>
+                <span class="table-title">
+                  Сводная дислокация<?= $activeOrganizationName !== '' ? ' ' . htmlspecialchars($activeOrganizationName) : '' ?>
+                </span>
                 <span class="table-sub" id="mainTableSub"></span>
               </div>
               <div class="table-acts">
@@ -136,7 +152,7 @@ $basePath = $basePath ?? '';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title">Подход вагонов к ст.Углеуральская (сводная)</span>
+                <span class="table-title"><?= $isMtf ? 'Подход вагонов к ст. Углеуральская (сводная)' : 'Подход вагонов (сводная)' ?></span>
                 <span class="table-sub" id="approachSumSub"></span>
               </div>
               <div class="table-acts">
@@ -200,7 +216,7 @@ $basePath = $basePath ?? '';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title">Отправление вагонов со ст.Углеуральская — сводная</span>
+                <span class="table-title"><?= $isMtf ? 'Отправление вагонов со ст. Углеуральская — сводная' : 'Отправление вагонов — сводная' ?></span>
                 <span class="table-sub" id="departureSumSub"></span>
               </div>
               <div class="table-acts">

@@ -1,7 +1,7 @@
 create or replace package body xx_rjd_dislocation_new_pkg as
     /******************************************************************************
         NAME:  xx_etw.xx_rjd_dislocation_new_pkg
-        PURPOSE:   Метафракс: Дислокация РЖД (справка из кабинета)
+        PURPOSE:   Дислокация РЖД (справка из кабинета)
         REVISIONS:
         Ver        Date        Author           Description
         ---------  ----------  ---------------  ------------------------------------
@@ -183,7 +183,22 @@ create or replace package body xx_rjd_dislocation_new_pkg as
       p_kpi_id in number
    ) return varchar2 is
       l_kpi xx_rjd_kpi_tbl_v%rowtype;
+      l_org_code xx_rjd_organizations.code%type;
    begin
+      begin
+         select code
+           into l_org_code
+           from xx_rjd_organizations
+          where id = to_number(sys_context('USERENV', 'CLIENT_IDENTIFIER'));
+      exception
+         when no_data_found then
+            return '1=0';
+      end;
+
+      if upper(l_org_code) != 'MTF' then
+         return '1=0';
+      end if;
+
       select *
         into l_kpi
         from xx_rjd_kpi_tbl_v
@@ -234,7 +249,11 @@ create or replace package body xx_rjd_dislocation_new_pkg as
    ) return number is
       l_dummy number;
    begin
-      execute immediate 'SELECT 1 FROM xx_dislocation_rjd WHERE id = :id AND ' || get_kpi_where(p_kpi_id)
+      execute immediate
+         'SELECT 1 FROM xx_dislocation_rjd'
+         || ' WHERE id = :id'
+         || ' AND organization_id = TO_NUMBER(SYS_CONTEXT(''USERENV'', ''CLIENT_IDENTIFIER''))'
+         || ' AND ' || get_kpi_where(p_kpi_id)
         into l_dummy
          using p_disl_rjd_id;
       return 1;
@@ -261,9 +280,12 @@ create or replace package body xx_rjd_dislocation_new_pkg as
       if p_date is null then
             -- Текущие данные (последний report_dt по каждому type_reference)
          l_sql := 'SELECT COUNT(*) FROM xx_dislocation_rjd'
-                  || ' WHERE (report_dt, type_reference) IN ('
+                  || ' WHERE organization_id = TO_NUMBER(SYS_CONTEXT(''USERENV'', ''CLIENT_IDENTIFIER''))'
+                  || ' AND (report_dt, type_reference) IN ('
                   || '   SELECT MAX(report_dt), type_reference'
-                  || '   FROM xx_dislocation_rjd GROUP BY type_reference'
+                  || '   FROM xx_dislocation_rjd'
+                  || '   WHERE organization_id = TO_NUMBER(SYS_CONTEXT(''USERENV'', ''CLIENT_IDENTIFIER''))'
+                  || '   GROUP BY type_reference'
                   || ' ) AND '
                   || l_kpi_where;
          dbms_output.put_line(' 1_l_sql =' || l_sql);
@@ -273,10 +295,12 @@ create or replace package body xx_rjd_dislocation_new_pkg as
             
             -- Последняя максимальная справка за вчера
          l_sql := 'SELECT COUNT(*) FROM xx_dislocation_rjd'
-                  || ' WHERE (report_dt, type_reference) IN ('
+                  || ' WHERE organization_id = TO_NUMBER(SYS_CONTEXT(''USERENV'', ''CLIENT_IDENTIFIER''))'
+                  || ' AND (report_dt, type_reference) IN ('
                   || '   SELECT MAX(report_dt), type_reference'
                   || '     FROM xx_dislocation_rjd'
-                  || '    WHERE report_dt >= TRUNC(:d1)'
+                  || '    WHERE organization_id = TO_NUMBER(SYS_CONTEXT(''USERENV'', ''CLIENT_IDENTIFIER''))'
+                  || '      AND report_dt >= TRUNC(:d1)'
                   || '      AND report_dt <  TRUNC(:d2) + 1'
                   || '    GROUP BY type_reference'
                   || ' ) AND '
@@ -431,10 +455,12 @@ create or replace package body xx_rjd_dislocation_new_pkg as
          delete xx_dislocation_rjd
           where report_dt >= c.report_dt
             and report_dt < c.report_dt + 1
-            and type_reference = c.type_reference;
+            and type_reference = c.type_reference
+            and organization_id = to_number(sys_context('USERENV', 'CLIENT_IDENTIFIER'));
       end loop;
 
       insert into xx_dislocation_rjd (
+         organization_id,
          report_dt,
          type_reference,
          wagon_no,
@@ -564,7 +590,8 @@ create or replace package body xx_rjd_dislocation_new_pkg as
          days_no_oper,
          days_no_move
       )
-         select to_date(r.report_dt,
+         select to_number(sys_context('USERENV', 'CLIENT_IDENTIFIER')),
+                to_date(r.report_dt,
         'YYYY-MM-DD HH24:MI:SS'),
                 r.type_reference,
                 r.wagon_no,
@@ -1003,12 +1030,15 @@ create or replace package body xx_rjd_dislocation_new_pkg as
            left join xx_rjd_stations rs
          on rs.esr_code = xdr.oper_station_esr_code
           where xdr.oper_station_esr_code is not null
+            and xdr.organization_id =
+                to_number(sys_context('USERENV', 'CLIENT_IDENTIFIER'))
             and xdr.type_reference in ( 'Подход',
                                         'Отправка' )
             and xdr.report_dt = (
             select max(latest_rows.report_dt)
-              from xx_dislocation_rjd latest_rows
+             from xx_dislocation_rjd latest_rows
              where latest_rows.type_reference = xdr.type_reference
+               and latest_rows.organization_id = xdr.organization_id
          )
             and ( rs.esr_code is null
              or rs.latitude is null

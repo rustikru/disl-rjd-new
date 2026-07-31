@@ -9,6 +9,7 @@ return function (App $app, array $config): void {
 
     $db = null;
     $auth = null;
+    $organizations = null;
 
     $getDb = function () use ($config, &$db) {
         return $db ??= \App\Database\DbFactory::create($config);
@@ -16,6 +17,10 @@ return function (App $app, array $config): void {
 
     $getAuth = function () use ($config, &$auth, $getDb) {
         return $auth ??= new \App\Auth\AuthService($getDb(), $config);
+    };
+
+    $getOrganizations = function () use (&$organizations, $getDb) {
+        return $organizations ??= new \App\Services\OrganizationService($getDb());
     };
 
     // Публичные маршруты
@@ -77,7 +82,7 @@ return function (App $app, array $config): void {
     })->add(new \App\Middleware\AuthMiddleware($config['base_path'] ?? ''));
 
     // маршруты
-    $app->group('', function ($group) use ($config, $getDb) {
+    $app->group('', function ($group) use ($config, $getDb, $getOrganizations) {
 
         // ==========================================
         // WEB VIEW
@@ -115,6 +120,9 @@ return function (App $app, array $config): void {
         $group->get('/admin/directories/stations', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->stationsPage($req, $res);
         });
+        $group->get('/admin/directories/organizations', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->organizationsPage($req, $res);
+        });
         $group->get('/admin/directories/stations/freicon', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->findFreiConStation($req, $res);
         });
@@ -123,6 +131,9 @@ return function (App $app, array $config): void {
         });
         $group->post('/admin/users/roles', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->saveUserRoles($req, $res);
+        });
+        $group->post('/admin/users/organizations', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->saveUserOrganizations($req, $res);
         });
         $group->post('/admin/users/save', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->saveUser($req, $res);
@@ -148,10 +159,22 @@ return function (App $app, array $config): void {
         $group->post('/admin/directories/stations/delete', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->deleteStation($req, $res);
         });
+        $group->post('/admin/directories/organizations/save', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->saveOrganization($req, $res);
+        });
+        $group->post('/admin/directories/organizations/active', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->toggleOrganization($req, $res);
+        });
+        $group->post('/organization/select', function ($req, $res) use ($getOrganizations, $config) {
+            return (new \App\Controllers\OrganizationController(
+                $getOrganizations(),
+                $config['base_path'] ?? ''
+            ))->select($req, $res);
+        });
 
         // Детальная страница (статический шаблон)
         $group->get('/detail', function ($req, $res) use ($config) {
-            $appName = $config['app_name'] ?? 'Метафракс';
+            $appName = $config['app_name'] ?? 'Дислокация РЖД';
             $basePath = $config['base_path'] ?? '';
             $user = $_SESSION['user'] ?? ['display_name' => '', 'username' => '', 'auth_source' => ''];
             ob_start();
@@ -287,6 +310,7 @@ return function (App $app, array $config): void {
 
     })
         ->add(new \App\Middleware\PageAccessMiddleware($getDb, $config['base_path'] ?? '', $config))
+        ->add(new \App\Middleware\OrganizationMiddleware($getOrganizations))
         ->add(new \App\Middleware\AuthMiddleware($config['base_path'] ?? ''));
 
 };
