@@ -44,12 +44,6 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
             <?php endforeach; ?>
           </select>
         </form>
-      <?php elseif (count($headerOrganizations) === 1): ?>
-        <div class="organization-name" title="<?= htmlspecialchars($headerOrganizations[0]['name'] ?? '') ?>">
-          <?= htmlspecialchars($headerOrganizations[0]['short_name'] ?: $headerOrganizations[0]['name']) ?>
-        </div>
-      <?php else: ?>
-        <div class="organization-name organization-name--empty">Организация не назначена</div>
       <?php endif; ?>
       <div class="user-info">
         <?= $headerRight ?>
