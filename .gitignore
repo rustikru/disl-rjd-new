@@ -1,8 +1,11 @@
 .env
+rjd_config.php
 tmp/log/*.log
 .DS_Store
 \sql
 sql
+tmp
+\tmp
 .docker-compose.yml
 docker-compose.yml
 .vscode

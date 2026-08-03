@@ -11,12 +11,61 @@ class AuthService
     private DbInterface $db;
     private LdapAuth $ldap;
     private bool $adEnabled;
+    private bool $kerberosAutoCreateUser;
 
     public function __construct(DbInterface $db, array $config)
     {
         $this->db = $db;
         $this->adEnabled = $config['ad_enabled'];
+        $this->kerberosAutoCreateUser = (bool) ($config['kerberos_auto_create_user'] ?? true);
         $this->ldap = new LdapAuth($config);
+    }
+
+    public function loginKerberos(array $identity): ?array
+    {
+        $username = trim((string) ($identity['username'] ?? ''));
+        if ($username === '') {
+            return null;
+        }
+
+        $user = $this->db->fetchOne(
+            'SELECT id, username, display_name, email, is_active
+               FROM xx_rjd_users
+              WHERE username = :username',
+            ['username' => $username]
+        );
+
+        if (!$user && $this->kerberosAutoCreateUser) {
+            $this->ensureUserExists(
+                $username,
+                (string) ($identity['display_name'] ?? $username),
+                (string) ($identity['email'] ?? '')
+            );
+            $user = $this->db->fetchOne(
+                'SELECT id, username, display_name, email, is_active
+                   FROM xx_rjd_users
+                  WHERE username = :username',
+                ['username' => $username]
+            );
+        }
+
+        if (!$user || !$user['is_active']) {
+            return null;
+        }
+
+        $roles = $this->fetchUserRoles((int) $user['id']);
+        $roleCodes = array_column($roles, 'code');
+
+        return [
+            'id' => $user['id'],
+            'username' => $user['username'],
+            'display_name' => $user['display_name'],
+            'email' => $user['email'],
+            'auth_source' => 'kerberos',
+            'role_codes' => $roleCodes,
+            'role_names' => array_column($roles, 'name'),
+            'is_admin' => in_array('ADMIN', $roleCodes, true),
+        ];
     }
 
     public function login(string $username, string $password): ?array

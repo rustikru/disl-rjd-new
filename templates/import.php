@@ -192,7 +192,10 @@ $basePath = $basePath ?? '';
         <div style="margin-bottom:18px">
           <label class="filter-label" for="xlsx_file">Файлы справок</label>
           <input type="file" id="xlsx_file" accept=".xlsx" multiple>
-          <div class="upload-hint">Поддерживаются файлы .xlsx</div>
+          <div class="upload-hint">
+            Поддерживаются файлы .xlsx. Лимиты PHP: файл до <?= htmlspecialchars($uploadLimit ?? 'не задан') ?>,
+            запрос до <?= htmlspecialchars($postLimit ?? 'не задан') ?>.
+          </div>
         </div>
 
         <div class="file-list" id="fileList"></div>
@@ -285,7 +288,21 @@ $basePath = $basePath ?? '';
               fd.append('file', item.file);
 
               fetch(BASE + '/api/import/file', { method: 'POST', body: fd })
-                .then(function (r) { return r.json(); })
+                .then(function (r) {
+                  return r.text().then(function (text) {
+                    var data;
+                    try {
+                      data = text ? JSON.parse(text) : {};
+                    } catch (e) {
+                      data = { status: 'error', message: text || r.statusText || 'Некорректный ответ сервера' };
+                    }
+                    if (!r.ok) {
+                      data.status = data.status || 'error';
+                      data.message = data.message || ('HTTP ' + r.status);
+                    }
+                    return data;
+                  });
+                })
                 .then(function (data) {
                   setBadge(item.badgeEl, 'process', 'Обработка…');
                   // небольшая пауза чтобы "Обработка" успела мигнуть
@@ -304,7 +321,7 @@ $basePath = $basePath ?? '';
                   }, 200);
                 })
                 .catch(function (err) {
-                  setBadge(item.badgeEl, 'error', '✗ Ошибка сети');
+                  setBadge(item.badgeEl, 'error', '✗ ' + (err.message || 'Ошибка сети'));
                   counts.err++;
                   uploadNext(i + 1, counts);
                 });

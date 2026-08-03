@@ -5,6 +5,7 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Controllers\ApiController;
+use App\Services\OrganizationService;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -12,11 +13,17 @@ class MapsController
 {
     private DbInterface $db;
     private array $config;
+    private OrganizationService $organizations;
 
-    public function __construct(DbInterface $db, array $config = [])
+    public function __construct(
+        DbInterface $db,
+        array $config = [],
+        ?OrganizationService $organizations = null
+    )
     {
         $this->db = $db;
         $this->config = $config;
+        $this->organizations = $organizations ?? new OrganizationService($db);
     }
 
     public function showMaps(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -25,9 +32,23 @@ class MapsController
         $appName = $this->config['app_name'] ?? 'Дислокация';
         $user = $_SESSION['user'] ?? ['display_name' => '', 'username' => '', 'auth_source' => ''];
 
-        $apiController = new ApiController($this->db);
+        $apiController = new ApiController($this->db, $this->organizations);
         $dtsByType = $apiController->getLatestDtsByType(null, ['Подход', 'Отправка']);
         $cond = $apiController->latestDtCondition($dtsByType, 'xdr');
+        $stationsWithoutCoordinates = $this->db->fetchAll(
+            "SELECT xdr.oper_station_esr_code AS esr_code,
+                    MAX(NVL(rs.station_name, xdr.oper_station)) AS station_name,
+                    COUNT(*) AS wagon_count
+               FROM xx_dislocation_rjd xdr
+               LEFT JOIN xx_rjd_stations rs
+                 ON rs.esr_code = xdr.oper_station_esr_code
+              WHERE {$cond['sql']}
+                AND xdr.oper_station_esr_code IS NOT NULL
+                AND (rs.esr_code IS NULL OR rs.latitude IS NULL OR rs.longitude IS NULL)
+              GROUP BY xdr.oper_station_esr_code
+              ORDER BY MAX(NVL(rs.station_name, xdr.oper_station))",
+            $cond['params']
+        );
 
         $reportDtLabel = '';
         if (!empty($dtsByType)) {
@@ -37,6 +58,19 @@ class MapsController
             } catch (\Exception $e) {
                 $reportDtLabel = $dt;
             }
+        }
+
+        $excludedWagons = '';
+        if ($this->organizations->isMtf()) {
+            $excludedWagons = "
+               AND NOT EXISTS (
+                   SELECT 1
+                     FROM xx_disl_idle_control_v dic
+                    WHERE TRIM(dic.car_number) = TRIM(TO_CHAR(xdr.wagon_no))
+                      AND UPPER(TRIM(dic.is_excluded)) = 'Y'
+                      AND UPPER(REPLACE(TRIM(dic.idle_reasons_name), 'Ё', 'Е'))
+                          IN ('ЛОМ', 'МЕТАЛЛОЛОМ')
+               )";
         }
 
         $rows = $this->db->fetchAll(
@@ -61,7 +95,7 @@ class MapsController
              FROM xx_dislocation_rjd xdr
              LEFT JOIN xx_rjd_stations rs ON xdr.oper_station_esr_code = rs.esr_code
              WHERE {$cond['sql']}
-               ",
+               $excludedWagons",
             $cond['params']
         );
 
@@ -70,6 +104,9 @@ class MapsController
         foreach ($rows as $r) {
             $code = (string) ($r['esr_code'] ?? $r['dest_station_esr_code'] ?? '');
             if (!$code) {
+                continue;
+            }
+            if ($r['latitude'] === null || $r['longitude'] === null) {
                 continue;
             }
             if (!isset($stationsMap[$code])) {
@@ -126,6 +163,7 @@ class MapsController
         $cargosJson = json_encode($cargos, JSON_UNESCAPED_UNICODE);
         $lesseesJson = json_encode($lessees, JSON_UNESCAPED_UNICODE);
         $leaseStationsJson = json_encode($leaseStations, JSON_UNESCAPED_UNICODE);
+        $stationsWithoutCoordinatesJson = json_encode($stationsWithoutCoordinates, JSON_UNESCAPED_UNICODE);
 
         ob_start();
         include __DIR__ . '/../../templates/maps.php';

@@ -180,6 +180,55 @@ body {
   flex-shrink: 0;
 }
 
+.organization-select-form {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.organization-select-label {
+  color: var(--text-3);
+  font-size: 11px;
+}
+
+.organization-select {
+  max-width: 260px;
+  height: 32px;
+  padding: 0 30px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-1);
+  font: inherit;
+  cursor: pointer;
+  outline: none;
+}
+
+.organization-select:focus {
+  border-color: var(--accent);
+}
+
+.organization-name {
+  max-width: 260px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--accent-lt);
+  color: var(--accent);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.organization-name--empty {
+  background: #fbecec;
+  color: var(--brand-neg);
+}
+
 .header-meta a {
   text-decoration: none;
 }
@@ -228,14 +277,15 @@ body {
   display: flex;
   align-items: center;
   gap: 0;
-  background: var(--hover-green);
-  border: 1px solid var(--border);
-  border-radius: 99px;
-  padding: 3px 3px 3px 10px;
+  height: 32px;
+  background: var(--accent-lt);
+  border: none;
+  border-radius: 8px;
+  padding: 0 2px 0 10px;
 }
 
 .user-info .btn {
-  border-radius: 99px;
+  border-radius: 7px;
 }
 
 .user-info-icon {
@@ -245,7 +295,7 @@ body {
 }
 
 .user-name {
-  font-size: 13px;
+  font-size: 11.5px;
   color: var(--accent);
   font-weight: 700;
   padding: 0 10px 0 0;
@@ -254,8 +304,8 @@ body {
 
 .user-info-divider {
   width: 1px;
-  height: 18px;
-  background: var(--border);
+  height: 16px;
+  background: rgba(70, 41, 127, .18);
   flex-shrink: 0;
   margin-right: 3px;
 }
@@ -264,12 +314,22 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   padding: 0 !important;
   flex-shrink: 0;
   font-size: 16px;
   line-height: 1;
+}
+
+.user-info .btn-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.user-info .btn-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* ==========================================================================

@@ -26,6 +26,9 @@ $navGroups = [
     ['label' => 'Простои и оборот', 'items' => [
         ['label' => 'Простои', 'url' => $basePath . '/#downtime'],
     ]],
+    ['label' => 'Реестр', 'items' => [
+        ['label' => 'Контроль простоев', 'url' => $basePath . '/#downtime-control'],
+    ]],
     ['label' => 'Импорт', 'items' => [
         ['label' => 'Загрузка справки РЖД', 'url' => $basePath . '/import'],
     ]],

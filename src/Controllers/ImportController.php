@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Database\DbInterface;
+use App\Services\OrganizationService;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Psr\Http\Message\ResponseInterface;
@@ -14,6 +15,7 @@ class ImportController
 {
     private DbInterface $db;
     private array $config;
+    private OrganizationService $organizations;
 
     /** Поля, которые хранятся как DATE в БД (Excel: 'DD.MM.YYYY' или 'DD.MM.YYYY HH:MI') */
     private const DATE_FIELDS = [
@@ -66,25 +68,35 @@ class ImportController
         'boiler_caliber',
     ];
 
-    public function __construct(DbInterface $db, array $config = [])
+    public function __construct(
+        DbInterface $db,
+        array $config = [],
+        ?OrganizationService $organizations = null
+    )
     {
         $this->db = $db;
         $this->config = $config;
+        $this->organizations = $organizations ?? new OrganizationService($db);
     }
 
     /** GET /import */
     public function showForm(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        $filter = $this->organizations->filter();
         $reports = $this->db->fetchAll(
             "SELECT to_char((report_dt),'DD.MM.YYYY HH24:MI:SS') AS report_date, type_reference, COUNT(*) AS cnt
              FROM xx_dislocation_rjd
+             WHERE {$filter['sql']}
              GROUP BY to_char((report_dt),'DD.MM.YYYY HH24:MI:SS'), (report_dt), type_reference
-             ORDER BY (report_dt) DESC, type_reference"
+             ORDER BY (report_dt) DESC, type_reference",
+            $filter['params']
         );
 
         $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
         $user     = $_SESSION['user'] ?? [];
+        $uploadLimit = ini_get('upload_max_filesize') ?: 'не задан';
+        $postLimit   = ini_get('post_max_size') ?: 'не задан';
 
         ob_start();
         include __DIR__ . '/../../templates/import.php';
@@ -127,11 +139,10 @@ class ImportController
             }
 
             $tmpPath = sys_get_temp_dir() . '/rzd_import_' . uniqid() . '.' . $ext;
-            $file->moveTo($tmpPath);
-
             try {
-                $result = $this->importFile($tmpPath);
-            } catch (\Exception $e) {
+                $file->moveTo($tmpPath);
+                $result = $this->importLocalFile($tmpPath);
+            } catch (\Throwable $e) {
                 @unlink($tmpPath);
                 $errors[] = '«' . $name . '»: ' . $e->getMessage();
                 continue;
@@ -171,7 +182,7 @@ class ImportController
         if ($file->getError() !== UPLOAD_ERR_OK) {
             return $this->jsonResponse($response, 422, [
                 'status' => 'error',
-                'message' => 'Ошибка загрузки (код ' . $file->getError() . ')',
+                'message' => $this->uploadErrorMessage($file->getError()),
             ]);
         }
 
@@ -182,11 +193,10 @@ class ImportController
         }
 
         $tmpPath = sys_get_temp_dir() . '/rzd_import_' . uniqid() . '.' . $ext;
-        $file->moveTo($tmpPath);
-
         try {
-            $result = $this->importFile($tmpPath);
-        } catch (\Exception $e) {
+            $file->moveTo($tmpPath);
+            $result = $this->importLocalFile($tmpPath);
+        } catch (\Throwable $e) {
             @unlink($tmpPath);
             return $this->jsonResponse($response, 500, ['status' => 'error', 'message' => $e->getMessage()]);
         }
@@ -217,9 +227,35 @@ class ImportController
         return $response->withStatus($status)->withHeader('Content-Type', 'application/json; charset=utf-8');
     }
 
-    private function importFile(string $path): array
+    private function uploadErrorMessage(int $error): string
+    {
+        return match ($error) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'Файл превышает лимит загрузки PHP: upload_max_filesize='
+                . ini_get('upload_max_filesize') . ', post_max_size=' . ini_get('post_max_size'),
+            UPLOAD_ERR_PARTIAL => 'Файл загружен не полностью',
+            UPLOAD_ERR_NO_FILE => 'Файл не передан',
+            UPLOAD_ERR_NO_TMP_DIR => 'Не найдена временная папка для загрузки',
+            UPLOAD_ERR_CANT_WRITE => 'Не удалось записать файл на диск',
+            UPLOAD_ERR_EXTENSION => 'Загрузка остановлена расширением PHP',
+            default => 'Ошибка загрузки файла (код ' . $error . ')',
+        };
+    }
+
+    /**
+     * Импорт локального XLSX теми же правилами, что и ручная форма.
+     * Используется также отдельной ручной страницей из bin.
+     */
+    public function importLocalFile(string $path): array
     {
         ini_set('memory_limit', '512M');
+
+        $organizationId = $this->organizations->id();
+        if ($organizationId === null) {
+            throw new \RuntimeException('Пользователю не назначена организация');
+        }
+        if (!$this->organizations->isMtf()) {
+            throw new \RuntimeException('Для выбранной организации не настроено определение типа справки');
+        }
 
         $reader = IOFactory::createReaderForFile($path);
         $reader->setReadDataOnly(true);
@@ -236,18 +272,23 @@ class ImportController
         $fileType = $this->detectFileType($sheet, $highestRow);
 
         $fields = $this->columnFieldNames();
-        $placeholders = array_map(fn($f) => ':' . $f, $fields);
-        $insertSql = 'INSERT INTO xx_dislocation_rjd (report_dt, type_reference, ' . implode(', ', $fields) . ')'
-            . ' VALUES (:report_dt, :type_reference, ' . implode(', ', $placeholders) . ')';
+        $placeholders = array_map(fn($i) => ':p' . $i, array_keys($fields));
+        $insertSql = 'INSERT INTO xx_dislocation_rjd (organization_id, report_dt, type_reference, ' . implode(', ', $fields) . ')'
+            . ' VALUES (:p_organization_id, :p_report_dt, :p_type_reference, ' . implode(', ', $placeholders) . ')';
 
         // Удаляем предыдущую справку того же дня и того же типа —
         // оставляем только максимальную (последнюю по времени) за каждый день.
         $reportDate = substr($reportDt, 0, 10); // 'YYYY-MM-DD'
         $this->db->execute(
             "DELETE FROM xx_dislocation_rjd
-              WHERE TRUNC(report_dt) = TO_DATE(:date, 'YYYY-MM-DD')
-                AND type_reference   = :type",
-            ['date' => $reportDate, 'type' => $fileType]
+              WHERE TRUNC(report_dt) = TO_DATE(:p_report_date, 'YYYY-MM-DD')
+                AND type_reference   = :p_file_type
+                AND organization_id  = :p_organization_id",
+            [
+                'p_report_date' => $reportDate,
+                'p_file_type' => $fileType,
+                'p_organization_id' => $organizationId,
+            ]
         );
 
         $inserted = 0;
@@ -269,15 +310,19 @@ class ImportController
                 $destStation = $vals[11] ?? '';
                 $typeRef = ($destStation === 'УГЛЕУРАЛЬСКАЯ (768207)') ? 'Подход' : 'Отправка';
 
-                $params = ['report_dt' => $reportDt, 'type_reference' => $typeRef];
+                $params = [
+                    'p_organization_id' => $organizationId,
+                    'p_report_dt' => $reportDt,
+                    'p_type_reference' => $typeRef,
+                ];
                 foreach ($fields as $i => $field) {
-                    $params[$field] = $this->castValue($field, $vals[$i] ?? null);
+                    $params['p' . $i] = $this->castValue($field, $vals[$i] ?? null);
                 }
                 $this->db->execute($insertSql, $params);
                 $inserted++;
             }
             $this->db->commit();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->db->rollback();
             throw $e;
         } finally {

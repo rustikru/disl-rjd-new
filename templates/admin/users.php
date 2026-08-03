@@ -1,5 +1,10 @@
 <?php
 $basePath = $basePath ?? '';
+$organizations = $organizations ?? [];
+$organizationsById = [];
+foreach ($organizations as $organization) {
+    $organizationsById[(int) $organization['id']] = $organization;
+}
 
 // Инициалы для аватара
 $initials = function (string $name) {
@@ -48,7 +53,7 @@ $roleClass = function (?string $code) {
     .admin-table { width:100%; border-collapse:collapse; }
     .admin-table th { padding:10px 16px; text-align:left; font-size:10.5px; font-weight:700; color:var(--text-3);
       text-transform:uppercase; letter-spacing:.06em; background:var(--row-head); border-bottom:1px solid var(--border); }
-    .admin-table td { padding:11px 16px; border-bottom:1px solid var(--border-lt); vertical-align:middle; font-size:13px; }
+    .admin-table td { padding:9px 12px; border-bottom:1px solid var(--border-lt); vertical-align:middle; font-size:13px; }
     .admin-table tr:last-child td { border-bottom:none; }
     .admin-table tbody tr:hover td { background:var(--hover-green); }
 
@@ -105,8 +110,9 @@ $roleClass = function (?string $code) {
     .modal-body { padding:20px; display:flex; flex-direction:column; gap:14px; }
     .fg { display:flex; flex-direction:column; gap:5px; }
     .fg label { font-size:12px; font-weight:600; color:var(--text-2); }
-    .fg input { border:1px solid var(--border); border-radius:8px; padding:8px 11px; font-family:inherit; font-size:13px; outline:none; color:var(--text-1); }
-    .fg input:focus { border-color:var(--accent); }
+    .fg input, .fg select { border:1px solid var(--border); border-radius:8px; padding:8px 11px; font-family:inherit; font-size:13px; outline:none; color:var(--text-1); background:var(--surface); }
+    .fg input:focus, .fg select:focus { border-color:var(--accent); }
+    .role-select { border:1px solid var(--border); border-radius:8px; padding:6px 9px; font-family:inherit; font-size:12.5px; color:var(--text-1); background:var(--surface); }
     .fg2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
     .modal-foot { padding:14px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px; }
 
@@ -118,13 +124,16 @@ $roleClass = function (?string $code) {
 
     /* Компактный выпадающий селектор ролей */
     .role-picker { position:relative; display:inline-block; }
-    summary.role-picker-btn { cursor:pointer; display:flex; align-items:center; gap:4px; flex-wrap:wrap;
-      padding:4px 8px 4px 6px; border:1px solid var(--border); border-radius:8px;
-      list-style:none; }
+    summary.role-picker-btn { cursor:pointer; display:flex; align-items:center; gap:5px; flex-wrap:nowrap;
+      min-height:32px; max-width:190px; padding:3px 7px; border:1px solid var(--border); border-radius:8px;
+      list-style:none; overflow:hidden; }
     summary.role-picker-btn::marker,
     summary.role-picker-btn::-webkit-details-marker { display:none; content:''; }
-    .rp-empty { font-size:12px; color:var(--text-3); white-space:nowrap; }
-    .rp-arrow { font-size:10px; color:var(--text-3); margin-left:4px; flex:none; transition:transform .15s; }
+    .rp-empty { font-size:11px; color:var(--text-3); white-space:nowrap; flex:none; }
+    .rp-arrow { font-size:9px; color:var(--text-3); margin-left:auto; flex:none; transition:transform .15s; }
+    .picker-value { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .picker-value.role-badge { display:block; }
+    .organization-picker summary.role-picker-btn { width:190px; }
     .role-picker[open] .rp-arrow { transform:rotate(180deg); }
     /* позиция переопределяется JS (fixed) чтобы вырваться из overflow:hidden панели */
     .role-picker-drop { position:absolute; top:calc(100% + 4px); left:0; z-index:200;
@@ -180,6 +189,7 @@ $roleClass = function (?string $code) {
             <th>Пользователь</th>
             <th>E-mail</th>
             <th>Роли</th>
+            <th>Организации</th>
             <th>Статус</th>
             <th></th>
           </tr>
@@ -206,9 +216,11 @@ $roleClass = function (?string $code) {
                 <details class="role-picker">
                   <summary class="role-picker-btn">
                     <?php if (!empty($u['roles'])): ?>
-                      <?php foreach ($u['roles'] as $ur): ?>
-                        <span class="role-badge <?= $roleClass($ur['code']) ?>"><?= htmlspecialchars($ur['name']) ?></span>
-                      <?php endforeach; ?>
+                      <?php $mainRole = $u['roles'][0]; ?>
+                      <span class="role-badge picker-value <?= $roleClass($mainRole['code']) ?>"><?= htmlspecialchars($mainRole['name']) ?></span>
+                      <?php if (count($u['roles']) > 1): ?>
+                        <span class="rp-empty">+<?= count($u['roles']) - 1 ?></span>
+                      <?php endif; ?>
                     <?php else: ?>
                       <span class="rp-empty">— не назначена —</span>
                     <?php endif; ?>
@@ -225,6 +237,61 @@ $roleClass = function (?string $code) {
                           <span class="role-badge <?= $roleClass($r['code']) ?>"><?= htmlspecialchars($r['name']) ?></span>
                         </label>
                       <?php endforeach; ?>
+                      <div class="rp-foot">
+                        <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+                      </div>
+                    </form>
+                  </div>
+                </details>
+              </td>
+              <td>
+                <?php
+                  $mainOrganizationId = (int) ($u['organization_id'] ?? 0);
+                  $mainOrganization = $organizationsById[$mainOrganizationId] ?? null;
+                  $extraOrganizationIds = array_map('intval', $u['organization_ids'] ?? []);
+                ?>
+                <details class="role-picker organization-picker">
+                  <summary class="role-picker-btn">
+                    <?php if ($mainOrganization): ?>
+                      <span class="role-badge role-custom picker-value">
+                        <?= htmlspecialchars($mainOrganization['short_name'] ?: $mainOrganization['name']) ?>
+                      </span>
+                      <?php if (count($extraOrganizationIds) > 0): ?>
+                        <span class="rp-empty">+<?= count($extraOrganizationIds) ?></span>
+                      <?php endif; ?>
+                    <?php else: ?>
+                      <span class="rp-empty">— не назначена —</span>
+                    <?php endif; ?>
+                    <span class="rp-arrow">▾</span>
+                  </summary>
+                  <div class="role-picker-drop" style="min-width:280px">
+                    <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/users/organizations">
+                      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+                      <input type="hidden" name="user_id" value="<?= (int) $u['id'] ?>">
+                      <div style="padding:8px 14px">
+                        <label style="display:block;font-size:11px;font-weight:700;color:var(--text-3);margin-bottom:5px">Основная</label>
+                        <select name="organization_id" class="role-select" required style="width:100%">
+                          <option value="">— Выберите —</option>
+                          <?php foreach ($organizations as $organization): ?>
+                            <?php if ((int) ($organization['is_active'] ?? 1) !== 1 && (int) $organization['id'] !== $mainOrganizationId) continue; ?>
+                            <option value="<?= (int) $organization['id'] ?>" <?= (int) $organization['id'] === $mainOrganizationId ? 'selected' : '' ?>>
+                              <?= htmlspecialchars($organization['short_name'] ?: $organization['name']) ?>
+                            </option>
+                          <?php endforeach; ?>
+                        </select>
+                      </div>
+                      <div style="border-top:1px solid var(--border-lt);padding-top:5px">
+                        <?php foreach ($organizations as $organization): ?>
+                          <?php if ((int) ($organization['is_active'] ?? 1) !== 1) continue; ?>
+                          <label class="rp-item">
+                            <input type="checkbox"
+                                   name="organization_ids[]"
+                                   value="<?= (int) $organization['id'] ?>"
+                                   <?= in_array((int) $organization['id'], $extraOrganizationIds, true) ? 'checked' : '' ?>>
+                            <span><?= htmlspecialchars($organization['short_name'] ?: $organization['name']) ?></span>
+                          </label>
+                        <?php endforeach; ?>
+                      </div>
                       <div class="rp-foot">
                         <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
                       </div>
@@ -278,7 +345,7 @@ $roleClass = function (?string $code) {
             </tr>
           <?php endforeach; ?>
           <?php if (empty($users)): ?>
-            <tr><td colspan="5" style="text-align:center; color:var(--text-3); padding:24px">Пользователей нет</td></tr>
+            <tr><td colspan="6" style="text-align:center; color:var(--text-3); padding:24px">Пользователей нет</td></tr>
           <?php endif; ?>
         </tbody>
       </table>
@@ -319,6 +386,18 @@ $roleClass = function (?string $code) {
       <div class="fg">
         <label>Пароль <span style="color:var(--text-3); font-weight:400">(пусто — для входа через AD)</span></label>
         <input type="password" name="password" autocomplete="new-password">
+      </div>
+      <div class="fg">
+        <label>Основная организация</label>
+        <select name="organization_id" required>
+          <option value="">— Выберите —</option>
+          <?php foreach ($organizations as $organization): ?>
+            <?php if ((int) ($organization['is_active'] ?? 1) !== 1) continue; ?>
+            <option value="<?= (int) $organization['id'] ?>">
+              <?= htmlspecialchars($organization['short_name'] ?: $organization['name']) ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
       </div>
       <div class="fg">
         <label>Роли</label>

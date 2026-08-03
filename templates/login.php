@@ -2,6 +2,7 @@
 /** @var string $appName */
 /** @var string $basePath */
 /** @var string|null $error */
+/** @var bool $kerberosEnabled */
 $basePath = $basePath ?? '';
 ?>
 <!DOCTYPE html>
@@ -29,6 +30,13 @@ $basePath = $basePath ?? '';
 
       <?php if ($error): ?>
         <div class="error-msg visible"><?= htmlspecialchars($error) ?></div>
+      <?php endif; ?>
+
+      <?php if ($kerberosEnabled): ?>
+        <a class="btn-login btn-auto" href="<?= htmlspecialchars($basePath) ?>/auth/kerberos">
+          Войти автоматически
+        </a>
+        <div class="login-separator"><span>или</span></div>
       <?php endif; ?>
 
       <form method="POST" action="<?= htmlspecialchars($basePath) ?>/login" id="loginForm">

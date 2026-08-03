@@ -240,9 +240,12 @@ var WAGON_TABS = {
     csvFilename: 'подход',
     csvDetFilename: 'подход-расширенная',
     totalText: 'Общий итог',
-    pinnedRowLabel: 'ст. Углеуральская',
-    pinnedStationKey: 'УГЛЕУР',
-    firstRoadKey: 'СВЕРДЛ',
+    pinnedRowLabel:
+      window.APP_ORGANIZATION_CODE === 'MTF' ? 'ст. Углеуральская' : undefined,
+    pinnedStationKey:
+      window.APP_ORGANIZATION_CODE === 'MTF' ? 'УГЛЕУР' : undefined,
+    firstRoadKey:
+      window.APP_ORGANIZATION_CODE === 'MTF' ? 'СВЕРДЛ' : undefined,
     sumTableId: 'approachSumTable',
     sumSubId: 'approachSumSub',
     sumSubLabel: 'Всего в подходе',
@@ -290,7 +293,10 @@ var WAGON_TABS = {
     }, */
     csvFilename: 'отправление',
     csvDetFilename: 'отправление-расширенная',
-    totalText: 'Всего отправлено со ст.Углеуральская',
+    totalText:
+      window.APP_ORGANIZATION_CODE === 'MTF'
+        ? 'Всего отправлено со ст. Углеуральская'
+        : 'Всего отправлено',
     sumTableId: 'departureSumTable',
     sumSubId: 'departureSumSub',
     sumSubLabel: 'Всего',
@@ -406,6 +412,34 @@ var WAGON_TABS = {
     resetFilters: function () {
       $('#fDowntimeWagonNo').val('')
       $('#fDowntimeDestStation').val('')
+    },
+  },
+
+  // Контроль простоев
+  'downtime-control': {
+    ctx: 'downtime-control',
+    detailUrl: BASE + '/api/downtime-control/detail',
+    csvDetFilename: 'контроль-простоев',
+    detTableId: 'downtimeControlTable',
+    detSubId: 'idleControlSub',
+    detPanelId: 'panel-downtime-control',
+    loadedKey: '_downtimeControlLoaded',
+    loadedDetKey: '_downtimeControlDetLoaded',
+    applyBtnId: 'btnDowntimeControlApply',
+    resetBtnId: 'btnDowntimeControlReset',
+    groupCols: [],
+    colDims: [],
+    getParams: function () {
+      return {
+        wagon_no: $('#fDowntimeControlWagonNo').val().trim() || undefined,
+        date_from: $('#fDowntimeControlDateFrom').val() || undefined,
+        date_to: $('#fDowntimeControlDateTo').val() || undefined,
+      }
+    },
+    resetFilters: function () {
+      $('#fDowntimeControlWagonNo').val('')
+      $('#fDowntimeControlDateFrom').val('')
+      $('#fDowntimeControlDateTo').val('')
     },
   },
 
@@ -709,7 +743,12 @@ function loadSummary(cfg) {
         })
       }
 
-      _matrixData[cfg.sumTableId] = { col_groups: data.col_groups || null, roads: data.roads || [] }
+      _matrixData[cfg.sumTableId] = {
+        col_groups: data.col_groups || null,
+        cols: data.cols || [],
+        group_cols: cfg.groupCols || [],
+        roads: data.roads || [],
+      }
 
       var cells = drawSummary(
         '#' + cfg.sumTableId,
@@ -2103,9 +2142,10 @@ $(function () {
   if (startTab !== 'dislocation') switchTab(startTab)
 
   var kpiXhrs = hasDashboard ? loadKPI() : null
-  var summaryXhr = hasDashboard
-    ? initTab(WAGON_TABS[startTab] || WAGON_TABS.dislocation)
-    : null
+  var summaryXhr = null
+  if (hasDashboard) {
+    summaryXhr = initTab(WAGON_TABS[startTab] || WAGON_TABS.dislocation)
+  }
 
   // Скрываем оверлей когда готовы и KPI, и сводная таблица
   var allXhrs = (kpiXhrs || []).concat(summaryXhr ? [summaryXhr] : [])
@@ -2145,6 +2185,10 @@ $(function () {
       if (cfg.resetFilters) cfg.resetFilters()
       window[cfg.loadedDetKey] = false
       loadSummary(cfg)
+      if (!cfg.summaryUrl && $('#' + cfg.detPanelId).hasClass('active')) {
+        window[cfg.loadedDetKey] = true
+        loadDetail(cfg)
+      }
     })
   })
 })

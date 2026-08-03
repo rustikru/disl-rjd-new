@@ -56,7 +56,14 @@ class ExcelExporter
     /**
      * 2. Экспорт сложных матричных таблиц (двухуровневые шахматки дашборда)
      */
-    public static function downloadMatrix(Response $response, array $colGroups, array $roads, string $filename = 'matrix'): Response
+    public static function downloadMatrix(
+        Response $response,
+        array $colGroups,
+        array $roads,
+        string $filename = 'matrix',
+        array $groupCols = [],
+        array $flatCols = []
+    ): Response
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -66,7 +73,19 @@ class ExcelExporter
         $sheet->mergeCells('A1:A2');
 
         $currentColIdx = 2;
+        // Одноуровневые матрицы приходят в `cols`, многоуровневые — в `col_groups`.
+        // Нормализуем оба варианта в один формат для построения шапки.
+        if (empty($colGroups) && !empty($flatCols)) {
+            $colGroups = array_map(
+                static fn($label) => ['label' => (string) $label, 'subs' => []],
+                $flatCols
+            );
+        }
+
         foreach ($colGroups as $group) {
+            if (!is_array($group)) {
+                $group = ['label' => (string) $group, 'subs' => []];
+            }
             $label = $group['label'] ?? '';
             $subs = $group['subs'] ?? [];
 
@@ -98,8 +117,20 @@ class ExcelExporter
 
         // Наполнение данными (Дороги + вложенные Станции)
         $rowIdx = 3;
+        $groupKeys = array_values(array_filter(array_map(
+            static fn($group) => is_array($group) ? ($group['key'] ?? null) : null,
+            $groupCols
+        )));
+
         foreach ($roads as $road) {
-            $sheet->setCellValue('A' . $rowIdx, $road['road'] ?? $road['name'] ?? 'Неизвестно');
+            $roadKey = $groupKeys[0] ?? null;
+            $roadName = self::dimensionValue(
+                $road,
+                $roadKey,
+                ['road', 'name'],
+                ['stations', 'total', 'grand_total']
+            );
+            $sheet->setCellValue('A' . $rowIdx, $roadName);
             $sheet->getStyle('A' . $rowIdx)->getFont()->setBold(true);
 
             $totals = $road['total'] ?? [];
@@ -113,7 +144,25 @@ class ExcelExporter
 
             $stations = $road['stations'] ?? [];
             foreach ($stations as $station) {
-                $sheet->setCellValue('A' . $rowIdx, '  ' . ($station['name'] ?? $station['oper_station'] ?? ''));
+                $stationNames = [];
+                foreach (array_slice($groupKeys, 1) as $stationKey) {
+                    $value = self::dimensionValue($station, $stationKey);
+                    if ($value !== '') {
+                        $stationNames[] = $value;
+                    }
+                }
+                if (empty($stationNames)) {
+                    $fallbackName = self::dimensionValue(
+                        $station,
+                        null,
+                        ['name', 'oper_station', 'dest_station', 'depart_station'],
+                        ['v']
+                    );
+                    if ($fallbackName !== '') {
+                        $stationNames[] = $fallbackName;
+                    }
+                }
+                $sheet->setCellValue('A' . $rowIdx, '  ' . implode(' / ', $stationNames));
                 $stationValues = $station['v'] ?? [];
                 $colIdx = 2;
                 foreach ($stationValues as $val) {
@@ -126,6 +175,32 @@ class ExcelExporter
         }
 
         return self::outputStream($response, $spreadsheet, $filename);
+    }
+
+    /**
+     * Возвращает значение измерения по переданному ключу, затем по совместимым
+     * именам и, для старых клиентов, по первому скалярному полю строки.
+     */
+    private static function dimensionValue(
+        array $row,
+        ?string $preferredKey = null,
+        array $fallbackKeys = [],
+        array $ignoredKeys = []
+    ): string {
+        $keys = array_filter(array_merge([$preferredKey], $fallbackKeys));
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $row) && is_scalar($row[$key]) && (string) $row[$key] !== '') {
+                return (string) $row[$key];
+            }
+        }
+
+        foreach ($row as $key => $value) {
+            if (!in_array($key, $ignoredKeys, true) && is_scalar($value) && (string) $value !== '') {
+                return (string) $value;
+            }
+        }
+
+        return '';
     }
 
     /**

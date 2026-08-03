@@ -9,8 +9,8 @@ require __DIR__ . '/../vendor/autoload.php';
 
 $config = require __DIR__ . '/../src/Config.php';
 
-// Включаем лог SQL-запросов в режиме отладки
-if (($_ENV['APP_DEBUG'] ?? '') === 'true') {
+//  лог SQL-запросов
+if (!empty($config['app_debug'])) {
     QueryLogger::enable(__DIR__ . '/../tmp/log/sql_debug.log');
 }
 
@@ -20,20 +20,18 @@ $isDev = $config['app_env'] === 'development';
 
 $errorMiddleware = $app->addErrorMiddleware($isDev, true, $isDev);
 
-// Централизованный обработчик: JSON для /api/*, HTML для остальных
 $errorMiddleware->setDefaultErrorHandler(
     new ErrorHandler($app->getResponseFactory(), $config)
 );
 
-// 404 — рендерим шаблон с шапкой приложения
 $errorMiddleware->setErrorHandler(
     HttpNotFoundException::class,
     function ($request, $exception) use ($app, $config) {
-        $response    = $app->getResponseFactory()->createResponse(404);
-        $basePath    = $config['base_path'] ?? '';
-        $appName     = $config['app_name']  ?? '';
-        $user        = $_SESSION['user']    ?? [];
-        $headerSub   = '';
+        $response = $app->getResponseFactory()->createResponse(404);
+        $basePath = $config['base_path'] ?? '';
+        $appName = $config['app_name'] ?? '';
+        $user = $_SESSION['user'] ?? [];
+        $headerSub = '';
         $headerRight = '';
 
         ob_start();
@@ -48,6 +46,8 @@ $errorMiddleware->setErrorHandler(
 if ($config['base_path'] !== '') {
     $app->setBasePath($config['base_path']);
 }
+
+$app->addBodyParsingMiddleware();
 
 (require __DIR__ . '/../src/routes.php')($app, $config);
 

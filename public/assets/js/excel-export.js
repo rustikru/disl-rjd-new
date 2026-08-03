@@ -62,6 +62,8 @@ function saveExcelMatrix(tableId, filename) {
 
   var data = _matrixData[tableId]
   var colGroups = data.col_groups
+  var cols = data.cols || []
+  var groupCols = data.group_cols || []
   var roads = data.roads
 
   // Создаем форму для отправки структуры на новый эндпоинт
@@ -75,7 +77,12 @@ function saveExcelMatrix(tableId, filename) {
   dataInput.type = 'hidden'
   dataInput.name = 'matrix_data'
   // Передаем исходное дерево объектов (группы колонок, дороги и вложенные станции)
-  dataInput.value = JSON.stringify({ col_groups: colGroups, roads: roads })
+  dataInput.value = JSON.stringify({
+    col_groups: colGroups,
+    cols: cols,
+    group_cols: groupCols,
+    roads: roads,
+  })
   form.appendChild(dataInput)
 
   var nameInput = document.createElement('input')
