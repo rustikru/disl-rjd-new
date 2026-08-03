@@ -32,4 +32,9 @@ return [
 
     'session_name' => 'disl_session',
     'base_path' => '',
+
+    // Рассылки отчётов. Включать после настройки системной функции PHP mail().
+    'report_mail_enabled' => false,
+    'report_mail_from' => 'reports@example.ru',
+    'report_storage_dir' => __DIR__ . '/storage/reports',
 ];

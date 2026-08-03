@@ -9,7 +9,7 @@
 | Слой           | Технология                                   |
 | -------------- | -------------------------------------------- |
 | Backend        | PHP 8.1+, Slim Framework 4, PSR-7            |
-| База данных    | Oracle 23c (OCI8) / PostgreSQL (fallback)    |
+| База данных    | Oracle 11g+ (OCI8) / PostgreSQL (fallback)   |
 | Frontend       | Vanilla JS (ES5), jQuery 3.7, CSS-переменные |
 | Аутентификация | Локальный пароль или Active Directory (LDAP) |
 | Веб-сервер     | Apache (mod_rewrite) / PHP built-in server   |
@@ -41,7 +41,13 @@ disl-rjd-new/
 │   │   ├── DashboardController.php  # Главная страница
 │   │   ├── ImportController.php     # Загрузка XLSX (batch + AJAX)
 │   │   ├── MapsController.php       # Интерактивная карта
-│   │   └── AdminController.php      # Пользователи и роли
+│   │   ├── AdminController.php      # Пользователи, роли и организации
+│   │   └── MailingController.php    # Настройка рассылок отчётов
+│   ├── Reports/
+│   │   ├── ReportCatalog.php        # Отчёты и доступные фильтры
+│   │   ├── MailingStore.php         # Настройки, расписание и очередь
+│   │   ├── ReportBuilder.php        # Данные и файлы XLSX/CSV
+│   │   └── MailingWorker.php        # Формирование и отправка писем
 │   ├── Database/
 │   │   ├── DbInterface.php   # Контракт: fetchAll, fetchOne, execute
 │   │   ├── DbFactory.php     # Создаёт OracleDb или PostgresDb по конфигу
@@ -57,14 +63,17 @@ disl-rjd-new/
 │   ├── import.php   # Форма загрузки XLSX (AJAX, мультифайл)
 │   ├── admin.php    # Страница администрирования (пользователи, роли)
 │   ├── login.php    # Форма входа
+│   ├── mailings/   # Список и форма настройки рассылок
 │   └── partials/
 │       └── header.php  # Единая шапка для всех страниц
 ├── bin/
 │   ├── create-user.php   # CLI: создать пользователя
-│   └── set-password.php  # CLI: сменить пароль
+│   ├── set-password.php  # CLI: сменить пароль
+│   └── run_report_mailings.php # Обработка расписания и очереди
 ├── db/
 │   └── migrations/
-│       └── 001_xx_rjd_admin.sql  # Переименование users + роли + доступ
+│       ├── 006_xx_rjd_organizations.sql  # Организации и доступ пользователей
+│       └── 008_xx_rjd_report_mailings.sql # Рассылки отчётов, Oracle 11
 ├── docs/
 │   └── schema.html  # Наглядная HTML-схема БД и архитектуры
 ├── sql/

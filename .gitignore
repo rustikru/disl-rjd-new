@@ -19,3 +19,5 @@ vendor/phpunit/
 vendor/sebastian/
 vendor/staabm/
 vendor/theseer/
+storage/reports/*
+!storage/reports/.gitkeep

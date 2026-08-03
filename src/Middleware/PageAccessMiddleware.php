@@ -81,6 +81,9 @@ class PageAccessMiddleware implements MiddlewareInterface
         if (str_starts_with($path, '/import') || str_starts_with($path, '/api/import')) {
             return 'import';
         }
+        if (str_starts_with($path, '/mailings')) {
+            return 'dashboard';
+        }
         if (str_starts_with($path, '/api')) {
             return 'dashboard';
         }

@@ -51,4 +51,8 @@ return [
 
     'session_name' => (string) ($config['session_name'] ?? 'disl_session'),
     'base_path' => rtrim((string) ($config['base_path'] ?? ''), '/'),
+
+    'report_mail_enabled' => $bool($config['report_mail_enabled'] ?? false),
+    'report_mail_from' => (string) ($config['report_mail_from'] ?? ''),
+    'report_storage_dir' => (string) ($config['report_storage_dir'] ?? (__DIR__ . '/../storage/reports')),
 ];

@@ -38,4 +38,10 @@ return [
             ['id' => 'import', 'label' => 'Загрузка справки РЖД', 'page' => 'import', 'url' => '/import'],
         ],
     ],
+    [
+        'group' => 'Отчёты',
+        'items' => [
+            ['id' => 'mailings', 'label' => 'Мои рассылки', 'page' => 'dashboard', 'url' => '/mailings'],
+        ],
+    ],
 ];

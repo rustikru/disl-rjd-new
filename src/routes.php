@@ -172,6 +172,26 @@ return function (App $app, array $config): void {
             ))->select($req, $res);
         });
 
+        // Пользовательские рассылки отчётов
+        $group->get('/mailings', function ($req, $res) use ($getDb, $getOrganizations, $config) {
+            return (new \App\Controllers\MailingController($getDb(), $getOrganizations(), $config))->index($req, $res);
+        });
+        $group->get('/mailings/form', function ($req, $res) use ($getDb, $getOrganizations, $config) {
+            return (new \App\Controllers\MailingController($getDb(), $getOrganizations(), $config))->form($req, $res);
+        });
+        $group->post('/mailings/save', function ($req, $res) use ($getDb, $getOrganizations, $config) {
+            return (new \App\Controllers\MailingController($getDb(), $getOrganizations(), $config))->save($req, $res);
+        });
+        $group->post('/mailings/active', function ($req, $res) use ($getDb, $getOrganizations, $config) {
+            return (new \App\Controllers\MailingController($getDb(), $getOrganizations(), $config))->active($req, $res);
+        });
+        $group->post('/mailings/delete', function ($req, $res) use ($getDb, $getOrganizations, $config) {
+            return (new \App\Controllers\MailingController($getDb(), $getOrganizations(), $config))->delete($req, $res);
+        });
+        $group->post('/mailings/run', function ($req, $res) use ($getDb, $getOrganizations, $config) {
+            return (new \App\Controllers\MailingController($getDb(), $getOrganizations(), $config))->run($req, $res);
+        });
+
         // Детальная страница (статический шаблон)
         $group->get('/detail', function ($req, $res) use ($config) {
             $appName = $config['app_name'] ?? 'Дислокация РЖД';
@@ -188,7 +208,11 @@ return function (App $app, array $config): void {
         // ==========================================
         // API (`/api`)
         // ==========================================
-        $group->group('/api', function ($api) use ($getDb, $config) {
+        $group->group('/api', function ($api) use ($getDb, $getOrganizations, $config) {
+
+            $api->get('/mailings/catalog', function ($req, $res) use ($getDb, $getOrganizations, $config) {
+                return (new \App\Controllers\MailingController($getDb(), $getOrganizations(), $config))->catalog($req, $res);
+            });
 
             // --- Главный Дашборд ---
             $api->get('/dashboard', function ($req, $res) use ($getDb) {

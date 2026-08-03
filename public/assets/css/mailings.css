@@ -1,0 +1,447 @@
+.mailing-page {
+  min-height: calc(100vh - 64px);
+  background: var(--bg);
+  padding: 24px;
+}
+
+.mailing-page .btn,
+.mailing-page .btn:hover,
+.mailing-page .btn:focus,
+.mailing-link-button,
+.mailing-link-button:hover,
+.mailing-link-button:focus,
+.mailing-icon-button,
+.mailing-icon-button:hover,
+.mailing-icon-button:focus {
+  text-decoration: none;
+}
+
+.mailing-wrap {
+  width: min(1420px, 100%);
+  margin: 0 auto;
+}
+
+.mailing-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.mailing-head h1 {
+  margin: 0 0 4px;
+  font-size: 23px;
+}
+
+.mailing-subtitle,
+.mailing-muted {
+  color: var(--text-3);
+}
+
+.mailing-tabs {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 16px;
+}
+
+.mailing-tab {
+  padding: 8px 13px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.mailing-tab.is-active {
+  background: var(--accent-lt);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.mailing-panel {
+  display: none;
+}
+
+.mailing-panel.is-active {
+  display: block;
+}
+
+.mailing-card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface);
+}
+
+.mailing-card + .mailing-card {
+  margin-top: 15px;
+}
+
+.mailing-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.mailing-card-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.mailing-card-body {
+  padding: 18px;
+}
+
+.mailing-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.mailing-table th,
+.mailing-table td {
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--border-lt);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.mailing-table th {
+  background: var(--row-head);
+  color: var(--text-3);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.mailing-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.mailing-name {
+  font-weight: 700;
+}
+
+.mailing-note {
+  margin-top: 2px;
+  color: var(--text-3);
+  font-size: 11px;
+}
+
+.mailing-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.mailing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #a8a3b2;
+}
+
+.mailing-dot.is-active,
+.mailing-dot.is-sent {
+  background: #26a779;
+}
+
+.mailing-dot.is-error {
+  background: #d85858;
+}
+
+.mailing-dot.is-pending,
+.mailing-dot.is-running {
+  background: #d89a38;
+}
+
+.mailing-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.mailing-inline {
+  display: inline;
+  margin: 0;
+}
+
+.mailing-icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-3);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mailing-icon-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mailing-icon-button svg.is-filled path {
+  fill: currentColor;
+  stroke: none;
+}
+
+.mailing-icon-button:hover {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.mailing-icon-button.is-delete:hover {
+  color: #b54a4a;
+}
+
+.mailing-empty {
+  padding: 42px 20px;
+  text-align: center;
+  color: var(--text-3);
+}
+
+.mailing-alert {
+  margin-bottom: 14px;
+  padding: 10px 13px;
+  border-radius: 9px;
+}
+
+.mailing-alert.is-ok {
+  background: #e9f7f1;
+  color: #217b5b;
+}
+
+.mailing-alert.is-error {
+  background: #fbecec;
+  color: #a83f3f;
+}
+
+.mailing-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 16px;
+  align-items: start;
+}
+
+.mailing-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.mailing-field {
+  min-width: 0;
+}
+
+.mailing-field.is-full {
+  grid-column: 1 / -1;
+}
+
+.mailing-field label,
+.mailing-label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text-2);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.mailing-field input,
+.mailing-field select,
+.mailing-field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  background: var(--surface);
+  color: var(--text-1);
+  font: inherit;
+}
+
+.mailing-field input:not([type="checkbox"]),
+.mailing-field select,
+.mailing-recipient-row input,
+.mailing-recipient-row select,
+.mailing-remove-recipient {
+  height: 36px;
+}
+
+.mailing-field textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+.mailing-field input:focus,
+.mailing-field select:focus,
+.mailing-field textarea:focus {
+  border-color: var(--accent);
+}
+
+.mailing-filter-box {
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--row-head);
+}
+
+.mailing-filter-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 11px;
+}
+
+.mailing-link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.mailing-recipient-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px 32px;
+  gap: 7px;
+  margin-bottom: 7px;
+}
+
+.mailing-recipient-row input,
+.mailing-recipient-row select {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.mailing-remove-recipient {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: #a14848;
+  cursor: pointer;
+}
+
+.mailing-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mailing-day input {
+  display: none;
+}
+
+.mailing-day span {
+  display: grid;
+  place-items: center;
+  width: 35px;
+  height: 31px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.mailing-day input:checked + span {
+  border-color: var(--accent);
+  background: var(--accent-lt);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.mailing-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.mailing-check input {
+  width: auto;
+}
+
+.mailing-check label {
+  margin: 0;
+  font-weight: 500;
+}
+
+.mailing-summary {
+  position: sticky;
+  top: 16px;
+}
+
+.mailing-summary-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-lt);
+}
+
+.mailing-summary-row:last-child {
+  border: 0;
+}
+
+.mailing-summary-label {
+  color: var(--text-3);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.mailing-summary-value {
+  margin-top: 2px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.mailing-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 980px) {
+  .mailing-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .mailing-summary {
+    position: static;
+  }
+  .mailing-table-wrap {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .mailing-page {
+    padding: 15px;
+  }
+  .mailing-fields {
+    grid-template-columns: 1fr;
+  }
+  .mailing-field.is-full {
+    grid-column: auto;
+  }
+  .mailing-head {
+    flex-direction: column;
+  }
+}

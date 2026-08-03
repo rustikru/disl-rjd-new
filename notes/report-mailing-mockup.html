@@ -124,7 +124,6 @@
               <div class="field"><label>Периодичность</label><select id="frequency"><option value="daily">Ежедневно</option><option value="weekly">По дням недели</option><option value="monthly">Ежемесячно</option></select></div>
               <div class="field"><label>Время отправки</label><input id="runTime" type="time" value="08:00"></div>
               <div class="field full" id="weekDays" hidden><label>Дни недели</label><div class="days"><label class="day"><input type="checkbox" checked><span>Пн</span></label><label class="day"><input type="checkbox" checked><span>Вт</span></label><label class="day"><input type="checkbox" checked><span>Ср</span></label><label class="day"><input type="checkbox" checked><span>Чт</span></label><label class="day"><input type="checkbox" checked><span>Пт</span></label><label class="day"><input type="checkbox"><span>Сб</span></label><label class="day"><input type="checkbox"><span>Вс</span></label></div></div>
-              <div class="field full check"><input id="onlyNew" type="checkbox" checked><label for="onlyNew">Отправлять только после появления новой справки</label></div>
               <div class="field full check"><input id="enabled" type="checkbox" checked><label for="enabled">Включить рассылку сразу после сохранения</label></div>
             </div>
             <div class="actions"><button class="btn" type="button" id="testSend">Отправить тест</button><button class="btn primary" type="button" id="save">Сохранить рассылку</button></div>
@@ -173,7 +172,6 @@
       document.getElementById('sumFormat').textContent = document.getElementById('format').value;
       document.getElementById('sumSchedule').textContent = document.getElementById('frequency').selectedOptions[0].text + ', ' + document.getElementById('runTime').value;
       document.getElementById('sumRecipients').textContent = recipients.join(', ') || 'Не указаны';
-      document.getElementById('sumCondition').textContent = document.getElementById('onlyNew').checked ? 'Только при новой справке' : 'По расписанию всегда';
     }
     function showToast(text) { var toast=document.getElementById('toast'); toast.textContent=text; toast.classList.add('show'); setTimeout(function(){toast.classList.remove('show')},2200); }
     document.getElementById('reportType').addEventListener('change', function(){drawFilters();updateSummary()});
