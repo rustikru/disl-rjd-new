@@ -20,7 +20,7 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
   <div class="header-inner">
     <div class="header-left">
       <?= $headerLeft ?>
-      <div class="brand">
+      <a class="brand" href="<?= htmlspecialchars($basePath) ?>/" title="На главную" aria-label="Перейти на главную страницу">
         <div class="brand-icon">
           <img src="<?= htmlspecialchars($basePath) ?>/assets/img/meta-logo.png" alt="" class="brand-logo">
         </div>
@@ -28,7 +28,7 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
           <div class="brand-name"><?= htmlspecialchars($headerName) ?></div>
           <?= $headerSub ?>
         </div>
-      </div>
+      </a>
     </div>
     <div class="header-meta">
       <?php if (count($headerOrganizations) > 1): ?>

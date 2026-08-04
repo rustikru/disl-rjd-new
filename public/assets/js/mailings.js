@@ -100,7 +100,9 @@
   function drawSchedule() {
     var type = document.getElementById('scheduleType').value
     document.getElementById('runTimeField').hidden = type === 'MANUAL'
-    document.getElementById('weekDaysField').hidden = type !== 'WEEKLY'
+    document.getElementById('weekDaysField').hidden = type !== 'WEEKLY' && type !== 'HOURLY'
+    document.getElementById('intervalHoursField').hidden = type !== 'HOURLY'
+    document.getElementById('intervalHours').required = type === 'HOURLY'
     document.getElementById('monthDayField').hidden = type !== 'MONTHLY'
   }
 
@@ -114,7 +116,17 @@
       .map(function (input) { return input.value.trim() }).filter(Boolean)
     var schedule = document.getElementById('scheduleType')
     var scheduleLabel = schedule.selectedOptions[0].text
-    if (schedule.value !== 'MANUAL') scheduleLabel += ', ' + document.getElementById('runTime').value
+    var weekDays = Array.from(document.querySelectorAll('input[name="week_days[]"]:checked'))
+      .map(function (input) { return input.nextElementSibling.textContent })
+      .join(', ')
+    if (schedule.value === 'HOURLY') {
+      scheduleLabel = 'Каждые ' + document.getElementById('intervalHours').value + ' ч., с '
+        + document.getElementById('runTime').value + (weekDays ? ' (' + weekDays + ')' : '')
+    } else if (schedule.value === 'WEEKLY') {
+      scheduleLabel = 'По дням недели: ' + (weekDays || 'не выбраны') + ', ' + document.getElementById('runTime').value
+    } else if (schedule.value !== 'MANUAL') {
+      scheduleLabel += ', ' + document.getElementById('runTime').value
+    }
     summary('name', document.getElementById('mailingName').value)
     summary('report', report().name + ' · ' + document.getElementById('reportView').selectedOptions[0].text)
     summary('organization', report().organization_required === false ? 'Общий отчёт' : document.getElementById('organizationId').selectedOptions[0]?.text)

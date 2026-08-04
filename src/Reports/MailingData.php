@@ -19,7 +19,7 @@ final class MailingData
         $rows = $this->db->fetchAll(
             "SELECT m.id, m.user_id, m.organization_id, m.name, m.report_code,
                     m.report_view, m.file_format, m.schedule_type, m.run_time,
-                    m.week_days, m.month_day, m.skip_empty,
+                    m.week_days, m.month_day, m.interval_hours, m.skip_empty,
                     m.is_active, m.last_run_at, m.next_run_at, m.created_at,
                     o.name AS organization_name, o.short_name AS organization_short_name,
                     (SELECT COUNT(*) FROM xx_rjd_report_recipients r WHERE r.mailing_id = m.id) AS recipient_count,
@@ -45,7 +45,7 @@ final class MailingData
         $rows = $this->db->fetchAll(
             "SELECT m.id, m.user_id, m.organization_id, m.name, m.report_code,
                     m.report_view, m.file_format, m.schedule_type, m.run_time,
-                    m.week_days, m.month_day, m.skip_empty,
+                    m.week_days, m.month_day, m.interval_hours, m.skip_empty,
                     m.is_active, m.last_run_at, m.next_run_at, m.created_at,
                     DBMS_LOB.SUBSTR(m.filters_json, 4000, 1) AS filters_json,
                     m.subject_text, m.body_text,
@@ -86,7 +86,7 @@ final class MailingData
                     m.report_view, m.file_format,
                     DBMS_LOB.SUBSTR(m.filters_json, 4000, 1) AS filters_json,
                     m.subject_text, m.body_text, m.schedule_type, m.run_time,
-                    m.week_days, m.month_day, m.skip_empty,
+                    m.week_days, m.month_day, m.interval_hours, m.skip_empty,
                     m.is_active, m.last_run_at, m.next_run_at, m.created_at, m.updated_at
                FROM xx_rjd_report_mailings m
               WHERE m.id = :id AND m.user_id = :user_id",
@@ -124,6 +124,7 @@ final class MailingData
             'run_time' => (string) $mailing['run_time'],
             'week_days' => $mailing['week_days'],
             'month_day' => $mailing['month_day'],
+            'interval_hours' => $mailing['interval_hours'],
             'skip_empty' => (int) $mailing['skip_empty'],
             'is_active' => (int) $mailing['is_active'],
             'next_run_at' => $mailing['next_run_at'],
@@ -147,6 +148,7 @@ final class MailingData
                             run_time = :run_time,
                             week_days = :week_days,
                             month_day = :month_day,
+                            interval_hours = :interval_hours,
                             skip_empty = :skip_empty,
                             is_active = :is_active,
                             next_run_at = TO_DATE(:next_run_at, 'YYYY-MM-DD HH24:MI:SS'),
@@ -159,12 +161,12 @@ final class MailingData
                     "INSERT INTO xx_rjd_report_mailings (
                         user_id, organization_id, name, report_code, report_view,
                         file_format, filters_json, subject_text, body_text,
-                        schedule_type, run_time, week_days, month_day,
+                        schedule_type, run_time, week_days, month_day, interval_hours,
                         skip_empty, is_active, next_run_at
                     ) VALUES (
                         :user_id, :organization_id, :name, :report_code, :report_view,
                         :file_format, :filters_json, :subject_text, :body_text,
-                        :schedule_type, :run_time, :week_days, :month_day,
+                        :schedule_type, :run_time, :week_days, :month_day, :interval_hours,
                         :skip_empty, :is_active,
                         TO_DATE(:next_run_at, 'YYYY-MM-DD HH24:MI:SS')
                     )",
@@ -334,7 +336,7 @@ final class MailingData
                        m.report_view, m.file_format,
                        DBMS_LOB.SUBSTR(m.filters_json, 4000, 1) AS filters_json,
                        m.subject_text, m.body_text, m.schedule_type, m.run_time,
-                       m.week_days, m.month_day, m.skip_empty,
+                       m.week_days, m.month_day, m.interval_hours, m.skip_empty,
                        m.is_active, m.last_run_at, m.next_run_at,
                        o.name AS organization_name, o.short_name AS organization_short_name
                   FROM xx_rjd_report_runs r
@@ -459,6 +461,30 @@ final class MailingData
             return null;
         }
 
+        if ($type === 'HOURLY') {
+            $days = self::weekDayNumbers((string) ($mailing['week_days'] ?? ''));
+            if (!$days) {
+                return null;
+            }
+            $interval = max(1, min(24, (int) ($mailing['interval_hours'] ?? 1)));
+            for ($offset = 0; $offset <= 7; $offset++) {
+                $firstRun = $candidate->modify('+' . $offset . ' day');
+                if (!in_array((int) $firstRun->format('N'), $days, true)) {
+                    continue;
+                }
+                for ($hours = 0; $hours < 24; $hours += $interval) {
+                    $date = $firstRun->modify('+' . $hours . ' hours');
+                    if ($date->format('Y-m-d') !== $firstRun->format('Y-m-d')) {
+                        break;
+                    }
+                    if ($date > $now) {
+                        return $date->format('Y-m-d H:i:s');
+                    }
+                }
+            }
+            return null;
+        }
+
         if ($type === 'MONTHLY') {
             $day = max(1, min(31, (int) ($mailing['month_day'] ?? 1)));
             for ($monthOffset = 0; $monthOffset <= 2; $monthOffset++) {
@@ -491,6 +517,15 @@ final class MailingData
                 self::weekDayNumbers((string) ($mailing['week_days'] ?? ''))
             );
             return implode(', ', array_filter($days)) . ' в ' . $time;
+        }
+        if ($type === 'HOURLY') {
+            $names = [1 => 'Пн', 2 => 'Вт', 3 => 'Ср', 4 => 'Чт', 5 => 'Пт', 6 => 'Сб', 7 => 'Вс'];
+            $days = array_map(
+                static fn(int $day): string => $names[$day] ?? '',
+                self::weekDayNumbers((string) ($mailing['week_days'] ?? ''))
+            );
+            return 'Каждые ' . max(1, (int) ($mailing['interval_hours'] ?? 1))
+                . ' ч. с ' . $time . ' (' . implode(', ', array_filter($days)) . ')';
         }
         if ($type === 'MONTHLY') {
             return (int) ($mailing['month_day'] ?? 1) . '-го числа в ' . $time;

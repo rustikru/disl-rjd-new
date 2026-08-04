@@ -73,6 +73,7 @@ final class MailingController
                 'run_time' => '08:00',
                 'week_days' => '1,2,3,4,5',
                 'month_day' => 1,
+                'interval_hours' => 8,
                 'skip_empty' => 1,
                 'is_active' => 1,
                 'recipients' => [['email' => '', 'send_type' => 'TO']],
@@ -135,16 +136,17 @@ final class MailingController
         }
 
         $scheduleType = strtoupper((string) ($body['schedule_type'] ?? 'DAILY'));
-        if (!in_array($scheduleType, ['MANUAL', 'DAILY', 'WEEKLY', 'MONTHLY'], true)) {
+        if (!in_array($scheduleType, ['MANUAL', 'DAILY', 'WEEKLY', 'MONTHLY', 'HOURLY'], true)) {
             $scheduleType = 'DAILY';
         }
         $runTime = preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', (string) ($body['run_time'] ?? ''))
             ? (string) $body['run_time']
             : '08:00';
         $weekDays = $this->weekDays((array) ($body['week_days'] ?? []));
-        if ($scheduleType === 'WEEKLY' && $weekDays === '') {
+        if (in_array($scheduleType, ['WEEKLY', 'HOURLY'], true) && $weekDays === '') {
             return $this->backToForm($response, $id, 'Выберите дни недели');
         }
+        $intervalHours = max(1, min(24, (int) ($body['interval_hours'] ?? 1)));
 
         $mailing = [
             'id' => $id,
@@ -161,6 +163,7 @@ final class MailingController
             'run_time' => $runTime,
             'week_days' => $weekDays !== '' ? $weekDays : null,
             'month_day' => $scheduleType === 'MONTHLY' ? max(1, min(31, (int) ($body['month_day'] ?? 1))) : null,
+            'interval_hours' => $scheduleType === 'HOURLY' ? $intervalHours : null,
             'skip_empty' => isset($body['skip_empty']) ? 1 : 0,
             'is_active' => isset($body['is_active']) ? 1 : 0,
         ];

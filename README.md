@@ -957,7 +957,8 @@ php bin/run_report_mailings.php
 Перед использованием примените миграции Oracle 11:
 `db/migrations/008_xx_rjd_report_mailings.sql` и
 `db/migrations/009_xx_rjd_report_mailings_xlsx.sql`, затем
-`db/migrations/010_xx_rjd_report_recipients.sql`.
+`db/migrations/010_xx_rjd_report_recipients.sql` и
+`db/migrations/011_xx_rjd_report_mailings_hours.sql`.
 
 ---
 
