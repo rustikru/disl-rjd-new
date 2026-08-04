@@ -19,7 +19,7 @@ class ApiController
              WHERE 1=1 and TRIM(dic.car_number) = TRIM(TO_CHAR(wagon_no))
                AND UPPER(TRIM(dic.is_excluded)) = 'Y'
                AND UPPER(REPLACE(TRIM(dic.idle_reasons_name), 'Ё', 'Е'))
-                   IN ('ЛОМ', 'МЕТАЛЛОЛОМ')
+                   IN ('ЛОМ', 'МЕТАЛЛОЛОМ', 'СНЯТЬ с АВТОСЛЕЖЕНИЯ')
         )";
 
     private DbInterface $db;

@@ -2,26 +2,26 @@
 declare(strict_types=1);
 
 use App\Database\DbFactory;
-use App\Reports\MailingStore;
-use App\Reports\MailingWorker;
+use App\Reports\MailingData;
+use App\Reports\MailingSender;
 
 require __DIR__ . '/../vendor/autoload.php';
 $config = require __DIR__ . '/../src/Config.php';
 $db = DbFactory::create($config);
-$store = new MailingStore($db);
-$queued = $store->queueDue();
+$mailings = new MailingData($db);
+$queued = $mailings->queueDue();
 
 if (empty($config['report_mail_enabled'])) {
     fwrite(STDOUT, "queued={$queued}; mail delivery is disabled\n");
     exit(0);
 }
 
-$worker = new MailingWorker(
+$sender = new MailingSender(
     $db,
-    (string) ($config['report_mail_from'] ?? ''),
-    (string) ($config['report_storage_dir'] ?? (__DIR__ . '/../storage/reports'))
+    (string) ($config['report_storage_dir'] ?? (__DIR__ . '/../storage/reports')),
+    !empty($config['report_mail_test'])
 );
-$result = $worker->run(20);
+$result = $sender->runAll();
 fwrite(STDOUT, sprintf(
     "queued=%d sent=%d skipped=%d errors=%d\n",
     $queued,

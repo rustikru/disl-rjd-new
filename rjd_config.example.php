@@ -33,8 +33,9 @@ return [
     'session_name' => 'disl_session',
     'base_path' => '',
 
-    // Рассылки отчётов. Включать после настройки системной функции PHP mail().
+    // Обработка очереди рассылок.
     'report_mail_enabled' => false,
-    'report_mail_from' => 'reports@example.ru',
+    // Тестовый режим сохраняет письмо и вложение локально без отправки.
+    'report_mail_test' => true,
     'report_storage_dir' => __DIR__ . '/storage/reports',
 ];

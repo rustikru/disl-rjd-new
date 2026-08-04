@@ -35,6 +35,7 @@ class OracleDb implements DbInterface
         );
         oci_execute($stmt);
         oci_free_statement($stmt);
+
     }
 
     public function fetchAll(string $sql, array $params = []): array

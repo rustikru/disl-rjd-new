@@ -53,6 +53,6 @@ return [
     'base_path' => rtrim((string) ($config['base_path'] ?? ''), '/'),
 
     'report_mail_enabled' => $bool($config['report_mail_enabled'] ?? false),
-    'report_mail_from' => (string) ($config['report_mail_from'] ?? ''),
+    'report_mail_test' => $bool($config['report_mail_test'] ?? false),
     'report_storage_dir' => (string) ($config['report_storage_dir'] ?? (__DIR__ . '/../storage/reports')),
 ];

@@ -40,8 +40,8 @@
     var value = filterValues[filter.name] || ''
     var required = filter.required ? ' required' : ''
     var control = ''
-    if (filter.type === 'select' || filter.type === 'report_date') {
-      var firstLabel = filter.type === 'report_date' ? 'Всегда последняя справка' : '— Все —'
+    if (filter.type === 'select') {
+      var firstLabel = '— Все —'
       control = '<select name="' + escapeHtml(name) + '" data-filter-name="' + escapeHtml(filter.name) + '"' + required + '>'
         + '<option value="">' + firstLabel + '</option>'
         + optionValues(filter).map(function (option) {
@@ -135,7 +135,7 @@
   document.getElementById('addMailingRecipient').addEventListener('click', function () {
     var row = document.createElement('div')
     row.className = 'mailing-recipient-row'
-    row.innerHTML = '<input type="email" name="recipient_email[]" placeholder="mail@example.ru"><select name="recipient_type[]"><option value="TO">Кому</option><option value="CC">Копия</option><option value="BCC">Скрытая</option></select><button type="button" class="mailing-remove-recipient" title="Удалить">×</button>'
+    row.innerHTML = '<input type="email" name="recipient_email[]" placeholder="mail@example.ru"><select name="recipient_type[]"><option value="TO">Кому</option><option value="CC">Копия</option></select><button type="button" class="mailing-remove-recipient" title="Удалить">×</button>'
     document.getElementById('mailingRecipients').appendChild(row)
     updateSummary()
   })

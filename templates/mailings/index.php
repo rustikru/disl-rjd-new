@@ -50,7 +50,7 @@ include __DIR__ . '/../partials/header.php';
           <span class="mailing-card-title">Рассылки (<?= count($mailings) ?>)</span>
         </div>
         <?php if (!$mailings): ?>
-          <div class="mailing-empty">Рассылок пока нет. Создайте первую рассылку из этого раздела или из рабочей страницы.</div>
+          <div class="mailing-empty">Рассылок пока нет. Создайте первую рассылку в этом разделе.</div>
         <?php else: ?>
           <div class="mailing-table-wrap">
             <table class="mailing-table">
@@ -63,7 +63,7 @@ include __DIR__ . '/../partials/header.php';
                   $lastStatus = strtoupper((string) ($mailing['last_status'] ?? ''));
                 ?>
                 <tr>
-                  <td><div class="mailing-name"><?= htmlspecialchars($mailing['name']) ?></div><div class="mailing-note"><?= htmlspecialchars($report['name'] ?? $mailing['report_code']) ?> · <?= $mailing['report_view'] === 'SUMMARY' ? 'сводный' : 'подробный' ?> · <?= htmlspecialchars($mailing['file_format']) ?></div></td>
+                  <td><div class="mailing-name"><?= htmlspecialchars($mailing['name']) ?></div><div class="mailing-note"><?= htmlspecialchars($report['name'] ?? $mailing['report_code']) ?> · <?= $mailing['report_view'] === 'SUMMARY' ? 'сводный' : 'подробный' ?> · XLSX</div></td>
                   <td><?= htmlspecialchars($organizationName) ?></td>
                   <td><?= htmlspecialchars($mailing['schedule_label']) ?></td>
                   <td><?= (int) $mailing['recipient_count'] ?></td>
@@ -92,9 +92,9 @@ include __DIR__ . '/../partials/header.php';
         <?php if (!$runs): ?>
           <div class="mailing-empty">История запусков пока пуста.</div>
         <?php else: ?>
-          <div class="mailing-table-wrap"><table class="mailing-table"><thead><tr><th>Дата</th><th>Рассылка</th><th>Статус</th><th>Дата отчёта</th><th>Строк</th><th>Сообщение</th></tr></thead><tbody>
+          <div class="mailing-table-wrap"><table class="mailing-table"><thead><tr><th>Дата</th><th>Рассылка</th><th>Статус</th><th>Дата отчёта</th><th>Сообщение</th></tr></thead><tbody>
           <?php foreach ($runs as $run): $status = strtoupper((string) $run['status']); ?>
-            <tr><td><?= htmlspecialchars((new DateTime($run['started_at']))->format('d.m.Y H:i')) ?></td><td><?= htmlspecialchars($run['mailing_name']) ?></td><td><span class="mailing-status"><span class="mailing-dot is-<?= strtolower($status) ?>"></span><?= htmlspecialchars($statusLabels[$status] ?? $status) ?></span></td><td><?= $run['report_dt'] ? htmlspecialchars((new DateTime($run['report_dt']))->format('d.m.Y H:i')) : '—' ?></td><td><?= $run['rows_count'] !== null ? (int) $run['rows_count'] : '—' ?></td><td><?= htmlspecialchars($run['error_message'] ?? '') ?></td></tr>
+            <tr><td><?= htmlspecialchars((new DateTime($run['started_at']))->format('d.m.Y H:i')) ?></td><td><?= htmlspecialchars($run['mailing_name']) ?></td><td><span class="mailing-status"><span class="mailing-dot is-<?= strtolower($status) ?>"></span><?= htmlspecialchars($statusLabels[$status] ?? $status) ?></span></td><td><?= $run['report_dt'] ? htmlspecialchars((new DateTime($run['report_dt']))->format('d.m.Y H:i')) : '—' ?></td><td><?= htmlspecialchars($run['error_message'] ?? '') ?></td></tr>
           <?php endforeach; ?>
           </tbody></table></div>
         <?php endif; ?>

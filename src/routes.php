@@ -117,6 +117,9 @@ return function (App $app, array $config): void {
         $group->get('/admin/roles', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->rolesPage($req, $res);
         });
+        $group->get('/admin/mailings', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->mailingsPage($req, $res);
+        });
         $group->get('/admin/directories/stations', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->stationsPage($req, $res);
         });
@@ -152,6 +155,9 @@ return function (App $app, array $config): void {
         });
         $group->post('/admin/roles/delete', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->deleteRole($req, $res);
+        });
+        $group->post('/admin/mailings/run', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->runMailings($req, $res);
         });
         $group->post('/admin/directories/stations/save', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->saveStation($req, $res);

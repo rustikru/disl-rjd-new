@@ -9,6 +9,30 @@ use Psr\Http\Message\ResponseInterface as Response;
 
 class ExcelExporter
 {
+    public static function save(array $cols, array $rows, string $path): void
+    {
+        $response = self::download((new \Slim\Psr7\Factory\ResponseFactory())->createResponse(), $cols, $rows);
+        self::saveResponse($response, $path);
+    }
+
+    public static function saveMatrix(
+        array $colGroups,
+        array $roads,
+        string $path,
+        array $groupCols = [],
+        array $flatCols = []
+    ): void {
+        $response = self::downloadMatrix(
+            (new \Slim\Psr7\Factory\ResponseFactory())->createResponse(),
+            $colGroups,
+            $roads,
+            'report',
+            $groupCols,
+            $flatCols
+        );
+        self::saveResponse($response, $path);
+    }
+
     /**
      * 1. Универсальный экспорт плоских массивов (детализации)
      * Полностью совместим с PHP 8.1+ и PHP 8.3/8.4+ (без депрекейшнов инкремента)
@@ -233,5 +257,16 @@ class ExcelExporter
             ->withHeader('Content-Disposition', $contentDisposition)
             ->withHeader('Cache-Control', 'max-age=0')
             ->withBody(new \Slim\Psr7\Stream($phpStream));
+    }
+
+    private static function saveResponse(Response $response, string $path): void
+    {
+        $body = $response->getBody();
+        if ($body->isSeekable()) {
+            $body->rewind();
+        }
+        if (file_put_contents($path, $body->getContents()) === false) {
+            throw new \RuntimeException('Не удалось сохранить Excel-файл');
+        }
     }
 }

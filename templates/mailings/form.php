@@ -25,7 +25,7 @@ include __DIR__ . '/../partials/header.php';
 ?>
 <main class="mailing-page">
   <div class="mailing-wrap">
-    <div class="mailing-head"><div><h1><?= (int) ($mailing['id'] ?? 0) > 0 ? 'Изменить рассылку' : 'Новая рассылка' ?></h1><div class="mailing-subtitle">Форма использует единый каталог отчётов и допустимых фильтров</div></div></div>
+    <div class="mailing-head"><div><h1><?= (int) ($mailing['id'] ?? 0) > 0 ? 'Изменить рассылку' : 'Новая рассылка' ?></h1></div></div>
     <?php if ($queryError): ?><div class="mailing-alert is-error"><?= htmlspecialchars($queryError) ?></div><?php endif; ?>
 
     <form method="post" action="<?= htmlspecialchars($basePath) ?>/mailings/save" id="mailingForm">
@@ -40,7 +40,7 @@ include __DIR__ . '/../partials/header.php';
               <div class="mailing-field"><label for="reportCode">Отчёт</label><select id="reportCode" name="report_code" required><?php foreach ($catalog as $code => $report): ?><option value="<?= htmlspecialchars($code) ?>" <?= $code === $currentCode ? 'selected' : '' ?>><?= htmlspecialchars($report['name']) ?></option><?php endforeach; ?></select></div>
               <div class="mailing-field" id="organizationField"><label for="organizationId">Организация</label><select id="organizationId" name="organization_id"><?php foreach ($availableOrganizations as $organization): ?><option value="<?= (int) $organization['id'] ?>" <?= (int) ($mailing['organization_id'] ?? 0) === (int) $organization['id'] ? 'selected' : '' ?>><?= htmlspecialchars($organization['short_name'] ?: $organization['name']) ?></option><?php endforeach; ?></select></div>
               <div class="mailing-field"><label for="reportView">Вид отчёта</label><select id="reportView" name="report_view"></select></div>
-              <div class="mailing-field"><label for="fileFormat">Формат файла</label><select id="fileFormat" name="file_format"><option value="XLSX" <?= ($mailing['file_format'] ?? 'XLSX') === 'XLSX' ? 'selected' : '' ?>>Excel (.xlsx)</option><option value="CSV" <?= ($mailing['file_format'] ?? '') === 'CSV' ? 'selected' : '' ?>>CSV</option></select></div>
+              <div class="mailing-field"><label for="fileFormat">Формат файла</label><select id="fileFormat" name="file_format"><option value="XLSX" selected>Excel (.xlsx)</option></select></div>
               <div class="mailing-field is-full mailing-filter-box">
                 <div class="mailing-filter-head"><span class="mailing-card-title">Фильтры отчёта</span><button type="button" class="mailing-link-button" id="resetMailingFilters">Сбросить</button></div>
                 <div class="mailing-fields" id="mailingFilters"></div>
@@ -54,7 +54,7 @@ include __DIR__ . '/../partials/header.php';
               <div class="mailing-label">Получатели</div>
               <div id="mailingRecipients">
                 <?php foreach ($currentRecipients ?: [['email' => '', 'send_type' => 'TO']] as $recipient): ?>
-                  <div class="mailing-recipient-row"><input type="email" name="recipient_email[]" placeholder="mail@example.ru" value="<?= htmlspecialchars($recipient['email'] ?? '') ?>"><select name="recipient_type[]"><?php foreach (['TO' => 'Кому', 'CC' => 'Копия', 'BCC' => 'Скрытая'] as $type => $label): ?><option value="<?= $type ?>" <?= ($recipient['send_type'] ?? 'TO') === $type ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select><button type="button" class="mailing-remove-recipient" title="Удалить">×</button></div>
+                  <div class="mailing-recipient-row"><input type="email" name="recipient_email[]" placeholder="mail@example.ru" value="<?= htmlspecialchars($recipient['email'] ?? '') ?>"><select name="recipient_type[]"><?php foreach (['TO' => 'Кому', 'CC' => 'Копия'] as $type => $label): ?><option value="<?= $type ?>" <?= (($recipient['send_type'] ?? 'TO') === $type || ($type === 'CC' && ($recipient['send_type'] ?? '') === 'BCC')) ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select><button type="button" class="mailing-remove-recipient" title="Удалить">×</button></div>
                 <?php endforeach; ?>
               </div>
               <button type="button" class="mailing-link-button" id="addMailingRecipient">+ Добавить получателя</button>

@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Database\DbInterface;
-use App\Reports\MailingStore;
+use App\Reports\MailingData;
 use App\Reports\ReportCatalog;
 use App\Services\OrganizationService;
 use Psr\Http\Message\ResponseInterface;
@@ -12,13 +12,13 @@ use Psr\Http\Message\ServerRequestInterface;
 
 final class MailingController
 {
-    private MailingStore $store;
+    private MailingData $mailings;
     private OrganizationService $organizations;
     private array $config;
 
     public function __construct(DbInterface $db, OrganizationService $organizations, array $config = [])
     {
-        $this->store = new MailingStore($db);
+        $this->mailings = new MailingData($db);
         $this->organizations = $organizations;
         $this->config = $config;
     }
@@ -26,8 +26,8 @@ final class MailingController
     public function index(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $userId = $this->userId();
-        $mailings = $this->store->listByUser($userId);
-        $runs = $this->store->recentRuns($userId);
+        $mailings = $this->mailings->listByUser($userId);
+        $runs = $this->mailings->recentRuns($userId);
         $catalog = ReportCatalog::all();
         $query = $request->getQueryParams();
         $flashOk = $query['ok'] ?? null;
@@ -42,7 +42,7 @@ final class MailingController
     {
         $query = $request->getQueryParams();
         $id = (int) ($query['id'] ?? 0);
-        $mailing = $id > 0 ? $this->store->find($id, $this->userId()) : null;
+        $mailing = $id > 0 ? $this->mailings->find($id, $this->userId()) : null;
         if ($id > 0 && !$mailing) {
             return $this->redirect($response, '/mailings?err=' . urlencode('Рассылка не найдена'));
         }
@@ -95,7 +95,7 @@ final class MailingController
         }
 
         $id = (int) ($body['id'] ?? 0);
-        if ($id > 0 && !$this->store->find($id, $this->userId())) {
+        if ($id > 0 && !$this->mailings->find($id, $this->userId())) {
             return $this->redirect($response, '/mailings?err=' . urlencode('Рассылка не найдена'));
         }
 
@@ -153,7 +153,7 @@ final class MailingController
             'name' => mb_substr($name, 0, 200),
             'report_code' => $reportCode,
             'report_view' => $view,
-            'file_format' => strtoupper((string) ($body['file_format'] ?? 'XLSX')) === 'CSV' ? 'CSV' : 'XLSX',
+            'file_format' => 'XLSX',
             'filters' => $filters,
             'subject_text' => $this->nullableText($body['subject_text'] ?? null, 500),
             'body_text' => $this->nullableText($body['body_text'] ?? null, 2000),
@@ -164,10 +164,10 @@ final class MailingController
             'skip_empty' => isset($body['skip_empty']) ? 1 : 0,
             'is_active' => isset($body['is_active']) ? 1 : 0,
         ];
-        $mailing['next_run_at'] = MailingStore::nextRun($mailing);
+        $mailing['next_run_at'] = MailingData::nextRun($mailing);
 
         try {
-            $this->store->save($mailing, $recipients);
+            $this->mailings->save($mailing, $recipients);
         } catch (\Throwable $error) {
             return $this->backToForm($response, $id, 'Не удалось сохранить рассылку: ' . $this->shortError($error));
         }
@@ -183,13 +183,13 @@ final class MailingController
         }
         $id = (int) ($body['id'] ?? 0);
         $active = (int) ($body['is_active'] ?? 0) === 1;
-        $mailing = $this->store->find($id, $this->userId());
+        $mailing = $this->mailings->find($id, $this->userId());
         if (!$mailing) {
             return $this->redirect($response, '/mailings?err=' . urlencode('Рассылка не найдена'));
         }
         $mailing['is_active'] = $active ? 1 : 0;
-        $nextRunAt = MailingStore::nextRun($mailing);
-        $this->store->setActive($id, $this->userId(), $active, $nextRunAt);
+        $nextRunAt = MailingData::nextRun($mailing);
+        $this->mailings->setActive($id, $this->userId(), $active, $nextRunAt);
         return $this->redirect($response, '/mailings?ok=' . urlencode($active ? 'Рассылка включена' : 'Рассылка отключена'));
     }
 
@@ -199,7 +199,7 @@ final class MailingController
         if (!$this->checkCsrf($body)) {
             return $this->redirect($response, '/mailings?err=' . urlencode('Ошибка запроса'));
         }
-        $this->store->delete((int) ($body['id'] ?? 0), $this->userId());
+        $this->mailings->delete((int) ($body['id'] ?? 0), $this->userId());
         return $this->redirect($response, '/mailings?ok=' . urlencode('Рассылка удалена'));
     }
 
@@ -209,7 +209,7 @@ final class MailingController
         if (!$this->checkCsrf($body)) {
             return $this->redirect($response, '/mailings?err=' . urlencode('Ошибка запроса'));
         }
-        if (!$this->store->queue((int) ($body['id'] ?? 0), $this->userId())) {
+        if (!$this->mailings->queue((int) ($body['id'] ?? 0), $this->userId())) {
             return $this->redirect($response, '/mailings?err=' . urlencode('Рассылка не найдена'));
         }
         return $this->redirect($response, '/mailings?ok=' . urlencode('Отчёт добавлен в очередь'));
@@ -235,7 +235,7 @@ final class MailingController
                 continue;
             }
             $type = strtoupper((string) ($types[$index] ?? 'TO'));
-            if (!in_array($type, ['TO', 'CC', 'BCC'], true)) {
+            if (!in_array($type, ['TO', 'CC'], true)) {
                 $type = 'TO';
             }
             $key = $type . ':' . $email;

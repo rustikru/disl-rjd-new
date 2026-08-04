@@ -5,6 +5,9 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Logging\ErrorLogger;
+use App\Reports\MailingData;
+use App\Reports\MailingSender;
+use App\Reports\ReportCatalog;
 use App\Services\FreiConStationService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -133,6 +136,76 @@ class AdminController
 
         $response->getBody()->write($html);
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function mailingsPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isAdmin()) {
+            return $this->forbidden($response);
+        }
+
+        $data = new MailingData($this->db);
+        $mailings = $data->listAll();
+        $reports = ReportCatalog::all();
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user = $_SESSION['user'] ?? [];
+        $query = $request->getQueryParams();
+        $runsPerPage = 20;
+        $runsCount = $data->runsCount();
+        $runsPages = max(1, (int) ceil($runsCount / $runsPerPage));
+        $runsPage = max(1, min($runsPages, (int) ($query['history_page'] ?? 1)));
+        $runs = $data->runsPage($runsPage, $runsPerPage);
+        $flashOk = $query['ok'] ?? null;
+        $flashErr = $query['err'] ?? null;
+        $csrf = $_SESSION['csrf_token'] ?? '';
+
+        ob_start();
+        include __DIR__ . '/../../templates/admin/mailings.php';
+        $html = ob_get_clean();
+
+        $response->getBody()->write($html);
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function runMailings(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isAdmin()) {
+            return $this->forbidden($response);
+        }
+
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body)) {
+            return $this->redirect($response, '/admin/mailings?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+        }
+        if (empty($this->config['report_mail_enabled'])) {
+            return $this->redirect($response, '/admin/mailings?err=' . urlencode('Обработка рассылок отключена в настройках'));
+        }
+
+        try {
+            $data = new MailingData($this->db);
+            $queued = $data->queueDue();
+            $sender = new MailingSender(
+                $this->db,
+                (string) ($this->config['report_storage_dir'] ?? (__DIR__ . '/../../storage/reports')),
+                !empty($this->config['report_mail_test'])
+            );
+            $result = $sender->runAll();
+            $message = 'Обработка завершена: поставлено в очередь — ' . $queued
+                . ', отправлено — ' . $result['sent']
+                . ', пропущено — ' . $result['skipped']
+                . ', ошибок — ' . $result['errors'];
+            return $this->redirect($response, '/admin/mailings?ok=' . urlencode($message));
+        } catch (\Throwable $error) {
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'runMailings',
+            ], $request);
+            return $this->redirect(
+                $response,
+                '/admin/mailings?err=' . urlencode('Не удалось обработать очередь. Код ошибки: ' . $errorId)
+            );
+        }
     }
 
     public function stationsPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface

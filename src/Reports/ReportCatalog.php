@@ -15,7 +15,6 @@ final class ReportCatalog
                 [
                     self::filter('wagon_no', 'Номер вагона', 'text', '#fDislocationWagonNo'),
                     self::filter('cargo', 'Груз', 'select', '#fDislocationCargo', 'cargo'),
-                    self::filter('report_dt', 'Дата справки', 'report_date'),
                 ]
             ),
             'approach' => self::report(
@@ -25,7 +24,6 @@ final class ReportCatalog
                 [
                     self::filter('wagon_no', 'Номер вагона', 'text', '#fApproachWagonNo'),
                     self::filter('cargo', 'Груз', 'select', '#fApproachCargo', 'cargo'),
-                    self::filter('report_dt', 'Дата справки', 'report_date'),
                 ]
             ),
             'departure' => self::report(
@@ -36,7 +34,6 @@ final class ReportCatalog
                     self::filter('wagon_no', 'Номер вагона', 'text', '#fDepartureWagonNo'),
                     self::filter('cargo', 'Груз', 'select', '#fDepartureCargo', 'cargo'),
                     self::filter('dest_station', 'Станция назначения', 'select', '#fDestStation', 'dest_station'),
-                    self::filter('report_dt', 'Дата справки', 'report_date'),
                 ]
             ),
             'loading' => self::report(
@@ -46,7 +43,6 @@ final class ReportCatalog
                 [
                     self::filter('wagon_no', 'Номер вагона', 'text', '#fLoadingWagonNo'),
                     self::filter('cargo', 'Груз', 'select', '#fLoadingCargo', 'cargo'),
-                    self::filter('report_dt', 'Дата справки', 'report_date'),
                 ]
             ),
             'downtime' => self::report(
@@ -56,7 +52,6 @@ final class ReportCatalog
                 [
                     self::filter('wagon_no', 'Номер вагона', 'text', '#fDowntimeWagonNo'),
                     self::filter('dest_station', 'Станция назначения', 'select', '#fDowntimeDestStation', 'dest_station'),
-                    self::filter('report_dt', 'Дата справки', 'report_date'),
                 ]
             ),
             'raw-material' => self::report(
@@ -65,7 +60,6 @@ final class ReportCatalog
                 null,
                 [
                     self::filter('wagon_no', 'Номер вагона', 'text', '#fRawWagonNo'),
-                    self::filter('report_dt', 'Дата справки', 'report_date'),
                 ]
             ),
             'analysis-period' => self::report(
@@ -96,6 +90,36 @@ final class ReportCatalog
             $report['columns'] = self::defaultColumns();
         }
         unset($report);
+        $reports['dislocation']['group_cols'] = [
+            ['key' => 'dest_state', 'label' => 'Страна назначения'],
+            ['key' => 'dest_road', 'label' => 'Дорога назначения'],
+            ['key' => 'dest_station', 'label' => 'Станция назначения'],
+        ];
+        $reports['dislocation']['col_dims'] = ['wagon_type_code', 'cargo_w_type'];
+        $reports['approach']['group_cols'] = [
+            ['key' => 'oper_road', 'label' => 'Дорога операции'],
+            ['key' => 'oper_station', 'label' => 'Станция операции'],
+        ];
+        $reports['approach']['col_dims'] = ['wagon_type_code', 'cargo_w_type'];
+        $reports['departure']['group_cols'] = [
+            ['key' => 'dest_road', 'label' => 'Дорога назначения'],
+            ['key' => 'dest_station', 'label' => 'Станция назначения'],
+        ];
+        $reports['departure']['col_dims'] = ['wagon_type_code'];
+        $reports['loading']['group_cols'] = [
+            ['key' => 'depart_road', 'label' => 'Дорога'],
+            ['key' => 'depart_station', 'label' => 'Станция'],
+        ];
+        $reports['loading']['col_dims'] = ['wagon_type_code'];
+        $reports['downtime']['group_cols'] = [
+            ['key' => 'cargo_name', 'label' => 'Груз'],
+            ['key' => 'idle_time_name', 'label' => 'Простой'],
+        ];
+        $reports['downtime']['col_dims'] = ['m_wagon_type_code', 'm_wag_state'];
+        $reports['raw-material']['group_cols'] = [
+            ['key' => 'cargo_name', 'label' => 'Груз'],
+        ];
+        $reports['raw-material']['col_dims'] = ['wagon_type_code'];
         $reports['downtime-control']['columns'] = [
             ['key' => 'car_number', 'label' => '№ вагона'],
             ['key' => 'start_date', 'label' => 'Начало простоя'],
@@ -164,6 +188,8 @@ final class ReportCatalog
             'options_url' => $optionsUrl,
             'organization_required' => $organizationRequired,
             'filters' => $filters,
+            'group_cols' => [],
+            'col_dims' => [],
         ];
     }
 

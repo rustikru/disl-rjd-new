@@ -592,56 +592,9 @@ function fillSelect(selector, values) {
   })
 }
 
-function mailingReportCode(cfg) {
-  var code = ''
-  Object.keys(WAGON_TABS).some(function (key) {
-    if (WAGON_TABS[key] === cfg) {
-      code = key
-      return true
-    }
-    return false
-  })
-  return code
-}
-
-function mailingFormUrl(cfg, reportView) {
-  var params = cfg.getParams ? cfg.getParams() : {}
-  Object.keys(params).forEach(function (key) {
-    if (params[key] === undefined || params[key] === null || params[key] === '')
-      delete params[key]
-  })
-  return (
-    BASE +
-    '/mailings/form?report_code=' +
-    encodeURIComponent(mailingReportCode(cfg)) +
-    '&report_view=' +
-    encodeURIComponent(reportView) +
-    '&filters=' +
-    encodeURIComponent(JSON.stringify(params))
-  )
-}
-
-function addMailingButton($acts, cfg, reportView, className) {
-  if (!$acts.length || $acts.find('.' + className).length) return
-  var $button = $(
-    '<a class="btn btn-ghost btn-sm ' + className + '">Настроить рассылку</a>',
-  )
-  $button.attr('href', mailingFormUrl(cfg, reportView))
-  $button.on('click', function () {
-    $button.attr('href', mailingFormUrl(cfg, reportView))
-  })
-  $acts.append($button)
-}
-
-/* Инициализация вкладки: загрузка сводной, KPI, фильтров и кнопки CSV  */
+/* Инициализация вкладки: загрузка сводной, KPI, фильтров и кнопки Excel */
 function initTab(cfg) {
   window[cfg.loadedKey] = true
-  if (cfg.summaryUrl && cfg.sumTableId) {
-    var $summaryActs = $('#' + cfg.sumTableId)
-      .closest('.table-section')
-      .find('.table-acts')
-    addMailingButton($summaryActs, cfg, 'SUMMARY', 'btn-mailing-summary')
-  }
   if (cfg.csvFilename) {
     var $acts = $('#' + cfg.sumTableId)
       .closest('.table-section')
@@ -982,14 +935,6 @@ function loadDetail(cfg) {
           })
           $acts.append($btn)
         }
-        addMailingButton($acts, cfg, 'DETAIL', 'btn-mailing-detail')
-      } else {
-        addMailingButton(
-          $table.closest('.table-section').find('.table-acts'),
-          cfg,
-          'DETAIL',
-          'btn-mailing-detail',
-        )
       }
     })
     .fail(function (jqXHR) {

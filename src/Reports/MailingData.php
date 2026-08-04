@@ -5,7 +5,7 @@ namespace App\Reports;
 
 use App\Database\DbInterface;
 
-final class MailingStore
+final class MailingData
 {
     private DbInterface $db;
 
@@ -35,6 +35,45 @@ final class MailingStore
 
         foreach ($rows as &$row) {
             $row['schedule_label'] = self::scheduleLabel($row);
+        }
+        unset($row);
+        return $rows;
+    }
+
+    public function listAll(): array
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT m.id, m.user_id, m.organization_id, m.name, m.report_code,
+                    m.report_view, m.file_format, m.schedule_type, m.run_time,
+                    m.week_days, m.month_day, m.skip_empty,
+                    m.is_active, m.last_run_at, m.next_run_at, m.created_at,
+                    DBMS_LOB.SUBSTR(m.filters_json, 4000, 1) AS filters_json,
+                    m.subject_text, m.body_text,
+                    u.username, u.display_name,
+                    o.name AS organization_name, o.short_name AS organization_short_name,
+                    (SELECT COUNT(*) FROM xx_rjd_report_recipients r WHERE r.mailing_id = m.id) AS recipient_count,
+                    (SELECT MAX(x.started_at) FROM xx_rjd_report_runs x WHERE x.mailing_id = m.id) AS last_attempt_at,
+                    (SELECT MAX(x.status) KEEP (DENSE_RANK LAST ORDER BY x.started_at, x.id)
+                       FROM xx_rjd_report_runs x WHERE x.mailing_id = m.id) AS last_status
+               FROM xx_rjd_report_mailings m
+               JOIN xx_rjd_users u ON u.id = m.user_id
+               LEFT JOIN xx_rjd_organizations o ON o.id = m.organization_id
+              ORDER BY m.is_active DESC, m.created_at DESC, m.id DESC"
+        );
+
+        $recipients = [];
+        foreach ($this->db->fetchAll(
+            'SELECT mailing_id, email, send_type
+               FROM xx_rjd_report_recipients
+              ORDER BY mailing_id, send_type, id'
+        ) as $recipient) {
+            $recipients[(int) $recipient['mailing_id']][] = $recipient;
+        }
+
+        foreach ($rows as &$row) {
+            $row['schedule_label'] = self::scheduleLabel($row);
+            $row['filters'] = json_decode((string) ($row['filters_json'] ?? '{}'), true) ?: [];
+            $row['recipients'] = $recipients[(int) $row['id']] ?? [];
         }
         unset($row);
         return $rows;
@@ -217,6 +256,40 @@ final class MailingStore
                  ORDER BY r.started_at DESC, r.id DESC
             ) WHERE ROWNUM <= " . $limit,
             ['user_id' => $userId]
+        );
+    }
+
+    public function runsCount(): int
+    {
+        $row = $this->db->fetchOne('SELECT COUNT(*) AS cnt FROM xx_rjd_report_runs');
+        return (int) ($row['cnt'] ?? 0);
+    }
+
+    public function runsPage(int $page, int $perPage = 20): array
+    {
+        $page = max(1, $page);
+        $perPage = max(1, min(100, $perPage));
+        $offset = ($page - 1) * $perPage;
+        $lastRow = $offset + $perPage;
+
+        return $this->db->fetchAll(
+            "SELECT * FROM (
+                SELECT ordered_runs.*, ROWNUM AS row_number
+                  FROM (
+                    SELECT r.id, r.mailing_id, m.name AS mailing_name,
+                    m.report_code, m.report_view, m.file_format,
+                    u.username, u.display_name,
+                    o.name AS organization_name, o.short_name AS organization_short_name,
+                    r.started_at, r.finished_at, r.status, r.report_dt,
+                    r.rows_count, r.file_name, r.error_message
+                      FROM xx_rjd_report_runs r
+                      JOIN xx_rjd_report_mailings m ON m.id = r.mailing_id
+                      JOIN xx_rjd_users u ON u.id = m.user_id
+                      LEFT JOIN xx_rjd_organizations o ON o.id = m.organization_id
+                     ORDER BY r.started_at DESC, r.id DESC
+                  ) ordered_runs
+                 WHERE ROWNUM <= " . $lastRow . "
+            ) WHERE row_number > " . $offset
         );
     }
 

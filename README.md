@@ -45,9 +45,9 @@ disl-rjd-new/
 │   │   └── MailingController.php    # Настройка рассылок отчётов
 │   ├── Reports/
 │   │   ├── ReportCatalog.php        # Отчёты и доступные фильтры
-│   │   ├── MailingStore.php         # Настройки, расписание и очередь
-│   │   ├── ReportBuilder.php        # Данные и файлы XLSX/CSV
-│   │   └── MailingWorker.php        # Формирование и отправка писем
+│   │   ├── MailingData.php          # Настройки, расписание и очередь
+│   │   ├── ReportBuilder.php        # Данные и файлы XLSX
+│   │   └── MailingSender.php        # Формирование и отправка писем
 │   ├── Database/
 │   │   ├── DbInterface.php   # Контракт: fetchAll, fetchOne, execute
 │   │   ├── DbFactory.php     # Создаёт OracleDb или PostgresDb по конфигу
@@ -921,6 +921,43 @@ php bin/set-password.php admin newpass
 > (переименование `xx_users_rjd` → `xx_rjd_users`, таблицы ролей, доступ к страницам) и назначьте
 > первого администратора — раскомментируйте `UPDATE` в конце скрипта и укажите логин. Миграцию
 > применяйте **вместе** с выкладкой кода: после переименования таблицы старое имя сломает вход.
+
+---
+
+## Рассылки отчётов
+
+Пользователь может сохранить фильтры отчёта, получателей, формат XLSX и
+расписание. Кнопка запуска в разделе **Мои рассылки** добавляет отчёт в очередь
+сразу, без ожидания времени расписания. Очередь обрабатывает команда:
+
+```bash
+php bin/run_report_mailings.php
+```
+
+Администратору доступен раздел **Администрирование → Рассылки**. В нём
+показываются настройки всех пользователей и полная история запусков без
+возможности редактирования. Кнопка **Обработать очередь** выполняет ту же
+обработку, что и `bin/run_report_mailings.php`: добавляет наступившие задания
+в очередь и последовательно обрабатывает все ожидающие записи.
+
+Для безопасной проверки без отправки писем включите тестовый режим в
+`rjd_config.php`:
+
+```php
+'report_mail_enabled' => true,
+'report_mail_test' => true,
+'report_storage_dir' => __DIR__ . '/storage/reports',
+```
+
+Каждое тестовое письмо сохраняется в отдельной папке
+`storage/reports/test/`: файл отчёта и `message.json` с получателями, темой и
+текстом письма. При `report_mail_test = false` используется заготовка вызова
+пакета Oracle в `MailingSender::sendMail()`.
+
+Перед использованием примените миграции Oracle 11:
+`db/migrations/008_xx_rjd_report_mailings.sql` и
+`db/migrations/009_xx_rjd_report_mailings_xlsx.sql`, затем
+`db/migrations/010_xx_rjd_report_recipients.sql`.
 
 ---
 

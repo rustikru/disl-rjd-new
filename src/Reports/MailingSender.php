@@ -5,29 +5,28 @@ namespace App\Reports;
 
 use App\Database\DbInterface;
 
-final class MailingWorker
+final class MailingSender
 {
-    private MailingStore $store;
+    private DbInterface $db;
+    private MailingData $mailings;
     private ReportBuilder $reports;
-    private string $from;
     private string $directory;
+    private bool $testMode;
 
-    public function __construct(DbInterface $db, string $from, string $directory)
+    public function __construct(DbInterface $db, string $directory, bool $testMode = false)
     {
-        if (!filter_var($from, FILTER_VALIDATE_EMAIL)) {
-            throw new \InvalidArgumentException('Не настроен адрес отправителя отчётов');
-        }
-        $this->store = new MailingStore($db);
+        $this->db = $db;
+        $this->mailings = new MailingData($db);
         $this->reports = new ReportBuilder($db);
-        $this->from = $from;
         $this->directory = $directory;
+        $this->testMode = $testMode;
     }
 
     public function run(int $limit = 20): array
     {
         $result = ['sent' => 0, 'skipped' => 0, 'errors' => 0];
-        foreach ($this->store->pending($limit) as $mailing) {
-            if (!$this->store->startRun((int) $mailing['run_id'])) {
+        foreach ($this->mailings->pending($limit) as $mailing) {
+            if (!$this->mailings->startRun((int) $mailing['run_id'])) {
                 continue;
             }
             $status = $this->process($mailing);
@@ -36,6 +35,20 @@ final class MailingWorker
             else $result['errors']++;
         }
         return $result;
+    }
+
+    public function runAll(): array
+    {
+        $total = ['sent' => 0, 'skipped' => 0, 'errors' => 0];
+        do {
+            $result = $this->run(100);
+            foreach ($total as $key => $value) {
+                $total[$key] += $result[$key];
+            }
+            $processed = array_sum($result);
+        } while ($processed === 100);
+
+        return $total;
     }
 
     private function process(array $mailing): string
@@ -57,7 +70,7 @@ final class MailingWorker
                 return $this->complete($mailing, $status, $reportDt, 0, null, $errorMessage);
             }
 
-            $filePath = $this->reports->createFile($report, (string) $mailing['file_format'], $this->directory);
+            $filePath = $this->reports->createFile($report, $this->directory);
             $values = [
                 '{report_date}' => $this->dateLabel($reportDt),
                 '{organization}' => (string) ($mailing['organization_short_name'] ?: ($mailing['organization_name'] ?? '')),
@@ -86,8 +99,8 @@ final class MailingWorker
         ?string $errorMessage
     ): string {
         $mailing['is_active'] = (int) ($mailing['is_active'] ?? 0);
-        $nextRunAt = MailingStore::nextRun($mailing);
-        $this->store->finishRun(
+        $nextRunAt = MailingData::nextRun($mailing);
+        $this->mailings->finishRun(
             (int) $mailing['run_id'],
             (int) $mailing['mailing_id'],
             $status,
@@ -114,48 +127,52 @@ final class MailingWorker
 
     private function sendMail(array $recipients, string $subject, string $body, string $filePath): void
     {
-        $to = $this->emails($recipients, 'TO');
-        if (!$to) {
+        if (!$recipients) {
             throw new \RuntimeException('Не указан получатель письма');
         }
-        $boundary = 'rjd-' . bin2hex(random_bytes(12));
-        $headers = [
-            'From: ' . $this->from,
-            'MIME-Version: 1.0',
-            'Content-Type: multipart/mixed; boundary="' . $boundary . '"',
-        ];
-        $cc = $this->emails($recipients, 'CC');
-        $bcc = $this->emails($recipients, 'BCC');
-        if ($cc) $headers[] = 'Cc: ' . implode(', ', $cc);
-        if ($bcc) $headers[] = 'Bcc: ' . implode(', ', $bcc);
-
-        $contents = file_get_contents($filePath);
-        if ($contents === false) {
+        if (!is_file($filePath)) {
             throw new \RuntimeException('Не удалось прочитать файл отчёта');
         }
-        $message = '--' . $boundary . "\r\n"
-            . "Content-Type: text/plain; charset=UTF-8\r\n"
-            . "Content-Transfer-Encoding: 8bit\r\n\r\n"
-            . $body . "\r\n"
-            . '--' . $boundary . "\r\n"
-            . 'Content-Type: application/octet-stream; name="' . basename($filePath) . "\"\r\n"
-            . "Content-Transfer-Encoding: base64\r\n"
-            . 'Content-Disposition: attachment; filename="' . basename($filePath) . "\"\r\n\r\n"
-            . chunk_split(base64_encode($contents))
-            . '--' . $boundary . "--\r\n";
-        $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-        if (!mail(implode(', ', $to), $encodedSubject, $message, implode("\r\n", $headers))) {
-            throw new \RuntimeException('Почтовая система не приняла письмо');
+
+        if ($this->testMode) {
+            $this->saveTestMail($recipients, $subject, $body, $filePath);
+            return;
         }
+
+        /*
+        $this->db->execute(
+            'BEGIN package_name.procedure_name(...); END;',
+            []
+        );
+        */
+
+        throw new \RuntimeException('Отправка через пакет Oracle пока не настроена');
     }
 
-    private function emails(array $recipients, string $type): array
+    private function saveTestMail(array $recipients, string $subject, string $body, string $filePath): void
     {
-        return array_values(array_filter(array_map(
-            static fn(array $recipient): ?string => strtoupper((string) ($recipient['send_type'] ?? 'TO')) === $type
-                ? (string) ($recipient['email'] ?? '')
-                : null,
-            $recipients
-        )));
+        $directory = rtrim($this->directory, DIRECTORY_SEPARATOR)
+            . DIRECTORY_SEPARATOR . 'test'
+            . DIRECTORY_SEPARATOR . date('Y-m-d_H-i-s') . '_' . bin2hex(random_bytes(3));
+        if (!mkdir($directory, 0770, true) && !is_dir($directory)) {
+            throw new \RuntimeException('Не удалось создать папку тестового письма');
+        }
+
+        $fileName = basename($filePath);
+        if (!copy($filePath, $directory . DIRECTORY_SEPARATOR . $fileName)) {
+            throw new \RuntimeException('Не удалось сохранить вложение тестового письма');
+        }
+
+        $message = [
+            'recipients' => $recipients,
+            'subject' => $subject,
+            'body' => $body,
+            'attachment' => $fileName,
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+        $json = json_encode($message, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        if ($json === false || file_put_contents($directory . DIRECTORY_SEPARATOR . 'message.json', $json) === false) {
+            throw new \RuntimeException('Не удалось сохранить данные тестового письма');
+        }
     }
 }
