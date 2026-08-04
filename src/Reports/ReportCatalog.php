@@ -150,6 +150,17 @@ final class ReportCatalog
             if (!array_key_exists($name, $values)) {
                 continue;
             }
+            if (!empty($filter['multiple'])) {
+                $items = is_array($values[$name]) ? $values[$name] : [$values[$name]];
+                $items = array_values(array_unique(array_filter(array_map(
+                    static fn($value): string => is_scalar($value) ? mb_substr(trim((string) $value), 0, 1000) : '',
+                    $items
+                ), static fn(string $value): bool => $value !== '')));
+                if ($items !== []) {
+                    $result[$name] = array_slice($items, 0, 100);
+                }
+                continue;
+            }
             $value = is_scalar($values[$name]) ? trim((string) $values[$name]) : '';
             if ($value !== '') {
                 $result[$name] = mb_substr($value, 0, 1000);
@@ -167,7 +178,9 @@ final class ReportCatalog
 
         $missing = [];
         foreach ($report['filters'] as $filter) {
-            if (!empty($filter['required']) && trim((string) ($values[$filter['name']] ?? '')) === '') {
+            $value = $values[$filter['name']] ?? '';
+            $empty = is_array($value) ? count(array_filter($value, static fn($item): bool => trim((string) $item) !== '')) === 0 : trim((string) $value) === '';
+            if (!empty($filter['required']) && $empty) {
                 $missing[] = $filter['label'];
             }
         }
@@ -208,6 +221,7 @@ final class ReportCatalog
             'selector' => $selector,
             'options_key' => $optionsKey,
             'required' => $required,
+            'multiple' => $type === 'select',
             'show' => ['page', 'mailing'],
         ];
     }

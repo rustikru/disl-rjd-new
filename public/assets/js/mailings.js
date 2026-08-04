@@ -36,22 +36,25 @@
   }
 
   function filterHtml(filter) {
-    var name = 'filters[' + filter.name + ']'
-    var value = filterValues[filter.name] || ''
+    var name = 'filters[' + filter.name + ']' + (filter.multiple ? '[]' : '')
+    var value = filterValues[filter.name] || (filter.multiple ? [] : '')
+    var selectedValues = Array.isArray(value) ? value.map(String) : [String(value)]
     var required = filter.required ? ' required' : ''
     var control = ''
     if (filter.type === 'select') {
       var firstLabel = '— Все —'
-      control = '<select name="' + escapeHtml(name) + '" data-filter-name="' + escapeHtml(filter.name) + '"' + required + '>'
-        + '<option value="">' + firstLabel + '</option>'
+      var multiple = filter.multiple ? ' multiple size="5"' : ''
+      control = '<select name="' + escapeHtml(name) + '" data-filter-name="' + escapeHtml(filter.name) + '"' + multiple + required + '>'
+        + (filter.multiple ? '' : '<option value="">' + firstLabel + '</option>')
         + optionValues(filter).map(function (option) {
-          return '<option value="' + escapeHtml(option.value) + '"' + (String(option.value) === String(value) ? ' selected' : '') + '>' + escapeHtml(option.label) + '</option>'
+          return '<option value="' + escapeHtml(option.value) + '"' + (selectedValues.indexOf(String(option.value)) !== -1 ? ' selected' : '') + '>' + escapeHtml(option.label) + '</option>'
         }).join('') + '</select>'
     } else {
       control = '<input type="' + (filter.type === 'date' ? 'date' : 'text') + '" name="' + escapeHtml(name)
         + '" data-filter-name="' + escapeHtml(filter.name) + '" value="' + escapeHtml(value) + '"' + required + '>'
     }
-    return '<div class="mailing-field"><label>' + escapeHtml(filter.label) + (filter.required ? ' *' : '') + '</label>' + control + '</div>'
+    var hint = filter.multiple ? '<small class="mailing-field-hint">Для выбора нескольких значений удерживайте Ctrl</small>' : ''
+    return '<div class="mailing-field"><label>' + escapeHtml(filter.label) + (filter.required ? ' *' : '') + '</label>' + control + hint + '</div>'
   }
 
   function drawFilters() {
@@ -85,7 +88,9 @@
 
   function storeVisibleFilters() {
     document.querySelectorAll('[data-filter-name]').forEach(function (field) {
-      filterValues[field.dataset.filterName] = field.value
+      filterValues[field.dataset.filterName] = field.multiple
+        ? Array.from(field.selectedOptions).map(function (option) { return option.value })
+        : field.value
     })
   }
 

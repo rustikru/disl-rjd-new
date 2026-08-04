@@ -278,11 +278,22 @@
 }
 
 .mailing-field input:not([type="checkbox"]),
-.mailing-field select,
+.mailing-field select:not([multiple]),
 .mailing-recipient-row input,
 .mailing-recipient-row select,
 .mailing-remove-recipient {
   height: 36px;
+}
+
+.mailing-field select[multiple] {
+  min-height: 116px;
+}
+
+.mailing-field-hint {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-3);
+  font-size: 11px;
 }
 
 .mailing-field textarea {

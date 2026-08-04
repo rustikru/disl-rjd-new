@@ -624,11 +624,7 @@ class ApiController
         $whereCond .= " AND TRUNC(oper_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
         $bindings['date_to'] = $dateTo;
 
-        $cargo = $params['cargo'] ?? '';
-        if ($cargo !== '') {
-            $whereCond .= " AND cargo_name = :cargo";
-            $bindings['cargo'] = $cargo;
-        }
+        $whereCond .= $this->valueListCondition('cargo_name', $params['cargo'] ?? [], $bindings, 'cargo');
 
         $selectCols = $this->selectFields($params['fields'] ?? '');
 
@@ -659,11 +655,7 @@ class ApiController
         $bindings = $cond['params'];
         $whereCond = $cond['sql'];
 
-        $cargo = $params['cargo'] ?? null;
-        if ($cargo) {
-            $whereCond .= " AND UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е')) = UPPER(REPLACE(:cargo_f, 'Ё', 'Е'))";
-            $bindings['cargo_f'] = $cargo;
-        }
+        $whereCond .= $this->valueListCondition("UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е'))", $params['cargo'] ?? [], $bindings, 'cargo_f', 'upper_yo');
         $whereCond .= $this->wagonNoCond($params, $bindings);
         $whereCond .= $this->excludedWagonsCondition();
 
@@ -689,11 +681,7 @@ class ApiController
         }
         $this->organizations->addFilter($whereCond, $bindings);
 
-        $cargo = $params['cargo'] ?? null;
-        if ($cargo) {
-            $whereCond .= " AND UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е')) = UPPER(REPLACE(:cargo_f, 'Ё', 'Е'))";
-            $bindings['cargo_f'] = $cargo;
-        }
+        $whereCond .= $this->valueListCondition("UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е'))", $params['cargo'] ?? [], $bindings, 'cargo_f', 'upper_yo');
         $prevCargo = $params['prev_cargo'] ?? null;
         if ($prevCargo) {
             $whereCond .= " AND UPPER(REPLACE(COALESCE(prev_cargo,''), 'Ё', 'Е')) = UPPER(REPLACE(:prev_cargo_f, 'Ё', 'Е'))";
@@ -720,16 +708,8 @@ class ApiController
         }
         $this->organizations->addFilter($whereCond, $bindings);
 
-        $cargo = $params['cargo'] ?? null;
-        if ($cargo) {
-            $whereCond .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
-            $bindings['cargo_f'] = $cargo;
-        }
-        $destStation = $params['dest_station'] ?? null;
-        if ($destStation) {
-            $whereCond .= ' AND dest_station = :dest_station';
-            $bindings['dest_station'] = $destStation;
-        }
+        $whereCond .= $this->valueListCondition("UPPER(COALESCE(cargo_name,''))", $params['cargo'] ?? [], $bindings, 'cargo_f', 'upper');
+        $whereCond .= $this->valueListCondition('dest_station', $params['dest_station'] ?? [], $bindings, 'dest_station');
         $whereCond .= $this->wagonNoCond($params, $bindings);
         $whereCond .= $this->excludedWagonsCondition();
 
@@ -748,11 +728,7 @@ class ApiController
         $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $this->organizations->addFilter($whereCond, $bindings);
 
-        $cargo = $params['cargo'] ?? null;
-        if ($cargo) {
-            $whereCond .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
-            $bindings['cargo_f'] = $cargo;
-        }
+        $whereCond .= $this->valueListCondition("UPPER(COALESCE(cargo_name,''))", $params['cargo'] ?? [], $bindings, 'cargo_f', 'upper');
         $whereCond .= $this->wagonNoCond($params, $bindings);
         $whereCond .= $this->excludedWagonsCondition();
 
@@ -799,11 +775,7 @@ class ApiController
             $bindings['max_days'] = $maxDays;
         }
         // Станция назначения
-        $destStation = trim($params['dest_station'] ?? '');
-        if ($destStation !== '') {
-            $whereCond .= ' AND dest_station = :dest_station';
-            $bindings['dest_station'] = $destStation;
-        }
+        $whereCond .= $this->valueListCondition('dest_station', $params['dest_station'] ?? [], $bindings, 'dest_station');
         $whereCond .= $this->wagonNoCond($params, $bindings);
         $whereCond .= $this->excludedWagonsCondition();
 
@@ -1000,6 +972,35 @@ class ApiController
             $bindings[$key] = $value;
         }
         return implode(', ', $placeholders);
+    }
+
+    /** Строит условие IN для одного или нескольких значений фильтра. */
+    private function valueListCondition(string $field, $values, array &$bindings, string $prefix, string $format = ''): string
+    {
+        $items = is_array($values) ? $values : [$values];
+        $items = array_values(array_unique(array_filter(array_map(
+            static fn($value): string => is_scalar($value) ? trim((string) $value) : '',
+            $items
+        ), static fn(string $value): bool => $value !== '')));
+        $items = array_slice($items, 0, 100);
+        if ($items === []) {
+            return '';
+        }
+
+        $placeholders = [];
+        foreach ($items as $index => $value) {
+            $key = $prefix . '_' . $index;
+            $placeholder = ':' . $key;
+            if ($format === 'upper_yo') {
+                $placeholder = "UPPER(REPLACE($placeholder, 'Ё', 'Е'))";
+            } elseif ($format === 'upper') {
+                $placeholder = "UPPER($placeholder)";
+            }
+            $placeholders[] = $placeholder;
+            $bindings[$key] = $value;
+        }
+
+        return ' AND ' . $field . ' IN (' . implode(', ', $placeholders) . ')';
     }
 
     /** Допускает только безопасные имена полей: буквы, цифры, _ */
