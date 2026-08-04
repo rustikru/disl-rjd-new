@@ -73,6 +73,7 @@ function initSidebar() {
 
     sidebar.appendChild(groupEl)
   })
+  document.dispatchEvent(new CustomEvent('sidebar:rendered'))
 }
 
 // Переключение вкладок
@@ -84,6 +85,7 @@ function switchTab(tabId) {
     panel.classList.toggle('active', panel.id === 'panel-' + tabId)
   })
   history.replaceState(null, '', '#' + tabId)
+  document.dispatchEvent(new CustomEvent('sidebar:active'))
   Object.keys(WAGON_TABS).forEach(function (k) {
     var cfg = WAGON_TABS[k]
     if (tabId === k && !window[cfg.loadedKey]) {

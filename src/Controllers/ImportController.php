@@ -83,12 +83,40 @@ class ImportController
     public function showForm(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $filter = $this->organizations->filter();
+        $query = $request->getQueryParams();
+        $reportsPerPage = 20;
+        $countRow = $this->db->fetchOne(
+            "SELECT COUNT(*) AS cnt
+               FROM (
+                   SELECT report_dt, type_reference
+                     FROM xx_dislocation_rjd
+                    WHERE {$filter['sql']}
+                    GROUP BY report_dt, type_reference
+               )",
+            $filter['params']
+        );
+        $reportsCount = (int) ($countRow['cnt'] ?? 0);
+        $reportsPages = max(1, (int) ceil($reportsCount / $reportsPerPage));
+        $reportsPage = max(1, min($reportsPages, (int) ($query['reports_page'] ?? 1)));
+        $reportsOffset = ($reportsPage - 1) * $reportsPerPage;
+        $reportsLastRow = $reportsOffset + $reportsPerPage;
         $reports = $this->db->fetchAll(
-            "SELECT to_char((report_dt),'DD.MM.YYYY HH24:MI:SS') AS report_date, type_reference, COUNT(*) AS cnt
-             FROM xx_dislocation_rjd
-             WHERE {$filter['sql']}
-             GROUP BY to_char((report_dt),'DD.MM.YYYY HH24:MI:SS'), (report_dt), type_reference
-             ORDER BY (report_dt) DESC, type_reference",
+            "SELECT report_date, type_reference, cnt
+               FROM (
+                   SELECT ordered_reports.*, ROWNUM AS row_number
+                     FROM (
+                         SELECT TO_CHAR(report_dt, 'DD.MM.YYYY HH24:MI:SS') AS report_date,
+                                type_reference,
+                                COUNT(*) AS cnt,
+                                report_dt
+                           FROM xx_dislocation_rjd
+                          WHERE {$filter['sql']}
+                          GROUP BY report_dt, type_reference
+                          ORDER BY report_dt DESC, type_reference
+                     ) ordered_reports
+                    WHERE ROWNUM <= " . $reportsLastRow . "
+               )
+              WHERE row_number > " . $reportsOffset,
             $filter['params']
         );
 

@@ -168,6 +168,42 @@ $basePath = $basePath ?? '';
       font-size: 13px;
       color: #5c6370;
     }
+
+    .reports-pagination {
+      display: flex;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 5px;
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .reports-page-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 32px;
+      height: 32px;
+      padding: 0 9px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text-2);
+      font-size: 12px;
+      text-decoration: none;
+    }
+
+    .reports-page-link:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .reports-page-link.is-active {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+      pointer-events: none;
+    }
   </style>
 </head>
 
@@ -336,7 +372,7 @@ $basePath = $basePath ?? '';
         <div class="table-toolbar">
           <div class="table-info">
             <span class="table-title">Загруженные справки</span>
-            <span class="table-sub" id="reportsSub"></span>
+            <span class="table-sub">Всего: <?= (int) $reportsCount ?></span>
           </div>
         </div>
         <div class="table-scroll">
@@ -348,47 +384,27 @@ $basePath = $basePath ?? '';
                 <th>Кол-во вагонов</th>
               </tr>
             </thead>
-            <tbody id="reportsTbody"></tbody>
+            <tbody>
+              <?php foreach ($reports as $index => $report): ?>
+                <tr class="row-data">
+                  <td><?= (int) (($reportsPage - 1) * $reportsPerPage + $index + 1) ?></td>
+                  <td><?= htmlspecialchars((string) (($report['type_reference'] ?? '') . ' [' . ($report['report_date'] ?? '') . ']')) ?></td>
+                  <td><?= (int) ($report['cnt'] ?? 0) ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
           </table>
-          <div id="reportsSentinel" style="height:1px"></div>
         </div>
+        <?php if ($reportsPages > 1): ?>
+          <nav class="reports-pagination" aria-label="Страницы загруженных справок">
+            <?php for ($pageNumber = 1; $pageNumber <= $reportsPages; $pageNumber++): ?>
+              <a class="reports-page-link<?= $pageNumber === $reportsPage ? ' is-active' : '' ?>"
+                 href="<?= htmlspecialchars($basePath) ?>/import?reports_page=<?= $pageNumber ?>#reportsSection"
+                 <?= $pageNumber === $reportsPage ? 'aria-current="page"' : '' ?>><?= $pageNumber ?></a>
+            <?php endfor; ?>
+          </nav>
+        <?php endif; ?>
       </section>
-      <script>
-        (function () {
-          var PAGE = 10;
-          var data = <?= json_encode(array_values($reports), JSON_UNESCAPED_UNICODE) ?>;
-          var loaded = 0;
-          var tbody = document.getElementById('reportsTbody');
-          var sentinel = document.getElementById('reportsSentinel');
-          var sub = document.getElementById('reportsSub');
-
-          function loadMore() {
-            var next = Math.min(loaded + PAGE, data.length);
-            var html = '';
-            for (var i = loaded; i < next; i++) {
-              var r = data[i];
-              html += '<tr class="row-data"><td>' + (i + 1) + '</td>'
-                + '<td>' + esc(String((r.type_reference || '') + ' [' + (r.report_date || '') + ']')) + '</td>'
-                + '<td>' + esc(String(r.cnt || 0)) + '</td></tr>';
-            }
-            tbody.insertAdjacentHTML('beforeend', html);
-            loaded = next;
-            sub.textContent = 'Показано ' + loaded + ' из ' + data.length;
-            if (loaded >= data.length) observer.disconnect();
-          }
-
-          function esc(s) {
-            return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-          }
-
-          var observer = new IntersectionObserver(function (entries) {
-            if (entries[0].isIntersecting) loadMore();
-          }, { rootMargin: '100px' });
-
-          loadMore();
-          observer.observe(sentinel);
-        })();
-      </script>
     <?php endif; ?>
 
   </div>

@@ -16,6 +16,7 @@ foreach ($headerOrganizations as $headerOrganization) {
 $headerName = $headerName ?? ($selectedOrganizationName !== '' ? $selectedOrganizationName : $appName);
 $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
 ?>
+<script defer src="<?= htmlspecialchars($basePath) ?>/assets/js/sidebar.js"></script>
 <header class="site-header">
   <div class="header-inner">
     <div class="header-left">
