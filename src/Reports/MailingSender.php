@@ -53,39 +53,58 @@ final class MailingSender
 
     private function process(array $mailing): string
     {
-        $filePath = null;
+        $filePaths = [];
         $reportDt = null;
         $rowsCount = 0;
         $status = 'ERROR';
         $errorMessage = null;
 
         try {
-            $report = $this->reports->build($mailing);
-            $reportDt = $report['report_dt'];
-            $rowsCount = (int) $report['row_count'];
+            $reportDates = [];
+            foreach ((array) ($mailing['attachments'] ?? []) as $index => $attachment) {
+                $reportSettings = array_merge($mailing, $attachment);
+                $report = $this->reports->build($reportSettings);
+                $attachmentRows = (int) $report['row_count'];
+                $rowsCount += $attachmentRows;
+                if (!empty($report['report_dt'])) {
+                    $reportDates[] = (string) $report['report_dt'];
+                }
+                if (!empty($mailing['skip_empty']) && $attachmentRows === 0) {
+                    continue;
+                }
+                $filePaths[] = $this->reports->createFile($report, $this->directory, (string) ($index + 1));
+            }
+            $reportDt = $reportDates ? max($reportDates) : null;
 
-            if (!empty($mailing['skip_empty']) && $rowsCount === 0) {
+            if ($filePaths === []) {
                 $status = 'SKIPPED';
-                $errorMessage = 'Отчёт не содержит строк';
+                $errorMessage = 'Все отчёты не содержат строк';
                 return $this->complete($mailing, $status, $reportDt, 0, null, $errorMessage);
             }
 
-            $filePath = $this->reports->createFile($report, $this->directory);
+            $organizations = [];
+            foreach ((array) ($mailing['attachments'] ?? []) as $attachment) {
+                $organization = (string) ($attachment['organization_short_name'] ?: ($attachment['organization_name'] ?? ''));
+                if ($organization !== '') $organizations[] = $organization;
+            }
+            $organizations = array_values(array_unique($organizations));
             $values = [
                 '{report_date}' => $this->dateLabel($reportDt),
-                '{organization}' => (string) ($mailing['organization_short_name'] ?: ($mailing['organization_name'] ?? '')),
+                '{organization}' => implode(', ', $organizations),
             ];
             $subject = strtr((string) ($mailing['subject_text'] ?: $mailing['name']), $values);
             $body = strtr((string) ($mailing['body_text'] ?: 'Во вложении отчёт.'), $values);
-            $this->sendMail($mailing['recipients'], $subject, $body, $filePath);
+            $this->sendMail($mailing['recipients'], $subject, $body, $filePaths);
             $status = 'SENT';
-            return $this->complete($mailing, $status, $reportDt, $rowsCount, basename($filePath), null);
+            $fileNames = implode(', ', array_map('basename', $filePaths));
+            return $this->complete($mailing, $status, $reportDt, $rowsCount, mb_substr($fileNames, 0, 2000), null);
         } catch (\Throwable $error) {
             $errorMessage = mb_substr(preg_replace('/\s+/', ' ', $error->getMessage()) ?: 'Ошибка формирования отчёта', 0, 1900);
-            return $this->complete($mailing, 'ERROR', $reportDt, $rowsCount, $filePath ? basename($filePath) : null, $errorMessage);
+            $fileNames = $filePaths ? implode(', ', array_map('basename', $filePaths)) : null;
+            return $this->complete($mailing, 'ERROR', $reportDt, $rowsCount, $fileNames ? mb_substr($fileNames, 0, 2000) : null, $errorMessage);
         } finally {
-            if ($filePath !== null && is_file($filePath)) {
-                @unlink($filePath);
+            foreach ($filePaths as $filePath) {
+                if (is_file($filePath)) @unlink($filePath);
             }
         }
     }
@@ -125,17 +144,19 @@ final class MailingSender
         }
     }
 
-    private function sendMail(array $recipients, string $subject, string $body, string $filePath): void
+    private function sendMail(array $recipients, string $subject, string $body, array $filePaths): void
     {
         if (!$recipients) {
             throw new \RuntimeException('Не указан получатель письма');
         }
-        if (!is_file($filePath)) {
-            throw new \RuntimeException('Не удалось прочитать файл отчёта');
+        foreach ($filePaths as $filePath) {
+            if (!is_file($filePath)) {
+                throw new \RuntimeException('Не удалось прочитать файл отчёта');
+            }
         }
 
         if ($this->testMode) {
-            $this->saveTestMail($recipients, $subject, $body, $filePath);
+            $this->saveTestMail($recipients, $subject, $body, $filePaths);
             return;
         }
 
@@ -149,7 +170,7 @@ final class MailingSender
         throw new \RuntimeException('Отправка через пакет Oracle пока не настроена');
     }
 
-    private function saveTestMail(array $recipients, string $subject, string $body, string $filePath): void
+    private function saveTestMail(array $recipients, string $subject, string $body, array $filePaths): void
     {
         $directory = rtrim($this->directory, DIRECTORY_SEPARATOR)
             . DIRECTORY_SEPARATOR . 'test'
@@ -158,16 +179,20 @@ final class MailingSender
             throw new \RuntimeException('Не удалось создать папку тестового письма');
         }
 
-        $fileName = basename($filePath);
-        if (!copy($filePath, $directory . DIRECTORY_SEPARATOR . $fileName)) {
-            throw new \RuntimeException('Не удалось сохранить вложение тестового письма');
+        $fileNames = [];
+        foreach ($filePaths as $filePath) {
+            $fileName = basename($filePath);
+            if (!copy($filePath, $directory . DIRECTORY_SEPARATOR . $fileName)) {
+                throw new \RuntimeException('Не удалось сохранить вложение тестового письма');
+            }
+            $fileNames[] = $fileName;
         }
 
         $message = [
             'recipients' => $recipients,
             'subject' => $subject,
             'body' => $body,
-            'attachment' => $fileName,
+            'attachments' => $fileNames,
             'created_at' => date('Y-m-d H:i:s'),
         ];
         $json = json_encode($message, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);

@@ -150,6 +150,19 @@ class ApiController
     /** GET /api/dislocation/filters */
     public function dislFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        $params = $request->getQueryParams();
+        $this->selectOrganization($params);
+        $source = $this->dislFrom([]);
+        if (!$source['reportDt'] && !empty($params['option'])) {
+            return $this->json($response, ['option' => (string) $params['option'], 'values' => []]);
+        }
+        $options = $this->filterOptions($params, $source['from'], [
+            'cargo' => ['column' => 'cargo_name'],
+        ], $source['bindings']);
+        if ($options !== null) {
+            return $this->json($response, $options);
+        }
+
         $filter = $this->organizations->filter();
         $rows = $this->db->fetchAll(
             'SELECT TRUNC(report_dt) AS report_date, type_reference, COUNT(*) AS cnt
@@ -160,7 +173,6 @@ class ApiController
             $filter['params']
         );
 
-        $source = $this->dislFrom([]);
         $cargo = $source['reportDt'] ? $this->db->fetchAll(
             "SELECT DISTINCT cargo_name FROM {$source['from']} WHERE cargo_name IS NOT NULL ORDER BY cargo_name",
             $source['bindings']
@@ -239,10 +251,19 @@ class ApiController
     public function approachFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
+        $this->selectOrganization($params);
         $source = $this->approachFrom(['report_dt' => $params['report_dt'] ?? null]);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['cargo' => [], 'prev_cargo' => []]);
+        }
+
+        $options = $this->filterOptions($params, $source['from'], [
+            'cargo' => ['column' => 'cargo_name', 'where' => "AND NVL(prev_cargo,'*') != '*'"],
+            'prev_cargo' => ['column' => 'prev_cargo', 'where' => "AND NVL(prev_cargo,'*') != '*'"],
+        ], $source['bindings']);
+        if ($options !== null) {
+            return $this->json($response, $options);
         }
 
         $cargo = $this->db->fetchAll(
@@ -314,10 +335,19 @@ class ApiController
     public function departureFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
+        $this->selectOrganization($params);
         $source = $this->departureFrom(['report_dt' => $params['report_dt'] ?? null]);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['cargo' => [], 'dest_station' => []]);
+        }
+
+        $options = $this->filterOptions($params, $source['from'], [
+            'cargo' => ['column' => 'cargo_name'],
+            'dest_station' => ['column' => 'dest_station'],
+        ], $source['bindings']);
+        if ($options !== null) {
+            return $this->json($response, $options);
         }
 
         $cargo = $this->db->fetchAll(
@@ -381,10 +411,18 @@ class ApiController
     public function loadingFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
+        $this->selectOrganization($params);
         $source = $this->loadingFrom(['report_dt' => $params['report_dt'] ?? null]);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['cargo' => []]);
+        }
+
+        $options = $this->filterOptions($params, $source['from'], [
+            'cargo' => ['column' => 'cargo_name'],
+        ], $source['bindings']);
+        if ($options !== null) {
+            return $this->json($response, $options);
         }
 
         $cargo = $this->db->fetchAll(
@@ -441,10 +479,19 @@ class ApiController
     /** GET /api/downtime/filters */
     public function downtimeFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $source = $this->downtimeFrom($request->getQueryParams());
+        $params = $request->getQueryParams();
+        $this->selectOrganization($params);
+        $source = $this->downtimeFrom($params);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['dest_station' => []]);
+        }
+
+        $options = $this->filterOptions($params, $source['from'], [
+            'dest_station' => ['column' => 'dest_station'],
+        ], $source['bindings']);
+        if ($options !== null) {
+            return $this->json($response, $options);
         }
 
         $rows = $this->db->fetchAll(
@@ -565,6 +612,7 @@ class ApiController
     public function analysisFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
+        $this->selectOrganization($params);
         $bindings = [];
         $whereCond = '1=1';
         $this->organizations->addFilter($whereCond, $bindings);
@@ -584,6 +632,13 @@ class ApiController
         if ($dateTo !== '') {
             $whereCond .= " AND TRUNC(oper_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
             $bindings['date_to'] = $dateTo;
+        }
+
+        $options = $this->filterOptions($params, 'xx_dislocation_rjd', [
+            'cargo' => ['column' => 'cargo_name'],
+        ], $bindings, $whereCond);
+        if ($options !== null) {
+            return $this->json($response, $options);
         }
 
         $cargo = $this->db->fetchAll(
@@ -972,6 +1027,59 @@ class ApiController
             $bindings[$key] = $value;
         }
         return implode(', ', $placeholders);
+    }
+
+    /** Возвращает небольшую часть значений списочного фильтра. */
+    private function filterOptions(array $params, string $from, array $options, array $bindings, string $whereCond = '1=1'): ?array
+    {
+        $name = trim((string) ($params['option'] ?? ''));
+        if ($name === '') {
+            return null;
+        }
+        if (!isset($options[$name])) {
+            return ['option' => $name, 'values' => []];
+        }
+
+        $column = (string) $options[$name]['column'];
+        $extraWhere = (string) ($options[$name]['where'] ?? '');
+        $search = trim((string) ($params['q'] ?? ''));
+        if ($search !== '') {
+            $extraWhere .= " AND INSTR(UPPER($column), UPPER(:option_search)) > 0";
+            $bindings['option_search'] = mb_substr($search, 0, 200);
+        }
+
+        $rows = $this->db->fetchAll(
+            "SELECT option_value
+               FROM (
+                    SELECT DISTINCT $column AS option_value
+                      FROM $from
+                     WHERE $whereCond
+                       AND $column IS NOT NULL
+                       $extraWhere
+                     ORDER BY $column
+               )
+              WHERE ROWNUM <= 50",
+            $bindings
+        );
+
+        return [
+            'option' => $name,
+            'values' => array_values(array_filter(array_column($rows, 'option_value'), static fn($value): bool => $value !== null && $value !== '')),
+        ];
+    }
+
+    private function selectOrganization(array $params): void
+    {
+        $organizationId = (int) ($params['organization_id'] ?? 0);
+        if ($organizationId <= 0 || $organizationId === (int) $this->organizations->id()) {
+            return;
+        }
+        foreach ($this->organizations->organizations() as $organization) {
+            if ((int) $organization['id'] !== $organizationId) continue;
+            $this->organizations = new OrganizationService($this->db, $organizationId);
+            $this->organizations->sync();
+            return;
+        }
     }
 
     /** Строит условие IN для одного или нескольких значений фильтра. */

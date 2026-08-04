@@ -77,13 +77,14 @@ final class ReportBuilder
         ];
     }
 
-    public function createFile(array $report, string $directory): string
+    public function createFile(array $report, string $directory, string $suffix = ''): string
     {
         if (!is_dir($directory) && !mkdir($directory, 0770, true) && !is_dir($directory)) {
             throw new \RuntimeException('Не удалось создать папку отчётов');
         }
         $path = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR
             . $this->fileName((string) ($report['title'] ?? 'report'))
+            . ($suffix !== '' ? '_' . $this->fileName($suffix) : '')
             . '_' . date('Y-m-d_H-i-s') . '.xlsx';
 
         $this->writeXlsx($report, $path);

@@ -78,6 +78,12 @@ final class MailingController
                 'is_active' => 1,
                 'recipients' => [['email' => '', 'send_type' => 'TO']],
             ];
+            $mailing['attachments'] = [[
+                'organization_id' => $mailing['organization_id'],
+                'report_code' => $reportCode,
+                'report_view' => $view,
+                'filters' => $filters,
+            ]];
         }
 
         $catalog = ReportCatalog::all();
@@ -100,35 +106,47 @@ final class MailingController
             return $this->redirect($response, '/mailings?err=' . urlencode('Рассылка не найдена'));
         }
 
-        $reportCode = trim((string) ($body['report_code'] ?? ''));
-        $report = ReportCatalog::find($reportCode);
-        if (!$report) {
-            return $this->backToForm($response, $id, 'Выберите отчёт');
-        }
-
         $name = trim((string) ($body['name'] ?? ''));
         if ($name === '') {
             return $this->backToForm($response, $id, 'Укажите название рассылки');
         }
 
-        $view = strtoupper((string) ($body['report_view'] ?? 'DETAIL'));
-        if (!in_array($view, $report['views'], true)) {
-            return $this->backToForm($response, $id, 'Выбранный вид отчёта недоступен');
+        $rawAttachments = array_slice(array_values((array) ($body['attachments'] ?? [])), 0, 10);
+        if ($rawAttachments === []) {
+            return $this->backToForm($response, $id, 'Добавьте хотя бы один отчёт');
         }
-
-        $organizationId = null;
-        if (!empty($report['organization_required'])) {
-            $organizationId = (int) ($body['organization_id'] ?? 0);
-            if (!$this->hasOrganization($organizationId)) {
-                return $this->backToForm($response, $id, 'Нет доступа к выбранной организации');
+        $attachments = [];
+        foreach ($rawAttachments as $index => $rawAttachment) {
+            $rawAttachment = (array) $rawAttachment;
+            $reportCode = trim((string) ($rawAttachment['report_code'] ?? ''));
+            $report = ReportCatalog::find($reportCode);
+            if (!$report) {
+                return $this->backToForm($response, $id, 'Выберите отчёт для вложения №' . ($index + 1));
             }
+            $view = strtoupper((string) ($rawAttachment['report_view'] ?? 'DETAIL'));
+            if (!in_array($view, $report['views'], true)) {
+                return $this->backToForm($response, $id, 'Выбран недоступный вид отчёта №' . ($index + 1));
+            }
+            $organizationId = null;
+            if (!empty($report['organization_required'])) {
+                $organizationId = (int) ($rawAttachment['organization_id'] ?? 0);
+                if (!$this->hasOrganization($organizationId)) {
+                    return $this->backToForm($response, $id, 'Нет доступа к организации вложения №' . ($index + 1));
+                }
+            }
+            $filters = ReportCatalog::cleanFilters($reportCode, (array) ($rawAttachment['filters'] ?? []));
+            $missing = ReportCatalog::missingRequiredFilters($reportCode, $filters);
+            if ($missing) {
+                return $this->backToForm($response, $id, 'Заполните фильтры вложения №' . ($index + 1) . ': ' . implode(', ', $missing));
+            }
+            $attachments[] = [
+                'organization_id' => $organizationId,
+                'report_code' => $reportCode,
+                'report_view' => $view,
+                'filters' => $filters,
+            ];
         }
-
-        $filters = ReportCatalog::cleanFilters($reportCode, (array) ($body['filters'] ?? []));
-        $missing = ReportCatalog::missingRequiredFilters($reportCode, $filters);
-        if ($missing) {
-            return $this->backToForm($response, $id, 'Заполните фильтры: ' . implode(', ', $missing));
-        }
+        $firstAttachment = $attachments[0];
 
         $recipients = $this->recipients($body);
         if (!$recipients) {
@@ -151,12 +169,12 @@ final class MailingController
         $mailing = [
             'id' => $id,
             'user_id' => $this->userId(),
-            'organization_id' => $organizationId,
+            'organization_id' => $firstAttachment['organization_id'],
             'name' => mb_substr($name, 0, 200),
-            'report_code' => $reportCode,
-            'report_view' => $view,
+            'report_code' => $firstAttachment['report_code'],
+            'report_view' => $firstAttachment['report_view'],
             'file_format' => 'XLSX',
-            'filters' => $filters,
+            'filters' => $firstAttachment['filters'],
             'subject_text' => $this->nullableText($body['subject_text'] ?? null, 500),
             'body_text' => $this->nullableText($body['body_text'] ?? null, 2000),
             'schedule_type' => $scheduleType,
@@ -170,7 +188,7 @@ final class MailingController
         $mailing['next_run_at'] = MailingData::nextRun($mailing);
 
         try {
-            $this->mailings->save($mailing, $recipients);
+            $this->mailings->save($mailing, $recipients, $attachments);
         } catch (\Throwable $error) {
             return $this->backToForm($response, $id, 'Не удалось сохранить рассылку: ' . $this->shortError($error));
         }

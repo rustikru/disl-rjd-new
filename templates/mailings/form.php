@@ -1,8 +1,11 @@
 <?php
 $basePath = $basePath ?? '';
-$currentCode = (string) ($mailing['report_code'] ?? 'dislocation');
-$currentReport = $catalog[$currentCode] ?? reset($catalog);
-$currentFilters = $mailing['filters'] ?? [];
+$currentAttachments = $mailing['attachments'] ?? [[
+    'organization_id' => $mailing['organization_id'] ?? null,
+    'report_code' => $mailing['report_code'] ?? 'dislocation',
+    'report_view' => $mailing['report_view'] ?? 'DETAIL',
+    'filters' => $mailing['filters'] ?? [],
+]];
 $currentRecipients = $mailing['recipients'] ?? [];
 $selectedDays = array_map('intval', explode(',', (string) ($mailing['week_days'] ?? '')));
 ?>
@@ -34,17 +37,11 @@ include __DIR__ . '/../partials/header.php';
       <div class="mailing-form-grid">
         <div>
           <section class="mailing-card">
-            <div class="mailing-card-head"><span class="mailing-card-title">1. Отчёт и данные</span></div>
-            <div class="mailing-card-body mailing-fields">
+            <div class="mailing-card-head"><span class="mailing-card-title">1. Отчёты и данные</span></div>
+            <div class="mailing-card-body">
               <div class="mailing-field is-full"><label for="mailingName">Название рассылки</label><input id="mailingName" name="name" maxlength="200" required value="<?= htmlspecialchars($mailing['name'] ?? '') ?>"></div>
-              <div class="mailing-field"><label for="reportCode">Отчёт</label><select id="reportCode" name="report_code" required><?php foreach ($catalog as $code => $report): ?><option value="<?= htmlspecialchars($code) ?>" <?= $code === $currentCode ? 'selected' : '' ?>><?= htmlspecialchars($report['name']) ?></option><?php endforeach; ?></select></div>
-              <div class="mailing-field" id="organizationField"><label for="organizationId">Организация</label><select id="organizationId" name="organization_id"><?php foreach ($availableOrganizations as $organization): ?><option value="<?= (int) $organization['id'] ?>" <?= (int) ($mailing['organization_id'] ?? 0) === (int) $organization['id'] ? 'selected' : '' ?>><?= htmlspecialchars($organization['short_name'] ?: $organization['name']) ?></option><?php endforeach; ?></select></div>
-              <div class="mailing-field"><label for="reportView">Вид отчёта</label><select id="reportView" name="report_view"></select></div>
-              <div class="mailing-field"><label for="fileFormat">Формат файла</label><select id="fileFormat" name="file_format"><option value="XLSX" selected>Excel (.xlsx)</option></select></div>
-              <div class="mailing-field is-full mailing-filter-box">
-                <div class="mailing-filter-head"><span class="mailing-card-title">Фильтры отчёта</span><button type="button" class="mailing-link-button" id="resetMailingFilters">Сбросить</button></div>
-                <div class="mailing-fields" id="mailingFilters"></div>
-              </div>
+              <div id="mailingAttachments" class="mailing-attachments"></div>
+              <button type="button" class="btn btn-ghost mailing-add-attachment" id="addMailingAttachment">+ Добавить отчёт</button>
             </div>
           </section>
 
@@ -83,7 +80,7 @@ include __DIR__ . '/../partials/header.php';
         <aside class="mailing-card mailing-summary">
           <div class="mailing-card-head"><span class="mailing-card-title">Что будет отправлено</span></div>
           <div class="mailing-card-body">
-            <?php foreach (['name' => 'Название', 'report' => 'Отчёт', 'organization' => 'Организация', 'format' => 'Формат', 'schedule' => 'Расписание', 'recipients' => 'Получатели'] as $key => $label): ?><div class="mailing-summary-row"><div class="mailing-summary-label"><?= $label ?></div><div class="mailing-summary-value" data-mailing-summary="<?= $key ?>">—</div></div><?php endforeach; ?>
+            <?php foreach (['name' => 'Название', 'reports' => 'Вложения', 'organizations' => 'Организации', 'format' => 'Формат', 'schedule' => 'Расписание', 'recipients' => 'Получатели'] as $key => $label): ?><div class="mailing-summary-row"><div class="mailing-summary-label"><?= $label ?></div><div class="mailing-summary-value" data-mailing-summary="<?= $key ?>">—</div></div><?php endforeach; ?>
           </div>
         </aside>
       </div>
@@ -92,7 +89,10 @@ include __DIR__ . '/../partials/header.php';
 </main>
 <script>
 window.MAILING_CATALOG = <?= json_encode($catalog, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
-window.MAILING_VALUES = <?= json_encode(['report_view' => $mailing['report_view'] ?? 'DETAIL', 'filters' => $currentFilters], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+window.MAILING_ATTACHMENTS = <?= json_encode(array_values($currentAttachments), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+window.MAILING_ORGANIZATIONS = <?= json_encode(array_map(static function (array $organization): array {
+    return ['id' => (int) $organization['id'], 'name' => (string) ($organization['short_name'] ?: $organization['name'])];
+}, $availableOrganizations), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 window.APP_BASE = <?= json_encode($basePath, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 </script>
 <script src="<?= htmlspecialchars($basePath) ?>/assets/js/mailings.js"></script>

@@ -73,7 +73,8 @@ disl-rjd-new/
 ├── db/
 │   └── migrations/
 │       ├── 006_xx_rjd_organizations.sql  # Организации и доступ пользователей
-│       └── 008_xx_rjd_report_mailings.sql # Рассылки отчётов, Oracle 11
+│       ├── 008_xx_rjd_report_mailings.sql # Рассылки отчётов, Oracle 11
+│       └── 012_xx_rjd_report_attachments.sql # Несколько отчётов в одном письме
 ├── docs/
 │   └── schema.html  # Наглядная HTML-схема БД и архитектуры
 ├── sql/
@@ -926,8 +927,9 @@ php bin/set-password.php admin newpass
 
 ## Рассылки отчётов
 
-Пользователь может сохранить фильтры отчёта, получателей, формат XLSX и
-расписание. Кнопка запуска в разделе **Мои рассылки** добавляет отчёт в очередь
+Пользователь может добавить в одну рассылку несколько отчётов, отдельно настроить
+для каждого организацию и фильтры, а затем сохранить общих получателей, тему письма
+и расписание. Кнопка запуска в разделе **Мои рассылки** добавляет рассылку в очередь
 сразу, без ожидания времени расписания. Очередь обрабатывает команда:
 
 ```bash
@@ -950,7 +952,7 @@ php bin/run_report_mailings.php
 ```
 
 Каждое тестовое письмо сохраняется в отдельной папке
-`storage/reports/test/`: файл отчёта и `message.json` с получателями, темой и
+`storage/reports/test/`: все файлы отчётов и `message.json` с получателями, темой и
 текстом письма. При `report_mail_test = false` используется заготовка вызова
 пакета Oracle в `MailingSender::sendMail()`.
 
@@ -958,7 +960,8 @@ php bin/run_report_mailings.php
 `db/migrations/008_xx_rjd_report_mailings.sql` и
 `db/migrations/009_xx_rjd_report_mailings_xlsx.sql`, затем
 `db/migrations/010_xx_rjd_report_recipients.sql` и
-`db/migrations/011_xx_rjd_report_mailings_hours.sql`.
+`db/migrations/011_xx_rjd_report_mailings_hours.sql`, после них —
+`db/migrations/012_xx_rjd_report_attachments.sql`.
 
 ---
 

@@ -58,13 +58,12 @@ include __DIR__ . '/../partials/header.php';
               <tbody>
               <?php foreach ($mailings as $mailing): ?>
                 <?php
-                  $report = $catalog[$mailing['report_code']] ?? null;
-                  $organizationName = $mailing['organization_short_name'] ?: ($mailing['organization_name'] ?: 'Общий отчёт');
+                  $attachmentCount = max(1, (int) ($mailing['attachment_count'] ?? 1));
                   $lastStatus = strtoupper((string) ($mailing['last_status'] ?? ''));
                 ?>
                 <tr>
-                  <td><div class="mailing-name"><?= htmlspecialchars($mailing['name']) ?></div><div class="mailing-note"><?= htmlspecialchars($report['name'] ?? $mailing['report_code']) ?> · <?= $mailing['report_view'] === 'SUMMARY' ? 'сводный' : 'подробный' ?> · XLSX</div></td>
-                  <td><?= htmlspecialchars($organizationName) ?></td>
+                  <td><div class="mailing-name"><?= htmlspecialchars($mailing['name']) ?></div><div class="mailing-note">Вложений: <?= $attachmentCount ?> · XLSX</div></td>
+                  <td><?= $attachmentCount > 1 ? 'Указана для каждого отчёта' : htmlspecialchars((string) ($mailing['organization_short_name'] ?: ($mailing['organization_name'] ?: 'Общий отчёт'))) ?></td>
                   <td><?= htmlspecialchars($mailing['schedule_label']) ?></td>
                   <td><?= (int) $mailing['recipient_count'] ?></td>
                   <td><span class="mailing-status"><span class="mailing-dot <?= (int) $mailing['is_active'] === 1 ? 'is-active' : '' ?>"></span><?= (int) $mailing['is_active'] === 1 ? 'Активна' : 'Отключена' ?></span><?php if ($lastStatus): ?><div class="mailing-note">Последний: <?= htmlspecialchars($statusLabels[$lastStatus] ?? $lastStatus) ?></div><?php endif; ?></td>

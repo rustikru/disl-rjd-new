@@ -22,6 +22,7 @@ final class MailingData
                     m.week_days, m.month_day, m.interval_hours, m.skip_empty,
                     m.is_active, m.last_run_at, m.next_run_at, m.created_at,
                     o.name AS organization_name, o.short_name AS organization_short_name,
+                    (SELECT COUNT(*) FROM xx_rjd_report_attachments a WHERE a.mailing_id = m.id) AS attachment_count,
                     (SELECT COUNT(*) FROM xx_rjd_report_recipients r WHERE r.mailing_id = m.id) AS recipient_count,
                     (SELECT MAX(x.started_at) FROM xx_rjd_report_runs x WHERE x.mailing_id = m.id) AS last_attempt_at,
                     (SELECT MAX(x.status) KEEP (DENSE_RANK LAST ORDER BY x.started_at, x.id)
@@ -51,6 +52,7 @@ final class MailingData
                     m.subject_text, m.body_text,
                     u.username, u.display_name,
                     o.name AS organization_name, o.short_name AS organization_short_name,
+                    (SELECT COUNT(*) FROM xx_rjd_report_attachments a WHERE a.mailing_id = m.id) AS attachment_count,
                     (SELECT COUNT(*) FROM xx_rjd_report_recipients r WHERE r.mailing_id = m.id) AS recipient_count,
                     (SELECT MAX(x.started_at) FROM xx_rjd_report_runs x WHERE x.mailing_id = m.id) AS last_attempt_at,
                     (SELECT MAX(x.status) KEEP (DENSE_RANK LAST ORDER BY x.started_at, x.id)
@@ -76,6 +78,7 @@ final class MailingData
             $row['recipients'] = $recipients[(int) $row['id']] ?? [];
         }
         unset($row);
+        $this->addAttachments($rows);
         return $rows;
     }
 
@@ -104,10 +107,12 @@ final class MailingData
               ORDER BY send_type, id',
             ['mailing_id' => $id]
         );
+        $attachments = $this->attachments([$id]);
+        $mailing['attachments'] = $attachments[$id] ?? [$this->legacyAttachment($mailing)];
         return $mailing;
     }
 
-    public function save(array $mailing, array $recipients): int
+    public function save(array $mailing, array $recipients, array $attachments): int
     {
         $id = (int) ($mailing['id'] ?? 0);
         $params = [
@@ -188,6 +193,29 @@ final class MailingData
                         'mailing_id' => $id,
                         'email' => $recipient['email'],
                         'send_type' => $recipient['send_type'],
+                    ]
+                );
+            }
+            $this->db->execute(
+                'DELETE FROM xx_rjd_report_attachments WHERE mailing_id = :mailing_id',
+                ['mailing_id' => $id]
+            );
+            foreach (array_values($attachments) as $index => $attachment) {
+                $this->db->execute(
+                    'INSERT INTO xx_rjd_report_attachments (
+                        mailing_id, position_no, organization_id,
+                        report_code, report_view, filters_json
+                     ) VALUES (
+                        :mailing_id, :position_no, :organization_id,
+                        :report_code, :report_view, :filters_json
+                     )',
+                    [
+                        'mailing_id' => $id,
+                        'position_no' => $index + 1,
+                        'organization_id' => $attachment['organization_id'],
+                        'report_code' => $attachment['report_code'],
+                        'report_view' => $attachment['report_view'],
+                        'filters_json' => json_encode($attachment['filters'] ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                     ]
                 );
             }
@@ -280,6 +308,7 @@ final class MailingData
                   FROM (
                     SELECT r.id, r.mailing_id, m.name AS mailing_name,
                     m.report_code, m.report_view, m.file_format,
+                    (SELECT COUNT(*) FROM xx_rjd_report_attachments a WHERE a.mailing_id = m.id) AS attachment_count,
                     u.username, u.display_name,
                     o.name AS organization_name, o.short_name AS organization_short_name,
                     r.started_at, r.finished_at, r.status, r.report_dt,
@@ -355,7 +384,68 @@ final class MailingData
             );
         }
         unset($row);
+        $this->addAttachments($rows, 'mailing_id');
         return $rows;
+    }
+
+    private function addAttachments(array &$rows, string $idKey = 'id'): void
+    {
+        $ids = array_values(array_unique(array_filter(array_map(
+            static fn(array $row): int => (int) ($row[$idKey] ?? 0),
+            $rows
+        ))));
+        if ($ids === []) {
+            return;
+        }
+        $attachments = $this->attachments($ids);
+        foreach ($rows as &$row) {
+            $id = (int) ($row[$idKey] ?? 0);
+            $row['attachments'] = $attachments[$id] ?? [$this->legacyAttachment($row)];
+        }
+        unset($row);
+    }
+
+    private function attachments(array $mailingIds): array
+    {
+        if ($mailingIds === []) {
+            return [];
+        }
+        $bindings = [];
+        $placeholders = [];
+        foreach (array_values($mailingIds) as $index => $id) {
+            $key = 'mailing_' . $index;
+            $bindings[$key] = (int) $id;
+            $placeholders[] = ':' . $key;
+        }
+        $rows = $this->db->fetchAll(
+            "SELECT a.id, a.mailing_id, a.position_no, a.organization_id,
+                    a.report_code, a.report_view,
+                    DBMS_LOB.SUBSTR(a.filters_json, 4000, 1) AS filters_json,
+                    o.name AS organization_name, o.short_name AS organization_short_name
+               FROM xx_rjd_report_attachments a
+               LEFT JOIN xx_rjd_organizations o ON o.id = a.organization_id
+              WHERE a.mailing_id IN (" . implode(', ', $placeholders) . ")
+              ORDER BY a.mailing_id, a.position_no, a.id",
+            $bindings
+        );
+        $result = [];
+        foreach ($rows as $row) {
+            $row['filters'] = json_decode((string) ($row['filters_json'] ?? '{}'), true) ?: [];
+            $result[(int) $row['mailing_id']][] = $row;
+        }
+        return $result;
+    }
+
+    private function legacyAttachment(array $mailing): array
+    {
+        return [
+            'organization_id' => $mailing['organization_id'] ?? null,
+            'organization_name' => $mailing['organization_name'] ?? null,
+            'organization_short_name' => $mailing['organization_short_name'] ?? null,
+            'report_code' => (string) ($mailing['report_code'] ?? 'dislocation'),
+            'report_view' => (string) ($mailing['report_view'] ?? 'DETAIL'),
+            'filters' => is_array($mailing['filters'] ?? null) ? $mailing['filters'] : [],
+        ];
     }
 
     public function startRun(int $runId): bool
