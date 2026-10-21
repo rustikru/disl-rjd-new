@@ -19,7 +19,7 @@ class ApiController
              WHERE 1=1 and TRIM(dic.car_number) = TRIM(TO_CHAR(wagon_no))
                AND UPPER(TRIM(dic.is_excluded)) = 'Y'
                AND UPPER(REPLACE(TRIM(dic.idle_reasons_name), 'Ё', 'Е'))
-                   IN ('ЛОМ', 'МЕТАЛЛОЛОМ', 'СНЯТЬ с АВТОСЛЕЖЕНИЯ')
+                   IN ('ЛОМ', 'МЕТАЛЛОЛОМ','СНЯТЬ С АВТОСЛЕЖЕНИЯ')
         )";
 
     private DbInterface $db;
@@ -150,19 +150,6 @@ class ApiController
     /** GET /api/dislocation/filters */
     public function dislFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params = $request->getQueryParams();
-        $this->selectOrganization($params);
-        $source = $this->dislFrom([]);
-        if (!$source['reportDt'] && !empty($params['option'])) {
-            return $this->json($response, ['option' => (string) $params['option'], 'values' => []]);
-        }
-        $options = $this->filterOptions($params, $source['from'], [
-            'cargo' => ['column' => 'cargo_name'],
-        ], $source['bindings']);
-        if ($options !== null) {
-            return $this->json($response, $options);
-        }
-
         $filter = $this->organizations->filter();
         $rows = $this->db->fetchAll(
             'SELECT TRUNC(report_dt) AS report_date, type_reference, COUNT(*) AS cnt
@@ -173,6 +160,7 @@ class ApiController
             $filter['params']
         );
 
+        $source = $this->dislFrom([]);
         $cargo = $source['reportDt'] ? $this->db->fetchAll(
             "SELECT DISTINCT cargo_name FROM {$source['from']} WHERE cargo_name IS NOT NULL ORDER BY cargo_name",
             $source['bindings']
@@ -251,19 +239,10 @@ class ApiController
     public function approachFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $this->selectOrganization($params);
         $source = $this->approachFrom(['report_dt' => $params['report_dt'] ?? null]);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['cargo' => [], 'prev_cargo' => []]);
-        }
-
-        $options = $this->filterOptions($params, $source['from'], [
-            'cargo' => ['column' => 'cargo_name', 'where' => "AND NVL(prev_cargo,'*') != '*'"],
-            'prev_cargo' => ['column' => 'prev_cargo', 'where' => "AND NVL(prev_cargo,'*') != '*'"],
-        ], $source['bindings']);
-        if ($options !== null) {
-            return $this->json($response, $options);
         }
 
         $cargo = $this->db->fetchAll(
@@ -335,19 +314,10 @@ class ApiController
     public function departureFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $this->selectOrganization($params);
         $source = $this->departureFrom(['report_dt' => $params['report_dt'] ?? null]);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['cargo' => [], 'dest_station' => []]);
-        }
-
-        $options = $this->filterOptions($params, $source['from'], [
-            'cargo' => ['column' => 'cargo_name'],
-            'dest_station' => ['column' => 'dest_station'],
-        ], $source['bindings']);
-        if ($options !== null) {
-            return $this->json($response, $options);
         }
 
         $cargo = $this->db->fetchAll(
@@ -411,18 +381,10 @@ class ApiController
     public function loadingFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $this->selectOrganization($params);
         $source = $this->loadingFrom(['report_dt' => $params['report_dt'] ?? null]);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['cargo' => []]);
-        }
-
-        $options = $this->filterOptions($params, $source['from'], [
-            'cargo' => ['column' => 'cargo_name'],
-        ], $source['bindings']);
-        if ($options !== null) {
-            return $this->json($response, $options);
         }
 
         $cargo = $this->db->fetchAll(
@@ -479,19 +441,10 @@ class ApiController
     /** GET /api/downtime/filters */
     public function downtimeFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params = $request->getQueryParams();
-        $this->selectOrganization($params);
-        $source = $this->downtimeFrom($params);
+        $source = $this->downtimeFrom($request->getQueryParams());
 
         if (!$source['reportDt']) {
             return $this->json($response, ['dest_station' => []]);
-        }
-
-        $options = $this->filterOptions($params, $source['from'], [
-            'dest_station' => ['column' => 'dest_station'],
-        ], $source['bindings']);
-        if ($options !== null) {
-            return $this->json($response, $options);
         }
 
         $rows = $this->db->fetchAll(
@@ -612,7 +565,6 @@ class ApiController
     public function analysisFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $this->selectOrganization($params);
         $bindings = [];
         $whereCond = '1=1';
         $this->organizations->addFilter($whereCond, $bindings);
@@ -632,13 +584,6 @@ class ApiController
         if ($dateTo !== '') {
             $whereCond .= " AND TRUNC(oper_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
             $bindings['date_to'] = $dateTo;
-        }
-
-        $options = $this->filterOptions($params, 'xx_dislocation_rjd', [
-            'cargo' => ['column' => 'cargo_name'],
-        ], $bindings, $whereCond);
-        if ($options !== null) {
-            return $this->json($response, $options);
         }
 
         $cargo = $this->db->fetchAll(
@@ -679,7 +624,11 @@ class ApiController
         $whereCond .= " AND TRUNC(oper_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
         $bindings['date_to'] = $dateTo;
 
-        $whereCond .= $this->valueListCondition('cargo_name', $params['cargo'] ?? [], $bindings, 'cargo');
+        $cargo = $params['cargo'] ?? '';
+        if ($cargo !== '') {
+            $whereCond .= " AND cargo_name = :cargo";
+            $bindings['cargo'] = $cargo;
+        }
 
         $selectCols = $this->selectFields($params['fields'] ?? '');
 
@@ -710,7 +659,11 @@ class ApiController
         $bindings = $cond['params'];
         $whereCond = $cond['sql'];
 
-        $whereCond .= $this->valueListCondition("UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е'))", $params['cargo'] ?? [], $bindings, 'cargo_f', 'upper_yo');
+        $cargo = $params['cargo'] ?? null;
+        if ($cargo) {
+            $whereCond .= " AND UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е')) = UPPER(REPLACE(:cargo_f, 'Ё', 'Е'))";
+            $bindings['cargo_f'] = $cargo;
+        }
         $whereCond .= $this->wagonNoCond($params, $bindings);
         $whereCond .= $this->excludedWagonsCondition();
 
@@ -736,7 +689,11 @@ class ApiController
         }
         $this->organizations->addFilter($whereCond, $bindings);
 
-        $whereCond .= $this->valueListCondition("UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е'))", $params['cargo'] ?? [], $bindings, 'cargo_f', 'upper_yo');
+        $cargo = $params['cargo'] ?? null;
+        if ($cargo) {
+            $whereCond .= " AND UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е')) = UPPER(REPLACE(:cargo_f, 'Ё', 'Е'))";
+            $bindings['cargo_f'] = $cargo;
+        }
         $prevCargo = $params['prev_cargo'] ?? null;
         if ($prevCargo) {
             $whereCond .= " AND UPPER(REPLACE(COALESCE(prev_cargo,''), 'Ё', 'Е')) = UPPER(REPLACE(:prev_cargo_f, 'Ё', 'Е'))";
@@ -763,8 +720,16 @@ class ApiController
         }
         $this->organizations->addFilter($whereCond, $bindings);
 
-        $whereCond .= $this->valueListCondition("UPPER(COALESCE(cargo_name,''))", $params['cargo'] ?? [], $bindings, 'cargo_f', 'upper');
-        $whereCond .= $this->valueListCondition('dest_station', $params['dest_station'] ?? [], $bindings, 'dest_station');
+        $cargo = $params['cargo'] ?? null;
+        if ($cargo) {
+            $whereCond .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
+            $bindings['cargo_f'] = $cargo;
+        }
+        $destStation = $params['dest_station'] ?? null;
+        if ($destStation) {
+            $whereCond .= ' AND dest_station = :dest_station';
+            $bindings['dest_station'] = $destStation;
+        }
         $whereCond .= $this->wagonNoCond($params, $bindings);
         $whereCond .= $this->excludedWagonsCondition();
 
@@ -783,7 +748,11 @@ class ApiController
         $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND cargo_weight_kg IS NOT NULL AND cargo_weight_kg != 0";
         $this->organizations->addFilter($whereCond, $bindings);
 
-        $whereCond .= $this->valueListCondition("UPPER(COALESCE(cargo_name,''))", $params['cargo'] ?? [], $bindings, 'cargo_f', 'upper');
+        $cargo = $params['cargo'] ?? null;
+        if ($cargo) {
+            $whereCond .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
+            $bindings['cargo_f'] = $cargo;
+        }
         $whereCond .= $this->wagonNoCond($params, $bindings);
         $whereCond .= $this->excludedWagonsCondition();
 
@@ -830,7 +799,11 @@ class ApiController
             $bindings['max_days'] = $maxDays;
         }
         // Станция назначения
-        $whereCond .= $this->valueListCondition('dest_station', $params['dest_station'] ?? [], $bindings, 'dest_station');
+        $destStation = trim($params['dest_station'] ?? '');
+        if ($destStation !== '') {
+            $whereCond .= ' AND dest_station = :dest_station';
+            $bindings['dest_station'] = $destStation;
+        }
         $whereCond .= $this->wagonNoCond($params, $bindings);
         $whereCond .= $this->excludedWagonsCondition();
 
@@ -1027,88 +1000,6 @@ class ApiController
             $bindings[$key] = $value;
         }
         return implode(', ', $placeholders);
-    }
-
-    /** Возвращает небольшую часть значений списочного фильтра. */
-    private function filterOptions(array $params, string $from, array $options, array $bindings, string $whereCond = '1=1'): ?array
-    {
-        $name = trim((string) ($params['option'] ?? ''));
-        if ($name === '') {
-            return null;
-        }
-        if (!isset($options[$name])) {
-            return ['option' => $name, 'values' => []];
-        }
-
-        $column = (string) $options[$name]['column'];
-        $extraWhere = (string) ($options[$name]['where'] ?? '');
-        $search = trim((string) ($params['q'] ?? ''));
-        if ($search !== '') {
-            $extraWhere .= " AND INSTR(UPPER($column), UPPER(:option_search)) > 0";
-            $bindings['option_search'] = mb_substr($search, 0, 200);
-        }
-
-        $rows = $this->db->fetchAll(
-            "SELECT option_value
-               FROM (
-                    SELECT DISTINCT $column AS option_value
-                      FROM $from
-                     WHERE $whereCond
-                       AND $column IS NOT NULL
-                       $extraWhere
-                     ORDER BY $column
-               )
-              WHERE ROWNUM <= 50",
-            $bindings
-        );
-
-        return [
-            'option' => $name,
-            'values' => array_values(array_filter(array_column($rows, 'option_value'), static fn($value): bool => $value !== null && $value !== '')),
-        ];
-    }
-
-    private function selectOrganization(array $params): void
-    {
-        $organizationId = (int) ($params['organization_id'] ?? 0);
-        if ($organizationId <= 0 || $organizationId === (int) $this->organizations->id()) {
-            return;
-        }
-        foreach ($this->organizations->organizations() as $organization) {
-            if ((int) $organization['id'] !== $organizationId) continue;
-            $this->organizations = new OrganizationService($this->db, $organizationId);
-            $this->organizations->sync();
-            return;
-        }
-    }
-
-    /** Строит условие IN для одного или нескольких значений фильтра. */
-    private function valueListCondition(string $field, $values, array &$bindings, string $prefix, string $format = ''): string
-    {
-        $items = is_array($values) ? $values : [$values];
-        $items = array_values(array_unique(array_filter(array_map(
-            static fn($value): string => is_scalar($value) ? trim((string) $value) : '',
-            $items
-        ), static fn(string $value): bool => $value !== '')));
-        $items = array_slice($items, 0, 100);
-        if ($items === []) {
-            return '';
-        }
-
-        $placeholders = [];
-        foreach ($items as $index => $value) {
-            $key = $prefix . '_' . $index;
-            $placeholder = ':' . $key;
-            if ($format === 'upper_yo') {
-                $placeholder = "UPPER(REPLACE($placeholder, 'Ё', 'Е'))";
-            } elseif ($format === 'upper') {
-                $placeholder = "UPPER($placeholder)";
-            }
-            $placeholders[] = $placeholder;
-            $bindings[$key] = $value;
-        }
-
-        return ' AND ' . $field . ' IN (' . implode(', ', $placeholders) . ')';
     }
 
     /** Допускает только безопасные имена полей: буквы, цифры, _ */

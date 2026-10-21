@@ -20,7 +20,7 @@ class QueryLogger
     /**
      * Записывает SQL-запрос с временем выполнения в лог-файл.
      *
-     * @param string $driver  'Oracle' | 'Postgres'
+     * @param string $driver  Драйвер БД (`Oracle`)
      * @param string $method  'fetchAll' | 'fetchOne' | 'execute'
      * @param string $sql     Оригинальный SQL с bind-плейсхолдерами
      * @param array  $params  Параметры запроса

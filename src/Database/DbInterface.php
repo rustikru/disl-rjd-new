@@ -23,6 +23,6 @@ interface DbInterface
     /** Откатить транзакцию. */
     public function rollback(): void;
 
-    /** Вернуть SQL-фрагмент ограничения количества строк (LIMIT/FETCH FIRST). */
+    /** Вернуть Oracle SQL-фрагмент ограничения количества строк. */
     public function limit(int $n): string;
 }

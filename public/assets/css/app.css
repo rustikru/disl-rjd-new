@@ -136,14 +136,6 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: inherit;
-  text-decoration: none;
-  border-radius: 8px;
-}
-
-.brand:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
 }
 
 .brand-icon {
@@ -399,45 +391,6 @@ body {
   user-select: none;
   cursor: default;
   pointer-events: none;
-}
-
-button.nav-group-label {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-.nav-group-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.nav-group-toggle:hover {
-  color: var(--accent);
-}
-
-.nav-group-caret {
-  width: 7px;
-  height: 7px;
-  flex: none;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: rotate(45deg) translateY(-2px);
-  transition: transform .15s ease;
-}
-
-.nav-group.is-closed .nav-group-caret {
-  transform: rotate(-45deg);
-}
-
-.nav-group.is-closed .nav-group-items {
-  display: none;
 }
 
 .nav-item {
@@ -732,7 +685,6 @@ a.nav-item {
   justify-content: center;
   gap: 6px;
   white-space: nowrap;
-  text-decoration: none;
 }
 
 .btn-primary {

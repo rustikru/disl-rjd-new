@@ -16,12 +16,11 @@ foreach ($headerOrganizations as $headerOrganization) {
 $headerName = $headerName ?? ($selectedOrganizationName !== '' ? $selectedOrganizationName : $appName);
 $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
 ?>
-<script defer src="<?= htmlspecialchars($basePath) ?>/assets/js/sidebar.js"></script>
 <header class="site-header">
   <div class="header-inner">
     <div class="header-left">
       <?= $headerLeft ?>
-      <a class="brand" href="<?= htmlspecialchars($basePath) ?>/" title="На главную" aria-label="Перейти на главную страницу">
+      <div class="brand">
         <div class="brand-icon">
           <img src="<?= htmlspecialchars($basePath) ?>/assets/img/meta-logo.png" alt="" class="brand-logo">
         </div>
@@ -29,7 +28,7 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
           <div class="brand-name"><?= htmlspecialchars($headerName) ?></div>
           <?= $headerSub ?>
         </div>
-      </a>
+      </div>
     </div>
     <div class="header-meta">
       <?php if (count($headerOrganizations) > 1): ?>

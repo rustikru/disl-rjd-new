@@ -83,40 +83,12 @@ class ImportController
     public function showForm(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $filter = $this->organizations->filter();
-        $query = $request->getQueryParams();
-        $reportsPerPage = 20;
-        $countRow = $this->db->fetchOne(
-            "SELECT COUNT(*) AS cnt
-               FROM (
-                   SELECT report_dt, type_reference
-                     FROM xx_dislocation_rjd
-                    WHERE {$filter['sql']}
-                    GROUP BY report_dt, type_reference
-               )",
-            $filter['params']
-        );
-        $reportsCount = (int) ($countRow['cnt'] ?? 0);
-        $reportsPages = max(1, (int) ceil($reportsCount / $reportsPerPage));
-        $reportsPage = max(1, min($reportsPages, (int) ($query['reports_page'] ?? 1)));
-        $reportsOffset = ($reportsPage - 1) * $reportsPerPage;
-        $reportsLastRow = $reportsOffset + $reportsPerPage;
         $reports = $this->db->fetchAll(
-            "SELECT report_date, type_reference, cnt
-               FROM (
-                   SELECT ordered_reports.*, ROWNUM AS row_number
-                     FROM (
-                         SELECT TO_CHAR(report_dt, 'DD.MM.YYYY HH24:MI:SS') AS report_date,
-                                type_reference,
-                                COUNT(*) AS cnt,
-                                report_dt
-                           FROM xx_dislocation_rjd
-                          WHERE {$filter['sql']}
-                          GROUP BY report_dt, type_reference
-                          ORDER BY report_dt DESC, type_reference
-                     ) ordered_reports
-                    WHERE ROWNUM <= " . $reportsLastRow . "
-               )
-              WHERE row_number > " . $reportsOffset,
+            "SELECT to_char((report_dt),'DD.MM.YYYY HH24:MI:SS') AS report_date, type_reference, COUNT(*) AS cnt
+             FROM xx_dislocation_rjd
+             WHERE {$filter['sql']}
+             GROUP BY to_char((report_dt),'DD.MM.YYYY HH24:MI:SS'), (report_dt), type_reference
+             ORDER BY (report_dt) DESC, type_reference",
             $filter['params']
         );
 
@@ -304,25 +276,24 @@ class ImportController
         $insertSql = 'INSERT INTO xx_dislocation_rjd (organization_id, report_dt, type_reference, ' . implode(', ', $fields) . ')'
             . ' VALUES (:p_organization_id, :p_report_dt, :p_type_reference, ' . implode(', ', $placeholders) . ')';
 
-        // Удаляем предыдущую справку того же дня и того же типа —
-        // оставляем только максимальную (последнюю по времени) за каждый день.
         $reportDate = substr($reportDt, 0, 10); // 'YYYY-MM-DD'
-        $this->db->execute(
-            "DELETE FROM xx_dislocation_rjd
-              WHERE TRUNC(report_dt) = TO_DATE(:p_report_date, 'YYYY-MM-DD')
-                AND type_reference   = :p_file_type
-                AND organization_id  = :p_organization_id",
-            [
-                'p_report_date' => $reportDate,
-                'p_file_type' => $fileType,
-                'p_organization_id' => $organizationId,
-            ]
-        );
-
         $inserted = 0;
 
         $this->db->beginTransaction();
         try {
+            // Замена справки атомарна: при ошибке вставки удаление также откатится.
+            $this->db->execute(
+                "DELETE FROM xx_dislocation_rjd
+                  WHERE TRUNC(report_dt) = TO_DATE(:p_report_date, 'YYYY-MM-DD')
+                    AND type_reference   = :p_file_type
+                    AND organization_id  = :p_organization_id",
+                [
+                    'p_report_date' => $reportDate,
+                    'p_file_type' => $fileType,
+                    'p_organization_id' => $organizationId,
+                ]
+            );
+
             for ($row = 5; $row <= $highestRow; $row++) {
                 $vals = [];
                 for ($col = 1; $col <= 126; $col++) {

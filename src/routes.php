@@ -5,7 +5,11 @@ use Slim\App;
 
 return function (App $app, array $config): void {
 
-    $app->add(new \App\Middleware\SessionMiddleware($config['session_name']));
+    $app->add(new \App\Middleware\SessionMiddleware(
+        $config['session_name'],
+        (bool) ($config['session_cookie_secure'] ?? true),
+        $config['base_path'] ?? ''
+    ));
 
     $db = null;
     $auth = null;
@@ -117,9 +121,6 @@ return function (App $app, array $config): void {
         $group->get('/admin/roles', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->rolesPage($req, $res);
         });
-        $group->get('/admin/mailings', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\AdminController($getDb(), $config))->mailingsPage($req, $res);
-        });
         $group->get('/admin/directories/stations', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->stationsPage($req, $res);
         });
@@ -156,9 +157,6 @@ return function (App $app, array $config): void {
         $group->post('/admin/roles/delete', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->deleteRole($req, $res);
         });
-        $group->post('/admin/mailings/run', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\AdminController($getDb(), $config))->runMailings($req, $res);
-        });
         $group->post('/admin/directories/stations/save', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->saveStation($req, $res);
         });
@@ -178,26 +176,6 @@ return function (App $app, array $config): void {
             ))->select($req, $res);
         });
 
-        // Пользовательские рассылки отчётов
-        $group->get('/mailings', function ($req, $res) use ($getDb, $getOrganizations, $config) {
-            return (new \App\Controllers\MailingController($getDb(), $getOrganizations(), $config))->index($req, $res);
-        });
-        $group->get('/mailings/form', function ($req, $res) use ($getDb, $getOrganizations, $config) {
-            return (new \App\Controllers\MailingController($getDb(), $getOrganizations(), $config))->form($req, $res);
-        });
-        $group->post('/mailings/save', function ($req, $res) use ($getDb, $getOrganizations, $config) {
-            return (new \App\Controllers\MailingController($getDb(), $getOrganizations(), $config))->save($req, $res);
-        });
-        $group->post('/mailings/active', function ($req, $res) use ($getDb, $getOrganizations, $config) {
-            return (new \App\Controllers\MailingController($getDb(), $getOrganizations(), $config))->active($req, $res);
-        });
-        $group->post('/mailings/delete', function ($req, $res) use ($getDb, $getOrganizations, $config) {
-            return (new \App\Controllers\MailingController($getDb(), $getOrganizations(), $config))->delete($req, $res);
-        });
-        $group->post('/mailings/run', function ($req, $res) use ($getDb, $getOrganizations, $config) {
-            return (new \App\Controllers\MailingController($getDb(), $getOrganizations(), $config))->run($req, $res);
-        });
-
         // Детальная страница (статический шаблон)
         $group->get('/detail', function ($req, $res) use ($config) {
             $appName = $config['app_name'] ?? 'Дислокация РЖД';
@@ -214,11 +192,7 @@ return function (App $app, array $config): void {
         // ==========================================
         // API (`/api`)
         // ==========================================
-        $group->group('/api', function ($api) use ($getDb, $getOrganizations, $config) {
-
-            $api->get('/mailings/catalog', function ($req, $res) use ($getDb, $getOrganizations, $config) {
-                return (new \App\Controllers\MailingController($getDb(), $getOrganizations(), $config))->catalog($req, $res);
-            });
+        $group->group('/api', function ($api) use ($getDb, $config) {
 
             // --- Главный Дашборд ---
             $api->get('/dashboard', function ($req, $res) use ($getDb) {

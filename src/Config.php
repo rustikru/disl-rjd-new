@@ -26,7 +26,6 @@ return [
     'app_debug' => $bool($config['app_debug'] ?? false),
     'app_name' => (string) ($config['app_name'] ?? 'Дислокация РЖД'),
 
-    'db_driver' => (string) ($config['db_driver'] ?? 'oracle'),
     'db_host' => (string) ($config['db_host'] ?? 'localhost'),
     'db_port' => (string) ($config['db_port'] ?? '1521'),
     'db_name' => (string) ($config['db_name'] ?? ''),
@@ -50,9 +49,9 @@ return [
     'ldap_log_file' => (string) ($config['ldap_log_file'] ?? '/tmp/ldap_debug.log'),
 
     'session_name' => (string) ($config['session_name'] ?? 'disl_session'),
+    'session_cookie_secure' => $bool(
+        $config['session_cookie_secure']
+            ?? (($config['app_env'] ?? 'development') !== 'development')
+    ),
     'base_path' => rtrim((string) ($config['base_path'] ?? ''), '/'),
-
-    'report_mail_enabled' => $bool($config['report_mail_enabled'] ?? false),
-    'report_mail_test' => $bool($config['report_mail_test'] ?? false),
-    'report_storage_dir' => (string) ($config['report_storage_dir'] ?? (__DIR__ . '/../storage/reports')),
 ];
