@@ -12,7 +12,7 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
     if ($search !== '') {
         $params['q'] = $search;
     }
-    return $basePath . '/admin/directories/stations?' . http_build_query($params);
+    return $basePath . '/directories/stations?' . http_build_query($params);
 };
 ?>
 <!DOCTYPE html>
@@ -108,14 +108,14 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
 <body>
 
 <?php
-  $headerSub   = '<div class="brand-sub">Администрирование</div>';
+  $headerSub   = '<div class="brand-sub">Справочники</div>';
   $headerLeft  = '<a href="' . htmlspecialchars($basePath) . '/" class="btn-nav-back" id="backBtn" title="На главную"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg></a>';
   $headerRight = '';
   include __DIR__ . '/../partials/header.php';
 ?>
 
 <div class="app-body">
-  <?php $activeAdminPage = 'stations'; include __DIR__ . '/../partials/admin-sidebar.php'; ?>
+  <?php $activeAdminPage = 'stations'; include __DIR__ . '/../partials/directories-sidebar.php'; ?>
 
   <main class="main-content">
     <div class="admin-head">
@@ -123,7 +123,7 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
         Станции и координаты
         <small>Справочник для карты</small>
       </div>
-      <form method="GET" action="<?= htmlspecialchars($basePath) ?>/admin/directories/stations" class="search-row">
+      <form method="GET" action="<?= htmlspecialchars($basePath) ?>/directories/stations" class="search-row">
         <input type="search" class="search-input" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Код ЕСР или название станции">
         <button type="submit" class="btn btn-ghost">Найти</button>
       </form>
@@ -136,11 +136,12 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
       <div class="flash flash-err"><?= htmlspecialchars($flashErr) ?></div>
     <?php endif; ?>
 
+    <?php if ($canEdit): ?>
     <div class="panel">
       <div class="panel-head">
         <span class="panel-title">Добавить станцию</span>
       </div>
-      <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/directories/stations/save" class="station-form">
+      <form method="POST" action="<?= htmlspecialchars($basePath) ?>/directories/stations/save" class="station-form">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
         <div class="fg">
           <label for="new_esr">Код ЕСР</label>
@@ -161,7 +162,7 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
         <button type="button"
                 class="btn btn-ghost"
                 id="btnFreiCon"
-                data-url="<?= htmlspecialchars($basePath) ?>/admin/directories/stations/freicon">
+                data-url="<?= htmlspecialchars($basePath) ?>/directories/stations/freicon">
           Данные из FreiCON
         </button>
         <button type="submit" class="btn btn-primary">Сохранить</button>
@@ -169,6 +170,7 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
       </form>
     </div>
 
+    <?php endif; ?>
     <div class="panel">
       <div class="panel-head">
         <span class="panel-title">Станции (<?= (int) $totalStations ?>)</span>
@@ -184,7 +186,7 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
               <th>Станция</th>
               <th style="width:150px">Широта</th>
               <th style="width:150px">Долгота</th>
-              <th style="width:1%"></th>
+              <?php if ($canEdit): ?><th style="width:1%"></th><?php endif; ?>
             </tr>
           </thead>
           <tbody>
@@ -197,8 +199,10 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
                 $formId = 'station-save-' . preg_replace('/[^A-Za-z0-9_-]/', '_', $code);
                 $deleteFormId = 'station-delete-' . preg_replace('/[^A-Za-z0-9_-]/', '_', $code);
               ?>
-              <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/directories/stations/save" id="<?= htmlspecialchars($formId) ?>"></form>
-              <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/directories/stations/delete" id="<?= htmlspecialchars($deleteFormId) ?>"></form>
+              <?php if ($canEdit): ?>
+              <form method="POST" action="<?= htmlspecialchars($basePath) ?>/directories/stations/save" id="<?= htmlspecialchars($formId) ?>"></form>
+              <form method="POST" action="<?= htmlspecialchars($basePath) ?>/directories/stations/delete" id="<?= htmlspecialchars($deleteFormId) ?>"></form>
+              <?php endif; ?>
               <tr>
                 <td>
                   <span class="station-code"><?= htmlspecialchars($code) ?></span>
@@ -206,6 +210,7 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
                 <td><?= htmlspecialchars($name) ?></td>
                 <td><?= $lat !== null && $lat !== '' ? htmlspecialchars((string) $lat) : '<span class="station-muted">—</span>' ?></td>
                 <td><?= $lon !== null && $lon !== '' ? htmlspecialchars((string) $lon) : '<span class="station-muted">—</span>' ?></td>
+                <?php if ($canEdit): ?>
                 <td>
                   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>" form="<?= htmlspecialchars($deleteFormId) ?>">
                   <input type="hidden" name="esr_code" value="<?= htmlspecialchars($code) ?>" form="<?= htmlspecialchars($deleteFormId) ?>">
@@ -219,7 +224,7 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
                             data-latitude="<?= htmlspecialchars((string) $lat) ?>"
                             data-longitude="<?= htmlspecialchars((string) $lon) ?>">
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M9.5 1.5a1.414 1.414 0 0 1 2 2L4 11l-3 1 1-3Z"/>
+                        <path d="M8 1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1M8 1v3h3L8 1Z"/><path d="M4 5h2M4 7h1m6-1 2 2-5 5H6v-2Z"/>
                       </svg>
                     </button>
                     <button type="submit" class="btn-del" form="<?= htmlspecialchars($deleteFormId) ?>" title="Удалить" onclick="return confirm('Удалить станцию «<?= htmlspecialchars(addslashes($name), ENT_QUOTES) ?>»?')">
@@ -231,6 +236,7 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
                     </button>
                   </div>
                 </td>
+                <?php endif; ?>
               </tr>
             <?php endforeach; ?>
           </tbody>
@@ -250,8 +256,9 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
   </main>
 </div>
 
+<?php if ($canEdit): ?>
 <div class="modal-wrap" id="stationModal">
-  <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/directories/stations/save" class="modal">
+  <form method="POST" action="<?= htmlspecialchars($basePath) ?>/directories/stations/save" class="modal">
     <div class="modal-head">
       <span class="t">Редактирование станции</span>
       <button type="button" class="modal-x" data-close-modal="stationModal">✕</button>
@@ -379,5 +386,6 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
   });
 </script>
 
+<?php endif; ?>
 </body>
 </html>

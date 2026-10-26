@@ -6,6 +6,7 @@ namespace App\Controllers;
 use App\Database\DbInterface;
 use App\Controllers\ApiController;
 use App\Services\OrganizationService;
+use App\Services\WagonCargoState;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -35,13 +36,27 @@ class MapsController
         $apiController = new ApiController($this->db, $this->organizations);
         $dtsByType = $apiController->getLatestDtsByType(null, ['Подход', 'Отправка']);
         $cond = $apiController->latestDtCondition($dtsByType, 'xdr');
+        $stationsSql = "(
+            SELECT esr_code, station_name, latitude, longitude, station_key
+              FROM (
+                  SELECT esr_code, station_name, latitude, longitude,
+                         LTRIM(TRIM(esr_code), '0') AS station_key,
+                         ROW_NUMBER() OVER (
+                             PARTITION BY LTRIM(TRIM(esr_code), '0')
+                             ORDER BY CASE WHEN latitude IS NOT NULL AND longitude IS NOT NULL THEN 0 ELSE 1 END,
+                                      LENGTH(TRIM(esr_code)), esr_code, station_name, latitude, longitude
+                         ) AS rn
+                    FROM xx_rjd_stations
+              )
+             WHERE rn = 1
+        )";
         $stationsWithoutCoordinates = $this->db->fetchAll(
             "SELECT xdr.oper_station_esr_code AS esr_code,
                     MAX(NVL(rs.station_name, xdr.oper_station)) AS station_name,
                     COUNT(*) AS wagon_count
                FROM xx_dislocation_rjd xdr
-               LEFT JOIN xx_rjd_stations rs
-                 ON rs.esr_code = xdr.oper_station_esr_code
+               LEFT JOIN {$stationsSql} rs
+                 ON rs.station_key = LTRIM(TRIM(xdr.oper_station_esr_code), '0')
               WHERE {$cond['sql']}
                 AND xdr.oper_station_esr_code IS NOT NULL
                 AND (rs.esr_code IS NULL OR rs.latitude IS NULL OR rs.longitude IS NULL)
@@ -93,7 +108,8 @@ class MapsController
                     rs.latitude,
                     rs.longitude
              FROM xx_dislocation_rjd xdr
-             LEFT JOIN xx_rjd_stations rs ON xdr.oper_station_esr_code = rs.esr_code
+             LEFT JOIN {$stationsSql} rs
+               ON rs.station_key = LTRIM(TRIM(xdr.oper_station_esr_code), '0')
              WHERE {$cond['sql']}
                $excludedWagons",
             $cond['params']
@@ -124,7 +140,7 @@ class MapsController
             $stationsMap[$code]['wagons'][] = [
                 'wagon_num' => (string) ($r['wagon_no'] ?? ''),
                 'wagon_type' => (string) ($r['wagon_type_code'] ?? ''),
-                'ld' => isset($r['cargo_weight_kg']) && (float) $r['cargo_weight_kg'] != 0.0,
+                'ld' => WagonCargoState::isLoaded($r['wagon_type_code'] ?? null, $r['cargo_weight_kg'] ?? null),
                 'cargo' => (string) ($r['cargo_name'] ?? ''),
                 'dest_station' => (string) ($r['dest_station'] ?? ''),
                 'wagon_state' => (string) ($r['wagon_state'] ?? ''),

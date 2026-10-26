@@ -189,7 +189,7 @@ $totalPages = count($pages);
                             title="Редактировать"
                             onclick="openEditRole(<?= (int) $r['id'] ?>, '<?= htmlspecialchars(addslashes($r['name']), ENT_QUOTES) ?>', '<?= htmlspecialchars(addslashes($r['description'] ?? ''), ENT_QUOTES) ?>', <?= htmlspecialchars(json_encode(array_keys($granted), JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>)">
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M9.5 1.5a1.414 1.414 0 0 1 2 2L4 11l-3 1 1-3Z"/>
+                        <path d="M8 1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1M8 1v3h3L8 1Z"/><path d="M4 5h2M4 7h1m6-1 2 2-5 5H6v-2Z"/>
                       </svg>
                     </button>
                     <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/roles/delete" style="display:inline-flex">

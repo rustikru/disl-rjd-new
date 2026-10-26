@@ -275,12 +275,40 @@ var DETAIL_CONTEXTS = {
     ],
   },
 
-  /**** Сырьё */
+  claims: {
+    label: 'Претензии',
+    endpoint: '/api/claims/detail',
+    sort: { field: 'amount', type: 'number', dir: 'desc' },
+    cols: [
+      { key: 'wagon_no', label: '№ вагона', meta: true, pinned: true },
+      { key: 'data_status', label: 'Статус расчёта', meta: true },
+      { key: 'wagon_type_code', label: 'Род вагона', meta: true },
+      { key: 'oper_station', label: 'Станция', meta: true },
+      { key: 'cargo_name', label: 'Груз', meta: true },
+      { key: 'prev_cargo', label: 'Ранее выгруженный груз', meta: true },
+      { key: 'owner', label: 'Собственник', meta: true },
+      { key: 'consignor', label: 'Грузоотправитель', meta: true },
+      { key: 'consignee', label: 'Грузополучатель', meta: true },
+      { key: 'waybill_no', label: 'Накладная', meta: true },
+      { key: 'arrived_at', label: 'Прибыл', meta: true, formatData: 'DD.MM.YYYY HH24:MI:SS' },
+      { key: 'report_dt', label: 'Дата расчёта', meta: true, formatData: 'DD.MM.YYYY HH24:MI:SS' },
+      { key: 'total_days', label: 'Простой, сут.', right: true },
+      { key: 'free_days', label: 'Бесплатно, сут.', right: true },
+      { key: 'payable_days', label: 'Платно, сут.', right: true },
+      { key: 'daily_rate', label: 'Ставка, ₽/сут.', right: true, fmt: function (value) { return value == null ? '—' : Number(value).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) } },
+      { key: 'amount', label: 'Сумма, ₽', right: true, fmt: function (value) { return value == null ? '—' : Number(value).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) } },
+    ],
+  },
+
   'raw-material': {
     label: 'Сырьё',
     endpoint: '/api/raw-material/detail',
     sort: { field: 'wagon_no', type: 'number', dir: 'asc' },
-    cols: buildCols([]),
+    cols: buildCols([]).map(function (col) {
+      return col.key === 'idle_time_days'
+        ? Object.assign({}, col, { label: 'Простой на станции (сут.)' })
+        : col
+    }),
   },
 
   /**** Анализ за период */
@@ -290,4 +318,24 @@ var DETAIL_CONTEXTS = {
     sort: { field: 'wagon_no', type: 'number', dir: 'asc' },
     cols: buildCols([]),
   },
+}
+
+DETAIL_CONTEXTS['technical-state'] = {
+  label: 'Техническое состояние',
+  endpoint: '/api/technical-state/detail',
+  sort: { field: 'wagon_no', type: 'number', dir: 'asc' },
+  cols: [
+    'wagon_no', 'wagon_state', 'days_to_repair', 'next_repair_dt', 'next_repair_type',
+    'oper_station', 'dest_station', 'trip_end_dt', 'cargo_name', 'prev_cargo',
+    'wagon_type_code', 'build_date', 'factory_no', 'manufacturer', 'wagon_type_name', 'wagon_model',
+    'tare_weight', 'load_capacity', 'length_mm', 'last_cap_repair_depot', 'last_cap_repair_dt',
+    'last_dep_repair_depot', 'last_dep_repair_dt', 'home_road', 'owner', 'owner_okpo',
+    'owner_local_code', 'home_station', 'life_ext_date', 'lessee', 'lessee_okpo',
+    'lessee_local_code', 'lease_home_station', 'lease_end_date', 'service_life', 'body_volume',
+    'clearance', 'air_dist_type', 'automode', 'auto_lever', 'brake_type', 'bogie_model',
+    'shock_absorber', 'wagon_model_code', 'proxy_operator', 'proxy_operator_okpo', 'axles_count',
+  ].map(function (key) {
+    var col = DETAIL_CONTEXTS.approach.cols.find(function (item) { return item.key === key })
+    return Object.assign({}, col, { showInline: true, tab: 'main', danger: false, pinned: key === 'wagon_no' })
+  }),
 }

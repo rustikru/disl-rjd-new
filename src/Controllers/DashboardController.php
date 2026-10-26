@@ -74,7 +74,7 @@ class DashboardController
                 }
             }
 
-            return $pages;
+            return \App\Services\DirectoryAccessService::expandPages($pages);
         } catch (\Throwable $e) {
             // Инфраструктура ролей ещё не развёрнута
             return $allPages;

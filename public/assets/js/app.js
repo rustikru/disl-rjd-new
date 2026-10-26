@@ -121,9 +121,9 @@ function initInnerTabs() {
   })
 }
 
-// Dashboard
-function loadKPI() {
-  return Object.keys(KPI_BOARDS).map(function (key) {
+// Загрузка всех KPI или выбранных блоков карточек.
+function loadKPI(keys) {
+  return (keys || Object.keys(KPI_BOARDS)).map(function (key) {
     var board = KPI_BOARDS[key]
     return $.getJSON(board.dataUrl, board.params ? board.params() : {}).done(
       function (data) {
@@ -244,8 +244,7 @@ var WAGON_TABS = {
       window.APP_ORGANIZATION_CODE === 'MTF' ? 'ст. Углеуральская' : undefined,
     pinnedStationKey:
       window.APP_ORGANIZATION_CODE === 'MTF' ? 'УГЛЕУР' : undefined,
-    firstRoadKey:
-      window.APP_ORGANIZATION_CODE === 'MTF' ? 'СВЕРДЛ' : undefined,
+    firstRoadKey: window.APP_ORGANIZATION_CODE === 'MTF' ? 'СВЕРДЛ' : undefined,
     sumTableId: 'approachSumTable',
     sumSubId: 'approachSumSub',
     sumSubLabel: 'Всего в подходе',
@@ -309,7 +308,11 @@ var WAGON_TABS = {
       { key: 'dest_road', label: 'Дорога назначения' },
       { key: 'dest_station', label: 'Станция назначения' },
     ],
-    colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
+    colDims: [
+      { key: 'wagon_type_code', paramName: 'wagon_type' },
+      { key: 'cargo_w_type', paramName: 'cargo_state' },
+    ],
+    totalColDims: ['wagon_type_code'],
     getParams: function () {
       return {
         wagon_no: $('#fDepartureWagonNo').val().trim() || undefined,
@@ -352,10 +355,14 @@ var WAGON_TABS = {
     loadedKey: '_loadingLoaded',
     loadedDetKey: '_loadingDetLoaded',
     groupCols: [
-      { key: 'depart_road', label: 'Дорога' },
-      { key: 'depart_station', label: 'Станция' },
+      { key: 'dest_road', label: 'Дорога назначения' },
+      { key: 'dest_station', label: 'Станция назначения' },
     ],
-    colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
+    colDims: [
+      { key: 'wagon_type_code', paramName: 'wagon_type' },
+      { key: 'cargo_w_type', paramName: 'cargo_state' },
+    ],
+    totalColDims: ['wagon_type_code'],
     getParams: function () {
       return {
         wagon_no: $('#fLoadingWagonNo').val().trim() || undefined,
@@ -443,7 +450,141 @@ var WAGON_TABS = {
     },
   },
 
-  // Сырьё
+  // Техническое состояние
+  'technical-state': {
+    ctx: 'technical-state',
+    detailUrl: BASE + '/api/technical-state/detail',
+    filtersUrl: BASE + '/api/technical-state/filters',
+    csvDetFilename: 'техническое-состояние',
+    detTableId: 'technicalDetTable',
+    detSubId: 'technicalDetSub',
+    detPanelId: 'panel-technical-state',
+    loadedKey: '_technicalLoaded',
+    loadedDetKey: '_technicalDetLoaded',
+    applyBtnId: 'btnTechnicalApply',
+    resetBtnId: 'btnTechnicalReset',
+    groupCols: [],
+    // Параметры отбора технических данных.
+    getParams: function () {
+      return {
+        wagon_no: $('#fTechnicalWagonNo').val().trim() || undefined,
+        wagon_type: $('#fTechnicalWagonType').val() || undefined,
+        wagon_state: $('#fTechnicalState').val() || undefined,
+        repair: $('#fTechnicalRepair').val() || undefined,
+      }
+    },
+    // Заполнение списков родов и состояний вагонов.
+    fillFilters: function (data) {
+      fillSelect('#fTechnicalWagonType', data.wagon_type || [])
+      fillSelect('#fTechnicalState', data.wagon_state || [])
+    },
+    // Сброс фильтров технического состояния.
+    resetFilters: function () {
+      $('#fTechnicalWagonNo').val('')
+      $('#fTechnicalWagonType, #fTechnicalState, #fTechnicalRepair').val('')
+    },
+    // Технические данные и даты исходных справок.
+    showList: function (data, cfg) {
+      showTable($('#' + cfg.detTableId), data.rows || [], DETAIL_CONTEXTS[cfg.ctx].cols)
+
+    },
+  },
+
+  // Претензии
+  claims: {
+    ctx: 'claims',
+    summaryUrl: BASE + '/api/claims/summary',
+    detailUrl: BASE + '/api/claims/detail',
+    filtersUrl: BASE + '/api/claims/filters',
+    csvDetFilename: 'претензии-подробная',
+    metricsId: 'claimsMetrics',
+    sumTableId: 'claimsSumTable',
+    sumSubId: 'claimsSumSub',
+    detTableId: 'claimsDetTable',
+    detSubId: 'claimsDetSub',
+    detPanelId: 'claims-detail',
+    loadedKey: '_claimsLoaded',
+    loadedDetKey: '_claimsDetLoaded',
+    applyBtnId: 'btnClaimsApply',
+    resetBtnId: 'btnClaimsReset',
+    groupCols: [],
+    colDims: [],
+    // Параметры отбора претензий.
+    getParams: function () {
+      return {
+        wagon_no: $('#fClaimsWagonNo').val().trim() || undefined,
+        station_code: $('#fClaimsStation').val() || undefined,
+        wagon_type: $('#fClaimsWagonType').val() || undefined,
+      }
+    },
+    // Заполнение списков станций и родов вагонов.
+    fillFilters: function (data) {
+      var $station = $('#fClaimsStation')
+      var selected = $station.val()
+      $station.find('option:not(:first)').remove()
+      ;(data.stations || []).forEach(function (station) {
+        $station.append($('<option>').val(station.station_code).text(station.station_name))
+      })
+      $station.val(selected || '')
+      fillSelect('#fClaimsWagonType', data.wagon_type || [])
+    },
+    // Сброс фильтров претензий.
+    resetFilters: function () {
+      $('#fClaimsWagonNo').val('')
+      $('#fClaimsStation, #fClaimsWagonType').val('')
+    },
+    // Карточки количества вагонов и суммы претензий.
+    kpi: function (data) {
+      var totals = data.totals || {}
+      return [
+        { label: 'Вагонов в расчёте', value: data.total || 0, variant: 'pill', detail: { ctx: 'claims' } },
+        { label: 'Со штрафом', value: totals.penalty_count || 0, variant: 'pill', detail: { ctx: 'claims', params: { claim_filter: 'penalty' } } },
+        { label: 'Расчётная сумма', value: Number(totals.amount || 0).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽', variant: 'pill', detail: { ctx: 'claims', params: { claim_filter: 'penalty' } } },
+      ]
+    },
+    // Сводная претензий с переходами к детализации.
+    draw: function (data, cfg) {
+      var cols = [
+        { key: 'wagon_type_code', label: 'Род вагона' },
+        { key: 'total', label: 'Вагонов' },
+        { key: 'penalty_count', label: 'Со штрафом' },
+        { key: 'payable_days', label: 'Платно, сут.' },
+        { key: 'amount', label: 'Сумма, ₽' },
+      ]
+      var rows = (data.rows || []).slice()
+      if (rows.length) rows.push(data.totals)
+      _vtInline[cfg.sumTableId] = { all: rows, filtered: rows, cols: cols }
+      var html = '<thead><tr>' + cols.map(function (col, index) {
+        return '<th' + (index ? ' style="text-align:right"' : '') + '>' + esc(col.label) + '</th>'
+      }).join('') + '</tr></thead><tbody>'
+      rows.forEach(function (row, index) {
+        var total = index === rows.length - 1
+        var extra = Object.assign({}, cfg.getParams(), total ? {} : { wagon_type: row.wagon_type_code })
+        html += '<tr class="' + (total ? 'row-total' : 'row-data') + '">'
+        cols.forEach(function (col, i) {
+          var value = row[col.key]
+          var text = i ? Number(value || 0).toLocaleString('ru-RU', col.key === 'amount' ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : {}) : value
+          var filters = Object.assign({}, extra)
+          if (col.key === 'penalty_count' || col.key === 'amount') filters.claim_filter = 'penalty'
+          var content = esc(String(text))
+          if (!i || Number(value) > 0) {
+            var query = new URLSearchParams({ ctx: 'claims' })
+            Object.keys(filters).forEach(function (key) {
+              if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') query.set(key, filters[key])
+            })
+            content = '<a href="' + esc(BASE + '/detail?' + query.toString()) + '" target="_blank" rel="noopener noreferrer" class="cell-link claims-detail-link">' + content + '</a>'
+          }
+          html += '<td' + (!i ? ' class="col-meta"' : Number(value) === 0 ? ' class="dash"' : '') + '>' + content + '</td>'
+        })
+        html += '</tr>'
+      })
+      if (!rows.length) html += '<tr><td colspan="5" style="text-align:center;padding:32px">Нет данных по выбранным условиям</td></tr>'
+      $('#' + cfg.sumTableId).html(html + '</tbody>')
+      $('#' + cfg.sumSubId).text('Вагонов: ' + Number(data.total || 0).toLocaleString('ru-RU'))
+
+    },
+  },
+
   'raw-material': {
     ctx: 'raw-material',
     summaryUrl: BASE + '/api/raw-material/summary',
@@ -454,10 +595,10 @@ var WAGON_TABS = {
     },*/
     csvFilename: 'сырьё',
     csvDetFilename: 'сырьё-расширенная',
-    totalText: 'Гружёных вагонов',
+    totalText: 'Вагонов',
     sumTableId: 'rawSumTable',
     sumSubId: 'rawSumSub',
-    sumSubLabel: 'Гружёных вагонов',
+    sumSubLabel: 'Вагонов',
     detTableId: 'rawDetTable',
     detSubId: 'rawDetSub',
     detPanelId: 'raw-detail',
@@ -466,8 +607,8 @@ var WAGON_TABS = {
     applyBtnId: 'btnRawApply',
     resetBtnId: 'btnRawReset',
     groupCols: [
+      { key: 'raw_material_idle_label', label: 'Простой' },
       { key: 'cargo_name', label: 'Груз' },
-      //{ key: 'consignee', label: 'Грузополучатель' },
     ],
     colDims: [{ key: 'wagon_type_code', paramName: 'wagon_type' }],
     getParams: function () {
@@ -549,9 +690,9 @@ function kpiCards(data) {
       value: item.value,
       variant: 'pill',
       trend: makeTrend(item.change, item.trend),
-      detail: item.id
+      detail: item.detail || (item.id
         ? { ctx: 'dislocation', params: { kpi_id: item.id } }
-        : null,
+        : null),
     }
   })
 }
@@ -571,6 +712,14 @@ var KPI_BOARDS = {
     dataUrl: BASE + '/api/kpi/summary',
     params: function () {
       return { kpi_type: 'departue_kpi' }
+    },
+    cards: kpiCards,
+  },
+  loading: {
+    containerId: 'loadingMetrics',
+    dataUrl: BASE + '/api/kpi/summary',
+    params: function () {
+      return Object.assign({ kpi_type: 'loading_kpi' }, WAGON_TABS.loading.getParams())
     },
     cards: kpiCards,
   },
@@ -838,10 +987,7 @@ function loadSummary(cfg) {
       $sub.text(
         cfg.sumSubLabel +
           ': ' +
-          (data._totalWithPin !== undefined
-            ? data._totalWithPin
-            : data.total || 0
-          ).toLocaleString('ru-RU') +
+          (data.total || 0).toLocaleString('ru-RU') +
           ' ваг.',
       )
     })
@@ -1027,6 +1173,8 @@ function showTable($container, rows, colDefs) {
     return c
   })
   var id = $container.attr('id')
+  if ($container[0]._vtCleanup) $container[0]._vtCleanup()
+  $container.addClass('vt-host')
   var ROW_H = 28 // высота строки, используется для расчёта виртуального скролла
   var BUFFER = 8 // кол-во строк в буфере до и после видимой области, для предотвращения мерцания при скролле
   var allData = rows || []
@@ -1079,12 +1227,15 @@ function showTable($container, rows, colDefs) {
   colDefs.forEach(function (c) {
     hHtml +=
       '<div class="vt-th' +
+      (c.pinned ? ' col-pinned' : '') +
       (c.meta ? ' col-meta' : '') +
       '">' +
       esc(c.label) +
       '</div>'
     fHtml +=
-      '<div class="vt-fc"><input data-k="' +
+      '<div class="vt-fc' +
+      (c.pinned ? ' col-pinned' : '') +
+      '"><input data-k="' +
       c.key +
       '" type="text" placeholder=""></div>'
   })
@@ -1096,16 +1247,18 @@ function showTable($container, rows, colDefs) {
     var display = v !== null && v !== undefined && v !== '' ? v : ''
     if (c.fmt) display = c.fmt(v)
     var cls =
-      'vt-cell' + (c.meta ? ' col-meta' : '') + (c.right ? ' vt-right' : '')
+      'vt-cell' + (c.pinned ? ' col-pinned' : '') + (c.meta ? ' col-meta' : '') + (c.right ? ' vt-right' : '')
     var style = ''
     if (c.danger) {
       var d = parseFloat(display) || 0
       if (d >= 7) style = ' style="color:#E8392A;font-weight:700"'
       else if (d >= 3) style = ' style="color:#E8A530;font-weight:600"'
     }
-    return (
-      '<div class="' + cls + '"' + style + '>' + esc(String(display)) + '</div>'
-    )
+    var content = esc(String(display))
+    if ((c.key === 'wagon_no' || c.key === 'car_number') && /^\d{8}$/.test(String(v))) {
+      content = '<a class="wagon-link" href="' + BASE + '/wagon?wagon_no=' + encodeURIComponent(v) + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none" title="Карточка вагона">' + content + '</a>'
+    }
+    return '<div class="' + cls + '"' + style + '>' + content + '</div>' 
   }
 
   var vp = document.getElementById('ivp-' + id)
@@ -1201,7 +1354,10 @@ function showTable($container, rows, colDefs) {
   window.addEventListener('scroll', fitVpHeight, { passive: true })
 
   render(true)
-  attachFloatScrollbar(vp)
+  $container[0]._vtCleanup = function () {
+    window.removeEventListener('resize', fitVpHeight)
+    window.removeEventListener('scroll', fitVpHeight)
+  }
 }
 
 /******** cols config ********/
@@ -1842,9 +1998,8 @@ function kpiCard(item) {
       '</div>' +
       '<div class="kpi-value-row"><span class="kpi-value">' +
       valStr +
-      '</span></div>' +
+      '</span>' + badgeHtml + '</div>' +
       (item.sub ? '<div class="kpi-delta">' + esc(item.sub) + '</div>' : '') +
-      (badgeHtml ? '<div class="kpi-trend-row">' + badgeHtml + '</div>' : '') +
       '</div>'
     )
   }
@@ -2031,7 +2186,10 @@ function openDetail(ctx, road, station, col, groupBy, subs, extra) {
   navNewTab(BASE + '/detail?' + p.toString())
 }
 
+// Переход к детализации из ячейки сводной.
 $(document).on('click', '.cell-link', function (e) {
+  if ($(this).hasClass('claims-detail-link')) return
+  e.preventDefault()
   e.stopPropagation()
   var ctx = $(this).data('ctx') || ''
   var road = $(this).data('road') || ''
@@ -2159,6 +2317,9 @@ $(function () {
     if (el && el.parentNode) el.parentNode.removeChild(el)
   }, 1500)
 
+  // Выгрузка сводной претензий в Excel.
+  $('#btnClaimsExportSummary').on('click', function () { saveExcelfromVT('claimsSumTable', 'претензии-сводная') })
+
   Object.keys(WAGON_TABS).forEach(function (k) {
     var cfg = WAGON_TABS[k]
     var capKey = k.charAt(0).toUpperCase() + k.slice(1)
@@ -2176,6 +2337,7 @@ $(function () {
       }
       window[cfg.loadedDetKey] = false
       loadSummary(cfg)
+      if (k === 'loading') loadKPI(['loading'])
       if ($('#' + cfg.detPanelId).hasClass('active')) {
         window[cfg.loadedDetKey] = true
         loadDetail(cfg)
@@ -2185,7 +2347,8 @@ $(function () {
       if (cfg.resetFilters) cfg.resetFilters()
       window[cfg.loadedDetKey] = false
       loadSummary(cfg)
-      if (!cfg.summaryUrl && $('#' + cfg.detPanelId).hasClass('active')) {
+      if (k === 'loading') loadKPI(['loading'])
+      if ((k === 'claims' || !cfg.summaryUrl) && $('#' + cfg.detPanelId).hasClass('active')) {
         window[cfg.loadedDetKey] = true
         loadDetail(cfg)
       }

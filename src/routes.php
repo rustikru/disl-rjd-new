@@ -97,6 +97,16 @@ return function (App $app, array $config): void {
             return (new \App\Controllers\DashboardController($config, $getDb()))->index($req, $res);
         });
 
+        // Карточка вагона
+        $group->get('/wagon', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\WagonController($getDb(), $config))->index($req, $res);
+        });
+
+        // Профиль текущего пользователя
+        $group->get('/profile', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\ProfileController($getDb(), $config))->index($req, $res);
+        });
+
         // Страница импорта XLSX
         $group->get('/import', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\ImportController($getDb(), $config))->showForm($req, $res);
@@ -120,6 +130,53 @@ return function (App $app, array $config): void {
         });
         $group->get('/admin/roles', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->rolesPage($req, $res);
+        });
+        // --- Справочники ---
+        $group->get('/directories/norms', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->normsPage($req, $res);
+        });
+        $group->get('/directories/norms/stations', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->normStations($req, $res);
+        });
+        $group->get('/directories/norms/values', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->normValues($req, $res);
+        });
+        // Удаление норматива
+        $group->post('/directories/norms/delete', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->deleteNorm($req, $res);
+        });
+        $group->post('/directories/norms/save', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->saveNorm($req, $res);
+        });
+        $group->get('/directories/stations', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->stationsPage($req, $res);
+        });
+        $group->get('/directories/stations/freicon', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->findFreiConStation($req, $res);
+        });
+        $group->post('/directories/stations/save', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->saveStation($req, $res);
+        });
+        $group->post('/directories/stations/delete', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->deleteStation($req, $res);
+        });
+
+        // --- Нормативы ---
+        $group->get('/admin/directories/norms', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->normsPage($req, $res);
+        });
+        $group->get('/admin/directories/norms/stations', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->normStations($req, $res);
+        });
+        $group->get('/admin/directories/norms/values', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->normValues($req, $res);
+        });
+        // Удаление норматива
+        $group->post('/admin/directories/norms/delete', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->deleteNorm($req, $res);
+        });
+        $group->post('/admin/directories/norms/save', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->saveNorm($req, $res);
         });
         $group->get('/admin/directories/stations', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->stationsPage($req, $res);
@@ -193,6 +250,11 @@ return function (App $app, array $config): void {
         // API (`/api`)
         // ==========================================
         $group->group('/api', function ($api) use ($getDb, $config) {
+
+            // Движение вагона по текущему рейсу
+            $api->get('/wagon/movement', function ($req, $res) use ($config, $getDb) {
+                return (new \App\Controllers\WagonController($getDb(), $config))->movement($req, $res);
+            });
 
             // --- Главный Дашборд ---
             $api->get('/dashboard', function ($req, $res) use ($getDb) {
@@ -282,6 +344,29 @@ return function (App $app, array $config): void {
                 });
                 $sub->get('/detail', function ($req, $res) use ($getDb) {
                     return (new \App\Controllers\ApiController($getDb()))->rawDetail($req, $res);
+                });
+            });
+
+            // --- Техническое состояние ---
+            $api->group('/technical-state', function ($sub) use ($getDb) {
+                $sub->get('/filters', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->technicalFilters($req, $res);
+                });
+                $sub->get('/detail', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->technicalDetail($req, $res);
+                });
+            });
+
+            // --- Претензии ---
+            $api->group('/claims', function ($sub) use ($getDb) {
+                $sub->get('/filters', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->claimsFilters($req, $res);
+                });
+                $sub->get('/summary', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->claimsSummary($req, $res);
+                });
+                $sub->get('/detail', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->claimsDetail($req, $res);
                 });
             });
 

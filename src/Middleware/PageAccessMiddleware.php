@@ -72,8 +72,15 @@ class PageAccessMiddleware implements MiddlewareInterface
             // главная всегда доступна — вкладки фильтрует клиент, данные защищены через /api
             return null;
         }
+        if (preg_match('~^/(?:admin/)?directories/(norms|stations)(/.*)?$~', $path, $match)) {
+            $action = $match[2] ?? '';
+            return in_array($action, ['/save', '/delete', '/freicon'], true) ? 'directories_edit' : 'directories';
+        }
         if (str_starts_with($path, '/admin')) {
             return 'admin';
+        }
+        if ($path === '/wagon') {
+            return 'dashboard';
         }
         if (str_starts_with($path, '/maps')) {
             return 'maps';
@@ -96,7 +103,7 @@ class PageAccessMiddleware implements MiddlewareInterface
               WHERE ur.user_id = :id',
             ['id' => $userId]
         );
-        return array_map(static fn($r) => $r['page'], $rows);
+        return \App\Services\DirectoryAccessService::expandPages(array_map(static fn($r) => $r['page'], $rows));
     }
 
     private function noAdminYet(): bool

@@ -1,0 +1,133 @@
+/* Карточка вагона */
+.wagon-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 26px 24px;
+}
+.wagon-page h1 { font-size: 22px; margin: 0; }
+.wagon-panel {
+  padding: 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.wagon-heading { margin-bottom: 18px; }
+.wagon-heading h1 { font-size: 28px; }
+.wagon-caption { color: var(--text-2); margin-top: 8px; }
+.wagon-heading .wagon-caption { font-size: 15px; }
+.wagon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.wagon-panel h2 { font-size: 15px; margin: 0 0 20px; }
+.wagon-data {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 14px 18px;
+  margin: 0;
+}
+.wagon-data dt { color: var(--text-2); }
+.wagon-data dd { margin: 0; overflow-wrap: anywhere; }
+.wagon-message { padding: 18px 0; color: var(--text-2); }
+.wagon-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 18px;
+  overflow: auto;
+}
+.wagon-tab {
+  padding: 15px 14px;
+  background: none;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  color: var(--text-2);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.wagon-tab.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.wagon-body { padding: 22px; }
+.wagon-shell { padding: 0; }
+.wagon-shell .wagon-panel { border: 0; padding: 0; }
+.wagon-section[hidden] { display: none; }
+
+/* Маршрут */
+.wagon-route {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(60px, 1fr) minmax(0, max-content);
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: #fcfbfe;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.wagon-route .route-station { min-width: 0; display: block; }
+.wagon-route .route-station > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+}
+.wagon-route small {
+  display: block;
+  flex-basis: 100%;
+  color: var(--text-2);
+  margin: 0 0 3px;
+  font-size: 10px;
+}
+.wagon-route b {
+  display: inline;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.wagon-route .route-code {
+  display: inline;
+  margin: 0;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 400;
+}
+.wagon-route .route-direction {
+  height: 1px;
+  background: var(--border);
+  position: relative;
+  width: 100%;
+  margin: 0;
+}
+.wagon-route .route-direction::before,
+.wagon-route .route-direction::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  box-sizing: border-box;
+  transform: translateY(-50%);
+  background: #fcfbfe;
+}
+.wagon-route .route-direction::before { left: 0; }
+.wagon-route .route-direction::after { right: 0; background: var(--accent); }
+
+/* История операций */
+.wagon-history { overflow-x: auto; margin-top: 16px; }
+.wagon-history table { width: 100%; }
+.wagon-history td { padding: 12px; border-bottom: 1px solid var(--border); }
+
+@media (max-width: 750px) {
+  .wagon-grid { grid-template-columns: 1fr; }
+  .wagon-page { padding: 20px 14px; }
+  .wagon-data { grid-template-columns: 1fr 1fr; }
+  .wagon-body { padding: 16px; }
+}
+@media (max-width: 600px) {
+  .wagon-route { grid-template-columns: 1fr; gap: 10px; padding: 10px 12px; }
+  .wagon-route .route-direction { display: none; }
+}

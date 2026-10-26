@@ -6,13 +6,13 @@ $basePath = $basePath ?? '';
 $activeOrganizationCode = '';
 $activeOrganizationName = '';
 foreach ($_SESSION['organizations'] ?? [] as $organization) {
-    if ((int) ($organization['id'] ?? 0) === (int) ($_SESSION['organization_id'] ?? 0)) {
-        $activeOrganizationCode = (string) ($organization['code'] ?? '');
-        $activeOrganizationName = (string) (
-            ($organization['short_name'] ?? '') ?: ($organization['name'] ?? '')
-        );
-        break;
-    }
+  if ((int) ($organization['id'] ?? 0) === (int) ($_SESSION['organization_id'] ?? 0)) {
+    $activeOrganizationCode = (string) ($organization['code'] ?? '');
+    $activeOrganizationName = (string) (
+      ($organization['short_name'] ?? '') ?: ($organization['name'] ?? '')
+    );
+    break;
+  }
 }
 $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
 ?>
@@ -84,7 +84,8 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
             <div class="table-toolbar">
               <div class="table-info">
                 <span class="table-title">
-                  Сводная дислокация<?= $activeOrganizationName !== '' ? ' ' . htmlspecialchars($activeOrganizationName) : '' ?>
+                  Сводная
+                  дислокация<?= $activeOrganizationName !== '' ? ' ' . htmlspecialchars($activeOrganizationName) : '' ?>
                 </span>
                 <span class="table-sub" id="mainTableSub"></span>
               </div>
@@ -152,7 +153,8 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title"><?= $isMtf ? 'Подход вагонов к ст. Углеуральская (сводная)' : 'Подход вагонов (сводная)' ?></span>
+                <span
+                  class="table-title"><?= $isMtf ? 'Подход вагонов к ст. Углеуральская (сводная)' : 'Подход вагонов (сводная)' ?></span>
                 <span class="table-sub" id="approachSumSub"></span>
               </div>
               <div class="table-acts">
@@ -216,7 +218,8 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title"><?= $isMtf ? 'Отправление вагонов со ст. Углеуральская — сводная' : 'Отправление вагонов — сводная' ?></span>
+                <span
+                  class="table-title"><?= $isMtf ? 'Отправление вагонов со ст. Углеуральская — сводная' : 'Отправление вагонов — сводная' ?></span>
                 <span class="table-sub" id="departureSumSub"></span>
               </div>
               <div class="table-acts">
@@ -352,7 +355,90 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         </div>
       </div>
 
-      <!-- Сырьё -->
+      <div id="panel-technical-state" class="tab-panel">
+        <div class="filters-bar">
+          <div class="filters-inner">
+            <div class="filter-item" style="flex-basis:100%">
+              <label class="filter-label" for="fTechnicalWagonNo">№ вагона</label>
+              <input class="filter-input" type="text" id="fTechnicalWagonNo" placeholder="Номер вагона1; Номер вагона2; ...">
+            </div>
+            <div class="filter-item">
+              <label class="filter-label" for="fTechnicalWagonType">Род вагона</label>
+              <select class="filter-select" id="fTechnicalWagonType"><option value="">— Все —</option></select>
+            </div>
+            <div class="filter-item">
+              <label class="filter-label" for="fTechnicalState">Состояние вагона</label>
+              <select class="filter-select" id="fTechnicalState"><option value="">— Все —</option></select>
+            </div>
+            <div class="filter-item">
+              <label class="filter-label" for="fTechnicalRepair">Плановый ремонт</label>
+              <select class="filter-select" id="fTechnicalRepair"><option value="">— Все —</option><option value="overdue">Срок прошёл</option><option value="soon">В течение 30 суток</option><option value="missing">Дата не указана</option></select>
+            </div>
+            <div class="filter-actions" style="flex-basis:100%">
+              <button class="btn btn-primary btn-sm" id="btnTechnicalApply">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="btnTechnicalReset">Сбросить</button>
+            </div>
+          </div>
+        </div>
+        <section class="table-section">
+          <div class="table-toolbar">
+            <div class="table-info"><span class="table-title">Техническое состояние</span><span class="table-sub" id="technicalDetSub"></span></div>
+            <div class="table-acts"></div>
+          </div>
+          <div id="technicalDetTable"></div>
+        </section>
+      </div>
+
+      <div id="panel-claims" class="tab-panel">
+        <div class="kpi-grid" id="claimsMetrics" style="margin-bottom:16px"></div>
+        <div class="inner-tabs">
+          <button class="inner-tab active" data-inner="claims-summary">Сводная</button>
+          <button class="inner-tab" data-inner="claims-detail">Подробная</button>
+        </div>
+        <div class="filters-bar">
+          <div class="filters-inner">
+            <div class="filter-item" style="flex-basis:100%">
+              <label class="filter-label" for="fClaimsWagonNo">№ вагона</label>
+              <input class="filter-input" type="text" id="fClaimsWagonNo" placeholder="Номер вагона1; Номер вагона2; ...">
+            </div>
+            <div class="filter-item">
+              <label class="filter-label" for="fClaimsStation">Станция</label>
+              <select class="filter-select" id="fClaimsStation" style="width:300px;max-width:100%"><option value="">— Все станции —</option></select>
+            </div>
+            <div class="filter-item">
+              <label class="filter-label" for="fClaimsWagonType">Род вагона</label>
+              <select class="filter-select" id="fClaimsWagonType"><option value="">— Все —</option></select>
+            </div>
+            <div class="filter-actions" style="flex-basis:100%">
+              <button class="btn btn-primary btn-sm" id="btnClaimsApply">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="btnClaimsReset">Сбросить</button>
+            </div>
+          </div>
+        </div>
+        <div id="claims-summary" class="inner-panel active">
+          <section class="table-section">
+            <div class="table-toolbar">
+              <div class="table-info">
+                <span class="table-title">Претензии — сводная</span>
+                <span class="table-sub" id="claimsSumSub"></span>
+
+              </div>
+              <div class="table-acts"><button class="btn btn-ghost btn-sm" id="btnClaimsExportSummary">Выгрузить в Excel</button></div>
+            </div>
+            <div class="table-scroll"><table class="data-table" id="claimsSumTable"></table></div>
+          </section>
+        </div>
+        <div id="claims-detail" class="inner-panel">
+          <section class="table-section">
+            <div class="table-toolbar">
+              <div class="table-info"><span class="table-title">Претензии — подробная</span><span class="table-sub" id="claimsDetSub"></span></div>
+              <div class="table-acts"></div>
+            </div>
+            <div id="claimsDetTable"></div>
+          </section>
+        </div>
+      </div>
+
       <div id="panel-raw-material" class="tab-panel">
         <div class="kpi-grid" id="rawMetrics" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
@@ -375,10 +461,12 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title">Сырьё — гружёные вагоны</span>
+                <span class="table-title">Сырьё - простои</span>
                 <span class="table-sub" id="rawSumSub"></span>
               </div>
-              <div class="table-acts"></div>
+              <div class="table-acts">
+                <button class="btn btn-ghost btn-sm" data-toggle-table="rawSumTable">Свернуть все</button>
+              </div>
             </div>
             <div class="table-scroll">
               <table class="data-table" id="rawSumTable"></table>
@@ -484,10 +572,10 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
   </div>
 
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jquery/jquery-3.7.1.min.js"></script>
-  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js"></script>
+  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/detail-contexts.js') ?>"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/csv-export.js"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/excel-export.js"></script>
-  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/app.js"></script>
+  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/app.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/app.js') ?>"></script>
 </body>
 
 </html>

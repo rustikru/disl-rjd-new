@@ -19,6 +19,8 @@ class AdminController
         'maps'      => 'Карта',
         'import'    => 'Загрузка справок',
         'admin'     => 'Администрирование',
+        'directories' => 'Просмотр справочников',
+        'directories_edit' => 'Ведение справочников',
     ];
 
     public function __construct(DbInterface $db, array $config = [])
@@ -135,12 +137,148 @@ class AdminController
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 
+    public function normsPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!(new \App\Services\DirectoryAccessService($this->db))->canView()) {
+            return $this->forbidden($response);
+        }
+        $organizations = new \App\Services\OrganizationService($this->db);
+        $organizationId = $organizations->id();
+        if (!$organizationId) {
+            return $this->forbidden($response);
+        }
+        $service = new \App\Services\ClaimNormService($this->db, $organizationId);
+        $canEdit = (new \App\Services\DirectoryAccessService($this->db))->canEdit();
+        $query = $request->getQueryParams();
+        $filterType = (string) ($query['type'] ?? '');
+        $filterDate = (string) ($query['date'] ?? '');
+        $filterStation = (string) ($query['station'] ?? '');
+        $types = \App\Services\ClaimNormService::TYPES;
+        $flashOk = $query['ok'] ?? null;
+        $flashErr = $request->getAttribute('norm_error');
+        try {
+            $norms = $service->list(['type' => $filterType, 'date' => $filterDate, 'station' => $filterStation]);
+        } catch (\InvalidArgumentException $error) {
+            $norms = [];
+            $flashErr = $error->getMessage();
+        }
+        $form = ['id' => '', 'station_code' => '', 'station_name' => '', 'rule_type' => 'SHIPPER', 'rule_value' => '', 'free_days' => 0,
+                 'daily_rate' => 0, 'valid_from' => date('Y-m-d'), 'valid_to' => ''];
+        if ($request->getAttribute('norm_error') !== null) {
+            $form = array_intersect_key((array) $request->getParsedBody(), $form) + $form;
+        } elseif ($canEdit && !empty($query['edit'])) {
+            $record = $this->db->fetchOne(
+                "SELECT id, station_code,
+                        (SELECT MIN(station_name) FROM xx_rjd_stations s WHERE s.esr_code = n.station_code) AS station_name,
+                        rule_type, rule_value, free_days, daily_rate,
+                        TO_CHAR(valid_from, 'YYYY-MM-DD') AS valid_from,
+                        TO_CHAR(valid_to, 'YYYY-MM-DD') AS valid_to
+                   FROM xx_rjd_claim_norms n WHERE id = :id AND organization_id = :organization_id",
+                ['id' => (int) $query['edit'], 'organization_id' => $organizationId]
+            );
+            if ($record) {
+                $form = $record;
+            } else {
+                $flashErr = 'Норматив не найден';
+            }
+        }
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user = $_SESSION['user'] ?? [];
+        $csrf = $_SESSION['csrf_token'] ?? '';
+        ob_start();
+        include __DIR__ . '/../../templates/admin/norms.php';
+        $response->getBody()->write(ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function saveNorm(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!(new \App\Services\DirectoryAccessService($this->db))->canEdit()) {
+            return $this->forbidden($response);
+        }
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body)) {
+            return $this->forbidden($response);
+        }
+        $organizationId = (new \App\Services\OrganizationService($this->db))->id();
+        if (!$organizationId) {
+            return $this->forbidden($response);
+        }
+        try {
+            (new \App\Services\ClaimNormService($this->db, $organizationId))->save(
+                $body, (int) ($_SESSION['user']['id'] ?? 0)
+            );
+        } catch (\InvalidArgumentException $error) {
+            return $this->normsPage($request->withAttribute('norm_error', $error->getMessage()), $response)->withStatus(422);
+        }
+        return $this->redirect($response, '/directories/norms?ok=' . urlencode('Норматив сохранён'));
+    }
+
+    /** POST /directories/norms/delete */
+    public function deleteNorm(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!(new \App\Services\DirectoryAccessService($this->db))->canEdit()) {
+            return $this->forbidden($response);
+        }
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body)) {
+            return $this->forbidden($response);
+        }
+        $organizationId = (new \App\Services\OrganizationService($this->db))->id();
+        if (!$organizationId) {
+            return $this->forbidden($response);
+        }
+        $deleted = $this->db->execute(
+            'DELETE FROM xx_rjd_claim_norms WHERE id = :id AND organization_id = :organization_id',
+            ['id' => (int) ($body['id'] ?? 0), 'organization_id' => $organizationId]
+        );
+        return $this->redirect($response, '/directories/norms?' . ($deleted ? 'ok=' . urlencode('Норматив удалён') : 'err=' . urlencode('Норматив не найден')));
+    }
+
+    public function normValues(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!(new \App\Services\DirectoryAccessService($this->db))->canView()) {
+            return $this->forbidden($response);
+        }
+        $organizationId = (new \App\Services\OrganizationService($this->db))->id();
+        if (!$organizationId) {
+            return $this->forbidden($response);
+        }
+        $params = $request->getQueryParams();
+        try {
+            $values = (new \App\Services\ClaimNormService($this->db, $organizationId))->values(
+                (string) ($params['type'] ?? ''), mb_substr((string) ($params['q'] ?? ''), 0, 100)
+            );
+        } catch (\InvalidArgumentException $error) {
+            return $this->json($response, ['error' => $error->getMessage()], 400);
+        }
+        return $this->json($response, ['values' => $values]);
+    }
+
+    public function normStations(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!(new \App\Services\DirectoryAccessService($this->db))->canView()) {
+            return $this->forbidden($response);
+        }
+        $organizationId = (new \App\Services\OrganizationService($this->db))->id();
+        if (!$organizationId) {
+            return $this->forbidden($response);
+        }
+        $params = $request->getQueryParams();
+        $stations = (new \App\Services\ClaimNormService($this->db, $organizationId))->stations(
+            mb_substr((string) ($params['q'] ?? ''), 0, 100)
+        );
+        return $this->json($response, ['stations' => $stations]);
+    }
+
     public function stationsPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!$this->isAdmin()) {
+        if (!(new \App\Services\DirectoryAccessService($this->db))->canView()) {
             return $this->forbidden($response);
         }
 
+        $canEdit = (new \App\Services\DirectoryAccessService($this->db))->canEdit();
         $query = $request->getQueryParams();
         $search = trim((string) ($query['q'] ?? ''));
         $perPage = 50;
@@ -226,7 +364,7 @@ class AdminController
         ServerRequestInterface $request,
         ResponseInterface $response
     ): ResponseInterface {
-        if (!$this->isAdmin()) {
+        if (!(new \App\Services\DirectoryAccessService($this->db))->canEdit()) {
             return $this->json($response, ['error' => 'Доступ запрещён'], 403);
         }
 
@@ -646,13 +784,13 @@ class AdminController
 
     public function saveStation(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!$this->isAdmin()) {
+        if (!(new \App\Services\DirectoryAccessService($this->db))->canEdit()) {
             return $this->forbidden($response);
         }
 
         $body = (array) $request->getParsedBody();
         if (!$this->checkCsrf($body)) {
-            return $this->redirect($response, '/admin/directories/stations?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+            return $this->redirect($response, '/directories/stations?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
         $esrCode = trim((string) ($body['esr_code'] ?? ''));
@@ -684,22 +822,22 @@ class AdminController
             ], $request);
             return $this->redirect(
                 $response,
-                '/admin/directories/stations?err=' . urlencode($this->cleanDbMessage($error) . '. Код ошибки: ' . $errorId)
+                '/directories/stations?err=' . urlencode($this->cleanDbMessage($error) . '. Код ошибки: ' . $errorId)
             );
         }
 
-        return $this->redirect($response, '/admin/directories/stations?ok=' . urlencode('Станция сохранена'));
+        return $this->redirect($response, '/directories/stations?ok=' . urlencode('Станция сохранена'));
     }
 
     public function deleteStation(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!$this->isAdmin()) {
+        if (!(new \App\Services\DirectoryAccessService($this->db))->canEdit()) {
             return $this->forbidden($response);
         }
 
         $body = (array) $request->getParsedBody();
         if (!$this->checkCsrf($body)) {
-            return $this->redirect($response, '/admin/directories/stations?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+            return $this->redirect($response, '/directories/stations?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
         $esrCode = trim((string) ($body['esr_code'] ?? ''));
@@ -716,11 +854,11 @@ class AdminController
             ], $request);
             return $this->redirect(
                 $response,
-                '/admin/directories/stations?err=' . urlencode($this->cleanDbMessage($error) . '. Код ошибки: ' . $errorId)
+                '/directories/stations?err=' . urlencode($this->cleanDbMessage($error) . '. Код ошибки: ' . $errorId)
             );
         }
 
-        return $this->redirect($response, '/admin/directories/stations?ok=' . urlencode('Станция удалена'));
+        return $this->redirect($response, '/directories/stations?ok=' . urlencode('Станция удалена'));
     }
 
     public function saveOrganization(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface

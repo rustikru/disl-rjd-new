@@ -470,23 +470,19 @@ a.nav-item {
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
   justify-content: stretch;
-  gap: 14px;
-  margin-bottom: 22px;
-}
-
-@media (max-width: 1200px) {
-  .kpi-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .kpi-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 11px;
-  padding: 15px 17px;
+  border-radius: 9px;
+  padding: 9px 12px;
+  min-width: 0;
+  gap: 4px;
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow);
@@ -500,7 +496,7 @@ a.nav-item {
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 2px;
   background: var(--accent);
 }
 /* .kpi-card:nth-child(2)::before {
@@ -517,11 +513,12 @@ a.nav-item {
 } */
 
 .kpi-value {
-  font-size: 30px;
+  font-size: 22px;
   font-weight: 600;
   letter-spacing: -0.02em;
-  margin-top: 6px;
-  line-height: 1;
+  margin-top: 0;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
   color: var(--text-1);
 }
 
@@ -529,11 +526,12 @@ a.nav-item {
   font-size: 11.5px;
   color: var(--text-2);
   line-height: 1.35;
-  min-height: 31px;
+  min-height: 0;
+  overflow-wrap: anywhere;
 }
 
 .kpi-delta {
-  margin-top: 9px;
+  margin-top: 0;
   font-size: 11.5px;
   display: inline-flex;
   align-items: center;
@@ -579,7 +577,7 @@ a.nav-item {
 .kpi-badge {
   font-size: 11px;
   font-weight: 500;
-  padding: 2px 8px;
+  padding: 2px 6px;
   border-radius: 6px;
   background: var(--border-lt);
   color: var(--text-2);
@@ -669,6 +667,7 @@ a.nav-item {
 }
 
 .btn {
+  text-decoration: none;
   border: 1px solid transparent;
   border-radius: 9px;
   padding: 8px 14px;
@@ -685,6 +684,13 @@ a.nav-item {
   justify-content: center;
   gap: 6px;
   white-space: nowrap;
+}
+
+a.btn:hover,
+a.btn:focus,
+a.btn:active,
+a.btn:visited {
+  text-decoration: none;
 }
 
 .btn-primary {
@@ -1073,6 +1079,17 @@ tr.lv-station td {
   cursor: pointer;
 }
 
+#claimsSumTable a.cell-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+#claimsSumTable a.cell-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .cell-link:hover {
   /* background: var(--accent-lt) !important; */
   color: var(--accent) !important;
@@ -1177,6 +1194,12 @@ tr.lv-station td {
 /* ==========================================================================
    8. ВИРТУАЛЬНАЯ ТАБЛИЦА (VIRTUAL TABLE / DETAILS)
    ========================================================================== */
+.vt-host {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
 .vt-viewport {
   min-height: 200px;
   overflow: auto;
@@ -1276,25 +1299,25 @@ tr.lv-station td {
 .vt-th.col-pinned {
   background: var(--accent-lt);
   border-right: 2px solid #b8a7d8;
-  /* position: sticky; */
-  /* left: 0; */
-  /* z-index: 4; */
+  position: sticky;
+  left: 0;
+  z-index: 4;
 }
 
 .vt-fc.col-pinned {
   background: #f4effe;
   border-right: 2px solid #b8a7d8;
-  /* position: sticky; */
-  /* left: 0; */
-  /* z-index: 3; */
+  position: sticky;
+  left: 0;
+  z-index: 3;
 }
 
 .vt-cell.col-pinned {
   background: #f9f6fd;
   border-right: 2px solid #b8a7d8;
-  /* position: sticky; */
-  /* left: 0; */
-  /* z-index: 1; */
+  position: sticky;
+  left: 0;
+  z-index: 1;
 }
 
 .vt-cell.vt-right {
