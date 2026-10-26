@@ -315,7 +315,7 @@ $basePath = $basePath ?? '';
         }
         var content = esc(String(display));
         if ((c.key === 'wagon_no' || c.key === 'car_number') && /^\d{8}$/.test(String(v))) {
-          content = '<a class="wagon-link" href="' + BASE + '/wagon?wagon_no=' + encodeURIComponent(v) + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none" title="Карточка вагона">' + content + '</a>';
+          content = '<a class="wagon-link" href="' + BASE + '/wagon?wagon_no=' + encodeURIComponent(v) + '" style="color:var(--accent);text-decoration:none" title="Карточка вагона">' + content + '</a>';
         }
         return '<div class="' + cls + '"' + style + '>' + content + '</div>';
       }

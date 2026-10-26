@@ -33,7 +33,7 @@ class ApiController
     }
 
     // =========================================================================
-    // endpoint
+    // API
     // =========================================================================
 
     /** GET /api/dashboard */
@@ -98,8 +98,7 @@ class ApiController
             $bindings['kpi_type'] = $kpiType;
         }
 
-        // Прогрессивный fallback:
-        //   1. get_kpi_row — pipelined-функция: prv_kpi_trend вызывается 1 раз на карточку 
+        // Если основной запрос недоступен, пробуем следующий.
         $queries = [
             "SELECT /*+ CARDINALITY(t 1) */ kpi.id, kpi.type, kpi.label AS x_label,
                     t.x_value, t.trend_pct, t.trend_dir
@@ -1276,7 +1275,7 @@ class ApiController
         return $fields ?: $defaults;
     }
 
-    /** Строит SELECT-список из переданных полей; fallback — wagon_no. */
+    /** Поля запроса. По умолчанию — wagon_no. */
     private function selectFields(string $raw): string
     {
         $fields = array_values(array_filter(
@@ -1286,7 +1285,7 @@ class ApiController
         return $fields ? implode(', ', $fields) : 'wagon_no';
     }
 
-    /** Строит ORDER BY из параметров sort/sort_dir/sort_type; fallback — $default. */
+    /** Сортировка по параметрам запроса. Если не задана — $default. */
     private function orderBY(array $params, string $default): string
     {
         $sortRaw = trim($params['sort'] ?? '');

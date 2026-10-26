@@ -1041,7 +1041,7 @@ class AdminController
             return true;
         }
 
-        // bootstrap: если admin-ов ещё нет — пускаем, чтобы можно было назначить первого
+        // Если администраторов ещё нет, разрешаем назначить первого.
         try {
             $row = $this->db->fetchOne(
                 "SELECT COUNT(*) AS cnt FROM xx_rjd_user_roles ur

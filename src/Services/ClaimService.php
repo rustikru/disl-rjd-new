@@ -81,16 +81,16 @@ final class ClaimService
             }
             $keys = array_filter(array_unique($keys), static fn($key) => $key !== '');
             foreach ($keys as $key) {
-                foreach ($norms as $candidate) {
-                    if ($candidate['station_code'] !== $row['station_code'] || $candidate['rule_type'] !== $type) {
+                foreach ($norms as $rule) {
+                    if ($rule['station_code'] !== $row['station_code'] || $rule['rule_type'] !== $type) {
                         continue;
                     }
-                    if ($candidate['valid_from'] > $report->format('Y-m-d')
-                        || ($candidate['valid_to'] && $candidate['valid_to'] < $report->format('Y-m-d'))) {
+                    if ($rule['valid_from'] > $report->format('Y-m-d')
+                        || ($rule['valid_to'] && $rule['valid_to'] < $report->format('Y-m-d'))) {
                         continue;
                     }
-                    if ($this->key($candidate['rule_value']) === $key) {
-                        $norm = $candidate;
+                    if ($this->key($rule['rule_value']) === $key) {
+                        $norm = $rule;
                         break 3;
                     }
                 }

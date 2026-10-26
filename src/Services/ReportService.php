@@ -9,7 +9,7 @@ final class ReportService
 {
     public function __construct(private DbInterface $db, private OrganizationService $organizations) {}
 
-    /** [type_reference => MAX(report_dt)] для всех указанных типов. */
+    /** Даты последних справок по типам. */
     public function getLatestDtsByType(?string $dt = null, ?array $types = null): array
     {
         if ($types !== null && count($types) === 0) {
@@ -28,15 +28,15 @@ final class ReportService
         }
         $sql .= ' GROUP BY type_reference';
         $rows = $this->db->fetchAll($sql, $params);
-        $map = [];
+        $dates = [];
         foreach ($rows as $r) {
-            $map[(string) $r['type_reference']] = $dt ?? (string) $r['dt'];
+            $dates[(string) $r['type_reference']] = $dt ?? (string) $r['dt'];
         }
-        return $map;
+        return $dates;
     }
 
     /**
-     * Строит WHERE-фрагмент для фильтрации по нескольким report_dt (один на тип справки).
+     * Условие отбора справок по типу, дате и организации.
      * $alias — псевдоним таблицы, например 'xdr' → 'xdr.type_reference'.
      */
     public function latestDtCondition(array $dtsByType, string $alias = ''): array

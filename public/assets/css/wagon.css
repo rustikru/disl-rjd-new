@@ -2,26 +2,36 @@
 .wagon-page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 26px 24px;
+  padding: 22px 24px;
 }
 .wagon-page h1 { font-size: 22px; margin: 0; }
 .wagon-panel {
-  padding: 22px;
+  padding: 15px 18px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 12px;
 }
-.wagon-heading { margin-bottom: 18px; }
-.wagon-heading h1 { font-size: 28px; }
-.wagon-caption { color: var(--text-2); margin-top: 8px; }
-.wagon-heading .wagon-caption { font-size: 15px; }
+.wagon-heading { margin-bottom: 12px; border-top: 3px solid var(--accent); }
+.wagon-heading h1 { font-size: 21px; }
+.wagon-caption { color: var(--text-2); margin-top: 5px; }
+.wagon-heading .wagon-caption { font-size: 12px; }
 .wagon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-.wagon-panel h2 { font-size: 15px; margin: 0 0 20px; }
+.wagon-panel h2 { font-size: 15px; margin: 0 0 16px; }
 .wagon-data {
   display: grid;
   grid-template-columns: 1fr 1.4fr;
-  gap: 14px 18px;
+  gap: 9px 16px;
   margin: 0;
+}
+.wagon-data { font-size: 13px; }
+.wagon-chips { display: flex; flex-wrap: wrap; gap: 12px 0; margin-top: 16px; }
+.wagon-chip { display: flex; flex-direction: column; gap: 5px; padding: 0 20px; border-left: 1px solid var(--border); font-size: 13px; color: var(--text-1); }
+.wagon-chip:first-child { padding-left: 0; border-left: 0; }
+.wagon-chip-label { color: var(--text-2); font-size: 11px; }
+.wagon-chip-value { font-weight: 500; }
+@media (max-width: 500px) {
+  .wagon-chips { flex-direction: column; gap: 10px; }
+  .wagon-chip { padding: 0; border: 0; flex-direction: row; gap: 10px; flex-wrap: wrap; align-items: baseline; }
 }
 .wagon-data dt { color: var(--text-2); }
 .wagon-data dd { margin: 0; overflow-wrap: anywhere; }
@@ -34,12 +44,13 @@
   overflow: auto;
 }
 .wagon-tab {
-  padding: 15px 14px;
+  padding: 9px 12px;
   background: none;
   border: 0;
   border-bottom: 3px solid transparent;
   color: var(--text-2);
   font: inherit;
+  font-size: 12px;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -48,7 +59,7 @@
   color: var(--accent);
   font-weight: 600;
 }
-.wagon-body { padding: 22px; }
+.wagon-body { padding: 15px 18px; }
 .wagon-shell { padding: 0; }
 .wagon-shell .wagon-panel { border: 0; padding: 0; }
 .wagon-section[hidden] { display: none; }
@@ -56,7 +67,7 @@
 /* Маршрут */
 .wagon-route {
   display: grid;
-  grid-template-columns: minmax(0, max-content) minmax(60px, 1fr) minmax(0, max-content);
+  grid-template-columns: minmax(0, 200px) minmax(220px, 1fr) minmax(0, 200px);
   align-items: center;
   gap: 14px;
   margin-bottom: 16px;
@@ -93,6 +104,8 @@
   font-size: 11px;
   font-weight: 400;
 }
+.route-road { color: var(--text-2); font-size: 10px; line-height: 1.4; margin-top: 4px; font-weight: 400; }
+.wagon-route .route-station .route-road { flex-basis: 100%; min-width: 0; overflow-wrap: anywhere; }
 .wagon-route .route-direction {
   height: 1px;
   background: var(--border);
@@ -100,6 +113,13 @@
   width: 100%;
   margin: 0;
 }
+.route-progress { min-width: 0; padding-top: 8px; }
+.route-distances { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin-bottom: 12px; color: var(--text-2); font-size: 11px; }
+.route-distances span:first-child { color: var(--accent); }
+.route-station-caption { position: relative; margin-top: 10px; min-height: 16px; }
+.route-current-station { position: relative; width: max-content; max-width: 100%; color: var(--text-2); font-size: 10px; text-align: center; overflow-wrap: anywhere; }
+.route-passed { position: absolute; top: 0; left: 0; height: 2px; background: var(--accent); }
+.route-current { position: absolute; top: 50%; width: 9px; height: 9px; border: 2px solid #fcfbfe; border-radius: 50%; background: var(--accent); transform: translate(-50%, -50%); z-index: 1; box-shadow: 0 0 0 1px var(--accent); }
 .wagon-route .route-direction::before,
 .wagon-route .route-direction::after {
   content: '';
@@ -127,7 +147,7 @@
   .wagon-data { grid-template-columns: 1fr 1fr; }
   .wagon-body { padding: 16px; }
 }
-@media (max-width: 600px) {
+@media (max-width: 850px) {
   .wagon-route { grid-template-columns: 1fr; gap: 10px; padding: 10px 12px; }
-  .wagon-route .route-direction { display: none; }
+  .wagon-route .route-progress { padding: 8px 4px; }
 }
