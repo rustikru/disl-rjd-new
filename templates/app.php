@@ -31,6 +31,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
     window.APP_ALLOWED_PAGES = <?= json_encode($allowedPages ?? [], JSON_UNESCAPED_UNICODE) ?>;
     window.APP_NAV_CONFIG = <?= json_encode($navConfig ?? [], JSON_UNESCAPED_UNICODE) ?>;
     window.APP_ORGANIZATION_CODE = <?= json_encode($activeOrganizationCode, JSON_UNESCAPED_UNICODE) ?>;
+    window.APP_REPORT_DEFINITIONS = <?= json_encode($reportDefinitions ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
   </script>
 </head>
 
@@ -61,17 +62,6 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fDislocationWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fDislocationWagonNo"
-                placeholder="Номер вагона1; Номер вагона2; ...">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fDislocationCargo">Груз</label>
-              <select class="filter-input" id="fDislocationCargo">
-                <option value="">— Все —</option>
-              </select>
-            </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnDislocationApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnDislocationReset">Сбросить</button>
@@ -125,23 +115,6 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         <!-- Фильтры -->
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fApproachWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fApproachWagonNo"
-                placeholder="Номер вагона1; Номер вагона2; ...">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fApproachCargo">Груз</label>
-              <select class="filter-input" id="fApproachCargo">
-                <option value="">— Все —</option>
-              </select>
-            </div>
-            <!-- <div class="filter-item">
-              <label class="filter-label" for="fApproachPrevCargo">Ранее выгружен</label>
-              <select class="filter-input" id="fApproachPrevCargo">
-                <option value="">— Все —</option>
-              </select>
-            </div> -->
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnApproachApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnApproachReset">Сбросить</button>
@@ -191,23 +164,6 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fDepartureWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fDepartureWagonNo"
-                placeholder="Номер вагона1; Номер вагона2; ...">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fDepartureCargo">Груз</label>
-              <select class="filter-input" id="fDepartureCargo">
-                <option value="">— Все —</option>
-              </select>
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fDestStation">Ст. назначения</label>
-              <select class="filter-input" id="fDestStation">
-                <option value="">— Все —</option>
-              </select>
-            </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnDepartureApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnDepartureReset">Сбросить</button>
@@ -254,17 +210,6 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fLoadingWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fLoadingWagonNo"
-                placeholder="Номер вагона1; Номер вагона2; ...">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fLoadingCargo">Груз</label>
-              <select class="filter-input" id="fLoadingCargo">
-                <option value="">— Все —</option>
-              </select>
-            </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnLoadingApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnLoadingReset">Сбросить</button>
@@ -309,17 +254,6 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fDowntimeWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fDowntimeWagonNo"
-                placeholder="Номер вагона1; Номер вагона2; ...">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label">Ст. назначения</label>
-              <select class="filter-select" id="fDowntimeDestStation" style="width:220px">
-                <option value="">— Все —</option>
-              </select>
-            </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnDowntimeApply">Применить</button>
             </div>
@@ -358,22 +292,6 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
       <div id="panel-technical-state" class="tab-panel">
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fTechnicalWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fTechnicalWagonNo" placeholder="Номер вагона1; Номер вагона2; ...">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fTechnicalWagonType">Род вагона</label>
-              <select class="filter-select" id="fTechnicalWagonType"><option value="">— Все —</option></select>
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fTechnicalState">Состояние вагона</label>
-              <select class="filter-select" id="fTechnicalState"><option value="">— Все —</option></select>
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fTechnicalRepair">Плановый ремонт</label>
-              <select class="filter-select" id="fTechnicalRepair"><option value="">— Все —</option><option value="overdue">Срок прошёл</option><option value="soon">В течение 30 суток</option><option value="missing">Дата не указана</option></select>
-            </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnTechnicalApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnTechnicalReset">Сбросить</button>
@@ -397,18 +315,6 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fClaimsWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fClaimsWagonNo" placeholder="Номер вагона1; Номер вагона2; ...">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fClaimsStation">Станция</label>
-              <select class="filter-select" id="fClaimsStation" style="width:300px;max-width:100%"><option value="">— Все станции —</option></select>
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fClaimsWagonType">Род вагона</label>
-              <select class="filter-select" id="fClaimsWagonType"><option value="">— Все —</option></select>
-            </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnClaimsApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnClaimsReset">Сбросить</button>
@@ -447,10 +353,6 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fRawWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fRawWagonNo" placeholder="Номер вагона1; Номер вагона2; ...">
-            </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnRawApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnRawReset">Сбросить</button>
@@ -491,27 +393,6 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
       <div id="panel-analysis-period" class="tab-panel">
         <div class="filters-bar">
           <div class="filters-inner" style="flex-wrap:wrap;gap:8px 16px">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label">№ вагона</label>
-              <input class="filter-input" type="text" id="fAnalysisPeriodWagonNo"
-                placeholder="Номер вагона1; Номер вагона2; ..."">
-            </div>
-            <div class=" filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fAnalysisPeriodCargo">Груз</label>
-              <select class="filter-input" id="fAnalysisPeriodCargo">
-                <option value="">— Все —</option>
-              </select>
-            </div>
-            <div class=" filter-item">
-              <label class="filter-label">Дата операции с</label>
-              <input class="filter-input" type="date" id="fAnalysisPeriodDateFrom" value="<?= date('Y-m-01') ?>"
-                style="width:145px">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label">по</label>
-              <input class="filter-input" type="date" id="fAnalysisPeriodDateTo" value="<?= date('Y-m-d') ?>"
-                style="width:145px">
-            </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnAnalysisPeriodApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnAnalysisPeriodReset">Сбросить</button>
@@ -536,21 +417,6 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
       <div id="panel-downtime-control" class="tab-panel">
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fDowntimeControlWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fDowntimeControlWagonNo"
-                placeholder="Номер вагона1; Номер вагона2; ...">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fDowntimeControlDateFrom">Дата действия с</label>
-              <input class="filter-input" type="date" id="fDowntimeControlDateFrom" value="<?= date('Y-m-01') ?>"
-                style="width:145px">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fDowntimeControlDateTo">по</label>
-              <input class="filter-input" type="date" id="fDowntimeControlDateTo" value="<?= date('Y-m-d') ?>"
-                style="width:145px">
-            </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnDowntimeControlApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnDowntimeControlReset">Сбросить</button>

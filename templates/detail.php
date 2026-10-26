@@ -13,7 +13,10 @@ $basePath = $basePath ?? '';
   <title><?= htmlspecialchars($appName) ?> — Детализация</title>
   <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
-  <script>window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';</script>
+  <script>
+    window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
+    window.APP_REPORT_DEFINITIONS = <?= json_encode($reportDefinitions ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+  </script>
   <style>
     .detail-page-body {
       padding: 16px 20px 40px;

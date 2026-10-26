@@ -116,7 +116,7 @@ return function (App $app, array $config): void {
             return (new \App\Controllers\ImportController($getDb(), $config))->handleUpload($req, $res);
         });
 
-        // Интерактивная карта
+        // карта
         $group->get('/maps', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\MapsController($getDb(), $config))->showMaps($req, $res);
         });
@@ -238,6 +238,7 @@ return function (App $app, array $config): void {
             $appName = $config['app_name'] ?? 'Дислокация РЖД';
             $basePath = $config['base_path'] ?? '';
             $user = $_SESSION['user'] ?? ['display_name' => '', 'username' => '', 'auth_source' => ''];
+            $reportDefinitions = \App\Reports\ReportRegistry::forContext('page');
             ob_start();
             require __DIR__ . '/../templates/detail.php';
             $html = ob_get_clean();
