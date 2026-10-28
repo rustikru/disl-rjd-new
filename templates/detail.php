@@ -66,7 +66,7 @@ $basePath = $basePath ?? '';
 
   <?php
   $headerSub = '<div id="brandDateSub" class="brand-date-sub"></div>';
-  $headerLeft  = '<a href="' . htmlspecialchars($basePath) . '/" class="btn-nav-back" id="backBtn" title="Назад" aria-label="Назад"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg></a>';
+  $headerLeft = '<a href="' . htmlspecialchars($basePath) . '/" class="btn-nav-back" id="backBtn" title="Назад" aria-label="Назад"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg></a>';
   $headerRight = '';
   include __DIR__ . '/partials/header.php';
   ?>
@@ -90,7 +90,8 @@ $basePath = $basePath ?? '';
   </div>
 
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jquery/jquery-3.7.1.min.js"></script>
-  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/detail-contexts.js') ?>"></script>
+  <script
+    src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/detail-contexts.js') ?>"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/csv-export.js"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/excel-export.js"></script>
   <script>
@@ -155,8 +156,8 @@ $basePath = $basePath ?? '';
         return;
       }
 
-      // Все параметры детализации заданы в WAGON_TABS[ctx].mapDetailParams на фронтенде.
-      // Здесь просто прокидываем их дальше на бэкенд (кроме ctx и _bcpath).
+      // Все параметры детализации заданы в WAGON_TABS[ctx].mapDetailParams .
+      // Если в URL есть дополнительные параметры, они будут добавлены к запросу.
       var apiParams = new URLSearchParams();
       var skipKeys = { ctx: 1, _bcpath: 1, _endpoint: 1 };
       params.forEach(function (v, k) { if (!skipKeys[k] && v) { apiParams.set(k, v); } });
@@ -174,7 +175,6 @@ $basePath = $basePath ?? '';
       }
 
       // Вкладки drill-down (только если DETAIL_TABS определён и контекст их поддерживает)
-      // detail.php показывает все поля; showInline управляет только inline-детализацией в app.js
       var allCols = ctxDef.cols
       _vtAllCols = allCols
       var hasTabs = typeof DETAIL_TABS !== 'undefined' && DETAIL_TABS.length > 0
@@ -290,8 +290,9 @@ $basePath = $basePath ?? '';
       $('#detailTable').html(
         '<div class="vt-viewport" id="vtVp">' +
         '<div class="vt-content" style="width:' + totalW + 'px">' +
+        '<div class="vt-sticky">' +
         '<div class="vt-head"   id="vtHead"   style="grid-template-columns:' + template + ';width:' + totalW + 'px"></div>' +
-        '<div class="vt-filter" id="vtFilter" style="grid-template-columns:' + template + ';width:' + totalW + 'px"></div>' +
+        '<div class="vt-filter" id="vtFilter" style="grid-template-columns:' + template + ';width:' + totalW + 'px"></div></div>' +
         '<div id="vtRows"></div>' +
         '</div>' +
         '</div>'

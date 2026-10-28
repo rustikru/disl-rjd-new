@@ -5,7 +5,7 @@ namespace App\Services;
 
 use App\Database\DbInterface;
 
-final class ClaimNormService
+final class ClaimNorms
 {
     public const TYPES = [
         'SHIPPER' => 'Грузоотправитель',
@@ -47,7 +47,8 @@ final class ClaimNormService
                     TO_CHAR(valid_from, 'YYYY-MM-DD') AS valid_from,
                     TO_CHAR(valid_to, 'YYYY-MM-DD') AS valid_to
                FROM xx_rjd_claim_norms n WHERE $where
-              ORDER BY station_name, station_code, rule_type, rule_value, valid_from DESC, id DESC",
+              ORDER BY CASE WHEN station_code IS NULL THEN 0 ELSE 1 END,
+                       station_name, station_code, rule_type, rule_value, valid_from DESC, id DESC",
             $bindings
         );
     }
@@ -110,8 +111,8 @@ final class ClaimNormService
 
     public function save(array $data, int $userId): void
     {
-        $station = $this->station((string) ($data['station_code'] ?? ''));
-        $stationCode = $station['esr_code'];
+        $stationText = trim((string) ($data['station_code'] ?? ''));
+        $stationCode = $stationText !== '' ? $this->station($stationText)['esr_code'] : null;
         $type = (string) ($data['rule_type'] ?? '');
         if (!isset(self::TYPES[$type])) {
             throw new \InvalidArgumentException('Выберите тип норматива');
@@ -157,7 +158,9 @@ final class ClaimNormService
             }
             $overlap = $this->db->fetchOne(
                 "SELECT COUNT(*) AS cnt FROM xx_rjd_claim_norms
-                  WHERE organization_id = :organization_id AND station_code = :station_code AND rule_type = :rule_type AND rule_key = :rule_key
+                  WHERE organization_id = :organization_id
+                    AND (station_code = :station_code OR (station_code IS NULL AND :station_code IS NULL))
+                    AND rule_type = :rule_type AND rule_key = :rule_key
                     AND id <> :id
                     AND valid_from <= NVL(TO_DATE(:valid_to, 'YYYY-MM-DD'), DATE '9999-12-31')
                     AND NVL(valid_to, DATE '9999-12-31') >= TO_DATE(:valid_from, 'YYYY-MM-DD')",
@@ -165,7 +168,10 @@ final class ClaimNormService
                  'id' => $id, 'valid_from' => $from, 'valid_to' => $to]
             );
             if ((int) $overlap['cnt'] > 0) {
-                throw new \InvalidArgumentException('Для этой станции и значения уже есть норматив с пересекающимся сроком действия');
+                throw new \InvalidArgumentException(
+                    ($stationCode === null ? 'Для всех станций' : 'Для этой станции')
+                    . ' уже есть норматив с таким значением и пересекающимся сроком действия'
+                );
             }
             $bindings = ['organization_id' => $this->organizationId, 'station_code' => $stationCode, 'rule_type' => $type,
                 'rule_value' => $value, 'rule_key' => $key, 'free_days' => (int) $days,

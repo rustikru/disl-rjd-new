@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
-use App\Services\OrganizationService;
+use App\Services\Organizations;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -11,7 +11,7 @@ use Psr\Http\Server\RequestHandlerInterface;
 
 final class OrganizationMiddleware implements MiddlewareInterface
 {
-    /** @var callable():OrganizationService */
+    /** @var callable():Organizations */
     private $organizations;
 
     public function __construct(callable $organizations)

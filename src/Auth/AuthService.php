@@ -53,6 +53,7 @@ class AuthService
             return null;
         }
 
+        $this->markSuccessfulLogin((int) $user['id']);
         $roles = $this->fetchUserRoles((int) $user['id']);
         $roleCodes = array_column($roles, 'code');
 
@@ -77,9 +78,14 @@ class AuthService
                 // При первом входе через AD создаём запись в БД
                 $this->ensureUserExists($username, $adUser['display_name'], $adUser['email']);
                 $dbUser = $this->db->fetchOne(
-                    'SELECT id FROM xx_rjd_users WHERE username = :username',
+                    'SELECT id, username, display_name, email FROM xx_rjd_users WHERE username = :username',
                     ['username' => $username]
                 );
+                $this->markSuccessfulLogin((int) ($dbUser['id'] ?? 0));
+                $adUser['id'] = $dbUser['id'] ?? null;
+                $adUser['username'] = $dbUser['username'] ?? $username;
+                $adUser['display_name'] = $dbUser['display_name'] ?? $adUser['display_name'];
+                $adUser['email'] = $dbUser['email'] ?? $adUser['email'];
                 $roles = $this->fetchUserRoles((int) ($dbUser['id'] ?? 0));
                 $adUser['role_codes'] = array_column($roles, 'code');
                 $adUser['role_names'] = array_column($roles, 'name');
@@ -105,6 +111,7 @@ class AuthService
         }
 
         $roles = $this->fetchUserRoles((int) $user['id']);
+        $this->markSuccessfulLogin((int) $user['id']);
 
         return [
             'id'           => $user['id'],
@@ -166,5 +173,20 @@ class AuthService
               WHERE ur.user_id = :user_id',
             ['user_id' => $userId]
         );
+    }
+
+    private function markSuccessfulLogin(int $userId): void
+    {
+        if ($userId <= 0) {
+            return;
+        }
+        try {
+            $this->db->execute(
+                'UPDATE xx_rjd_users SET last_login_at = SYSDATE WHERE id = :id',
+                ['id' => $userId]
+            );
+        } catch (\Throwable $error) {
+            // До применения миграции отсутствие служебной даты не должно мешать входу.
+        }
     }
 }

@@ -249,7 +249,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
       <!-- Простои -->
       <div id="panel-downtime" class="tab-panel">
         <div class="inner-tabs">
-          <button class="inner-tab active" data-inner="downtime-summary">Сводная по станциям</button>
+          <button class="inner-tab active" data-inner="downtime-summary">Сводная</button>
           <button class="inner-tab" data-inner="downtime-detail">Подробная</button>
         </div>
         <div class="filters-bar">
@@ -300,7 +300,8 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         </div>
         <section class="table-section">
           <div class="table-toolbar">
-            <div class="table-info"><span class="table-title">Техническое состояние</span><span class="table-sub" id="technicalDetSub"></span></div>
+            <div class="table-info"><span class="table-title">Техническое состояние</span><span class="table-sub"
+                id="technicalDetSub"></span></div>
             <div class="table-acts"></div>
           </div>
           <div id="technicalDetTable"></div>
@@ -329,15 +330,19 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
                 <span class="table-sub" id="claimsSumSub"></span>
 
               </div>
-              <div class="table-acts"><button class="btn btn-ghost btn-sm" id="btnClaimsExportSummary">Выгрузить в Excel</button></div>
+              <div class="table-acts"><button class="btn btn-ghost btn-sm" id="btnClaimsExportSummary">Выгрузить в
+                  Excel</button></div>
             </div>
-            <div class="table-scroll"><table class="data-table" id="claimsSumTable"></table></div>
+            <div class="table-scroll">
+              <table class="data-table" id="claimsSumTable"></table>
+            </div>
           </section>
         </div>
         <div id="claims-detail" class="inner-panel">
           <section class="table-section">
             <div class="table-toolbar">
-              <div class="table-info"><span class="table-title">Претензии — подробная</span><span class="table-sub" id="claimsDetSub"></span></div>
+              <div class="table-info"><span class="table-title">Претензии — подробная</span><span class="table-sub"
+                  id="claimsDetSub"></span></div>
               <div class="table-acts"></div>
             </div>
             <div id="claimsDetTable"></div>
@@ -348,7 +353,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
       <div id="panel-raw-material" class="tab-panel">
         <div class="kpi-grid" id="rawMetrics" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
-          <button class="inner-tab active" data-inner="raw-summary">Сводная по грузам</button>
+          <button class="inner-tab active" data-inner="raw-summary">Сводная</button>
           <button class="inner-tab" data-inner="raw-detail">Подробная</button>
         </div>
         <div class="filters-bar">
@@ -438,10 +443,12 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
   </div>
 
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jquery/jquery-3.7.1.min.js"></script>
-  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/detail-contexts.js') ?>"></script>
+  <script
+    src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/detail-contexts.js') ?>"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/csv-export.js"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/excel-export.js"></script>
-  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/app.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/app.js') ?>"></script>
+  <script
+    src="<?= htmlspecialchars($basePath) ?>/assets/js/app.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/app.js') ?>"></script>
 </body>
 
 </html>

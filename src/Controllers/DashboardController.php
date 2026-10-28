@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Database\DbInterface;
-use App\Reports\ReportRegistry;
+use App\Reports\ReportConfig;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -28,7 +28,7 @@ class DashboardController
 
         $allowedPages = $this->resolveAllowedPages($user);
         $navConfig    = require __DIR__ . '/../Navigation.php';
-        $reportDefinitions = ReportRegistry::forContext('page');
+        $reportDefinitions = ReportConfig::forContext('page');
 
         ob_start();
         require __DIR__ . '/../../templates/app.php';
@@ -76,7 +76,7 @@ class DashboardController
                 }
             }
 
-            return \App\Services\DirectoryAccessService::expandPages($pages);
+            return \App\Services\DirectoryAccess::expandPages($pages);
         } catch (\Throwable $e) {
             // Инфраструктура ролей ещё не развёрнута
             return $allPages;

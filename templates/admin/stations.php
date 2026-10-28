@@ -7,7 +7,7 @@ $totalStations = $totalStations ?? count($stations ?? []);
 $perPage = $perPage ?? 50;
 $fromRow = $totalStations > 0 ? (($page - 1) * $perPage + 1) : 0;
 $toRow = min($totalStations, $page * $perPage);
-$pageUrl = function (int $targetPage) use ($basePath, $search): string {
+$pageUrl = static function (int $targetPage) use ($basePath, $search): string {
     $params = ['page' => $targetPage];
     if ($search !== '') {
         $params['q'] = $search;
@@ -20,372 +20,59 @@ $pageUrl = function (int $targetPage) use ($basePath, $search): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><?= htmlspecialchars($appName) ?> — Станции</title>
+  <title><?= htmlspecialchars($appName) ?> — Станции и координаты</title>
   <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
   <style>
-    .admin-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; flex-wrap:wrap; }
-    .admin-title { font-size:18px; font-weight:700; color:var(--text-1); }
-    .admin-title small { display:block; font-size:12px; font-weight:500; color:var(--text-3); margin-top:2px; }
-    .flash { padding:10px 14px; border-radius:9px; font-size:13px; margin-bottom:16px; }
-    .flash-ok { background:#e8f6ef; color:var(--brand-green); border:1px solid #bfe6d2; }
-    .flash-err { background:#fbecec; color:var(--brand-neg); border:1px solid #f0c9c9; }
-    .panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:visible; }
-    .panel + .panel { margin-top:18px; }
-    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
-    .panel-title { font-size:14px; font-weight:600; }
-    .station-form { display:grid; grid-template-columns:130px minmax(220px, 1fr) 140px 140px auto auto; gap:10px; padding:16px 18px; align-items:end; }
-    .fg { display:flex; flex-direction:column; gap:5px; }
-    .fg label { font-size:12px; font-weight:600; color:var(--text-2); }
-    .fg input { border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-family:inherit; font-size:13px; color:var(--text-1); outline:none; width:100%; box-sizing:border-box; }
-    .fg input:focus { border-color:var(--accent); }
-    .search-row { display:flex; gap:8px; align-items:center; }
-    .search-input { border:1px solid var(--border); border-radius:9px; padding:7px 12px; font-family:inherit; font-size:13px; outline:none; color:var(--text-1); width:300px; max-width:55vw; }
-    .search-input:focus { border-color:var(--accent); }
-    .data-table { width:100%; border-collapse:collapse; }
-    .data-table th { padding:9px 14px; text-align:left; font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--border); white-space:nowrap; }
-    .data-table td { padding:10px 14px; border-bottom:1px solid var(--border); font-size:13px; vertical-align:middle; color:var(--text-1); }
-    .data-table tbody tr:last-child td { border-bottom:none; }
-    .data-table tbody tr:hover td { background:var(--hover-green,#f5f4f9); }
-    .station-code { font-weight:700; font-family:var(--mono, monospace); color:var(--accent); }
-    .station-muted { color:var(--text-3); }
-    .station-lookup-status { grid-column:1 / -1; min-height:18px; font-size:12.5px; color:var(--text-2); }
-    .station-lookup-status.error { color:var(--brand-neg,#d94040); }
-    .actions-cell { white-space:nowrap; display:flex; justify-content:flex-end; gap:4px; align-items:center; }
-    .inline-form { display:contents; }
-    .icon-btn {
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      width:30px;
-      height:30px;
-      border:none;
-      border-radius:8px;
-      background:transparent;
-      cursor:pointer;
-      color:var(--text-3);
-      transition:background .15s, color .15s;
-      padding:0;
-      flex-shrink:0;
-    }
-    .icon-btn--edit:hover { background:var(--hover-green); color:var(--accent); }
-    .btn-del {
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      width:30px;
-      height:30px;
-      border:none;
-      border-radius:8px;
-      background:transparent;
-      cursor:pointer;
-      color:var(--text-3);
-      transition:background .15s, color .15s;
-      padding:0;
-      flex-shrink:0;
-    }
-    .btn-del:hover { background:#fbeaea; color:var(--brand-neg,#d94040); }
-    .empty { padding:28px; text-align:center; color:var(--text-3); font-size:13px; }
-    .pager { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 18px; border-top:1px solid var(--border); color:var(--text-2); font-size:12.5px; }
-    .pager-actions { display:flex; gap:8px; align-items:center; }
-    .pager .btn[aria-disabled="true"] { opacity:.45; pointer-events:none; }
-    .modal-wrap { position:fixed; inset:0; background:rgba(27,23,38,.45); display:none; align-items:center; justify-content:center; z-index:200; }
-    .modal-wrap.open { display:flex; }
-    .modal { background:var(--surface); border-radius:14px; width:520px; max-width:92vw; overflow:hidden; box-shadow:0 24px 60px rgba(27,23,38,.25); }
-    .modal-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); }
-    .modal-head .t { font-size:15px; font-weight:700; }
-    .modal-x { cursor:pointer; color:var(--text-3); font-size:18px; line-height:1; background:none; border:none; }
-    .modal-x:hover { color:var(--text-1); }
-    .modal-body { padding:20px; display:flex; flex-direction:column; gap:14px; }
-    .fg2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-    .modal-foot { padding:14px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px; }
-    @media (max-width: 980px) {
-      .station-form { grid-template-columns:1fr 1fr; }
-      .station-form .btn { align-self:end; }
-    }
+    .page-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}.page-title{font-size:18px;font-weight:700}.page-title small{display:block;font-size:12px;font-weight:500;color:var(--text-3);margin-top:2px}.flash{padding:10px 14px;border-radius:9px;font-size:13px;margin-bottom:16px}.flash-ok{background:#e8f6ef;color:var(--brand-green);border:1px solid #bfe6d2}.flash-err{background:#fbecec;color:var(--brand-neg);border:1px solid #f0c9c9}.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap}.panel-title{font-size:14px;font-weight:600}.search-form{display:flex;align-items:center;gap:7px}.search-input{border:1px solid var(--border);border-radius:8px;padding:7px 11px;font:inherit;font-size:12px;width:260px;outline:none}.search-input:focus{border-color:var(--accent)}.search-form .btn{padding:7px 12px;font-size:12px}.table-wrap{overflow-x:auto}.data-table{width:100%;border-collapse:collapse;min-width:650px}.data-table th{padding:9px 11px;text-align:left;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;background:var(--row-head);border-bottom:1px solid var(--border);white-space:nowrap}.data-table td{padding:7px 11px;border-bottom:1px solid var(--border-lt);font-size:11.5px;vertical-align:middle}.data-table tbody tr:hover td{background:var(--hover-green)}.station-link{font-weight:650;color:var(--accent);text-decoration:none}.station-link:hover{text-decoration:underline}.station-code{font-family:var(--mono,monospace);font-weight:650}.muted{color:var(--text-3)}.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:0;border-radius:6px;background:transparent;color:var(--text-3);text-decoration:none}.icon-btn:hover{background:var(--hover-green);color:var(--accent)}.empty{padding:24px;text-align:center;color:var(--text-3);font-size:12px}.pagination-wrap{border-top:1px solid var(--border-lt)}.pagination-info{text-align:center;padding:9px 12px 0;color:var(--text-3);font-size:11px}@media(max-width:700px){.page-head{align-items:flex-start}.search-form{width:100%}.search-input{width:100%}}
   </style>
 </head>
 <body>
-
 <?php
-  $headerSub   = '<div class="brand-sub">Справочники</div>';
-  $headerLeft  = '<a href="' . htmlspecialchars($basePath) . '/" class="btn-nav-back" id="backBtn" title="На главную"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg></a>';
-  $headerRight = '';
-  include __DIR__ . '/../partials/header.php';
+$headerSub = '<div class="brand-sub">Справочники</div>';
+$headerLeft = '<a href="' . htmlspecialchars($basePath) . '/directories/" class="btn-nav-back" title="К справочникам">←</a>';
+$headerRight = '';
+include __DIR__ . '/../partials/header.php';
 ?>
-
 <div class="app-body">
   <?php $activeAdminPage = 'stations'; include __DIR__ . '/../partials/directories-sidebar.php'; ?>
-
   <main class="main-content">
-    <div class="admin-head">
-      <div class="admin-title">
-        Станции и координаты
-        <small>Справочник для карты</small>
-      </div>
-      <form method="GET" action="<?= htmlspecialchars($basePath) ?>/directories/stations" class="search-row">
-        <input type="search" class="search-input" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Код ЕСР или название станции">
-        <button type="submit" class="btn btn-ghost">Найти</button>
-      </form>
+    <div class="page-head">
+      <div class="page-title">Станции и координаты<small>Справочник для карты</small></div>
+      <?php if ($canEdit): ?><a class="btn btn-primary" href="<?= htmlspecialchars($basePath) ?>/directories/stations/new">+ Станция</a><?php endif; ?>
     </div>
-
-    <?php if (!empty($flashOk)): ?>
-      <div class="flash flash-ok"><?= htmlspecialchars($flashOk) ?></div>
-    <?php endif; ?>
-    <?php if (!empty($flashErr)): ?>
-      <div class="flash flash-err"><?= htmlspecialchars($flashErr) ?></div>
-    <?php endif; ?>
-
-    <?php if ($canEdit): ?>
-    <div class="panel">
-      <div class="panel-head">
-        <span class="panel-title">Добавить станцию</span>
-      </div>
-      <form method="POST" action="<?= htmlspecialchars($basePath) ?>/directories/stations/save" class="station-form">
-        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-        <div class="fg">
-          <label for="new_esr">Код ЕСР</label>
-          <input id="new_esr" name="esr_code" required maxlength="20">
-        </div>
-        <div class="fg">
-          <label for="new_name">Станция</label>
-          <input id="new_name" name="station_name" required maxlength="255">
-        </div>
-        <div class="fg">
-          <label for="new_lat">Широта</label>
-          <input id="new_lat" name="latitude" inputmode="decimal" placeholder="58.0105">
-        </div>
-        <div class="fg">
-          <label for="new_lon">Долгота</label>
-          <input id="new_lon" name="longitude" inputmode="decimal" placeholder="56.2502">
-        </div>
-        <button type="button"
-                class="btn btn-ghost"
-                id="btnFreiCon"
-                data-url="<?= htmlspecialchars($basePath) ?>/directories/stations/freicon">
-          Данные из FreiCON
-        </button>
-        <button type="submit" class="btn btn-primary">Сохранить</button>
-        <div class="station-lookup-status" id="freiConStatus" aria-live="polite"></div>
-      </form>
-    </div>
-
-    <?php endif; ?>
-    <div class="panel">
+    <?php if (!empty($flashOk)): ?><div class="flash flash-ok"><?= htmlspecialchars($flashOk) ?></div><?php endif; ?>
+    <?php if (!empty($flashErr)): ?><div class="flash flash-err"><?= htmlspecialchars($flashErr) ?></div><?php endif; ?>
+    <section class="panel">
       <div class="panel-head">
         <span class="panel-title">Станции (<?= (int) $totalStations ?>)</span>
+        <form method="GET" action="<?= htmlspecialchars($basePath) ?>/directories/stations" class="search-form">
+          <input type="search" class="search-input" name="q" value="<?= htmlspecialchars($search) ?>" placeholder="Код ЕСР или название станции">
+          <button type="submit" class="btn btn-ghost">Найти</button>
+        </form>
       </div>
-
       <?php if (empty($stations)): ?>
-        <div class="empty">Записей нет</div>
+        <div class="empty">Станции не найдены</div>
       <?php else: ?>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th style="width:130px">Код ЕСР</th>
-              <th>Станция</th>
-              <th style="width:150px">Широта</th>
-              <th style="width:150px">Долгота</th>
-              <?php if ($canEdit): ?><th style="width:1%"></th><?php endif; ?>
-            </tr>
-          </thead>
+        <div class="table-wrap"><table class="data-table">
+          <thead><tr><th>Код ЕСР</th><th>Станция</th><th>Широта</th><th>Долгота</th><?php if ($canEdit): ?><th></th><?php endif; ?></tr></thead>
           <tbody>
-            <?php foreach ($stations as $s): ?>
-              <?php
-                $code = (string) ($s['esr_code'] ?? '');
-                $name = (string) ($s['station_name'] ?? '');
-                $lat = $s['latitude'] ?? '';
-                $lon = $s['longitude'] ?? '';
-                $formId = 'station-save-' . preg_replace('/[^A-Za-z0-9_-]/', '_', $code);
-                $deleteFormId = 'station-delete-' . preg_replace('/[^A-Za-z0-9_-]/', '_', $code);
-              ?>
-              <?php if ($canEdit): ?>
-              <form method="POST" action="<?= htmlspecialchars($basePath) ?>/directories/stations/save" id="<?= htmlspecialchars($formId) ?>"></form>
-              <form method="POST" action="<?= htmlspecialchars($basePath) ?>/directories/stations/delete" id="<?= htmlspecialchars($deleteFormId) ?>"></form>
-              <?php endif; ?>
-              <tr>
-                <td>
-                  <span class="station-code"><?= htmlspecialchars($code) ?></span>
-                </td>
-                <td><?= htmlspecialchars($name) ?></td>
-                <td><?= $lat !== null && $lat !== '' ? htmlspecialchars((string) $lat) : '<span class="station-muted">—</span>' ?></td>
-                <td><?= $lon !== null && $lon !== '' ? htmlspecialchars((string) $lon) : '<span class="station-muted">—</span>' ?></td>
-                <?php if ($canEdit): ?>
-                <td>
-                  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>" form="<?= htmlspecialchars($deleteFormId) ?>">
-                  <input type="hidden" name="esr_code" value="<?= htmlspecialchars($code) ?>" form="<?= htmlspecialchars($deleteFormId) ?>">
-                  <div class="actions-cell">
-                    <button type="button"
-                            class="icon-btn icon-btn--edit"
-                            title="Редактировать"
-                            data-edit-station
-                            data-code="<?= htmlspecialchars($code) ?>"
-                            data-name="<?= htmlspecialchars($name) ?>"
-                            data-latitude="<?= htmlspecialchars((string) $lat) ?>"
-                            data-longitude="<?= htmlspecialchars((string) $lon) ?>">
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M8 1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1M8 1v3h3L8 1Z"/><path d="M4 5h2M4 7h1m6-1 2 2-5 5H6v-2Z"/>
-                      </svg>
-                    </button>
-                    <button type="submit" class="btn-del" form="<?= htmlspecialchars($deleteFormId) ?>" title="Удалить" onclick="return confirm('Удалить станцию «<?= htmlspecialchars(addslashes($name), ENT_QUOTES) ?>»?')">
-                      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="1 3.5 14 3.5"/>
-                        <path d="M5 3.5V2.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v1"/>
-                        <path d="M2.5 3.5l.9 9a1 1 0 0 0 1 .9h6.2a1 1 0 0 0 1-.9l.9-9"/>
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-                <?php endif; ?>
-              </tr>
-            <?php endforeach; ?>
+          <?php foreach ($stations as $station): ?>
+            <?php $code = (string) ($station['esr_code'] ?? ''); ?>
+            <tr>
+              <td><span class="station-code"><?= htmlspecialchars($code) ?></span></td>
+              <td><?php if ($canEdit): ?><a class="station-link" href="<?= htmlspecialchars($basePath) ?>/directories/stations/<?= rawurlencode($code) ?>/edit"><?= htmlspecialchars((string) ($station['station_name'] ?? '')) ?></a><?php else: ?><?= htmlspecialchars((string) ($station['station_name'] ?? '')) ?><?php endif; ?></td>
+              <td><?= $station['latitude'] !== null && $station['latitude'] !== '' ? htmlspecialchars((string) $station['latitude']) : '<span class="muted">—</span>' ?></td>
+              <td><?= $station['longitude'] !== null && $station['longitude'] !== '' ? htmlspecialchars((string) $station['longitude']) : '<span class="muted">—</span>' ?></td>
+              <?php if ($canEdit): ?><td><a class="icon-btn" href="<?= htmlspecialchars($basePath) ?>/directories/stations/<?= rawurlencode($code) ?>/edit" title="Редактировать" aria-label="Редактировать"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1M8 1v3h3L8 1Z"/><path d="M4 5h2M4 7h1m6-1 2 2-5 5H6v-2Z"/></svg></a></td><?php endif; ?>
+            </tr>
+          <?php endforeach; ?>
           </tbody>
-        </table>
-        <div class="pager">
-          <span>
-            Показаны <?= (int) $fromRow ?>-<?= (int) $toRow ?> из <?= (int) $totalStations ?>,
-            страница <?= (int) $page ?> из <?= (int) $totalPages ?>
-          </span>
-          <div class="pager-actions">
-            <a class="btn btn-ghost btn-sm" href="<?= htmlspecialchars($pageUrl(max(1, $page - 1))) ?>" aria-disabled="<?= $page <= 1 ? 'true' : 'false' ?>">Назад</a>
-            <a class="btn btn-ghost btn-sm" href="<?= htmlspecialchars($pageUrl(min($totalPages, $page + 1))) ?>" aria-disabled="<?= $page >= $totalPages ? 'true' : 'false' ?>">Вперед</a>
-          </div>
-        </div>
+        </table></div>
+        <div class="pagination-wrap"><div class="pagination-info">Показаны <?= (int) $fromRow ?>–<?= (int) $toRow ?> из <?= (int) $totalStations ?></div><?php $paginationPage=$page;$paginationPages=$totalPages;$paginationUrl=$pageUrl;$paginationLabel='Страницы списка станций';include __DIR__ . '/../partials/pagination.php'; ?></div>
       <?php endif; ?>
-    </div>
+    </section>
   </main>
 </div>
-
-<?php if ($canEdit): ?>
-<div class="modal-wrap" id="stationModal">
-  <form method="POST" action="<?= htmlspecialchars($basePath) ?>/directories/stations/save" class="modal">
-    <div class="modal-head">
-      <span class="t">Редактирование станции</span>
-      <button type="button" class="modal-x" data-close-modal="stationModal">✕</button>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-      <div class="fg2">
-        <div class="fg">
-          <label for="edit_esr">Код ЕСР</label>
-          <input id="edit_esr" name="esr_code" required maxlength="20">
-        </div>
-        <div class="fg">
-          <label for="edit_name">Станция</label>
-          <input id="edit_name" name="station_name" required maxlength="255">
-        </div>
-      </div>
-      <div class="fg2">
-        <div class="fg">
-          <label for="edit_lat">Широта</label>
-          <input id="edit_lat" name="latitude" inputmode="decimal">
-        </div>
-        <div class="fg">
-          <label for="edit_lon">Долгота</label>
-          <input id="edit_lon" name="longitude" inputmode="decimal">
-        </div>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button type="button" class="btn btn-ghost" data-close-modal="stationModal">Отмена</button>
-      <button type="submit" class="btn btn-primary">Сохранить</button>
-    </div>
-  </form>
-</div>
-
-<script>
-  document.getElementById('btnFreiCon').addEventListener('click', function () {
-    var button = this;
-    var esrCode = document.getElementById('new_esr').value.trim();
-    var status = document.getElementById('freiConStatus');
-
-    status.classList.remove('error');
-    if (!/^\d{1,6}$/.test(esrCode)) {
-      status.textContent = 'Сначала введите код ЕСР — до шести цифр.';
-      status.classList.add('error');
-      document.getElementById('new_esr').focus();
-      return;
-    }
-
-    button.disabled = true;
-    status.textContent = 'Получение данных из FreiCON...';
-
-    fetch(button.dataset.url + '?esr_code=' + encodeURIComponent(esrCode), {
-      headers: { 'Accept': 'application/json' }
-    })
-      .then(function (response) {
-        return response.json().then(function (data) {
-          if (!response.ok) {
-            throw new Error(data.error || 'Ошибка поиска');
-          }
-          return data;
-        });
-      })
-      .then(function (data) {
-        var station = data.station;
-        if (!station) {
-          status.textContent = 'Станция не найдена. Заполните данные вручную.';
-          return;
-        }
-        document.getElementById('new_esr').value = station.esr_code || esrCode;
-        document.getElementById('new_name').value = station.station_name || '';
-        document.getElementById('new_lat').value = station.latitude || '';
-        document.getElementById('new_lon').value = station.longitude || '';
-        status.textContent = 'Данные станции заполнены из FreiCON.';
-      })
-      .catch(function (error) {
-        status.textContent = error.message || 'Не удалось выполнить поиск.';
-        status.classList.add('error');
-      })
-      .finally(function () {
-        button.disabled = false;
-      });
-  });
-
-  function openStationModal(button) {
-    document.getElementById('edit_esr').value = button.dataset.code || '';
-    document.getElementById('edit_name').value = button.dataset.name || '';
-    document.getElementById('edit_lat').value = button.dataset.latitude || '';
-    document.getElementById('edit_lon').value = button.dataset.longitude || '';
-    document.getElementById('stationModal').classList.add('open');
-  }
-
-  function closeModal(id) {
-    var modal = document.getElementById(id);
-    if (modal) {
-      modal.classList.remove('open');
-    }
-  }
-
-  document.querySelectorAll('[data-edit-station]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      openStationModal(button);
-    });
-  });
-
-  document.querySelectorAll('[data-close-modal]').forEach(function (button) {
-    button.addEventListener('click', function () {
-      closeModal(button.dataset.closeModal);
-    });
-  });
-
-  document.querySelectorAll('.modal-wrap').forEach(function (modal) {
-    modal.addEventListener('click', function (event) {
-      if (event.target === modal) {
-        modal.classList.remove('open');
-      }
-    });
-  });
-
-  document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape') {
-      document.querySelectorAll('.modal-wrap').forEach(function (modal) {
-        modal.classList.remove('open');
-      });
-    }
-  });
-</script>
-
-<?php endif; ?>
 </body>
 </html>

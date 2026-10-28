@@ -5,7 +5,7 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Controllers\ApiController;
-use App\Services\OrganizationService;
+use App\Services\Organizations;
 use App\Services\WagonCargoState;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -14,17 +14,17 @@ class MapsController
 {
     private DbInterface $db;
     private array $config;
-    private OrganizationService $organizations;
+    private Organizations $organizations;
 
     public function __construct(
         DbInterface $db,
         array $config = [],
-        ?OrganizationService $organizations = null
+        ?Organizations $organizations = null
     )
     {
         $this->db = $db;
         $this->config = $config;
-        $this->organizations = $organizations ?? new OrganizationService($db);
+        $this->organizations = $organizations ?? new Organizations($db);
     }
 
     public function showMaps(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface

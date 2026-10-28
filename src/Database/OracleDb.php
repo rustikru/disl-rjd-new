@@ -147,6 +147,12 @@ class OracleDb implements DbInterface
         return "FETCH FIRST $n ROWS ONLY";
     }
 
+    /** @return resource */
+    public function connection()
+    {
+        return $this->connection;
+    }
+
     public function __destruct()
     {
         if ($this->connection) {

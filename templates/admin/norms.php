@@ -15,45 +15,45 @@ $editUrl = static function ($id) use ($listUrl, $filterType, $filterDate, $filte
   <link rel="icon" type="image/x-icon" href="<?= $e($basePath) ?>/assets/img/favicon.ico">
   <link rel="stylesheet" href="<?= $e($basePath) ?>/assets/css/app.css">
   <style>
-    .admin-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; }
+    .admin-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
     .admin-title { font-size:18px; font-weight:700; color:var(--text-1); }
-    .flash { padding:10px 14px; border-radius:9px; font-size:13px; margin-bottom:16px; }
+    .flash { padding:8px 12px; border-radius:8px; font-size:12px; margin-bottom:10px; }
     .flash-ok { background:#e8f6ef; color:var(--brand-green); border:1px solid #bfe6d2; }
     .flash-err { background:#fbecec; color:var(--brand-neg); border:1px solid #f0c9c9; }
     .panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
-    .panel + .panel { margin-top:18px; }
-    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
-    .panel-title { font-size:14px; font-weight:600; }
-    .norm-form { padding:16px 18px; }
-    .norm-fields { display:grid; grid-template-columns:minmax(200px, 1.2fr) minmax(170px, 1fr) minmax(230px, 1.5fr); gap:12px; margin-bottom:12px; }
-    .norm-terms { display:grid; grid-template-columns:repeat(4,minmax(120px,1fr)) auto auto; gap:10px; align-items:end; }
-    .fg { display:flex; flex-direction:column; gap:5px; min-width:0; }
-    .fg label { font-size:12px; font-weight:600; color:var(--text-2); }
-    .fg input, .fg select { border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-family:inherit; font-size:13px; color:var(--text-1); outline:none; width:100%; background:var(--surface); }
-    .fg input, .fg select { height:36px; min-height:36px; box-sizing:border-box; line-height:normal; -webkit-appearance:none; appearance:none; }
+    .panel + .panel { margin-top:12px; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+    .panel-title { font-size:13px; font-weight:600; }
+    .norm-form { padding:10px 14px; }
+    .norm-fields { display:grid; grid-template-columns:minmax(200px, 1.2fr) minmax(170px, 1fr) minmax(230px, 1.5fr); gap:8px; margin-bottom:8px; }
+    .norm-terms { display:grid; grid-template-columns:repeat(4,minmax(120px,1fr)) auto auto; gap:8px; align-items:end; }
+    .fg { display:flex; flex-direction:column; gap:4px; min-width:0; }
+    .fg label { font-size:11px; font-weight:600; color:var(--text-2); }
+    .fg input, .fg select { border:1px solid var(--border); border-radius:7px; padding:6px 9px; font-family:inherit; font-size:12px; color:var(--text-1); outline:none; width:100%; background:var(--surface); }
+    .fg input, .fg select { height:34px; min-height:34px; box-sizing:border-box; line-height:normal; -webkit-appearance:none; appearance:none; }
     .fg select { padding-right:32px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%236b667a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 11px center; }
-    .norm-terms > .btn, .norm-filter > .btn { height:36px; min-height:36px; padding:0 14px; display:inline-flex; align-items:center; justify-content:center; white-space:nowrap; text-decoration:none; }
+    .norm-terms > .btn, .norm-filter > .btn { height:34px; min-height:34px; padding:6px 11px; font-size:12px; display:inline-flex; align-items:center; justify-content:center; white-space:nowrap; text-decoration:none; }
     .fg input:focus, .fg select:focus { border-color:var(--accent); }
-    .norm-filter { display:flex; gap:10px; align-items:end; padding:14px 18px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+    .norm-filter { display:flex; gap:8px; align-items:end; padding:10px 14px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
     .norm-filter .fg { width:220px; }
-    .icon-btn { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border:none; border-radius:8px; background:transparent; cursor:pointer; color:var(--text-3); transition:background .15s, color .15s; padding:0; flex-shrink:0; text-decoration:none; }
+    .icon-btn { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border:none; border-radius:6px; background:transparent; cursor:pointer; color:var(--text-3); transition:background .15s, color .15s; padding:0; flex-shrink:0; text-decoration:none; }
     .icon-btn:hover { background:var(--accent-lt); color:var(--accent); }
     .icon-btn--delete:hover { color:var(--brand-neg); background:#fbecec; }
     .norm-table { width:100%; border-collapse:collapse; }
-    .norm-table th { padding:9px 14px; text-align:left; font-size:11px; font-weight:700; color:var(--text-3); border-bottom:1px solid var(--border); white-space:nowrap; background:var(--row-head); }
-    .norm-table td { padding:10px 14px; border-bottom:1px solid var(--border); font-size:13px; color:var(--text-1); }
+    .norm-table th { padding:7px 11px; text-align:left; font-size:10px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--border); white-space:nowrap; background:var(--row-head); }
+    .norm-table td { padding:6px 11px; border-bottom:1px solid var(--border); font-size:11.5px; line-height:1.25; vertical-align:middle; color:var(--text-1); }
     .norm-table tr:last-child td { border-bottom:none; }
     .norm-table tbody tr:hover td { background:var(--hover-green); }
     .norm-table .num { text-align:right; white-space:nowrap; }
     .norm-table .dates { white-space:nowrap; }
-    .empty { padding:28px!important; text-align:center; color:var(--text-3)!important; }
-    .norm-count { font-size:12px; color:var(--text-3); }
+    .empty { padding:20px!important; text-align:center; color:var(--text-3)!important; font-size:12px; }
+    .norm-count { font-size:11px; color:var(--text-3); }
     .norm-value-hint { font-size:11px; color:var(--text-3); min-height:0; }
     .panel { overflow:visible; }
     .station-field { position:relative; }
     .station-options { position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:40; max-height:240px; overflow:auto; background:var(--surface); border:1px solid var(--border); border-radius:8px; box-shadow:0 8px 20px rgba(27,23,38,.12); }
     .station-options[hidden] { display:none; }
-    .station-option { display:block; width:100%; border:0; background:transparent; color:var(--text-1); text-align:left; padding:9px 10px; font:inherit; cursor:pointer; }
+    .station-option { display:block; width:100%; border:0; background:transparent; color:var(--text-1); text-align:left; padding:7px 9px; font-size:12px; font-family:inherit; cursor:pointer; }
     .station-option:hover, .station-option[aria-selected="true"] { background:var(--accent-lt); color:var(--accent); }
     .station-empty { padding:10px; color:var(--text-3); font-size:12px; }
     .norm-form.is-editing { border-left:3px solid var(--accent); }
@@ -81,12 +81,13 @@ include __DIR__ . '/../partials/header.php';
         <input type="hidden" name="csrf_token" value="<?= $e($csrf) ?>">
         <input type="hidden" name="id" value="<?= $e($form['id']) ?>">
         <div class="norm-fields">
-          <div class="fg station-field"><label for="normStation">Станция</label><input id="normStation" name="station_code" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="normStations" value="<?= $e(!empty($form['station_name']) ? $form['station_name'] . ' (' . $form['station_code'] . ')' : $form['station_code']) ?>" maxlength="200" autocomplete="off" placeholder="Название или код ЕСР" required><div id="normStations" class="station-options" role="listbox" hidden></div></div>
+          <div class="fg station-field"><label for="normStation">Станция (необязательно)</label><input id="normStation" name="station_code" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="normStations" value="<?= $e(!empty($form['station_name']) ? $form['station_name'] . ' (' . $form['station_code'] . ')' : $form['station_code']) ?>" maxlength="200" autocomplete="off" placeholder="Все станции"><div id="normStations" class="station-options" role="listbox" hidden></div></div>
           <div class="fg"><label for="normType">Тип норматива</label><select id="normType" name="rule_type" required>
             <?php foreach ($types as $code => $label): ?><option value="<?= $e($code) ?>" <?= $form['rule_type'] === $code ? 'selected' : '' ?>><?= $e($label) ?></option><?php endforeach; ?>
           </select></div>
           <div class="fg"><label for="normValue" id="normValueLabel"><?= $e($types[$form['rule_type']] ?? 'Значение') ?></label><input id="normValue" name="rule_value" list="normValues" value="<?= $e($form['rule_value']) ?>" maxlength="500" autocomplete="off" placeholder="Начните вводить название" required><datalist id="normValues"></datalist></div>
         </div>
+        <div class="norm-value-hint">Если станция не указана, норматив действует для всех станций.</div>
         <div class="norm-terms">
           <div class="fg"><label for="normDays">Бесплатно, сут.</label><input id="normDays" name="free_days" type="number" min="0" max="999999" step="1" value="<?= $e($form['free_days']) ?>" required></div>
           <div class="fg"><label for="normRate">Ставка, ₽/сут.</label><input id="normRate" name="daily_rate" type="number" min="0" max="999999999999.99" step="0.01" value="<?= $e($form['daily_rate']) ?>" required></div>
@@ -108,7 +109,7 @@ include __DIR__ . '/../partials/header.php';
         <button class="btn btn-primary" type="submit">Применить</button><a class="btn btn-ghost" href="<?= $e($listUrl) ?>">Сбросить</a>
       </form>
       <div class="table-scroll"><table class="norm-table"><thead><tr><th>Станция</th><th>Тип норматива</th><th>Значение</th><th class="num">Бесплатно, сут.</th><th class="num">Ставка, ₽/сут.</th><th>Действует с</th><th>Действует по</th><?php if ($canEdit): ?><th></th><?php endif; ?></tr></thead><tbody>
-        <?php foreach ($norms as $row): ?><tr><td><?= $e(($row['station_name'] ?? '') . ' (' . $row['station_code'] . ')') ?></td><td><?= $e($types[$row['rule_type']] ?? $row['rule_type']) ?></td><td><?= $e($row['rule_value']) ?></td><td class="num"><?= (int) $row['free_days'] ?></td><td class="num"><?= number_format((float) $row['daily_rate'], 2, ',', ' ') ?></td><td class="dates"><?= $e($dateLabel($row['valid_from'])) ?></td><td class="dates"><?= $e($dateLabel($row['valid_to'])) ?></td><?php if ($canEdit): ?><td><a class="icon-btn" href="<?= $e($editUrl($row['id'])) ?>" title="Изменить" aria-label="Изменить норматив"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1M8 1v3h3L8 1Z"/><path d="M4 5h2M4 7h1m6-1 2 2-5 5H6v-2Z"/></svg></a><form method="POST" action="<?= $e($listUrl) ?>/delete" style="display:inline-flex" onsubmit="return confirm('Удалить норматив?')"><input type="hidden" name="csrf_token" value="<?= $e($_SESSION['csrf_token'] ?? '') ?>"><input type="hidden" name="id" value="<?= (int) $row['id'] ?>"><button type="submit" class="icon-btn icon-btn--delete" title="Удалить" aria-label="Удалить норматив"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></button></form></td><?php endif; ?></tr><?php endforeach; ?>
+        <?php foreach ($norms as $row): ?><tr><td><?= $row['station_code'] ? $e(($row['station_name'] ?? '') . ' (' . $row['station_code'] . ')') : 'Все станции' ?></td><td><?= $e($types[$row['rule_type']] ?? $row['rule_type']) ?></td><td><?= $e($row['rule_value']) ?></td><td class="num"><?= (int) $row['free_days'] ?></td><td class="num"><?= number_format((float) $row['daily_rate'], 2, ',', ' ') ?></td><td class="dates"><?= $e($dateLabel($row['valid_from'])) ?></td><td class="dates"><?= $e($dateLabel($row['valid_to'])) ?></td><?php if ($canEdit): ?><td><a class="icon-btn" href="<?= $e($editUrl($row['id'])) ?>" title="Изменить" aria-label="Изменить норматив"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1M8 1v3h3L8 1Z"/><path d="M4 5h2M4 7h1m6-1 2 2-5 5H6v-2Z"/></svg></a><form method="POST" action="<?= $e($listUrl) ?>/delete" style="display:inline-flex" onsubmit="return confirm('Удалить норматив?')"><input type="hidden" name="csrf_token" value="<?= $e($_SESSION['csrf_token'] ?? '') ?>"><input type="hidden" name="id" value="<?= (int) $row['id'] ?>"><button type="submit" class="icon-btn icon-btn--delete" title="Удалить" aria-label="Удалить норматив"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></button></form></td><?php endif; ?></tr><?php endforeach; ?>
         <?php if (!$norms): ?><tr><td colspan="<?= $canEdit ? 8 : 7 ?>" class="empty">Нормативы не найдены</td></tr><?php endif; ?>
       </tbody></table></div>
     </section>

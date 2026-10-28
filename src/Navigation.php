@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
-
+//
 $reportGroups = [
     'movement' => ['name' => 'Движение вагонов', 'order' => 10],
     'analytics' => ['name' => 'Аналитика', 'order' => 20],
     'downtime' => ['name' => 'Простои и оборот', 'order' => 30],
     'registry' => ['name' => 'Реестр', 'order' => 40],
 ];
-
+// Формируем навигацию по группам отчётов
 $navigationGroups = [];
 foreach ($reportGroups as $groupCode => $groupDefinition) {
     $navigationGroups[$groupCode] = [
@@ -16,8 +16,8 @@ foreach ($reportGroups as $groupCode => $groupDefinition) {
         'items' => [],
     ];
 }
-
-foreach (\App\Reports\ReportRegistry::all() as $reportCode => $reportDefinition) {
+// Формируем навигацию по отчётам
+foreach (\App\Reports\ReportConfig::all() as $reportCode => $reportDefinition) {
     $navigation = $reportDefinition['navigation'] ?? null;
     $groupCode = $navigation['group'] ?? '';
     if (!isset($navigationGroups[$groupCode])) {
@@ -30,7 +30,7 @@ foreach (\App\Reports\ReportRegistry::all() as $reportCode => $reportDefinition)
         'order' => (int) ($navigation['order'] ?? 0),
     ];
 }
-
+// Сортируем группы и элементы навигации по порядку
 foreach ($navigationGroups as &$navigationGroup) {
     usort(
         $navigationGroup['items'],
@@ -45,7 +45,11 @@ unset($navigationGroup);
 
 // Обычные страницы не являются отчётами и остаются здесь.
 $navigationGroups['analytics']['items'][] = [
-    'id' => 'maps', 'label' => 'Карта', 'page' => 'maps', 'url' => '/maps', 'target' => '_blank',
+    'id' => 'maps',
+    'label' => 'Карта',
+    'page' => 'maps',
+    'url' => '/maps',
+    'target' => '_blank',
 ];
 
 $navigation = array_values($navigationGroups);
@@ -57,13 +61,12 @@ foreach ($navigation as &$navigationGroup) {
     unset($navigationGroup['order']);
 }
 unset($navigationGroup);
-
+// Добавляем дополнительные страницы, которые не относятся к отчётам
 $navigation = array_merge($navigation, [
     [
-        'group' => 'Справочники',
+        'group' => '',
         'items' => [
-            ['id' => 'norms', 'label' => 'Нормативы', 'page' => 'directories', 'url' => '/directories/norms'],
-            ['id' => 'stations', 'label' => 'Станции и координаты', 'page' => 'directories', 'url' => '/directories/stations'],
+            ['id' => 'directories', 'label' => 'Справочники', 'page' => 'directories', 'url' => '/directories/'],
         ],
     ],
     [

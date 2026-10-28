@@ -3,15 +3,14 @@
 var BASE = window.APP_BASE || ''
 var ALLOWED_PAGES = window.APP_ALLOWED_PAGES || []
 
-// Проверка доступа к вкладке по коду страницы (page из Navigation.php)
+// Проверка доступа к вкладке
 function canSeeTab(tab) {
   if (!tab.page) return true
   if (window.APP_IS_ADMIN) return true
   return ALLOWED_PAGES.indexOf(tab.page) !== -1
 }
 
-// Навигация строится из APP_NAV_CONFIG, который экспортирует DashboardController
-// из единственного источника — src/Navigation.php
+// Навигация строится
 var TAB_GROUPS = (window.APP_NAV_CONFIG || []).map(function (group) {
   return {
     label: group.group,
@@ -45,7 +44,7 @@ function initSidebar() {
     if (visibleTabs.length === 0) return
 
     var groupEl = document.createElement('div')
-    groupEl.className = 'nav-group' + (!group.label ? ' nav-group--top' : '')
+    groupEl.className = 'nav-group'
 
     var labelEl = document.createElement('span')
     labelEl.className = 'nav-group-label'
@@ -196,9 +195,28 @@ function showTechnicalStateRows(data, tabSettings) {
 function claimsKpiCards(data) {
   var totals = data.totals || {}
   return [
-    { label: 'Вагонов в расчёте', value: data.total || 0, variant: 'pill', detail: { ctx: 'claims' } },
-    { label: 'Со штрафом', value: totals.penalty_count || 0, variant: 'pill', detail: { ctx: 'claims', params: { claim_filter: 'penalty' } } },
-    { label: 'Расчётная сумма', value: Number(totals.amount || 0).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽', variant: 'pill', detail: { ctx: 'claims', params: { claim_filter: 'penalty' } } },
+    {
+      label: 'Вагонов в расчёте',
+      value: data.total || 0,
+      variant: 'pill',
+      detail: { ctx: 'claims' },
+    },
+    {
+      label: 'Со штрафом',
+      value: totals.penalty_count || 0,
+      variant: 'pill',
+      detail: { ctx: 'claims', params: { claim_filter: 'penalty' } },
+    },
+    {
+      label: 'Расчётная сумма',
+      value:
+        Number(totals.amount || 0).toLocaleString('ru-RU', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }) + ' ₽',
+      variant: 'pill',
+      detail: { ctx: 'claims', params: { claim_filter: 'penalty' } },
+    },
   ]
 }
 
@@ -206,38 +224,86 @@ function showClaimsSummary(data, tabSettings) {
   var columns = tabSettings.summaryColumns || []
   var rows = (data.rows || []).slice()
   if (rows.length) rows.push(data.totals)
-  _vtInline[tabSettings.sumTableId] = { all: rows, filtered: rows, cols: columns }
-  var html = '<thead><tr>' + columns.map(function (column, columnIndex) {
-    return '<th' + (columnIndex ? ' style="text-align:right"' : '') + '>' + esc(column.label) + '</th>'
-  }).join('') + '</tr></thead><tbody>'
+  _vtInline[tabSettings.sumTableId] = {
+    all: rows,
+    filtered: rows,
+    cols: columns,
+  }
+  var html =
+    '<thead><tr>' +
+    columns
+      .map(function (column, columnIndex) {
+        return (
+          '<th' +
+          (columnIndex ? ' style="text-align:right"' : '') +
+          '>' +
+          esc(column.label) +
+          '</th>'
+        )
+      })
+      .join('') +
+    '</tr></thead><tbody>'
   rows.forEach(function (row, rowIndex) {
     var total = rowIndex === rows.length - 1
-    var reportFilters = Object.assign({}, tabSettings.getParams(), total ? {} : { wagon_type: row.wagon_type_code })
+    var reportFilters = Object.assign(
+      {},
+      tabSettings.getParams(),
+      total ? {} : { wagon_type: row.wagon_type_code },
+    )
     html += '<tr class="' + (total ? 'row-total' : 'row-data') + '">'
     columns.forEach(function (column, columnIndex) {
       var value = row[column.key]
       var text = columnIndex
-        ? Number(value || 0).toLocaleString('ru-RU', column.key === 'amount' ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : {})
+        ? Number(value || 0).toLocaleString(
+            'ru-RU',
+            column.key === 'amount'
+              ? { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+              : {},
+          )
         : value
       var detailFilters = Object.assign({}, reportFilters)
-      if (column.key === 'penalty_count' || column.key === 'amount') detailFilters.claim_filter = 'penalty'
+      if (column.key === 'penalty_count' || column.key === 'amount')
+        detailFilters.claim_filter = 'penalty'
+      if (column.key === 'payable_days') detailFilters.claim_filter = 'payable'
       var content = esc(String(text))
       if (!columnIndex || Number(value) > 0) {
         var query = new URLSearchParams({ ctx: 'claims' })
         Object.keys(detailFilters).forEach(function (filterKey) {
-          if (detailFilters[filterKey] !== undefined && detailFilters[filterKey] !== null && detailFilters[filterKey] !== '') {
+          if (
+            detailFilters[filterKey] !== undefined &&
+            detailFilters[filterKey] !== null &&
+            detailFilters[filterKey] !== ''
+          ) {
             query.set(filterKey, detailFilters[filterKey])
           }
         })
-        content = '<a href="' + esc(BASE + '/detail?' + query.toString()) + '" target="_blank" rel="noopener noreferrer" class="cell-link claims-detail-link">' + content + '</a>'
+        content =
+          '<a href="' +
+          esc(BASE + '/detail?' + query.toString()) +
+          '" target="_blank" rel="noopener noreferrer" class="cell-link claims-detail-link">' +
+          content +
+          '</a>'
       }
-      html += '<td' + (!columnIndex ? ' class="col-meta"' : Number(value) === 0 ? ' class="dash"' : '') + '>' + content + '</td>'
+      html +=
+        '<td' +
+        (!columnIndex
+          ? ' class="col-meta"'
+          : Number(value) === 0
+            ? ' class="dash"'
+            : '') +
+        '>' +
+        content +
+        '</td>'
     })
     html += '</tr>'
   })
-  if (!rows.length) html += '<tr><td colspan="5" style="text-align:center;padding:32px">Нет данных по выбранным условиям</td></tr>'
+  if (!rows.length)
+    html +=
+      '<tr><td colspan="5" style="text-align:center;padding:32px">Нет данных по выбранным условиям</td></tr>'
   $('#' + tabSettings.sumTableId).html(html + '</tbody>')
-  $('#' + tabSettings.sumSubId).text('Вагонов: ' + Number(data.total || 0).toLocaleString('ru-RU'))
+  $('#' + tabSettings.sumSubId).text(
+    'Вагонов: ' + Number(data.total || 0).toLocaleString('ru-RU'),
+  )
 }
 
 var REPORT_PAGE_BEHAVIORS = {
@@ -258,15 +324,21 @@ function reportFilterValues(reportDefinition) {
 
 function fillReportFilterOptions(reportDefinition, optionLists) {
   ;(reportDefinition.filters || []).forEach(function (filterDefinition) {
-    if (filterDefinition.value_type !== 'select' || !filterDefinition.options_key) return
+    if (
+      filterDefinition.value_type !== 'select' ||
+      !filterDefinition.options_key
+    )
+      return
     var options = optionLists[filterDefinition.options_key] || []
     var $field = $('#' + filterDefinition.field_id)
     var selectedValue = $field.val()
     $field.find('option:not(:first)').remove()
     options.forEach(function (option) {
       if (option && typeof option === 'object') {
-        var optionValue = option.value || option.station_code || option.code || option.id || ''
-        var optionLabel = option.label || option.station_name || option.name || optionValue
+        var optionValue =
+          option.value || option.station_code || option.code || option.id || ''
+        var optionLabel =
+          option.label || option.station_name || option.name || optionValue
         $field.append($('<option>').val(optionValue).text(optionLabel))
       } else {
         $field.append($('<option>').val(option).text(option))
@@ -287,9 +359,10 @@ function reportInitialFilterValue(initialValue) {
   var date = new Date()
   var year = String(date.getFullYear())
   var month = String(date.getMonth() + 1).padStart(2, '0')
-  var day = initialValue === 'month_start'
-    ? '01'
-    : String(date.getDate()).padStart(2, '0')
+  var day =
+    initialValue === 'month_start'
+      ? '01'
+      : String(date.getDate()).padStart(2, '0')
   return year + '-' + month + '-' + day
 }
 
@@ -313,7 +386,10 @@ function buildReportFilterFields(reportCode, reportDefinition) {
         $field.append($('<option>').val(choice.value).text(choice.label))
       })
     } else {
-      $field = $('<input>').attr('type', filterDefinition.value_type === 'date' ? 'date' : 'text')
+      $field = $('<input>').attr(
+        'type',
+        filterDefinition.value_type === 'date' ? 'date' : 'text',
+      )
       if (filterDefinition.key === 'wagon_no') {
         $field.attr('placeholder', 'Номер вагона1; Номер вагона2; ...')
         $filterItem.css('flex-basis', '100%')
@@ -356,7 +432,10 @@ function connectReportDefinitions() {
   Object.keys(reportDefinitions).forEach(function (reportCode) {
     var reportDefinition = reportDefinitions[reportCode]
     var pageSettings = Object.assign({}, reportDefinition.page || {})
-    var organizationSettings = (pageSettings.organization_overrides || {})[window.APP_ORGANIZATION_CODE] || {}
+    var organizationSettings =
+      (pageSettings.organization_overrides || {})[
+        window.APP_ORGANIZATION_CODE
+      ] || {}
     Object.assign(pageSettings, organizationSettings)
     var tabSettings = { ctx: reportCode }
 
@@ -381,12 +460,14 @@ function connectReportDefinitions() {
       ? BASE + reportDefinition.filters_endpoint
       : null
     tabSettings.groupCols = reportDefinition.row_dimensions || []
-    tabSettings.colDims = (reportDefinition.column_dimensions || []).map(function (columnDimension) {
-      return {
-        key: columnDimension.key,
-        paramName: columnDimension.parameter,
-      }
-    })
+    tabSettings.colDims = (reportDefinition.column_dimensions || []).map(
+      function (columnDimension) {
+        return {
+          key: columnDimension.key,
+          paramName: columnDimension.parameter,
+        }
+      },
+    )
     tabSettings.getParams = function () {
       return reportFilterValues(reportDefinition)
     }
@@ -397,9 +478,14 @@ function connectReportDefinitions() {
       clearReportFilterValues(reportDefinition)
     }
     tabSettings.validate = function () {
-      var missingFilter = (reportDefinition.filters || []).find(function (filterDefinition) {
-        return filterDefinition.required && !String($('#' + filterDefinition.field_id).val() || '').trim()
-      })
+      var missingFilter = (reportDefinition.filters || []).find(
+        function (filterDefinition) {
+          return (
+            filterDefinition.required &&
+            !String($('#' + filterDefinition.field_id).val() || '').trim()
+          )
+        },
+      )
       return missingFilter ? 'Укажите поле «' + missingFilter.label + '»' : null
     }
   })
@@ -439,9 +525,9 @@ function kpiCards(data) {
       value: item.value,
       variant: 'pill',
       trend: makeTrend(item.change, item.trend),
-      detail: item.detail || (item.id
-        ? { ctx: 'dislocation', params: { kpi_id: item.id } }
-        : null),
+      detail:
+        item.detail ||
+        (item.id ? { ctx: 'dislocation', params: { kpi_id: item.id } } : null),
     }
   })
 }
@@ -468,7 +554,10 @@ var KPI_BOARDS = {
     containerId: 'loadingMetrics',
     dataUrl: BASE + '/api/kpi/summary',
     params: function () {
-      return Object.assign({ kpi_type: 'loading_kpi' }, WAGON_TABS.loading.getParams())
+      return Object.assign(
+        { kpi_type: 'loading_kpi' },
+        WAGON_TABS.loading.getParams(),
+      )
     },
     cards: kpiCards,
   },
@@ -908,7 +997,7 @@ function vtMeasureCols(colDefs, data) {
   })
   return widths
 }
-/* Рендер таблицы с виртуальным скроллом. Рисует только видимую часть, рассчитывая её при скролле. */
+/* Рендер таблицы с виртуальным скроллом.*/
 function showTable($container, rows, colDefs) {
   colDefs = colDefs.map(function (c) {
     if (c.formatData && !c.fmt) {
@@ -950,6 +1039,7 @@ function showTable($container, rows, colDefs) {
       '<div class="vt-content" style="width:' +
       totalW +
       'px">' +
+      '<div class="vt-sticky">' +
       '<div class="vt-head"   id="ivh-' +
       id +
       '" style="grid-template-columns:' +
@@ -963,7 +1053,7 @@ function showTable($container, rows, colDefs) {
       template +
       ';width:' +
       totalW +
-      'px"></div>' +
+      'px"></div></div>' +
       '<div id="ivr-' +
       id +
       '"></div>' +
@@ -996,7 +1086,10 @@ function showTable($container, rows, colDefs) {
     var display = v !== null && v !== undefined && v !== '' ? v : ''
     if (c.fmt) display = c.fmt(v)
     var cls =
-      'vt-cell' + (c.pinned ? ' col-pinned' : '') + (c.meta ? ' col-meta' : '') + (c.right ? ' vt-right' : '')
+      'vt-cell' +
+      (c.pinned ? ' col-pinned' : '') +
+      (c.meta ? ' col-meta' : '') +
+      (c.right ? ' vt-right' : '')
     var style = ''
     if (c.danger) {
       var d = parseFloat(display) || 0
@@ -1004,10 +1097,20 @@ function showTable($container, rows, colDefs) {
       else if (d >= 3) style = ' style="color:#E8A530;font-weight:600"'
     }
     var content = esc(String(display))
-    if ((c.key === 'wagon_no' || c.key === 'car_number') && /^\d{8}$/.test(String(v))) {
-      content = '<a class="wagon-link" href="' + BASE + '/wagon?wagon_no=' + encodeURIComponent(v) + '" style="color:var(--accent);text-decoration:none" title="Карточка вагона">' + content + '</a>'
+    if (
+      (c.key === 'wagon_no' || c.key === 'car_number') &&
+      /^\d{8}$/.test(String(v))
+    ) {
+      content =
+        '<a class="wagon-link" href="' +
+        BASE +
+        '/wagon?wagon_no=' +
+        encodeURIComponent(v) +
+        '" style="color:var(--accent);text-decoration:none" title="Карточка вагона">' +
+        content +
+        '</a>'
     }
-    return '<div class="' + cls + '"' + style + '>' + content + '</div>' 
+    return '<div class="' + cls + '"' + style + '>' + content + '</div>'
   }
 
   var vp = document.getElementById('ivp-' + id)
@@ -1112,7 +1215,6 @@ function showTable($container, rows, colDefs) {
 /******** cols config ********/
 
 /******** Сводная и KPI ********/
-
 function drawSummary(
   selector,
   roads,
@@ -1626,7 +1728,7 @@ function drawSummary(
   return displayCells
 }
 
-// Плавающий горизонтальный скролл для широких таблиц
+//  горизонтальный скролл для таблиц
 function attachFloatScrollbar(scrollEl) {
   var existing = scrollEl._floatScrollbar
   if (existing) existing.remove()
@@ -1747,7 +1849,9 @@ function kpiCard(item) {
       '</div>' +
       '<div class="kpi-value-row"><span class="kpi-value">' +
       valStr +
-      '</span>' + badgeHtml + '</div>' +
+      '</span>' +
+      badgeHtml +
+      '</div>' +
       (item.sub ? '<div class="kpi-delta">' + esc(item.sub) + '</div>' : '') +
       '</div>'
     )
@@ -1876,7 +1980,7 @@ $(document).on('input', '.col-search-input', function () {
   if ($sub.length) $sub.text('Строк: ' + visible.toLocaleString('ru-RU'))
 })
 
-// <a>.click() вместо window.open — попап-блокировщик не режет
+// <a>.click() вместо window.open
 function navNewTab(url) {
   var a = document.createElement('a')
   a.href = url
@@ -2067,7 +2171,9 @@ $(function () {
   }, 1500)
 
   // Выгрузка сводной претензий в Excel.
-  $('#btnClaimsExportSummary').on('click', function () { saveExcelfromVT('claimsSumTable', 'претензии-сводная') })
+  $('#btnClaimsExportSummary').on('click', function () {
+    saveExcelfromVT('claimsSumTable', 'претензии-сводная', 'summary')
+  })
 
   Object.keys(WAGON_TABS).forEach(function (k) {
     var cfg = WAGON_TABS[k]
@@ -2097,7 +2203,10 @@ $(function () {
       window[cfg.loadedDetKey] = false
       loadSummary(cfg)
       if (k === 'loading') loadKPI(['loading'])
-      if ((k === 'claims' || !cfg.summaryUrl) && $('#' + cfg.detPanelId).hasClass('active')) {
+      if (
+        (k === 'claims' || !cfg.summaryUrl) &&
+        $('#' + cfg.detPanelId).hasClass('active')
+      ) {
         window[cfg.loadedDetKey] = true
         loadDetail(cfg)
       }

@@ -5,7 +5,7 @@ namespace App\Services;
 
 use App\Database\DbInterface;
 
-final class DirectoryAccessService
+final class DirectoryAccess
 {
     private ?array $pages = null;
 

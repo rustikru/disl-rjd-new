@@ -1,4 +1,4 @@
-// Колонки и вкладки приходят из ReportRegistry.php.
+// Колонки и вкладки ищ ReportConfig.php.
 var DETAIL_TABS = []
 var DETAIL_CONTEXTS = {}
 
@@ -16,15 +16,21 @@ Object.keys(window.APP_REPORT_DEFINITIONS || {}).forEach(function (reportCode) {
   if (!DETAIL_TABS.length && reportDefinition.detail_tabs) {
     DETAIL_TABS = reportDefinition.detail_tabs
   }
-  var columns = (reportDefinition.detail_columns || []).map(function (columnDefinition) {
-    var column = Object.assign({}, columnDefinition)
-    if (column.value_format === 'money') column.fmt = moneyReportValue
-    return column
-  })
+  var columns = (reportDefinition.detail_columns || []).map(
+    function (columnDefinition) {
+      var column = Object.assign({}, columnDefinition)
+      if (column.value_format === 'money') column.fmt = moneyReportValue
+      return column
+    },
+  )
   DETAIL_CONTEXTS[reportCode] = {
     label: reportDefinition.detail_label || reportDefinition.name,
     endpoint: reportDefinition.detail_endpoint,
-    sort: reportDefinition.detail_sort || { field: 'wagon_no', type: 'number', dir: 'asc' },
+    sort: reportDefinition.detail_sort || {
+      field: 'wagon_no',
+      type: 'number',
+      dir: 'asc',
+    },
     cols: columns,
   }
 })

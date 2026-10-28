@@ -5,14 +5,14 @@ namespace App\Services;
 
 use App\Database\DbInterface;
 
-final class ClaimService
+final class Claims
 {
     public function __construct(private DbInterface $db, private int $organizationId) {}
 
     public function rows(array $source, array $params = []): array
     {
         $status = $params['claim_filter'] ?? $params['claim_status'] ?? '';
-        if ($status !== '' && !in_array($status, ['penalty', 'free', 'incomplete'], true)) {
+        if ($status !== '' && !in_array($status, ['penalty', 'payable', 'free', 'incomplete'], true)) {
             throw new \InvalidArgumentException('Выберите статус расчёта');
         }
         $where = '1=1';
@@ -41,7 +41,7 @@ final class ClaimService
             }
         }
         $data = $this->db->fetchAll("SELECT * FROM {$source['from']} WHERE $where", $bindings);
-        $norms = (new ClaimNormService($this->db, $this->organizationId))->list();
+        $norms = (new ClaimNorms($this->db, $this->organizationId))->list();
         $rows = [];
         foreach ($data as $row) {
             if ($this->key($row['owner'] ?? '') === 'АО "МЕТАФРАКС КЕМИКАЛС"') {
@@ -51,7 +51,10 @@ final class ClaimService
             if (($params['wagon_type'] ?? '') !== '' && $row['wagon_type_code'] !== $params['wagon_type']) {
                 continue;
             }
-            if ($status !== '' && $row['claim_status'] !== $status) {
+            if ($status === 'payable' && (int) ($row['payable_days'] ?? 0) <= 0) {
+                continue;
+            }
+            if ($status !== '' && $status !== 'payable' && $row['claim_status'] !== $status) {
                 continue;
             }
             $rows[] = $row;
@@ -72,26 +75,34 @@ final class ClaimService
             'CARGO' => ['cargo_name'], 'CONSIGNEE' => ['consignee', 'consignee_name'],
             'PREV_CARGO' => ['prev_cargo'], 'WAGON_TYPE' => ['wagon_type_code', 'wagon_type_name'],
         ];
-        foreach ($fields as $type => $names) {
-            $keys = [];
-            foreach ($names as $name) {
-                $value = (string) ($row[$name] ?? '');
-                $keys[] = $this->key($value);
-                $keys[] = $this->key(preg_replace('/\s*\(\d+\)\s*$/u', '', $value));
-            }
-            $keys = array_filter(array_unique($keys), static fn($key) => $key !== '');
-            foreach ($keys as $key) {
-                foreach ($norms as $rule) {
-                    if ($rule['station_code'] !== $row['station_code'] || $rule['rule_type'] !== $type) {
-                        continue;
-                    }
-                    if ($rule['valid_from'] > $report->format('Y-m-d')
-                        || ($rule['valid_to'] && $rule['valid_to'] < $report->format('Y-m-d'))) {
-                        continue;
-                    }
-                    if ($this->key($rule['rule_value']) === $key) {
-                        $norm = $rule;
-                        break 3;
+        $stationCode = trim((string) ($row['station_code'] ?? ''));
+        $scopeStationCodes = $stationCode !== '' ? [$stationCode, null] : [null];
+        foreach ($scopeStationCodes as $scopeStationCode) {
+            foreach ($fields as $type => $names) {
+                $keys = [];
+                foreach ($names as $name) {
+                    $value = (string) ($row[$name] ?? '');
+                    $keys[] = $this->key($value);
+                    $keys[] = $this->key(preg_replace('/\s*\(\d+\)\s*$/u', '', $value));
+                }
+                $keys = array_filter(array_unique($keys), static fn($key) => $key !== '');
+                foreach ($keys as $key) {
+                    foreach ($norms as $rule) {
+                        $ruleStationCode = trim((string) ($rule['station_code'] ?? ''));
+                        $stationMatches = $scopeStationCode === null
+                            ? $ruleStationCode === ''
+                            : $ruleStationCode === $scopeStationCode;
+                        if (!$stationMatches || $rule['rule_type'] !== $type) {
+                            continue;
+                        }
+                        if ($rule['valid_from'] > $report->format('Y-m-d')
+                            || ($rule['valid_to'] && $rule['valid_to'] < $report->format('Y-m-d'))) {
+                            continue;
+                        }
+                        if ($this->key($rule['rule_value']) === $key) {
+                            $norm = $rule;
+                            break 4;
+                        }
                     }
                 }
             }

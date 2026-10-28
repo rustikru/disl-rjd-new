@@ -24,7 +24,7 @@ return function (App $app, array $config): void {
     };
 
     $getOrganizations = function () use (&$organizations, $getDb) {
-        return $organizations ??= new \App\Services\OrganizationService($getDb());
+        return $organizations ??= new \App\Services\Organizations($getDb());
     };
 
     // Публичные маршруты
@@ -49,6 +49,23 @@ return function (App $app, array $config): void {
             return $res->withHeader('Location', ($config['base_path'] ?? '') . '/login')->withStatus(302);
         }
         return (new \App\Controllers\AuthController($auth, $config))->handleLogin($req, $res);
+    });
+
+    $getPasswordReset = static function () use ($getDb, $config): \App\Services\PasswordReset {
+        return new \App\Services\PasswordReset($getDb(), $config);
+    };
+
+    $app->get('/forgot-password', function ($req, $res) use ($getPasswordReset, $config) {
+        return (new \App\Controllers\PasswordResetController($getPasswordReset(), $config))->showRequest($req, $res);
+    });
+    $app->post('/forgot-password', function ($req, $res) use ($getPasswordReset, $config) {
+        return (new \App\Controllers\PasswordResetController($getPasswordReset(), $config))->request($req, $res);
+    });
+    $app->get('/reset-password', function ($req, $res) use ($getPasswordReset, $config) {
+        return (new \App\Controllers\PasswordResetController($getPasswordReset(), $config))->showReset($req, $res);
+    });
+    $app->post('/reset-password', function ($req, $res) use ($getPasswordReset, $config) {
+        return (new \App\Controllers\PasswordResetController($getPasswordReset(), $config))->reset($req, $res);
     });
 
     $app->get('/auth/kerberos', function ($req, $res) use ($getAuth, $config) {
@@ -107,6 +124,23 @@ return function (App $app, array $config): void {
             return (new \App\Controllers\ProfileController($getDb(), $config))->index($req, $res);
         });
 
+        // Личные настройки рассылки отчётов
+        $group->get('/profile/report-mailings', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\MailingController($getDb(), $config))->settingsPage($req, $res);
+        });
+        $group->post('/profile/report-mailings/save', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\MailingController($getDb(), $config))->save($req, $res);
+        });
+        $group->post('/profile/report-mailings/active', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\MailingController($getDb(), $config))->setActive($req, $res);
+        });
+        $group->post('/profile/report-mailings/delete', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\MailingController($getDb(), $config))->delete($req, $res);
+        });
+        $group->post('/profile/report-mailings/run', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\MailingController($getDb(), $config))->run($req, $res);
+        });
+
         // Страница импорта XLSX
         $group->get('/import', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\ImportController($getDb(), $config))->showForm($req, $res);
@@ -128,10 +162,37 @@ return function (App $app, array $config): void {
         $group->get('/admin/users', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->usersPage($req, $res);
         });
+        $group->get('/admin/users/new', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->userCreatePage($req, $res);
+        });
+        $group->get('/admin/users/{id}/edit', function ($req, $res, $args) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->userEditPage($req, $res, $args);
+        });
         $group->get('/admin/roles', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->rolesPage($req, $res);
         });
+        $group->get('/admin/roles/new', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->roleCreatePage($req, $res);
+        });
+        $group->get('/admin/roles/{id}/edit', function ($req, $res, $args) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->roleEditPage($req, $res, $args);
+        });
+        $group->get('/admin/report-mailings', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\MailingController($getDb(), $config))->adminPage($req, $res);
+        });
+        $group->post('/admin/report-mailings/run', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\MailingController($getDb(), $config))->adminRun($req, $res);
+        });
+        $group->post('/admin/report-mailings/active', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\MailingController($getDb(), $config))->adminSetActive($req, $res);
+        });
         // --- Справочники ---
+        $group->get('/directories', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->directoriesPage($req, $res);
+        });
+        $group->get('/directories/', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->directoriesPage($req, $res);
+        });
         $group->get('/directories/norms', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->normsPage($req, $res);
         });
@@ -151,8 +212,11 @@ return function (App $app, array $config): void {
         $group->get('/directories/stations', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->stationsPage($req, $res);
         });
-        $group->get('/directories/stations/freicon', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\AdminController($getDb(), $config))->findFreiConStation($req, $res);
+        $group->get('/directories/stations/new', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->stationCreatePage($req, $res);
+        });
+        $group->get('/directories/stations/{code:[0-9]+}/edit', function ($req, $res, $args) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->stationEditPage($req, $res, $args);
         });
         $group->post('/directories/stations/save', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->saveStation($req, $res);
@@ -184,8 +248,11 @@ return function (App $app, array $config): void {
         $group->get('/admin/directories/organizations', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->organizationsPage($req, $res);
         });
-        $group->get('/admin/directories/stations/freicon', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\AdminController($getDb(), $config))->findFreiConStation($req, $res);
+        $group->get('/admin/directories/organizations/new', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->organizationCreatePage($req, $res);
+        });
+        $group->get('/admin/directories/organizations/{id:[0-9]+}/edit', function ($req, $res, $args) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->organizationEditPage($req, $res, $args);
         });
         $group->post('/admin/users', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->createUser($req, $res);
@@ -238,7 +305,7 @@ return function (App $app, array $config): void {
             $appName = $config['app_name'] ?? 'Дислокация РЖД';
             $basePath = $config['base_path'] ?? '';
             $user = $_SESSION['user'] ?? ['display_name' => '', 'username' => '', 'auth_source' => ''];
-            $reportDefinitions = \App\Reports\ReportRegistry::forContext('page');
+            $reportDefinitions = \App\Reports\ReportConfig::forContext('page');
             ob_start();
             require __DIR__ . '/../templates/detail.php';
             $html = ob_get_clean();

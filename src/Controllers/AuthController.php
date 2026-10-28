@@ -29,8 +29,10 @@ class AuthController
         $appName  = $this->config['app_name'];
         $basePath = $this->config['base_path'] ?? '';
         $error    = $_SESSION['login_error'] ?? null;
+        $notice   = $_SESSION['login_notice'] ?? null;
         $kerberosEnabled = (bool) ($this->config['kerberos_enabled'] ?? false);
-        unset($_SESSION['login_error']);
+        $passwordResetEnabled = (bool) ($this->config['password_reset_enabled'] ?? true);
+        unset($_SESSION['login_error'], $_SESSION['login_notice']);
 
         ob_start();
         require __DIR__ . '/../../templates/login.php';

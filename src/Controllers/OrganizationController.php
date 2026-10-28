@@ -3,16 +3,16 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Services\OrganizationService;
+use App\Services\Organizations;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 final class OrganizationController
 {
-    private OrganizationService $organizations;
+    private Organizations $organizations;
     private string $basePath;
 
-    public function __construct(OrganizationService $organizations, string $basePath = '')
+    public function __construct(Organizations $organizations, string $basePath = '')
     {
         $this->organizations = $organizations;
         $this->basePath = $basePath;

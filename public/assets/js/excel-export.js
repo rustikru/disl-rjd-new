@@ -1,7 +1,7 @@
 /**
- * 1. Выгрузка плоских таблиц детализации (из виртуального массива данных)
+ * 1. Выгрузка плоских таблиц детализации
  */
-function saveExcelfromVT(tableId, filename) {
+function saveExcelfromVT(tableId, filename, tableType) {
   // Проверяем, существует ли глобальный объект с данными виртуальных таблиц
   if (typeof _vtInline === 'undefined' || !_vtInline[tableId]) {
     console.error(
@@ -14,14 +14,14 @@ function saveExcelfromVT(tableId, filename) {
 
   var vt = _vtInline[tableId]
   var cols = vt.cols || []
-  var rows = vt.filtered || []  // было: vt.rows (неверно — поле называется filtered)
+  var rows = vt.filtered || [] // было: vt.rows (неверно — поле называется filtered)
 
-  // Упаковываем только нужные для бэкенда поля: ключ колонки и её название
+  // Упаковываем только нужное: ключ колонки и её название
   var cleanCols = cols.map(function (c) {
     return { key: c.key, label: c.label || c.title || '' }
   })
 
-  // Отправляем данные POST-запросом через скрытую форму
+  // Отправляем данные POST-запросом
   var BASE = window.APP_BASE || ''
   var form = document.createElement('form')
   form.method = 'POST'
@@ -40,15 +40,19 @@ function saveExcelfromVT(tableId, filename) {
   nameInput.value = filename || 'детализация'
   form.appendChild(nameInput)
 
+  var tableTypeInput = document.createElement('input')
+  tableTypeInput.type = 'hidden'
+  tableTypeInput.name = 'table_type'
+  tableTypeInput.value = tableType === 'summary' ? 'summary' : 'detail'
+  form.appendChild(tableTypeInput)
+
   document.body.appendChild(form)
   form.submit()
   form.remove()
 }
 
 /**
- * 2. Выгрузка сложных многоуровневых матриц (шахматок дашборда)
- *    Принимает tableId (DOM id сводной таблицы) и filename.
- *    Данные берёт из глобального _matrixData, который заполняется при загрузке сводной.
+ * 2. Выгрузка сложных многоуровневых матриц
  */
 function saveExcelMatrix(tableId, filename) {
   if (typeof _matrixData === 'undefined' || !_matrixData[tableId]) {
@@ -66,7 +70,7 @@ function saveExcelMatrix(tableId, filename) {
   var groupCols = data.group_cols || []
   var roads = data.roads
 
-  // Создаем форму для отправки структуры на новый эндпоинт
+  // Создаем форму для отправки структуры
   var BASE = window.APP_BASE || ''
   var form = document.createElement('form')
   form.method = 'POST'

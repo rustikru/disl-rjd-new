@@ -4,7 +4,8 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Database\DbInterface;
-use App\Services\OrganizationService;
+use App\Reports\ReportConfig;
+use App\Services\Organizations;
 use App\Services\WagonCargoState;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -24,12 +25,12 @@ class ApiController
         )";
 
     private DbInterface $db;
-    private OrganizationService $organizations;
+    private Organizations $organizations;
 
-    public function __construct(DbInterface $db, ?OrganizationService $organizations = null)
+    public function __construct(DbInterface $db, ?Organizations $organizations = null)
     {
         $this->db = $db;
-        $this->organizations = $organizations ?? new OrganizationService($db);
+        $this->organizations = $organizations ?? new Organizations($db);
     }
 
     // =========================================================================
@@ -374,6 +375,18 @@ class ApiController
         return $this->json($response, ['rows' => $rows]);
     }
 
+    /** Полная последняя загруженная справка «Подход» для рассылки. */
+    public function sourceApproach(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        return $this->sourceReference($request, $response, 'Подход');
+    }
+
+    /** Полная последняя загруженная справка «Отправка» для рассылки. */
+    public function sourceDeparture(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        return $this->sourceReference($request, $response, 'Отправка');
+    }
+
     /** GET /api/departure/filters */
     public function departureFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
@@ -562,7 +575,7 @@ class ApiController
         $bindings = $source['bindings'];
         $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
 
-        // wagon_type_code использует функцию из пакета (xx_dislocation_rjd_pkg)
+        // wagon_type_code использует функцию из пакета (XX_RJD_DISLOCATION_NEW_PKG)
         $rawFields = array_values(array_filter(
             array_map('trim', explode(',', $params['fields'] ?? '')),
             fn($f) => self::isSafeField($f)
@@ -649,8 +662,10 @@ class ApiController
             "SELECT DISTINCT wagon_state FROM {$source['from']} WHERE wagon_state IS NOT NULL ORDER BY wagon_state",
             $source['bindings']
         );
-        return $this->json($response, ['wagon_type' => array_column($types, 'wagon_type_code'),
-                                     'wagon_state' => array_column($states, 'wagon_state')]);
+        return $this->json($response, [
+            'wagon_type' => array_column($types, 'wagon_type_code'),
+            'wagon_state' => array_column($states, 'wagon_state')
+        ]);
     }
 
     /** GET /api/technical-state/detail */
@@ -731,13 +746,19 @@ class ApiController
         $params = $request->getQueryParams();
         $source = $this->claimsFrom($params);
         try {
-            $rows = (new \App\Services\ClaimService($this->db, (int) $this->organizations->id()))->rows($source, $params);
+            $rows = (new \App\Services\Claims($this->db, (int) $this->organizations->id()))->rows($source, $params);
         } catch (\InvalidArgumentException $error) {
             return $this->json($response->withStatus(400), ['error' => $error->getMessage()]);
         }
         $groups = [];
-        $empty = ['wagon_type_code' => 'Общий итог', 'total' => 0, 'penalty_count' => 0,
-                  'payable_days' => 0, 'amount' => 0, 'incomplete_count' => 0];
+        $empty = [
+            'wagon_type_code' => 'Общий итог',
+            'total' => 0,
+            'penalty_count' => 0,
+            'payable_days' => 0,
+            'amount' => 0,
+            'incomplete_count' => 0
+        ];
         $total = $empty;
         foreach ($rows as $row) {
             $type = $row['wagon_type_code'] ?: 'Прочие';
@@ -758,8 +779,12 @@ class ApiController
             }
         }
         ksort($groups);
-        return $this->json($response, ['rows' => array_values($groups), 'totals' => $total,
-                                     'total' => count($rows), 'reports' => $source['reports']]);
+        return $this->json($response, [
+            'rows' => array_values($groups),
+            'totals' => $total,
+            'total' => count($rows),
+            'reports' => $source['reports']
+        ]);
     }
 
     /** GET /api/claims/detail */
@@ -768,7 +793,7 @@ class ApiController
         $params = $request->getQueryParams();
         $source = $this->claimsFrom($params);
         try {
-            $rows = (new \App\Services\ClaimService($this->db, (int) $this->organizations->id()))->rows($source, $params);
+            $rows = (new \App\Services\Claims($this->db, (int) $this->organizations->id()))->rows($source, $params);
         } catch (\InvalidArgumentException $error) {
             return $this->json($response->withStatus(400), ['error' => $error->getMessage()]);
         }
@@ -780,12 +805,16 @@ class ApiController
             $sort = array_values(array_filter($sort, static fn($key) => in_array($key, $allowed, true)));
             usort($rows, static function ($a, $b) use ($sort, $directions) {
                 foreach ($sort as $i => $key) {
-                    if ($a[$key] === $b[$key]) continue;
-                    if ($a[$key] === null) return 1;
-                    if ($b[$key] === null) return -1;
+                    if ($a[$key] === $b[$key])
+                        continue;
+                    if ($a[$key] === null)
+                        return 1;
+                    if ($b[$key] === null)
+                        return -1;
                     $result = is_numeric($a[$key]) && is_numeric($b[$key])
                         ? (float) $a[$key] <=> (float) $b[$key] : strcmp((string) $a[$key], (string) $b[$key]);
-                    if ($result) return strtolower($directions[$i] ?? 'asc') === 'desc' ? -$result : $result;
+                    if ($result)
+                        return strtolower($directions[$i] ?? 'asc') === 'desc' ? -$result : $result;
                 }
                 return strcmp($a['wagon_no'], $b['wagon_no']);
             });
@@ -972,6 +1001,43 @@ class ApiController
         // $whereCond .= $this->excludedWagonsCondition();
 
         return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
+    }
+
+    /** Возвращает все загруженные строки и поля справки без условий экранных отчётов. */
+    private function sourceReference(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        string $typeReference
+    ): ResponseInterface {
+        $params = $request->getQueryParams();
+        $reportDt = $this->getReportDt($params['report_dt'] ?? null, $typeReference);
+        if (!$reportDt) {
+            return $this->json($response, ['rows' => []]);
+        }
+
+        $allowedFields = array_column(ReportConfig::sourceColumns(), 'key');
+        $requestedFields = array_values(array_filter(
+            array_map('trim', explode(',', (string) ($params['fields'] ?? ''))),
+            static fn(string $field): bool => in_array($field, $allowedFields, true)
+        ));
+        $fields = $requestedFields ?: $allowedFields;
+
+        $bindings = [
+            'report_dt' => $reportDt,
+            'type_reference' => $typeReference,
+        ];
+        $where = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')"
+            . ' AND type_reference = :type_reference';
+        $this->organizations->addFilter($where, $bindings);
+
+        $rows = $this->db->fetchAll(
+            'SELECT ' . implode(', ', $fields)
+            . ' FROM xx_dislocation_rjd WHERE ' . $where
+            . ' ORDER BY wagon_no, waybill_no',
+            $bindings
+        );
+
+        return $this->json($response, ['rows' => $rows]);
     }
 
     /** Отправление: вагоны с положительным оставшимся расстоянием. */
@@ -1479,11 +1545,12 @@ class ApiController
         $parsedBody = $request->getParsedBody();
         $rawData = json_decode($parsedBody['export_data'] ?? '[]', true);
         $filename = $parsedBody['filename'] ?? 'детализация';
+        $tableType = ($parsedBody['table_type'] ?? 'detail') === 'summary' ? 'summary' : 'detail';
 
         $cols = $rawData['cols'] ?? [];
         $rows = $rawData['rows'] ?? [];
 
-        return \App\ExcelExporter::download($response, $cols, $rows, $filename);
+        return \App\ExcelExport::download($response, $cols, $rows, $filename, $tableType);
     }
 
     /**
@@ -1500,7 +1567,7 @@ class ApiController
         $groupCols = $rawData['group_cols'] ?? [];
         $roads = $rawData['roads'] ?? [];
 
-        return \App\ExcelExporter::downloadMatrix($response, $colGroups, $roads, $filename, $groupCols, $cols);
+        return \App\ExcelExport::downloadMatrix($response, $colGroups, $roads, $filename, $groupCols, $cols);
     }
 
     private function json(ResponseInterface $response, $data): ResponseInterface

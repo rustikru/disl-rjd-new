@@ -4,8 +4,8 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Database\DbInterface;
-use App\Services\OrganizationService;
-use App\Services\WagonMovementService;
+use App\Services\Organizations;
+use App\Services\WagonMovement;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -31,7 +31,7 @@ class WagonController
     {
         $number = trim((string) ($request->getQueryParams()['wagon_no'] ?? ''));
         try {
-            $data = (new WagonMovementService($this->db, new OrganizationService($this->db)))->rows($number);
+            $data = (new WagonMovement($this->db, new Organizations($this->db)))->rows($number);
         } catch (\InvalidArgumentException $error) {
             $response = $response->withStatus(400);
             $data = ['error' => $error->getMessage()];

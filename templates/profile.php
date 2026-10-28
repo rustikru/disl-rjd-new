@@ -7,6 +7,7 @@ $initials = count($parts) >= 2
   ? mb_substr($parts[0], 0, 1, 'UTF-8') . mb_substr($parts[1], 0, 1, 'UTF-8')
   : mb_substr((string) $profile['username'], 0, 2, 'UTF-8');
 $initials = mb_strtoupper($initials, 'UTF-8');
+$isActive = (int) $profile['is_active'] === 1;
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -18,192 +19,106 @@ $initials = mb_strtoupper($initials, 'UTF-8');
   <link rel="icon" href="<?= $e($basePath) ?>/assets/img/favicon.ico">
   <link rel="stylesheet" href="<?= $e($basePath) ?>/assets/css/app.css">
   <style>
-    .profile-page {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 28px 24px;
-    }
-
-    .profile-page h1 {
-      font-size: 20px;
-      margin: 0 0 20px;
-    }
-
-    .profile-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 22px;
-    }
-
-    .profile-intro {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 18px;
-      flex-wrap: wrap;
-    }
-
-    .profile-avatar {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      background: var(--accent-lt);
-      color: var(--accent);
-      display: grid;
-      place-items: center;
-      font-size: 20px;
-      font-weight: 600;
-      flex-shrink: 0;
-    }
-
-    .profile-name {
-      font-size: 20px;
-      font-weight: 600;
-      margin-bottom: 4px;
-      overflow-wrap: anywhere;
-    }
-
-    .profile-login {
-      color: var(--text-2);
-    }
-
-    .profile-status {
-      margin-left: auto;
-      border-radius: 20px;
-      padding: 6px 12px;
-      background: var(--accent-lt);
-      color: var(--accent);
-    }
-
-    .profile-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 18px;
-    }
-
-    .profile-card h2 {
-      margin: 0 0 18px;
-      font-size: 15px;
-    }
-
-    .profile-data {
-      margin: 0;
-      display: grid;
-      grid-template-columns: minmax(110px, 1fr) 2fr;
-      gap: 14px;
-    }
-
-    .profile-data dt {
-      color: var(--text-2);
-    }
-
-    .profile-data dd {
-      margin: 0;
-      overflow-wrap: anywhere;
-    }
-
-    .profile-item+.profile-item {
-      border-top: 1px solid var(--border);
-      padding-top: 12px;
-      margin-top: 12px;
-    }
-
-    .profile-item small {
-      display: block;
-      color: var(--text-2);
-      margin-top: 5px;
-    }
-
-    .profile-access {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .profile-access span {
-      background: var(--accent-lt);
-      color: var(--accent);
-      padding: 6px 10px;
-      border-radius: 8px;
-    }
-
+    .profile-page { max-width:1180px; margin:0 auto; padding:22px 24px 40px; }
+    .profile-heading { margin-bottom:14px; }
+    .profile-heading h1 { margin:0; font-size:18px; line-height:1.25; }
+    .profile-heading p { margin-top:3px; color:var(--text-3); font-size:11.5px; }
+    .profile-panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    .profile-summary { display:flex; align-items:center; gap:12px; min-height:76px; padding:14px 18px; border-bottom:1px solid var(--border); }
+    .profile-avatar { width:44px; height:44px; border-radius:10px; background:var(--accent-lt); color:var(--accent); display:grid; place-items:center; font-size:15px; font-weight:700; flex-shrink:0; }
+    .profile-name { margin-bottom:2px; font-size:15px; font-weight:700; overflow-wrap:anywhere; }
+    .profile-login { color:var(--text-3); font-size:11px; }
+    .profile-status { margin-left:auto; display:inline-flex; align-items:center; gap:6px; color:var(--text-2); font-size:11.5px; font-weight:600; }
+    .profile-status::before { content:''; width:7px; height:7px; border-radius:50%; background:var(--brand-green); }
+    .profile-status--disabled::before { background:var(--brand-neg); }
+    .profile-sections { display:grid; grid-template-columns:1fr 1fr; }
+    .profile-section { min-width:0; padding:16px 18px; border-bottom:1px solid var(--border); }
+    .profile-section:nth-child(odd) { border-right:1px solid var(--border); }
+    .profile-section:nth-last-child(-n+2) { border-bottom:0; }
+    .profile-section h2 { margin:0; padding-bottom:10px; color:var(--text-3); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; }
+    .profile-data { margin:0; }
+    .profile-data-row { display:grid; grid-template-columns:130px minmax(0, 1fr); gap:12px; padding:7px 0; }
+    .profile-data-row + .profile-data-row, .profile-item + .profile-item { border-top:1px solid var(--border-lt); }
+    .profile-data dt { color:var(--text-3); }
+    .profile-data dd { margin:0; color:var(--text-1); overflow-wrap:anywhere; }
+    .profile-item { padding:7px 0; color:var(--text-1); }
+    .profile-item small { display:block; margin-top:2px; color:var(--text-3); font-size:10.5px; }
+    .profile-access { display:flex; flex-wrap:wrap; gap:6px; }
+    .profile-access span { padding:4px 8px; border:1px solid var(--border); border-radius:6px; background:var(--row-head); color:var(--text-2); font-size:11px; }
+    .profile-empty { padding:7px 0; color:var(--text-3); }
     @media(max-width:700px) {
-      .profile-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .profile-page {
-        padding: 20px 14px;
-      }
-
-      .profile-data {
-        grid-template-columns: 1fr;
-        gap: 6px;
-      }
-
-      .profile-data dd {
-        margin-bottom: 10px;
-      }
+      .profile-page { padding:16px 12px 28px; }
+      .profile-sections { grid-template-columns:1fr; }
+      .profile-section, .profile-section:nth-child(odd), .profile-section:nth-last-child(-n+2) { border-right:0; border-bottom:1px solid var(--border); }
+      .profile-section:last-child { border-bottom:0; }
+      .profile-data-row { grid-template-columns:1fr; gap:2px; }
+      .profile-summary { padding:12px 14px; }
     }
   </style>
 </head>
 
 <body>
-    <?php
-    $headerSub = '<div class="brand-sub">Профиль пользователя</div>';
-    $headerLeft = '<a href="' . $e($basePath) . '/" class="btn-nav-back" title="На главную" aria-label="На главную"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 5-7 7 7 7M5 12h14"/></svg></a>';
-    include __DIR__ . '/partials/header.php';
-    ?>
+  <?php
+  $headerSub = '<div class="brand-sub">Профиль пользователя</div>';
+  $headerLeft = '<a href="' . $e($basePath) . '/" class="btn-nav-back" title="На главную" aria-label="На главную"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 5-7 7 7 7M5 12h14"/></svg></a>';
+  include __DIR__ . '/partials/header.php';
+  ?>
   <main class="profile-page">
-    <h1>Профиль пользователя</h1>
-    <section class="profile-card profile-intro">
-      <div class="profile-avatar" aria-hidden="true"><?= $e($initials) ?></div>
-      <div>
-        <div class="profile-name"><?= $e($name) ?></div>
-        <div class="profile-login"><?= $e($profile['username']) ?></div>
-      </div>
-      <span class="profile-status"><?= (int) $profile['is_active'] === 1 ? 'Активен' : 'Отключён' ?></span>
-    </section>
-    <div class="profile-grid">
-      <section class="profile-card">
-        <h2>Учётная запись</h2>
-        <dl class="profile-data">
-              <?php foreach (['Имя' => $profile['display_name'], 'Логин' => $profile['username'], 'Электронная почта' => $profile['email']] as $label => $value): ?>
-            <dt><?= $e($label) ?></dt>
-            <dd><?= $e($value !== null && $value !== '' ? $value : 'Не указано') ?></dd>
-              <?php endforeach; ?>
-        </dl>
-      </section>
-      <section class="profile-card">
-        <h2>Организации</h2>
-          <?php foreach ($organizations as $organization): ?>
-          <div class="profile-item">
-          
-            <?= $e($organization['name']) ?><small><?= $e($organization['code']) ?><?= (int) $organization['id'] === $organizationId ? ' · Текущая организация' : '' ?><?= !empty($organization['is_primary']) ? ' · Основная' : '' ?></small>
-              </div><?php endforeach; ?>
-        <?php if (!$organizations): ?>
-            <div>Организации не назначены</div><?php endif; ?>
-      </section>
-      <section class="profile-card">
-          <h2>Роли</h2>
-        <?php foreach ($roles as $role): ?>
-          <div class="profile-item">
-                <?= $e($role['name']) ?><small><?= $e($role['code']) ?><?= !empty($role['description']) ? ' · ' . $e($role['description']) : '' ?></small>
-          </div><?php endforeach; ?>
-        <?php if (!$roles): ?>
-            <div>Роли не назначены</div><?php endif; ?>
-      </section>
-      <section class="profile-card">
-          
-
-              <h2>Доступные разделы</h2>
-        <div class="profile-access">
-          <?php foreach ($access as $label): ?><span><?= $e($label) ?></span><?php endforeach; ?></div>
-        <?php if (!$access): ?>
-            <div>Разделы не назначены</div><?php endif; ?>
-      </section>
+    <div class="profile-heading">
+      <h1>Мой профиль</h1>
     </div>
+
+    <section class="profile-panel">
+      <div class="profile-summary">
+        <div class="profile-avatar" aria-hidden="true"><?= $e($initials) ?></div>
+        <div>
+          <div class="profile-name"><?= $e($name) ?></div>
+          <div class="profile-login"><?= $e($profile['username']) ?></div>
+        </div>
+        <span class="profile-status<?= $isActive ? '' : ' profile-status--disabled' ?>"><?= $isActive ? 'Активен' : 'Отключён' ?></span>
+      </div>
+
+      <div class="profile-sections">
+        <section class="profile-section">
+          <h2>Учётная запись</h2>
+          <dl class="profile-data">
+            <?php foreach (['Имя' => $profile['display_name'], 'Логин' => $profile['username'], 'Электронная почта' => $profile['email']] as $label => $value): ?>
+              <div class="profile-data-row"><dt><?= $e($label) ?></dt><dd><?= $e($value !== null && $value !== '' ? $value : 'Не указано') ?></dd></div>
+            <?php endforeach; ?>
+          </dl>
+        </section>
+
+        <section class="profile-section">
+          <h2>Организации</h2>
+          <?php foreach ($organizations as $organization): ?>
+            <div class="profile-item">
+              <?= $e($organization['name']) ?>
+              <small><?= $e($organization['code']) ?><?= (int) $organization['id'] === $organizationId ? ' · Текущая организация' : '' ?><?= !empty($organization['is_primary']) ? ' · Основная' : '' ?></small>
+            </div>
+          <?php endforeach; ?>
+          <?php if (!$organizations): ?><div class="profile-empty">Организации не назначены</div><?php endif; ?>
+        </section>
+
+        <section class="profile-section">
+          <h2>Роли</h2>
+          <?php foreach ($roles as $role): ?>
+            <div class="profile-item">
+              <?= $e($role['name']) ?>
+              <small><?= $e($role['code']) ?><?= !empty($role['description']) ? ' · ' . $e($role['description']) : '' ?></small>
+            </div>
+          <?php endforeach; ?>
+          <?php if (!$roles): ?><div class="profile-empty">Роли не назначены</div><?php endif; ?>
+        </section>
+
+        <section class="profile-section">
+          <h2>Доступные разделы</h2>
+          <div class="profile-access">
+            <?php foreach ($access as $label): ?><span><?= $e($label) ?></span><?php endforeach; ?>
+          </div>
+          <?php if (!$access): ?><div class="profile-empty">Разделы не назначены</div><?php endif; ?>
+        </section>
+      </div>
+    </section>
   </main>
 </body>
 

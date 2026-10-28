@@ -7,7 +7,7 @@ use App\Database\DbInterface;
 
 final class ReportService
 {
-    public function __construct(private DbInterface $db, private OrganizationService $organizations) {}
+    public function __construct(private DbInterface $db, private Organizations $organizations) {}
 
     /** Даты последних справок по типам. */
     public function getLatestDtsByType(?string $dt = null, ?array $types = null): array

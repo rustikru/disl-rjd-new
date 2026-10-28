@@ -2,19 +2,24 @@
 
 namespace App;
 
+use App\Excel\ExcelStyle;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use Psr\Http\Message\ResponseInterface as Response;
 
-class ExcelExporter
+class ExcelExport
 {
     /**
-     * 1. Универсальный экспорт плоских массивов (детализации)
-     * Полностью совместим с PHP 8.1+ и PHP 8.3/8.4+ (без депрекейшнов инкремента)
+     * Универсальный экспорт детализированных таблиц 
      */
-    public static function download(Response $response, array $cols, array $rows, string $filename = 'export'): Response
-    {
+    public static function download(
+        Response $response,
+        array $cols,
+        array $rows,
+        string $filename = 'export',
+        string $tableType = 'detail'
+    ): Response {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Детализация');
@@ -26,9 +31,6 @@ class ExcelExporter
             $sheet->setCellValue($colLetter . '1', $c['label'] ?? $c['title'] ?? '');
             $colIdx++;
         }
-
-        $highestColumn = $sheet->getHighestColumn();
-        $sheet->getStyle("A1:{$highestColumn}1")->getFont()->setBold(true);
 
         // Данные
         $rowIdx = 2;
@@ -50,11 +52,16 @@ class ExcelExporter
             $rowIdx++;
         }
 
+        if ($tableType === 'summary') {
+            ExcelStyle::applySummaryTable($sheet, count($cols));
+        } else {
+            ExcelStyle::applyDetailTable($sheet, count($cols));
+        }
         return self::outputStream($response, $spreadsheet, $filename);
     }
 
     /**
-     * 2. Экспорт сложных матричных таблиц (двухуровневые шахматки дашборда)
+     * 2. Экспорт матричных таблиц (двухуровневые шахматки дашборда)
      */
     public static function downloadMatrix(
         Response $response,
@@ -63,8 +70,7 @@ class ExcelExporter
         string $filename = 'matrix',
         array $groupCols = [],
         array $flatCols = []
-    ): Response
-    {
+    ): Response {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Сводная аналитика');
@@ -110,10 +116,8 @@ class ExcelExporter
             }
         }
 
-        $highestColumn = $sheet->getHighestColumn();
-        $sheet->getStyle("A1:{$highestColumn}2")->getFont()->setBold(true);
-        $sheet->getStyle("A1:{$highestColumn}2")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle("A1:{$highestColumn}2")->getAlignment()->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER);
+        $matrixColumnCount = max(1, $currentColIdx - 1);
+        ExcelStyle::applyMatrixHeader($sheet, $matrixColumnCount);
 
         // Наполнение данными (Дороги + вложенные Станции)
         $rowIdx = 3;
@@ -131,7 +135,7 @@ class ExcelExporter
                 ['stations', 'total', 'grand_total']
             );
             $sheet->setCellValue('A' . $rowIdx, $roadName);
-            $sheet->getStyle('A' . $rowIdx)->getFont()->setBold(true);
+            ExcelStyle::applyMatrixGroupRow($sheet, $rowIdx);
 
             $totals = $road['total'] ?? [];
             $colIdx = 2;
@@ -174,12 +178,13 @@ class ExcelExporter
             }
         }
 
+        ExcelStyle::applyMatrixColumns($sheet, $matrixColumnCount);
         return self::outputStream($response, $spreadsheet, $filename);
     }
 
     /**
      * Возвращает значение измерения по переданному ключу, затем по совместимым
-     * именам и, для старых клиентов, по первому скалярному полю строки.
+     * именам, затем по первому попавшемуся значению, игнорируя пустые строки и массивы.
      */
     private static function dimensionValue(
         array $row,
@@ -204,15 +209,10 @@ class ExcelExporter
     }
 
     /**
-     * Вспомогательный метод безопасной отдачи потока по стандарту RFC 5987 (для кириллицы)
+     * Выводит Excel-файл в поток 
      */
     private static function outputStream(Response $response, Spreadsheet $spreadsheet, string $filename): Response
     {
-        $highestColumn = $sheet = $spreadsheet->getActiveSheet()->getHighestColumn();
-        foreach (range('A', $highestColumn) as $col) {
-            $spreadsheet->getActiveSheet()->getColumnDimension($col)->setAutoSize(true);
-        }
-
         $fullFilename = $filename . '_' . date('Y-m-d') . '.xlsx';
         $fallbackFilename = 'report_' . date('Y-m-d') . '.xlsx';
         $fallbackFilename = preg_replace('/[^A-Za-z0-9_\-.]/', '_', $fallbackFilename);

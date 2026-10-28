@@ -4,6 +4,7 @@ $activeAdminPage = $activeAdminPage ?? '';
 $adminNavItems = [
     ['key' => 'users', 'label' => 'Пользователи', 'url' => $basePath . '/admin/users'],
     ['key' => 'roles', 'label' => 'Роли',         'url' => $basePath . '/admin/roles'],
+    ['key' => 'report-mailings', 'label' => 'Рассылки', 'url' => $basePath . '/admin/report-mailings'],
     ['key' => 'organizations', 'label' => 'Организации',          'url' => $basePath . '/admin/directories/organizations'],
 ];
 

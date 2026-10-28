@@ -5,9 +5,9 @@ namespace App\Services;
 
 use App\Database\DbInterface;
 
-final class WagonMovementService
+final class WagonMovement
 {
-    public function __construct(private DbInterface $db, private OrganizationService $organizations) {}
+    public function __construct(private DbInterface $db, private Organizations $organizations) {}
 
     public function rows(string $number): array
     {

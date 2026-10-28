@@ -4,8 +4,8 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Database\DbInterface;
-use App\Services\OrganizationService;
-use App\Services\DirectoryAccessService;
+use App\Services\Organizations;
+use App\Services\DirectoryAccess;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -34,10 +34,10 @@ class ProfileController
         $pages = $this->db->fetchAll(
             'SELECT DISTINCT p.page FROM xx_rjd_role_pages p JOIN xx_rjd_user_roles ur ON ur.role_id = p.role_id WHERE ur.user_id = :id', ['id' => $id]
         );
-        $allowed = DirectoryAccessService::expandPages(array_column($pages, 'page'));
+        $allowed = DirectoryAccess::expandPages(array_column($pages, 'page'));
         $isAdmin = !empty($user['is_admin']) || in_array('ADMIN', array_column($roles, 'code'), true);
         $access = $isAdmin ? array_values(AdminController::PAGES) : array_values(array_intersect_key(AdminController::PAGES, array_flip($allowed)));
-        $organizationService = new OrganizationService($this->db);
+        $organizationService = new Organizations($this->db);
         $organizations = $organizationService->organizations();
         $organizationId = $organizationService->id();
         $basePath = $this->config['base_path'] ?? '';

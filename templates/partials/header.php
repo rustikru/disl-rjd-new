@@ -55,6 +55,7 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
           </summary>
           <div class="user-menu-panel">
             <a href="<?= htmlspecialchars($basePath) ?>/profile">Мой профиль</a>
+            <a href="<?= htmlspecialchars($basePath) ?>/profile/report-mailings">Рассылка отчётов</a>
             <form method="POST" action="<?= htmlspecialchars($basePath) ?>/logout">
               <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
               <button type="submit">Выйти</button>

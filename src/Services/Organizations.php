@@ -5,7 +5,7 @@ namespace App\Services;
 
 use App\Database\DbInterface;
 
-final class OrganizationService
+final class Organizations
 {
     private DbInterface $db;
     private ?int $fixedId;

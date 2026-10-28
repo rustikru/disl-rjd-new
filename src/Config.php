@@ -21,10 +21,18 @@ $bool = static function (mixed $value): bool {
     return in_array(strtolower((string) $value), ['1', 'true', 'yes', 'on'], true);
 };
 
+$appTimezone = (string) ($config['app_timezone'] ?? 'Asia/Yekaterinburg');
+try {
+    date_default_timezone_set($appTimezone);
+} catch (\Throwable $error) {
+    throw new RuntimeException('Некорректная часовая зона app_timezone: ' . $appTimezone, 0, $error);
+}
+
 return [
     'app_env' => (string) ($config['app_env'] ?? 'development'),
     'app_debug' => $bool($config['app_debug'] ?? false),
     'app_name' => (string) ($config['app_name'] ?? 'Дислокация РЖД'),
+    'app_timezone' => $appTimezone,
 
     'db_host' => (string) ($config['db_host'] ?? 'localhost'),
     'db_port' => (string) ($config['db_port'] ?? '1521'),
@@ -44,6 +52,16 @@ return [
     'kerberos_local_username' => (string) ($config['kerberos_local_username'] ?? 'administrator'),
     'kerberos_strip_realm' => $bool($config['kerberos_strip_realm'] ?? true),
     'kerberos_auto_create_user' => $bool($config['kerberos_auto_create_user'] ?? true),
+
+    'report_mail_enabled' => $bool($config['report_mail_enabled'] ?? false),
+    'mail_mode' => (string) ($config['mail_mode'] ?? 'file'),
+    'report_storage_dir' => (string) ($config['report_storage_dir'] ?? (__DIR__ . '/../tmp')),
+    'report_mail_memory_limit' => (string) ($config['report_mail_memory_limit'] ?? '512M'),
+    'report_mail_sender' => (string) ($config['report_mail_sender'] ?? 'noreply@metafrax.ru'),
+    'report_mail_oracle_package' => (string) ($config['report_mail_oracle_package'] ?? 'XX_RJD_DISLOCATION_NEW_PKG'),
+    'password_reset_enabled' => $bool($config['password_reset_enabled'] ?? true),
+    'password_reset_ttl_minutes' => (int) ($config['password_reset_ttl_minutes'] ?? 30),
+    'password_reset_storage_dir' => (string) ($config['password_reset_storage_dir'] ?? (__DIR__ . '/../tmp/password-reset')),
 
     'auth_log_file' => (string) ($config['auth_log_file'] ?? '/tmp/auth_debug.log'),
     'ldap_log_file' => (string) ($config['ldap_log_file'] ?? '/tmp/ldap_debug.log'),
