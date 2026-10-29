@@ -12,11 +12,14 @@ final class SettingsController
 
     public function page(ServerRequestInterface $request, ResponseInterface $response, bool $visibility = false): ResponseInterface
     {
-        if (empty($_SESSION['user']['is_super'])) {
+        if (!\App\Services\Authorization::isSuper()) {
             return $response->withStatus(403);
         }
         $file = dirname(__DIR__, 2) . '/rjd_config.php';
-        $values = require $file;
+        $storedValues = require $file;
+        if (!is_array($storedValues)) throw new \RuntimeException('Файл настроек должен возвращать массив.');
+        $definitions = \App\Services\ConfigSchema::definitions();
+        $values = \App\Services\ConfigSchema::normalize($storedValues, false);
         $error = null;
         $success = null;
         if ($request->getMethod() === 'POST') {
@@ -28,19 +31,11 @@ final class SettingsController
                 $updated = $values;
                 if ($visibility) {
                     $enabled = array_filter((array) ($body['enabled'] ?? []), 'is_string');
-                    $disabled = array_diff(array_keys(PageRegistry::PAGES), $enabled);
+                    $disabled = array_diff(array_keys(PageRegistry::labels()), $enabled);
                     $custom = preg_split('/\R/', (string) ($body['custom'] ?? ''), -1, PREG_SPLIT_NO_EMPTY);
-                    $updated['disabled_pages'] = array_values(array_unique(array_filter(array_map('trim', array_merge(array_keys(array_intersect_key(PageRegistry::PAGES, array_flip($disabled))), $custom)))));
+                    $updated['disabled_pages'] = array_values(array_unique(array_filter(array_map('trim', array_merge(array_keys(array_intersect_key(PageRegistry::labels(), array_flip($disabled))), $custom)))));
                 } else {
-                    foreach ($values as $key => $value) {
-                        if ($key === 'disabled_pages') continue;
-                        $input = (string) ($body['settings'][$key] ?? '');
-                        if (in_array($key, \App\Services\ProjectPath::SETTINGS, true)) \App\Services\ProjectPath::resolve($input);
-                        if ($key === 'db_pass' && $input === '') continue;
-                        $updated[$key] = is_bool($value) ? $input === '1' : (is_int($value) ? filter_var($input, FILTER_VALIDATE_INT) : $input);
-                        if (is_int($value) && $updated[$key] === false) throw new \RuntimeException('Требуется целое число: ' . $key);
-                    }
-                    if (!in_array($updated['app_timezone'], \DateTimeZone::listIdentifiers(), true)) throw new \RuntimeException('Некорректная часовая зона.');
+                    $updated = \App\Services\ConfigSchema::normalizeForStorage((array)($body['settings'] ?? []), $values);
                 }
                 $source = "<?php\ndeclare(strict_types=1);\n\nreturn " . var_export($updated, true) . ";\n";
                 $temp = tempnam(dirname($file), '.config-');

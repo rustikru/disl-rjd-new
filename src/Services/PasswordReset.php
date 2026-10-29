@@ -44,7 +44,7 @@ final class PasswordReset
 
         $token = bin2hex(random_bytes(32));
         $tokenHash = hash('sha256', $token);
-        $ttlMinutes = max(5, min(1440, (int) ($this->config['password_reset_ttl_minutes'] ?? 30)));
+        $ttlMinutes = (int) $this->config['password_reset_ttl_minutes'];
 
         $this->db->beginTransaction();
         try {
@@ -134,7 +134,7 @@ final class PasswordReset
 
     private function saveOrSendMessage(array $user, string $resetUrl, int $ttlMinutes): void
     {
-        $mode = (string) ($this->config['mail_mode'] ?? 'file');
+        $mode = (string) $this->config['mail_mode'];
         if (!in_array($mode, ['file', 'oracle'], true)) {
             throw new \RuntimeException('Режим mail_mode должен быть file или oracle');
         }

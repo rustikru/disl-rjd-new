@@ -6,7 +6,7 @@ use App\Database\DbInterface;
 
 final class SessionRegistry
 {
-    public function __construct(private DbInterface $db) {}
+    public function __construct(private DbInterface $db, private int $lifetime) {}
 
     public function touch(string $id, array $user, string $ip, string $agent): bool
     {
@@ -23,7 +23,7 @@ final class SessionRegistry
 
     public function active(): array
     {
-        $rows = $this->db->fetchAll('SELECT session_key, user_id, username, display_name, ip, agent, started, seen FROM xx_rjd_sessions WHERE revoked = 0 AND seen > :cutoff ORDER BY seen DESC', ['cutoff'=>time()-28800]);
+        $rows = $this->db->fetchAll('SELECT session_key, user_id, username, display_name, ip, agent, started, seen FROM xx_rjd_sessions WHERE revoked = 0 AND seen > :cutoff ORDER BY seen DESC', ['cutoff'=>time()-$this->lifetime]);
         $result = [];
         foreach ($rows as $row) {
             $row['name'] = $row['display_name'] ?? '';

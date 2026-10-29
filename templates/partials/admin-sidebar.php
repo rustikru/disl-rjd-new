@@ -1,34 +1,16 @@
 <?php
 $activeAdminPage = $activeAdminPage ?? '';
 $adminUser = $user ?? ($_SESSION['user'] ?? []);
-$isSuperAdmin = !empty($adminUser['is_super']);
+$isSuperAdmin = \App\Services\Authorization::isSuper($adminUser);
+$sidebarAvailability = new \App\Services\PageAvailability((array)(\App\Services\ConfigSchema::current()['disabled_pages']??[]));
 
-$adminNavGroups = ['Пользователи и доступ' => [
-    ['key' => 'users', 'label' => 'Пользователи', 'url' => $basePath . '/admin/users'],
-    ['key' => 'roles', 'label' => 'Роли',         'url' => $basePath . '/admin/roles'],
-], 'Справочники' => [
-    ['key' => 'organizations', 'label' => 'Организации', 'url' => $basePath . '/admin/directories/organizations'],
-]];
-
-if ($isSuperAdmin) {
-    $adminNavGroups['Настройки системы'] = [
-        ['key' => 'settings', 'label' => 'Настройки приложения', 'url' => $basePath . '/admin/settings'],
-        ['key' => 'visibility', 'label' => 'Видимость страниц', 'url' => $basePath . '/admin/page-visibility'],
-    ];
-    $adminNavGroups['Рассылки'] = [[
-        'key' => 'report-mailings',
-        'label' => 'Рассылки',
-        'url' => $basePath . '/admin/report-mailings',
-    ]];
-    $adminNavGroups['Контроль и обслуживание'] = [
-        ['key' => 'sessions', 'label' => 'Активные сессии', 'url' => $basePath . '/admin/sessions'],
-        [
-        'key' => 'audit',
-        'label' => 'Журнал действий',
-        'url' => $basePath . '/admin/audit',
-        ],
-    ];
+$adminNavGroups = [];
+foreach (\App\Services\PageRegistry::all() as $key => $definition) {
+    $item = $definition['admin_navigation'] ?? null;
+    if (!$item || $sidebarAvailability->isDisabled('admin') || $sidebarAvailability->isDisabled($key) || ((!empty($definition['super_only']) || !empty($item['super_only'])) && !$isSuperAdmin)) continue;
+    $adminNavGroups[$item['group']][] = ['key'=>$item['active_key']??$key,'label'=>$item['label']??$definition['label'],'url'=>$basePath.$item['url'],'order'=>(int)($item['order']??0)];
 }
+foreach ($adminNavGroups as &$items) { usort($items, static fn(array $a,array $b): int => $a['order'] <=> $b['order']); } unset($items);
 
 
 ?>

@@ -91,7 +91,7 @@ final class MailingController
     public function adminRun(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $form = (array) $request->getParsedBody();
-        if (empty($_SESSION['user']['is_super']) || !$this->validCsrf($form)) {
+        if (!\App\Services\Authorization::isSuper() || !$this->validCsrf($form)) {
             return $this->adminRedirect($response, 'err', 'Недостаточно прав или сессия устарела');
         }
         $mailingService = new MailingService($this->db);
@@ -101,7 +101,7 @@ final class MailingController
         }
         $runId = $mailingService->startRun(
             (int) $mailing['id'],
-            (string) ($this->config['mail_mode'] ?? 'file'),
+            (string) $this->config['mail_mode'],
             (string) $mailing['recipients']
         );
         try {
@@ -126,7 +126,7 @@ final class MailingController
     public function adminSetActive(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $form = (array) $request->getParsedBody();
-        if (empty($_SESSION['user']['is_super']) || !$this->validCsrf($form)) {
+        if (!\App\Services\Authorization::isSuper() || !$this->validCsrf($form)) {
             return $this->adminRedirect($response, 'err', 'Недостаточно прав или сессия устарела');
         }
         $active = (int) ($form['is_active'] ?? 0) === 1;
@@ -152,7 +152,7 @@ final class MailingController
     // Отобразить страницу управления рассылками
     public function adminPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (empty($_SESSION['user']['is_super'])) {
+        if (!\App\Services\Authorization::isSuper()) {
             $response->getBody()->write('Недостаточно прав');
             return $response->withStatus(403);
         }
@@ -293,7 +293,7 @@ final class MailingController
         }
         $runId = $mailingService->startRun(
             (int) $mailing['id'],
-            (string) ($this->config['mail_mode'] ?? 'file'),
+            (string) $this->config['mail_mode'],
             (string) $mailing['recipients']
         );
         try {

@@ -15,9 +15,10 @@ return function (App $app, array $config): void {
     };
     $app->add(new \App\Middleware\SessionMiddleware(
         $config['session_name'],
-        (bool) ($config['session_cookie_secure'] ?? true),
+        (bool) $config['session_cookie_secure'],
         $config['base_path'] ?? '',
-        $getDb
+        $getDb,
+        (int) $config['session_lifetime_seconds']
     ));
 
     $getAuth = function () use ($config, &$auth, $getDb) {
@@ -80,7 +81,7 @@ return function (App $app, array $config): void {
             isset($currentUser['id']) ? (int) $currentUser['id'] : null,
             (string) ($currentUser['username'] ?? '')
         );
-        (new \App\Services\SessionRegistry($getDb()))->revoke(hash('sha256', session_id()));
+        (new \App\Services\SessionRegistry($getDb(), (int)$config['session_lifetime_seconds']))->revoke(hash('sha256', session_id()));
         session_destroy();
         return $res->withHeader('Location', ($config['base_path'] ?? '') . '/login')->withStatus(302);
     });
@@ -342,120 +343,23 @@ return function (App $app, array $config): void {
                 return (new \App\Controllers\ImportController($getDb(), $config))->handleUploadJson($req, $res);
             });
 
-            // --- Дислокация РЖД ---
-            $api->group('/dislocation', function ($sub) use ($getDb) {
-                $sub->get('/filters', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->dislFilters($req, $res);
-                });
-                $sub->get('/summary', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->dislSummary($req, $res);
-                });
-                $sub->get('/detail', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->dislDetail($req, $res);
-                });
-            });
-
-            // --- Подход (сводная) ---
-            $api->group('/approach', function ($sub) use ($getDb) {
-                $sub->get('/filters', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->approachFilters($req, $res);
-                });
-                $sub->get('/summary', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->approachSummary($req, $res);
-                });
-                $sub->get('/detail', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->approachDetail($req, $res);
-                });
-
-            });
-
-            // --- Отправление ---
-            $api->group('/departure', function ($sub) use ($getDb) {
-                $sub->get('/filters', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->departureFilters($req, $res);
-                });
-                $sub->get('/summary', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->departureSummary($req, $res);
-                });
-                $sub->get('/detail', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->departureDetail($req, $res);
-                });
-
-            });
-
-            // --- Погрузка ---
-            $api->group('/loading', function ($sub) use ($getDb) {
-                $sub->get('/filters', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->loadingFilters($req, $res);
-                });
-                $sub->get('/summary', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->loadingSummary($req, $res);
-                });
-                $sub->get('/detail', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->loadingDetail($req, $res);
-                });
-            });
-
-            // --- Простои ---
-            $api->group('/downtime', function ($sub) use ($getDb) {
-                $sub->get('/filters', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->downtimeFilters($req, $res);
-                });
-                $sub->get('/summary', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->downtimeSummary($req, $res);
-                });
-                $sub->get('/detail', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->downtimeDetail($req, $res);
-                });
-            });
-
-            // --- Контроль простоев ---
-            $api->get('/downtime-control/detail', function ($req, $res) use ($getDb) {
-                return (new \App\Controllers\ApiController($getDb()))->downtimeControlDetail($req, $res);
-            });
-
-            // --- Сырьё ---
-            $api->group('/raw-material', function ($sub) use ($getDb) {
-                $sub->get('/summary', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->rawSummary($req, $res);
-                });
-                $sub->get('/detail', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->rawDetail($req, $res);
-                });
-            });
-
-            // --- Техническое состояние ---
-            $api->group('/technical-state', function ($sub) use ($getDb) {
-                $sub->get('/filters', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->technicalFilters($req, $res);
-                });
-                $sub->get('/detail', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->technicalDetail($req, $res);
-                });
-            });
-
-            // --- Претензии ---
-            $api->group('/claims', function ($sub) use ($getDb) {
-                $sub->get('/filters', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->claimsFilters($req, $res);
-                });
-                $sub->get('/summary', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->claimsSummary($req, $res);
-                });
-                $sub->get('/detail', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->claimsDetail($req, $res);
-                });
-            });
-
-            // --- Анализ за период ---
-            $api->group('/analysis', function ($sub) use ($getDb) {
-                $sub->get('/filters', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->analysisFilters($req, $res);
-                });
-                $sub->get('/period/detail', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->analysisPeriod($req, $res);
-                });
-            });
+            // Отчётные GET-маршруты регистрируются из единого ReportConfig.
+            foreach (\App\Reports\ReportConfig::all() as $reportCode=>$definition) {
+                foreach ((array)($definition['api_handlers']??[]) as $kind=>$method) {
+                    $endpoint=$definition[$kind.'_endpoint']??null;
+                    if(!$endpoint) continue;
+                    $path=substr((string)$endpoint,4); // убрать /api
+                    $api->get($path,function($req,$res) use($getDb,$method,$reportCode,$kind){
+                        try {
+                            \App\Reports\ReportConfig::validateFilters($reportCode,$req->getQueryParams(),$kind!=='filters');
+                        } catch (\InvalidArgumentException $error) {
+                            $res->getBody()->write(json_encode(['status'=>'error','message'=>$error->getMessage()],JSON_UNESCAPED_UNICODE));
+                            return $res->withStatus(422)->withHeader('Content-Type','application/json; charset=utf-8');
+                        }
+                        return (new \App\Controllers\ApiController($getDb()))->{$method}($req,$res);
+                    });
+                }
+            }
             // --- Карточки KPI ---
             $api->group('/kpi', function ($sub) use ($getDb) {
                 $sub->get('/summary', function ($req, $res) use ($getDb) {

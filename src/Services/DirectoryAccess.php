@@ -13,20 +13,17 @@ final class DirectoryAccess
 
     public static function expandPages(array $pages): array
     {
-        if (in_array('directories_edit', $pages, true)) {
-            $pages[] = 'directories';
-        }
-        return array_values(array_unique($pages));
+        return PageRegistry::expandPermissions($pages);
     }
 
     public function canView(): bool
     {
-        return !empty($_SESSION['user']['is_admin']) || in_array('directories', $this->pages(), true);
+        return Authorization::isAdmin() || in_array('directories', $this->pages(), true);
     }
 
     public function canEdit(): bool
     {
-        return !empty($_SESSION['user']['is_admin']) || in_array('directories_edit', $this->pages(), true);
+        return Authorization::isAdmin() || in_array('directories_edit', $this->pages(), true);
     }
 
     private function pages(): array

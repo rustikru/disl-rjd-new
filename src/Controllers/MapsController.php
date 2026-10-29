@@ -72,7 +72,7 @@ class MapsController
             try {
                 $reportDate = new \DateTimeImmutable($dt);
                 $reportDtLabel = $reportDate->format('d.m.Y H:i:s');
-                $staleHours = max(1, (int) ($this->config['dislocation_stale_hours'] ?? 8));
+                $staleHours = (int) $this->config['dislocation_stale_hours'];
                 $reportIsStale = $reportDate < (new \DateTimeImmutable('now'))->modify("-{$staleHours} hours");
             } catch (\Exception $e) {
                 $reportDtLabel = $dt;

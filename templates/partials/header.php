@@ -54,8 +54,9 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
             <svg class="user-menu-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
           </summary>
           <div class="user-menu-panel">
-            <a href="<?= htmlspecialchars($basePath) ?>/profile">Мой профиль</a>
-            <a href="<?= htmlspecialchars($basePath) ?>/profile/report-mailings">Рассылка отчётов</a>
+            <?php $userMenu=[]; $headerAvailability=new \App\Services\PageAvailability((array)(\App\Services\ConfigSchema::current()['disabled_pages']??[])); foreach (\App\Services\PageRegistry::all() as $pageCode=>$pageDefinition) { if (!empty($pageDefinition['user_menu']) && !$headerAvailability->isDisabled($pageCode)) $userMenu[]=$pageDefinition['user_menu']+['page'=>$pageCode]; } usort($userMenu,static fn($a,$b)=>($a['order']??0)<=>($b['order']??0)); foreach($userMenu as $menuItem): ?>
+            <a href="<?= htmlspecialchars($basePath . $menuItem['url']) ?>"><?= htmlspecialchars($menuItem['label']) ?></a>
+            <?php endforeach; ?>
             <form method="POST" action="<?= htmlspecialchars($basePath) ?>/logout">
               <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
               <button type="submit">Выйти</button>

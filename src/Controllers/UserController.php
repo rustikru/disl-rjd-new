@@ -52,10 +52,14 @@ final class UserController
             ['id' => $id]
         );
         $allowed = DirectoryAccess::expandPages(array_column($pages, 'page'));
-        $isAdmin = !empty($user['is_admin']) || in_array('ADMIN', array_column($roles, 'code'), true);
+        $isSuper = \App\Services\Authorization::isSuper($user);
+        $isAdmin = $isSuper || \App\Services\Authorization::isAdmin($user) || in_array(\App\Services\Authorization::ADMIN, array_column($roles, 'code'), true);
+        $administrativeAccess = $isSuper
+            ? array_keys(\App\Services\PageRegistry::labels())
+            : \App\Services\PageRegistry::adminPermissions();
         $access = $isAdmin
-            ? array_values(AdminController::PAGES)
-            : array_values(array_intersect_key(AdminController::PAGES, array_flip($allowed)));
+            ? array_values(array_intersect_key(\App\Services\PageRegistry::labels(), array_flip($administrativeAccess)))
+            : array_values(array_intersect_key(\App\Services\PageRegistry::labels(), array_flip($allowed)));
         $organizations = $this->organizations->organizations();
         $organizationId = $this->organizations->id();
         $basePath = $this->config['base_path'] ?? '';

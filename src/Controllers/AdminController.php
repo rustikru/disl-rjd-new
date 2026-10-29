@@ -14,15 +14,6 @@ class AdminController
     private DbInterface $db;
     private array $config;
 
-    public const PAGES = [
-        'dashboard' => 'Дашборд',
-        'maps'      => 'Карта',
-        'import'    => 'Загрузка справок',
-        'admin'     => 'Администрирование',
-        'directories' => 'Просмотр справочников',
-        'directories_edit' => 'Ведение справочников',
-    ];
-
     public function directoriesPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         if (!(new \App\Services\DirectoryAccess($this->db))->canView()) {
@@ -299,7 +290,7 @@ class AdminController
             $rolePages[(int) $rp['role_id']][$rp['page']] = true;
         }
 
-        $pages = self::PAGES;
+        $pages = \App\Services\PageRegistry::labels();
 
         $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
@@ -348,7 +339,7 @@ class AdminController
             return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
         }
         $selectedPages = ($role['code'] ?? '') === 'ADMIN'
-            ? array_keys(self::PAGES)
+            ? \App\Services\PageRegistry::adminPermissions()
             : array_column($this->db->fetchAll(
                 'SELECT page FROM xx_rjd_role_pages WHERE role_id = :id',
                 ['id' => (int) $role['id']]
@@ -386,7 +377,7 @@ class AdminController
         bool $isNewRole,
         bool $isViewOnly
     ): ResponseInterface {
-        $pages = self::PAGES;
+        $pages = \App\Services\PageRegistry::labels();
         $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
         $user = $_SESSION['user'] ?? [];
@@ -1525,7 +1516,7 @@ class AdminController
     private function savePages(int $roleId, array $pages): void
     {
         foreach ($pages as $page) {
-            if (!isset(self::PAGES[$page])) {
+            if (!isset(\App\Services\PageRegistry::labels()[$page])) {
                 continue;
             }
             $this->db->execute(
@@ -1583,7 +1574,7 @@ class AdminController
     private function isAdmin(): bool
     {
         $u = $_SESSION['user'] ?? [];
-        if ($u['is_admin'] ?? false) {
+        if (\App\Services\Authorization::isAdmin($u)) {
             return true;
         }
 
@@ -1602,7 +1593,7 @@ class AdminController
 
     private function isSuper(): bool
     {
-        return !empty($_SESSION['user']['is_super']);
+        return \App\Services\Authorization::isSuper();
     }
 
     private function canManageUser(int $userId): bool

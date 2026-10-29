@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Конфигурация отчётов</title>
+    <link rel="stylesheet" href="/assets/css/app.css" />
+  </head>
+  <body>
+    <!-- Общие header и admin-sidebar проекта -->
+    <main class="main-content report-config-editor">
+      <header class="ui-page-head">
+        <div>
+          <h1>Конфигурация отчётов</h1>
+          <p>Опубликована версия 12 · черновик 13 · изменён 29.10.2026</p>
+        </div>
+        <div class="ui-actions">
+          <button type="button" class="btn btn-ghost">Проверить</button>
+          <button type="button" class="btn btn-ghost">Предпросмотр</button>
+          <button type="button" class="btn btn-primary">Опубликовать</button>
+        </div>
+      </header>
+
+      <nav class="ui-tabs" aria-label="Раздел конфигурации">
+        <a class="is-active" href="?tab=reports">Отчёты</a>
+        <a href="?tab=source-columns">Исходные колонки</a>
+        <a href="?tab=history">История</a>
+      </nav>
+
+      <div class="config-layout">
+        <aside class="ui-card config-list">
+          <div class="ui-card-head">
+            <strong>Отчёты</strong>
+            <a class="btn btn-small" href="/admin/report-config/reports/new"
+              >Добавить</a
+            >
+          </div>
+          <div class="ui-card-body">
+            <label class="ui-field">
+              <span>Поиск</span>
+              <input type="search" placeholder="Код или название" />
+            </label>
+            <ol class="sortable-list">
+              <li class="is-active">
+                <a href="?report=dislocation"
+                  >Дислокация <code>dislocation</code></a
+                >
+              </li>
+              <li>
+                <a href="?report=approach"
+                  >Подход вагонов <code>approach</code></a
+                >
+              </li>
+              <li class="has-error">
+                <a href="?report=downtime">Простои <code>downtime</code></a>
+              </li>
+            </ol>
+          </div>
+        </aside>
+
+        <form
+          class="ui-card config-form"
+          method="post"
+          action="/admin/report-config/reports/save"
+        >
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+          <input type="hidden" name="version_id" value="13" />
+          <input type="hidden" name="report_id" value="41" />
+
+          <div class="ui-card-head">
+            <div>
+              <strong>Дислокация</strong> <span class="badge">Черновик</span>
+            </div>
+            <button class="btn btn-primary" type="submit">
+              Сохранить черновик
+            </button>
+          </div>
+
+          <div class="ui-card-body">
+            <div class="validation-summary" role="alert" hidden>
+              <strong>Конфигурацию нельзя опубликовать</strong>
+              <ul>
+                <li>Endpoint детализации уже используется отчётом «Подход».</li>
+              </ul>
+            </div>
+
+            <nav class="ui-tabs" aria-label="Настройки отчёта">
+              <button type="button" class="is-active">Основное</button>
+              <button type="button">
+                Фильтры <span class="badge">6</span>
+              </button>
+              <button type="button">
+                Колонки <span class="badge">24</span>
+              </button>
+              <button type="button">Маршруты</button>
+            </nav>
+
+            <section class="config-section" aria-labelledby="general-title">
+              <h2 id="general-title">Основные настройки</h2>
+              <div class="ui-fields">
+                <label class="ui-field"
+                  ><span>Код</span
+                  ><input name="code" value="dislocation" readonly
+                /></label>
+                <label class="ui-field"
+                  ><span>Название</span
+                  ><input name="name" value="Общая дислокация" required
+                /></label>
+                <label class="ui-field"
+                  ><span>Группа меню</span>
+                  <select name="menu_group_code">
+                    <option value="movement">Движение вагонов</option>
+                  </select>
+                </label>
+                <label class="ui-field"
+                  ><span>Порядок</span
+                  ><input type="number" name="menu_order" value="10" min="0"
+                /></label>
+                <label class="ui-field"
+                  ><span>Обработчик</span>
+                  <select name="handler_code">
+                    <option value="dislocation">Dislocation handler</option>
+                  </select>
+                </label>
+                <label
+                  ><input type="checkbox" name="is_visible" value="1" checked />
+                  Показывать отчёт</label
+                >
+                <label
+                  ><input
+                    type="checkbox"
+                    name="is_export_enabled"
+                    value="1"
+                    checked
+                  />
+                  Разрешить экспорт</label
+                >
+                <label
+                  ><input
+                    type="checkbox"
+                    name="is_mailing_enabled"
+                    value="1"
+                    checked
+                  />
+                  Разрешить рассылку</label
+                >
+              </div>
+            </section>
+
+            <section class="config-section" aria-labelledby="filters-title">
+              <div class="section-head">
+                <h2 id="filters-title">Фильтры</h2>
+                <button type="button" class="btn btn-small">
+                  Добавить фильтр
+                </button>
+              </div>
+              <table class="ui-table">
+                <thead>
+                  <tr>
+                    <th>Порядок</th>
+                    <th>Код</th>
+                    <th>Подпись</th>
+                    <th>Тип</th>
+                    <th>Обязательный</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <button type="button" aria-label="Переместить">↕</button>
+                    </td>
+                    <td>
+                      <input name="filters[0][code]" value="station_id" />
+                    </td>
+                    <td><input name="filters[0][label]" value="Станция" /></td>
+                    <td>
+                      <select name="filters[0][type]">
+                        <option value="select">Список</option>
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        type="checkbox"
+                        name="filters[0][required]"
+                        value="1"
+                      />
+                    </td>
+                    <td>
+                      <button type="button" class="btn btn-danger">
+                        Удалить
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="config-section" aria-labelledby="columns-title">
+              <div class="section-head">
+                <h2 id="columns-title">Колонки отчёта</h2>
+                <button type="button" class="btn btn-small">
+                  Добавить колонку
+                </button>
+              </div>
+              <table class="ui-table">
+                <thead>
+                  <tr>
+                    <th>Порядок</th>
+                    <th>Колонка</th>
+                    <th>Подпись</th>
+                    <th>Формат</th>
+                    <th>Показывать</th>
+                    <th>Экспорт</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <input
+                        type="number"
+                        name="columns[0][order]"
+                        value="10"
+                      />
+                    </td>
+                    <td>
+                      <select name="columns[0][source_code]">
+                        <option value="wagon_no">Номер вагона</option>
+                      </select>
+                    </td>
+                    <td><input name="columns[0][label]" value="№ вагона" /></td>
+                    <td>
+                      <select name="columns[0][format]">
+                        <option value="text">Текст</option>
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        type="checkbox"
+                        name="columns[0][visible]"
+                        value="1"
+                        checked
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="checkbox"
+                        name="columns[0][exportable]"
+                        value="1"
+                        checked
+                      />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="config-section" aria-labelledby="routes-title">
+              <h2 id="routes-title">API-маршруты</h2>
+              <div class="ui-fields">
+                <label class="ui-field"
+                  ><span>Фильтры</span
+                  ><input
+                    name="filters_endpoint"
+                    value="/api/dislocation/filters"
+                /></label>
+                <label class="ui-field"
+                  ><span>Сводные данные</span
+                  ><input name="summary_endpoint" value="/api/dislocation"
+                /></label>
+                <label class="ui-field"
+                  ><span>Детализация</span
+                  ><input
+                    name="detail_endpoint"
+                    value="/api/dislocation/detail"
+                /></label>
+              </div>
+            </section>
+          </div>
+        </form>
+      </div>
+    </main>
+  </body>
+</html>

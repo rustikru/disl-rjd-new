@@ -30,7 +30,7 @@ final class MailingRun
         if (empty($this->config['report_mail_enabled'])) {
             throw new \RuntimeException('Формирование рассылок отключено в конфигурации');
         }
-        $mode = (string) ($this->config['mail_mode'] ?? 'file');
+        $mode = (string) $this->config['mail_mode'];
         if (!in_array($mode, ['file', 'oracle'], true)) {
             throw new \RuntimeException('Режим mail_mode должен быть file или oracle');
         }

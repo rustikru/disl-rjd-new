@@ -33,7 +33,7 @@ class PageAccessMiddleware implements MiddlewareInterface
         }
 
         $settingsPath = substr($request->getUri()->getPath(), strlen(rtrim($this->basePath, '/')));
-        if (!empty($user['is_super']) && in_array($settingsPath, ['/admin/settings', '/admin/page-visibility'], true)) {
+        if (\App\Services\Authorization::isSuper($user) && in_array($settingsPath, ['/admin/settings', '/admin/page-visibility'], true)) {
             return $handler->handle($request);
         }
 
@@ -46,14 +46,14 @@ class PageAccessMiddleware implements MiddlewareInterface
             return $this->unavailable($request);
         }
 
-        $page = $this->resolvePage($request->getUri()->getPath());
+        $page = $this->resolvePage($request->getUri()->getPath(), $request->getQueryParams());
         if ($page === null) {
             // Путь не относится к разграничиваемым страницам — пропускаем
             return $handler->handle($request);
         }
 
         // Администратор — полный доступ
-        if ($user['is_admin'] ?? false) {
+        if (\App\Services\Authorization::isAdmin($user)) {
             return $handler->handle($request);
         }
 
@@ -76,40 +76,12 @@ class PageAccessMiddleware implements MiddlewareInterface
         return $this->deny($request, $page);
     }
 
-    private function resolvePage(string $path): ?string
+    private function resolvePage(string $path, array $query = []): ?string
     {
         if ($this->basePath !== '' && str_starts_with($path, $this->basePath)) {
             $path = substr($path, strlen($this->basePath));
         }
-        $path = '/' . ltrim($path, '/');
-
-        if ($path === '/' || $path === '' || $path === '/detail') {
-            // главная всегда доступна — вкладки фильтрует клиент, данные защищены через /api
-            return null;
-        }
-        if ($path === '/directories' || $path === '/directories/') {
-            return 'directories';
-        }
-        if (preg_match('~^/(?:admin/)?directories/(norms|stations)(/.*)?$~', $path, $match)) {
-            $action = $match[2] ?? '';
-            return in_array($action, ['/save', '/delete'], true) ? 'directories_edit' : 'directories';
-        }
-        if (str_starts_with($path, '/admin')) {
-            return 'admin';
-        }
-        if ($path === '/wagon') {
-            return 'dashboard';
-        }
-        if (str_starts_with($path, '/maps')) {
-            return 'maps';
-        }
-        if (str_starts_with($path, '/import') || str_starts_with($path, '/api/import')) {
-            return 'import';
-        }
-        if (str_starts_with($path, '/api')) {
-            return 'dashboard';
-        }
-        return null;
+        return \App\Services\PageRegistry::pageForPath($path, $query);
     }
 
     private function allowedPages(int $userId): array

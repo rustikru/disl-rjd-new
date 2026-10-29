@@ -11,20 +11,20 @@
 <section class="ui-card"><div class="ui-card-body"><div class="ui-fields">
 <?php if ($visibility): ?>
 <p class="ui-field--full">Отмеченные страницы доступны. Снимите галочку, чтобы отключить страницу для всех пользователей.</p>
-<?php $pageGroups = ['Основные разделы' => ['dashboard','maps','import','directories','directories_edit','profile'], 'Администрирование' => ['admin','users','roles','organizations','audit','report-mailings'], 'Отчёты' => array_diff(array_keys(\App\Services\PageRegistry::PAGES), ['dashboard','maps','import','directories','directories_edit','profile','admin','users','roles','organizations','audit','report-mailings'])]; foreach ($pageGroups as $section => $keys): ?>
+<?php $pageGroups = []; foreach (\App\Services\PageRegistry::all() as $key => $definition) { $pageGroups[$definition['visibility_group'] ?? 'Дополнительно'][] = $key; } foreach ($pageGroups as $section => $keys): ?>
 <h2 class="settings-section-title"><?= htmlspecialchars($section) ?></h2>
-<?php foreach ($keys as $key): $label = \App\Services\PageRegistry::PAGES[$key]; ?>
+<?php foreach ($keys as $key): $label = \App\Services\PageRegistry::labels()[$key]; ?>
 <label class="option"><input type="checkbox" name="enabled[]" value="<?= htmlspecialchars($key) ?>" <?= !in_array($key, $values['disabled_pages'] ?? [], true) ? 'checked' : '' ?>> <?= htmlspecialchars($label) ?></label>
 <?php endforeach; endforeach; ?>
-<div class="ui-field ui-field--full"><label>Дополнительно отключённые коды или пути, по одному на строку</label><textarea name="custom"><?= htmlspecialchars(implode("\n", array_diff($values['disabled_pages'] ?? [], array_keys(\App\Services\PageRegistry::PAGES)))) ?></textarea></div>
+<div class="ui-field ui-field--full"><label>Дополнительно отключённые пути, по одному на строку</label><textarea name="custom"><?= htmlspecialchars(implode("\n", array_diff($values['disabled_pages'] ?? [], array_keys(\App\Services\PageRegistry::labels())))) ?></textarea></div>
 <?php else:
-$sections = ['Приложение'=>['app_','base_path','dislocation_'],'База данных'=>['db_'],'LDAP'=>['ad_'],'Kerberos'=>['kerberos_'],'Почта и отчёты'=>['mail_','report_'],'Безопасность и сессии'=>['password_','session_'],'Журналирование'=>['auth_log','ldap_log']];
-$grouped = []; foreach ($values as $key => $value) { if ($key === 'disabled_pages') continue; $section = 'Дополнительно'; foreach ($sections as $name => $prefixes) { foreach ($prefixes as $prefix) { if (str_starts_with($key, $prefix)) { $section = $name; break 2; } } } $grouped[$section][$key] = $value; }
+$grouped = []; foreach ($definitions as $key => $definition) { if ($key === 'disabled_pages') continue; $grouped[$definition['section']][$key] = $values[$key]; }
 foreach ($grouped as $section => $settings): ?>
 <h2 class="settings-section-title"><?= htmlspecialchars($section) ?></h2>
-<?php foreach ($settings as $key => $value): ?>
+<?php foreach ($settings as $key => $value): $definition = $definitions[$key]; ?>
 <div class="ui-field"><label><?= htmlspecialchars($key) ?></label>
-<?php if (is_bool($value)): ?><select name="settings[<?= htmlspecialchars($key) ?>]"><option value="1" <?= $value ? 'selected' : '' ?>>Включено</option><option value="0" <?= !$value ? 'selected' : '' ?>>Выключено</option></select>
-<?php else: $secret = $key === 'db_pass'; ?><input type="<?= $secret ? 'password' : (is_int($value) ? 'number' : 'text') ?>" name="settings[<?= htmlspecialchars($key) ?>]" value="<?= $secret ? '' : htmlspecialchars((string) $value) ?>" <?= $secret ? 'placeholder="Оставьте пустым, чтобы сохранить" autocomplete="new-password"' : '' ?>><?php endif; ?><?php if (in_array($key, \App\Services\ProjectPath::SETTINGS, true)): ?><span class="ui-help">Путь от корня проекта. Для журнала укажите также имя файла.</span><?php endif; ?></div>
+<?php if ($definition['type'] === 'bool'): ?><select name="settings[<?= htmlspecialchars($key) ?>]"><option value="1" <?= $value ? 'selected' : '' ?>>Включено</option><option value="0" <?= !$value ? 'selected' : '' ?>>Выключено</option></select>
+<?php elseif ($definition['type'] === 'enum'): ?><select name="settings[<?= htmlspecialchars($key) ?>]"><?php foreach($definition['choices'] as $choice): ?><option value="<?= htmlspecialchars($choice) ?>" <?= $value === $choice ? 'selected' : '' ?>><?= htmlspecialchars($choice) ?></option><?php endforeach; ?></select>
+<?php else: $secret = $definition['type'] === 'secret'; ?><input type="<?= $secret ? 'password' : ($definition['type'] === 'int' ? 'number' : 'text') ?>" name="settings[<?= htmlspecialchars($key) ?>]" value="<?= $secret ? '' : htmlspecialchars((string) $value) ?>" <?= $definition['min'] !== null ? 'min="'.(int)$definition['min'].'"' : '' ?> <?= $definition['max'] !== null ? 'max="'.(int)$definition['max'].'"' : '' ?> <?= $secret ? 'placeholder="Оставьте пустым, чтобы сохранить" autocomplete="new-password"' : '' ?>><?php endif; ?><?php if ($definition['type'] === 'path'): ?><span class="ui-help">Путь от корня проекта. Для журнала укажите также имя файла.</span><?php endif; ?></div>
 <?php endforeach; endforeach; endif; ?>
 </div></div></section><div class="ui-form-actions"><button class="btn btn-primary" type="submit">Сохранить</button></div></form></main></div></body></html>

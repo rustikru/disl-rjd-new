@@ -12,8 +12,9 @@ final class SessionsController
 
     public function page(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (empty($_SESSION['user']['is_super'])) return $response->withStatus(403);
-        $registry = new SessionRegistry($this->db);
+        if (!\App\Services\Authorization::isSuper()) return $response->withStatus(403);
+        $sessionLifetime = (int)$this->config['session_lifetime_seconds'];
+        $registry = new SessionRegistry($this->db, $sessionLifetime);
         $basePath = $this->config['base_path'] ?? '';
         if ($request->getMethod() === 'POST') {
             $body = (array) $request->getParsedBody();

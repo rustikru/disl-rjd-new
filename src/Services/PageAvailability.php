@@ -35,7 +35,7 @@ final class PageAvailability
     {
         return array_filter(
             $reports,
-            fn(array $definition, string $code): bool => !$this->isDisabled($code),
+            fn(array $definition, string $code): bool => !$this->anyDisabled(PageRegistry::availabilityKeys($code)),
             ARRAY_FILTER_USE_BOTH
         );
     }
@@ -52,6 +52,7 @@ final class PageAvailability
                         (string) ($item['page'] ?? ''),
                         (string) ($item['url'] ?? ''),
                     ];
+                    $keys = array_merge($keys, PageRegistry::availabilityKeys((string)($item['page']??'')));
                     return !$this->anyDisabled($keys);
                 }
             ));
@@ -87,7 +88,7 @@ final class PageAvailability
             }
         }
 
-        $keys = $this->keysForPath($path, $request->getQueryParams());
+        $keys = PageRegistry::availabilityKeysForPath($path, $request->getQueryParams());
         foreach ($keys as $key) {
             if ($this->isDisabled($key)) {
                 return $key;
@@ -95,71 +96,6 @@ final class PageAvailability
         }
 
         return null;
-    }
-
-    private function keysForPath(string $path, array $query): array
-    {
-        if ($path === '/detail') {
-            return [(string) ($query['ctx'] ?? '')];
-        }
-
-        $apiReports = [
-            '/api/downtime-control' => 'downtime-control',
-            '/api/technical-state' => 'technical-state',
-            '/api/raw-material' => 'raw-material',
-            '/api/dislocation' => 'dislocation',
-            '/api/approach' => 'approach',
-            '/api/departure' => 'departure',
-            '/api/loading' => 'loading',
-            '/api/downtime' => 'downtime',
-            '/api/claims' => 'claims',
-            '/api/analysis' => 'analysis-period',
-        ];
-        foreach ($apiReports as $prefix => $reportCode) {
-            if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
-                return [$reportCode, 'dashboard'];
-            }
-        }
-
-        if ($path === '/api/dashboard' || str_starts_with($path, '/api/kpi')) {
-            return ['dashboard'];
-        }
-
-        if (str_starts_with($path, '/profile/report-mailings')) {
-            return ['report-mailings'];
-        }
-        if ($path === '/profile' || str_starts_with($path, '/profile/')) {
-            return ['profile'];
-        }
-        if (str_starts_with($path, '/admin/report-mailings')) {
-            return ['report-mailings', 'admin'];
-        }
-        if (str_starts_with($path, '/admin/users')) {
-            return ['users', 'admin'];
-        }
-        if (str_starts_with($path, '/admin/roles')) {
-            return ['roles', 'admin'];
-        }
-        if (str_starts_with($path, '/admin/audit')) {
-            return ['audit', 'admin'];
-        }
-        if (str_starts_with($path, '/admin/directories/organizations')) {
-            return ['organizations', 'admin'];
-        }
-        if (str_starts_with($path, '/admin')) {
-            return ['admin'];
-        }
-        if (str_starts_with($path, '/directories')) {
-            return ['directories'];
-        }
-        if (str_starts_with($path, '/maps')) {
-            return ['maps'];
-        }
-        if (str_starts_with($path, '/import') || str_starts_with($path, '/api/import')) {
-            return ['import'];
-        }
-
-        return [];
     }
 
     private function anyDisabled(array $keys): bool

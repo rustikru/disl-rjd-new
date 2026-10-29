@@ -35,7 +35,7 @@ class DashboardController
             (string) ($this->config['base_path'] ?? '')
         );
         $disabledPages = (array) ($this->config['disabled_pages'] ?? []);
-        $dislocationStaleHours = max(1, (int) ($this->config['dislocation_stale_hours'] ?? 8));
+        $dislocationStaleHours = (int) $this->config['dislocation_stale_hours'];
         $navConfig = $pageAvailability->filterNavigation($navConfig);
         $reportDefinitions = $pageAvailability->filterReports($reportDefinitions);
 
@@ -61,15 +61,19 @@ class DashboardController
 
     /**
      * Возвращает список страниц, доступных текущему пользователю.
-     * Администратор и режим первичной настройки — все страницы.
+     * SUPER получает весь каталог, ADMIN — каталог без super_only.
+     * При первичной настройке сохраняется прежний открытый режим.
      */
     private function resolveAllowedPages(array $user): array
     {
-        $allPages = array_keys(AdminController::PAGES);
+        $allPages = array_keys(\App\Services\PageRegistry::labels());
 
-        // Администратор видит всё
-        if ($user['is_admin'] ?? false) {
+        if (\App\Services\Authorization::isSuper($user)) {
             return $allPages;
+        }
+
+        if (\App\Services\Authorization::isAdmin($user)) {
+            return \App\Services\PageRegistry::adminPermissions();
         }
 
         if ($this->db === null) {

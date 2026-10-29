@@ -1,7 +1,7 @@
 <?php
 $basePath = $basePath ?? '';
 require_once __DIR__ . '/../partials/ui.php';
-$isAdminRole = ($editedRole['code'] ?? '') === 'ADMIN';
+$isAdminRole = ($editedRole['code'] ?? '') === \App\Services\Authorization::ADMIN;
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -39,8 +39,8 @@ include __DIR__ . '/../partials/header.php';
             <div class="ui-field ui-field--full"><label>Описание</label><textarea name="description" <?= $isViewOnly ? 'readonly' : '' ?>><?= htmlspecialchars($editedRole['description'] ?? '') ?></textarea></div>
           </div>
           <div class="section-label" style="margin-top:18px">Доступные разделы</div>
-          <?php if ($isAdminRole): ?><p class="ui-help">Администратору доступны все разделы. Этот доступ изменить нельзя.</p><?php endif; ?>
-          <div class="pages"><?php foreach ($pages as $pageCode => $pageName): ?><label class="page-option"><input type="checkbox" name="pages[]" value="<?= htmlspecialchars($pageCode) ?>" <?= in_array($pageCode, $selectedPages, true) || $isAdminRole ? 'checked' : '' ?> <?= $isAdminRole || $isViewOnly ? 'disabled' : '' ?>><?= htmlspecialchars($pageName) ?></label><?php endforeach; ?></div>
+          <?php if ($isAdminRole): ?><p class="ui-help">Отмечены разделы, доступные администратору. Системные разделы SUPER не отмечены. Доступ роли ADMIN изменить нельзя.</p><?php endif; ?>
+          <div class="pages"><?php foreach ($pages as $pageCode => $pageName): ?><label class="page-option"><input type="checkbox" name="pages[]" value="<?= htmlspecialchars($pageCode) ?>" <?= in_array($pageCode, $selectedPages, true) ? 'checked' : '' ?> <?= $isAdminRole || $isViewOnly ? 'disabled' : '' ?>><?= htmlspecialchars($pageName) ?></label><?php endforeach; ?></div>
         </div>
       </section>
       <div class="ui-form-actions"><a class="btn btn-ghost" href="<?= htmlspecialchars($basePath) ?>/admin/roles"><?= $isViewOnly ? 'Назад' : 'Отмена' ?></a><?php if (!$isViewOnly): ?><button class="btn btn-primary" type="submit"><?= $isNewRole ? 'Создать' : 'Сохранить' ?></button><?php endif; ?></div>

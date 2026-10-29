@@ -12,5 +12,8 @@
         "psr-4": {
             "App\\": "src/"
         }
+    },
+    "scripts": {
+        "check:registry": "php tools/check_single_source.php"
     }
 }

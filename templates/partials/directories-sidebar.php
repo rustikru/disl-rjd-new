@@ -1,9 +1,11 @@
 <?php
 $activeAdminPage = $activeAdminPage ?? '';
-$directoryNavItems = [
-    ['key' => 'norms', 'label' => 'Нормативы', 'url' => $basePath . '/directories/norms'],
-    ['key' => 'stations', 'label' => 'Станции и координаты', 'url' => $basePath . '/directories/stations'],
-];
+$directoryAvailability = new \App\Services\PageAvailability((array)(\App\Services\ConfigSchema::current()['disabled_pages']??[]));
+$directoryDisabled = $directoryAvailability->isDisabled('directories');
+$directoryNavItems = \App\Services\PageRegistry::all()['directories']['directory_navigation'] ?? [];
+if ($directoryDisabled) $directoryNavItems = [];
+usort($directoryNavItems, static fn(array $a,array $b): int => ($a['order']??0) <=> ($b['order']??0));
+foreach ($directoryNavItems as &$item) $item['url'] = $basePath . $item['url']; unset($item);
 ?>
 <aside class="sidebar">
   <div class="nav-group">
