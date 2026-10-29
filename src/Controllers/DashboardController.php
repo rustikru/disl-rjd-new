@@ -37,6 +37,19 @@ class DashboardController
         return $response;
     }
 
+    /** GET /wagon */
+    public function wagon(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $basePath = $this->config['base_path'] ?? '';
+        $appName = $this->config['app_name'] ?? 'Дислокация';
+        $user = $_SESSION['user'] ?? [];
+        $number = trim((string) ($request->getQueryParams()['wagon_no'] ?? ''));
+        ob_start();
+        include __DIR__ . '/../../templates/wagon.php';
+        $response->getBody()->write((string) ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
     /**
      * Возвращает список страниц, доступных текущему пользователю.
      * Администратор и режим первичной настройки — все страницы.

@@ -82,13 +82,29 @@ final class Organizations
 
     public function code(): ?string
     {
-        $activeId = $this->id();
-        foreach ($this->organizations() as $organization) {
-            if ((int) $organization['id'] === $activeId) {
-                return (string) $organization['code'];
+        $organization = $this->current();
+        return $organization ? (string) $organization['code'] : null;
+    }
+
+    public function isCurrentOrganizationName(string $name): bool
+    {
+        $name = $this->normalizeName($name);
+        if ($name === '') {
+            return false;
+        }
+
+        $organization = $this->current();
+        if (!$organization) {
+            return false;
+        }
+
+        foreach (['name', 'short_name'] as $field) {
+            $organizationName = $this->normalizeName((string) ($organization[$field] ?? ''));
+            if ($organizationName !== '' && $organizationName === $name) {
+                return true;
             }
         }
-        return null;
+        return false;
     }
 
     public function isMtf(): bool
@@ -173,6 +189,23 @@ final class Organizations
         }
 
         return array_values($result);
+    }
+
+    private function current(): ?array
+    {
+        $activeId = $this->id();
+        foreach ($this->organizations() as $organization) {
+            if ((int) $organization['id'] === $activeId) {
+                return $organization;
+            }
+        }
+        return null;
+    }
+
+    private function normalizeName(string $name): string
+    {
+        $name = str_replace('Ё', 'Е', mb_strtoupper(trim($name)));
+        return trim((string) preg_replace('/[^А-ЯA-Z0-9]+/u', ' ', $name));
     }
 
     private function setClientId(int $organizationId): void

@@ -51,21 +51,17 @@ return function (App $app, array $config): void {
         return (new \App\Controllers\AuthController($auth, $config))->handleLogin($req, $res);
     });
 
-    $getPasswordReset = static function () use ($getDb, $config): \App\Services\PasswordReset {
-        return new \App\Services\PasswordReset($getDb(), $config);
-    };
-
-    $app->get('/forgot-password', function ($req, $res) use ($getPasswordReset, $config) {
-        return (new \App\Controllers\PasswordResetController($getPasswordReset(), $config))->showRequest($req, $res);
+    $app->get('/forgot-password', function ($req, $res) use ($getDb, $config) {
+        return (new \App\Controllers\UserController($getDb(), $config))->forgotPassword($req, $res);
     });
-    $app->post('/forgot-password', function ($req, $res) use ($getPasswordReset, $config) {
-        return (new \App\Controllers\PasswordResetController($getPasswordReset(), $config))->request($req, $res);
+    $app->post('/forgot-password', function ($req, $res) use ($getDb, $config) {
+        return (new \App\Controllers\UserController($getDb(), $config))->sendPasswordReset($req, $res);
     });
-    $app->get('/reset-password', function ($req, $res) use ($getPasswordReset, $config) {
-        return (new \App\Controllers\PasswordResetController($getPasswordReset(), $config))->showReset($req, $res);
+    $app->get('/reset-password', function ($req, $res) use ($getDb, $config) {
+        return (new \App\Controllers\UserController($getDb(), $config))->resetPasswordForm($req, $res);
     });
-    $app->post('/reset-password', function ($req, $res) use ($getPasswordReset, $config) {
-        return (new \App\Controllers\PasswordResetController($getPasswordReset(), $config))->reset($req, $res);
+    $app->post('/reset-password', function ($req, $res) use ($getDb, $config) {
+        return (new \App\Controllers\UserController($getDb(), $config))->resetPassword($req, $res);
     });
 
     $app->get('/auth/kerberos', function ($req, $res) use ($getAuth, $config) {
@@ -78,12 +74,21 @@ return function (App $app, array $config): void {
         return (new \App\Controllers\AuthController($auth, $config))->handleKerberos($req, $res);
     });
 
-    $app->post('/logout', function ($req, $res) use ($config) {
+    $app->post('/logout', function ($req, $res) use ($config, $getDb) {
         $body = (array) $req->getParsedBody();
         $csrf = $body['csrf_token'] ?? '';
         if ($csrf === '' || !hash_equals($_SESSION['csrf_token'] ?? '', $csrf)) {
             return $res->withHeader('Location', ($config['base_path'] ?? '') . '/')->withStatus(302);
         }
+        $currentUser = (array) ($_SESSION['user'] ?? []);
+        (new \App\Services\AuditLog($getDb()))->write(
+            'LOGOUT',
+            'USER',
+            isset($currentUser['id']) ? (int) $currentUser['id'] : null,
+            'Выход из системы',
+            isset($currentUser['id']) ? (int) $currentUser['id'] : null,
+            (string) ($currentUser['username'] ?? '')
+        );
         session_destroy();
         return $res->withHeader('Location', ($config['base_path'] ?? '') . '/login')->withStatus(302);
     });
@@ -116,12 +121,12 @@ return function (App $app, array $config): void {
 
         // Карточка вагона
         $group->get('/wagon', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\WagonController($getDb(), $config))->index($req, $res);
+            return (new \App\Controllers\DashboardController($config, $getDb()))->wagon($req, $res);
         });
 
         // Профиль текущего пользователя
         $group->get('/profile', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\ProfileController($getDb(), $config))->index($req, $res);
+            return (new \App\Controllers\UserController($getDb(), $config))->profile($req, $res);
         });
 
         // Личные настройки рассылки отчётов
@@ -179,6 +184,9 @@ return function (App $app, array $config): void {
         });
         $group->get('/admin/report-mailings', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\MailingController($getDb(), $config))->adminPage($req, $res);
+        });
+        $group->get('/admin/audit', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->auditPage($req, $res);
         });
         $group->post('/admin/report-mailings/run', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\MailingController($getDb(), $config))->adminRun($req, $res);
@@ -293,11 +301,8 @@ return function (App $app, array $config): void {
         $group->post('/admin/directories/organizations/active', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->toggleOrganization($req, $res);
         });
-        $group->post('/organization/select', function ($req, $res) use ($getOrganizations, $config) {
-            return (new \App\Controllers\OrganizationController(
-                $getOrganizations(),
-                $config['base_path'] ?? ''
-            ))->select($req, $res);
+        $group->post('/organization/select', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\UserController($getDb(), $config))->selectOrganization($req, $res);
         });
 
         // Детальная страница (статический шаблон)
@@ -321,7 +326,7 @@ return function (App $app, array $config): void {
 
             // Движение вагона по текущему рейсу
             $api->get('/wagon/movement', function ($req, $res) use ($config, $getDb) {
-                return (new \App\Controllers\WagonController($getDb(), $config))->movement($req, $res);
+                return (new \App\Controllers\ApiController($getDb()))->wagonMovement($req, $res);
             });
 
             // --- Главный Дашборд ---
@@ -402,7 +407,7 @@ return function (App $app, array $config): void {
 
             // --- Контроль простоев ---
             $api->get('/downtime-control/detail', function ($req, $res) use ($getDb) {
-                return (new \App\Controllers\DowntimeControlController($getDb()))->detail($req, $res);
+                return (new \App\Controllers\ApiController($getDb()))->downtimeControlDetail($req, $res);
             });
 
             // --- Сырьё ---

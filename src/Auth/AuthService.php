@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Auth;
 
 use App\Database\DbInterface;
+use App\Services\AuditLog;
 
 // AD → fallback на локальный пароль
 class AuthService
@@ -54,6 +55,7 @@ class AuthService
         }
 
         $this->markSuccessfulLogin((int) $user['id']);
+        (new AuditLog($this->db))->write('LOGIN', 'USER', (int) $user['id'], 'Вход через Kerberos', (int) $user['id'], (string) $user['username']);
         $roles = $this->fetchUserRoles((int) $user['id']);
         $roleCodes = array_column($roles, 'code');
 
@@ -82,6 +84,7 @@ class AuthService
                     ['username' => $username]
                 );
                 $this->markSuccessfulLogin((int) ($dbUser['id'] ?? 0));
+                (new AuditLog($this->db))->write('LOGIN', 'USER', (int) ($dbUser['id'] ?? 0), 'Вход через Active Directory', (int) ($dbUser['id'] ?? 0), (string) ($dbUser['username'] ?? $username));
                 $adUser['id'] = $dbUser['id'] ?? null;
                 $adUser['username'] = $dbUser['username'] ?? $username;
                 $adUser['display_name'] = $dbUser['display_name'] ?? $adUser['display_name'];
@@ -112,6 +115,7 @@ class AuthService
 
         $roles = $this->fetchUserRoles((int) $user['id']);
         $this->markSuccessfulLogin((int) $user['id']);
+        (new AuditLog($this->db))->write('LOGIN', 'USER', (int) $user['id'], 'Вход по локальному паролю', (int) $user['id'], (string) $user['username']);
 
         return [
             'id'           => $user['id'],

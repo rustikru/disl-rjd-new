@@ -5,8 +5,11 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Reports\ReportConfig;
+use App\Services\Claims;
 use App\Services\Organizations;
+use App\Services\ReportService;
 use App\Services\WagonCargoState;
+use App\Services\WagonMovement;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -36,6 +39,27 @@ class ApiController
     // =========================================================================
     // API
     // =========================================================================
+
+    /** GET /api/wagon/movement */
+    public function wagonMovement(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $number = trim((string) ($request->getQueryParams()['wagon_no'] ?? ''));
+        try {
+            $data = (new WagonMovement($this->db, $this->organizations))->rows($number);
+        } catch (\InvalidArgumentException $error) {
+            $response = $response->withStatus(400);
+            $data = ['error' => $error->getMessage()];
+        }
+        return $this->json($response, $data);
+    }
+
+    /** GET /api/downtime-control/detail */
+    public function downtimeControlDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $rows = (new ReportService($this->db, $this->organizations))
+            ->downtimeControlDetail($request->getQueryParams());
+        return $this->json($response, ['rows' => $rows]);
+    }
 
     /** GET /api/dashboard */
     public function dashboard(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -724,135 +748,34 @@ class ApiController
     /** GET /api/claims/filters */
     public function claimsFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $source = $this->claimsFrom($request->getQueryParams());
-        if (!$source['from']) {
-            return $this->json($response, ['stations' => [], 'wagon_type' => []]);
-        }
-        $stations = $this->db->fetchAll(
-            "SELECT station_code, MIN(dest_station) AS station_name FROM {$source['from']}
-              WHERE station_code IS NOT NULL GROUP BY station_code ORDER BY station_name",
-            $source['bindings']
-        );
-        $types = $this->db->fetchAll(
-            "SELECT DISTINCT wagon_type_code FROM {$source['from']} ORDER BY wagon_type_code",
-            $source['bindings']
-        );
-        return $this->json($response, ['stations' => $stations, 'wagon_type' => array_column($types, 'wagon_type_code')]);
+        return $this->json($response, $this->claims()->filters($request->getQueryParams()));
     }
 
     /** GET /api/claims/summary */
     public function claimsSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params = $request->getQueryParams();
-        $source = $this->claimsFrom($params);
         try {
-            $rows = (new \App\Services\Claims($this->db, (int) $this->organizations->id()))->rows($source, $params);
+            $data = $this->claims()->summary($request->getQueryParams());
         } catch (\InvalidArgumentException $error) {
             return $this->json($response->withStatus(400), ['error' => $error->getMessage()]);
         }
-        $groups = [];
-        $empty = [
-            'wagon_type_code' => 'Общий итог',
-            'total' => 0,
-            'penalty_count' => 0,
-            'payable_days' => 0,
-            'amount' => 0,
-            'incomplete_count' => 0
-        ];
-        $total = $empty;
-        foreach ($rows as $row) {
-            $type = $row['wagon_type_code'] ?: 'Прочие';
-            if (!isset($groups[$type])) {
-                $groups[$type] = array_replace($empty, ['wagon_type_code' => $type]);
-            }
-            foreach ([$type, null] as $key) {
-                $group = &$total;
-                if ($key !== null) {
-                    $group = &$groups[$key];
-                }
-                $group['total']++;
-                $group['penalty_count'] += (int) ($row['claim_status'] === 'penalty');
-                $group['incomplete_count'] += (int) ($row['claim_status'] === 'incomplete');
-                $group['payable_days'] += $row['payable_days'] ?? 0;
-                $group['amount'] = round($group['amount'] + ($row['amount'] ?? 0), 2);
-                unset($group);
-            }
-        }
-        ksort($groups);
-        return $this->json($response, [
-            'rows' => array_values($groups),
-            'totals' => $total,
-            'total' => count($rows),
-            'reports' => $source['reports']
-        ]);
+        return $this->json($response, $data);
     }
 
     /** GET /api/claims/detail */
     public function claimsDetail(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $params = $request->getQueryParams();
-        $source = $this->claimsFrom($params);
         try {
-            $rows = (new \App\Services\Claims($this->db, (int) $this->organizations->id()))->rows($source, $params);
+            $data = $this->claims()->detail($request->getQueryParams());
         } catch (\InvalidArgumentException $error) {
             return $this->json($response->withStatus(400), ['error' => $error->getMessage()]);
         }
-        $fields = array_values(array_filter(array_map('trim', explode(',', (string) ($params['fields'] ?? '')))));
-        $sort = array_values(array_filter(array_map('trim', explode(',', (string) ($params['sort'] ?? '')))));
-        $directions = explode(',', (string) ($params['sort_dir'] ?? ''));
-        if ($sort && $rows) {
-            $allowed = array_keys($rows[0]);
-            $sort = array_values(array_filter($sort, static fn($key) => in_array($key, $allowed, true)));
-            usort($rows, static function ($a, $b) use ($sort, $directions) {
-                foreach ($sort as $i => $key) {
-                    if ($a[$key] === $b[$key])
-                        continue;
-                    if ($a[$key] === null)
-                        return 1;
-                    if ($b[$key] === null)
-                        return -1;
-                    $result = is_numeric($a[$key]) && is_numeric($b[$key])
-                        ? (float) $a[$key] <=> (float) $b[$key] : strcmp((string) $a[$key], (string) $b[$key]);
-                    if ($result)
-                        return strtolower($directions[$i] ?? 'asc') === 'desc' ? -$result : $result;
-                }
-                return strcmp($a['wagon_no'], $b['wagon_no']);
-            });
-        }
-        if ($fields) {
-            $keys = array_flip($fields);
-            $rows = array_map(static fn($row) => array_intersect_key($row, $keys), $rows);
-        }
-        return $this->json($response, ['rows' => $rows]);
+        return $this->json($response, $data);
     }
 
-    /** Вагоны на станциях назначения из актуальных справок. */
-    private function claimsFrom(array $params): array
+    private function claims(): Claims
     {
-        $reports = $this->getLatestDtsByType($params['report_dt'] ?? null, ['Подход', 'Отправка']);
-        if (!$reports) {
-            return ['from' => '', 'bindings' => [], 'reports' => []];
-        }
-        $condition = $this->latestDtCondition($reports, 'xdr');
-        $from = "(SELECT TRIM(wagon_no) AS wagon_no, wagon_type_code AS wagon_type_name,
-                         " . self::WAG_TYPE_EXPR . " AS wagon_type_code,
-                         cargo_name, prev_cargo, owner, consignor, consignor_name, consignee, consignee_name,
-                         oper_station, dest_station, trip_end_dt, asoup_arrive_dt, report_dt, waybill_no, type_reference,
-                         REGEXP_SUBSTR(dest_station, '[0-9]{6}') AS station_code
-                  FROM (
-                      SELECT xdr.*, ROW_NUMBER() OVER (
-                          PARTITION BY TRIM(wagon_no)
-                          ORDER BY oper_dt DESC NULLS LAST, report_dt DESC,
-                                   CASE WHEN type_reference = 'Подход' THEN 0 ELSE 1 END, id DESC
-                      ) AS claim_row
-                        FROM xx_dislocation_rjd xdr WHERE {$condition['sql']}
-                  )
-                 WHERE claim_row = 1 AND dist_remain_km = 0
-                   AND REGEXP_SUBSTR(oper_station, '[0-9]{6}') = REGEXP_SUBSTR(dest_station, '[0-9]{6}')
-                   AND TRIM(wagon_no) NOT LIKE '0%'
-                   AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), '[[:space:]]+', ' ')), ' ')
-                       NOT LIKE '%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%')";
-        return ['from' => $from, 'bindings' => $condition['params'], 'reports' => $reports];
+        return new Claims($this->db, $this->organizations);
     }
 
     public function analysisFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface

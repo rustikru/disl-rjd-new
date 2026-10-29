@@ -182,9 +182,9 @@ $editingWeekDays = array_filter(explode(',', (string) ($editingMailing['week_day
                   <a class="mailing-icon-btn" href="<?= htmlspecialchars($basePath) ?>/profile/report-mailings?edit=<?= $savedMailingId ?>" title="Редактировать" aria-label="Редактировать">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                   </a>
-                  <form method="POST" action="<?= htmlspecialchars($basePath) ?>/profile/report-mailings/run">
+                  <form method="POST" action="<?= htmlspecialchars($basePath) ?>/profile/report-mailings/run" data-mailing-run-form>
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>"><input type="hidden" name="id" value="<?= $savedMailingId ?>">
-                    <button class="mailing-icon-btn mailing-icon-btn--run" type="submit" title="Сформировать сейчас" aria-label="Сформировать сейчас"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7Z"/></svg></button>
+                    <button class="mailing-icon-btn mailing-icon-btn--run mailing-run-button" type="submit" title="Сформировать сейчас" aria-label="Сформировать сейчас" data-mailing-run-button><span class="mailing-run-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7Z"/></svg></span><span class="mailing-run-spinner" aria-hidden="true"></span><span class="mailing-run-label">Запуск…</span></button>
                   </form>
                   <form method="POST" action="<?= htmlspecialchars($basePath) ?>/profile/report-mailings/active">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>"><input type="hidden" name="id" value="<?= $savedMailingId ?>"><input type="hidden" name="is_active" value="<?= $savedMailingActive ? 0 : 1 ?>">
@@ -507,5 +507,6 @@ $editingWeekDays = array_filter(explode(',', (string) ($editingMailing['week_day
   showScheduleFields()
 </script>
 <?php endif; ?>
+<script src="<?= htmlspecialchars($basePath) ?>/assets/js/mailing-run.js"></script>
 </body>
 </html>

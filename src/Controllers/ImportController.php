@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Services\AuditLog;
+
 use App\Database\DbInterface;
 use App\Reports\ReportConfig;
 use App\Services\Organizations;
@@ -156,6 +158,12 @@ class ImportController
             } else {
                 $successes[] = '«' . $name . '»: загружено ' . $result['rows'] . ' строк ('
                     . $result['type'] . ', ' . $result['report_dt'] . ')';
+                (new AuditLog($this->db))->write(
+                    'IMPORT_UPLOAD',
+                    'REFERENCE',
+                    (string) $result['type'],
+                    'Загружен файл «' . $name . '»: ' . $result['rows'] . ' строк, дата ' . $result['report_dt']
+                );
             }
         }
 
@@ -212,6 +220,13 @@ class ImportController
                 'type' => $result['type'],
             ]);
         }
+
+        (new AuditLog($this->db))->write(
+            'IMPORT_UPLOAD',
+            'REFERENCE',
+            (string) $result['type'],
+            'Загружен файл «' . $name . '»: ' . $result['rows'] . ' строк, дата ' . $result['report_dt']
+        );
 
         return $this->jsonResponse($response, 200, [
             'status' => 'ok',

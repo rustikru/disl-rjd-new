@@ -3,17 +3,67 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Database\DbInterface;
+use App\Services\DirectoryAccess;
+use App\Services\Organizations;
 use App\Services\PasswordReset;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
-final class PasswordResetController
+final class UserController
 {
-    public function __construct(private PasswordReset $passwordReset, private array $config)
+    private PasswordReset $passwordReset;
+    private Organizations $organizations;
+
+    public function __construct(private DbInterface $db, private array $config = [])
     {
+        $this->passwordReset = new PasswordReset($db, $config);
+        $this->organizations = new Organizations($db);
     }
 
-    public function showRequest(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    /** GET /profile */
+    public function profile(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $user = $_SESSION['user'] ?? [];
+        $id = (int) ($user['id'] ?? 0);
+        if (!$id) {
+            return $this->redirect($response, '/login');
+        }
+
+        $profile = $this->db->fetchOne(
+            'SELECT id, username, display_name, email, is_active FROM xx_rjd_users WHERE id = :id',
+            ['id' => $id]
+        );
+        if (!$profile) {
+            $response->getBody()->write('Пользователь не найден');
+            return $response->withStatus(404);
+        }
+
+        $roles = $this->db->fetchAll(
+            'SELECT r.code, r.name, r.description FROM xx_rjd_roles r JOIN xx_rjd_user_roles ur ON ur.role_id = r.id WHERE ur.user_id = :id ORDER BY r.name',
+            ['id' => $id]
+        );
+        $pages = $this->db->fetchAll(
+            'SELECT DISTINCT p.page FROM xx_rjd_role_pages p JOIN xx_rjd_user_roles ur ON ur.role_id = p.role_id WHERE ur.user_id = :id',
+            ['id' => $id]
+        );
+        $allowed = DirectoryAccess::expandPages(array_column($pages, 'page'));
+        $isAdmin = !empty($user['is_admin']) || in_array('ADMIN', array_column($roles, 'code'), true);
+        $access = $isAdmin
+            ? array_values(AdminController::PAGES)
+            : array_values(array_intersect_key(AdminController::PAGES, array_flip($allowed)));
+        $organizations = $this->organizations->organizations();
+        $organizationId = $this->organizations->id();
+        $basePath = $this->config['base_path'] ?? '';
+        $appName = $this->config['app_name'] ?? 'Дислокация';
+
+        ob_start();
+        include __DIR__ . '/../../templates/profile.php';
+        $response->getBody()->write((string) ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function forgotPassword(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         if (empty($this->config['password_reset_enabled'])) {
             return $this->redirect($response, '/login');
@@ -25,7 +75,7 @@ final class PasswordResetController
         ]);
     }
 
-    public function request(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    public function sendPasswordReset(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         if (empty($this->config['password_reset_enabled'])) {
             return $this->redirect($response, '/login');
@@ -55,10 +105,9 @@ final class PasswordResetController
         return $this->redirect($response, '/forgot-password');
     }
 
-    public function showReset(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    public function resetPasswordForm(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $token = trim((string) ($request->getQueryParams()['token'] ?? ''));
-        $valid = false;
         try {
             $valid = $this->passwordReset->isTokenValid($token);
         } catch (\Throwable $error) {
@@ -72,7 +121,7 @@ final class PasswordResetController
         ]);
     }
 
-    public function reset(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    public function resetPassword(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $body = (array) $request->getParsedBody();
         $token = trim((string) ($body['token'] ?? ''));
@@ -108,6 +157,27 @@ final class PasswordResetController
         return $this->redirect($response, '/login');
     }
 
+    public function selectOrganization(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+        $csrf = (string) ($body['csrf_token'] ?? '');
+        if ($csrf === '' || !hash_equals((string) ($_SESSION['csrf_token'] ?? ''), $csrf)) {
+            return $response->withStatus(403);
+        }
+
+        $organizationId = (int) ($body['organization_id'] ?? 0);
+        if ($organizationId <= 0 || !$this->organizations->set($organizationId)) {
+            return $response->withStatus(403);
+        }
+
+        $returnUrl = (string) ($body['return_url'] ?? '/');
+        if (!$this->isLocalUrl($returnUrl)) {
+            $returnUrl = ($this->config['base_path'] ?? '') . '/';
+        }
+
+        return $response->withHeader('Location', $returnUrl)->withStatus(302);
+    }
+
     private function render(ResponseInterface $response, string $template, array $variables): ResponseInterface
     {
         $appName = $this->config['app_name'] ?? '';
@@ -129,5 +199,16 @@ final class PasswordResetController
     {
         return $response->withHeader('Location', ($this->config['base_path'] ?? '') . $path)->withStatus(302);
     }
-}
 
+    private function isLocalUrl(string $url): bool
+    {
+        if ($url === '' || str_starts_with($url, '//')) {
+            return false;
+        }
+        $parts = parse_url($url);
+        if ($parts === false || isset($parts['scheme']) || isset($parts['host'])) {
+            return false;
+        }
+        return str_starts_with($parts['path'] ?? '', '/');
+    }
+}

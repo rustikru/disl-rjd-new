@@ -100,6 +100,13 @@ final class PasswordReset
                 ['user_id' => (int) $reset['user_id']]
             );
             $this->db->commit();
+            (new AuditLog($this->db))->write(
+                'PASSWORD_RESET',
+                'USER',
+                (int) $reset['user_id'],
+                'Пароль изменён по ссылке восстановления',
+                (int) $reset['user_id']
+            );
             return true;
         } catch (\Throwable $error) {
             $this->db->rollback();

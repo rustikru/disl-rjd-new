@@ -43,7 +43,7 @@ $statusNames = ['running' => 'Выполняется', 'success' => 'Успеш�
     .mailing-table td { padding:12px 14px; border-bottom:1px solid var(--border); color:var(--text-1); font-size:12.5px; vertical-align:top; }
     .mailing-table tbody tr:last-child td { border-bottom:0; }
     .mailing-table tbody tr:hover td { background:var(--hover-green); }
-    .mailing-name { font-weight:700; margin-bottom:3px; }
+    .mailing-name { font-weight:400; margin-bottom:3px; }
     .mailing-muted { color:var(--text-3); font-size:11.5px; line-height:1.45; overflow-wrap:anywhere; }
     .mailing-status { display:inline-flex; align-items:center; gap:6px; font-weight:600; white-space:nowrap; }
     .mailing-status::before { content:''; width:7px; height:7px; border-radius:50%; background:var(--text-3); }
@@ -121,9 +121,9 @@ $statusNames = ['running' => 'Выполняется', 'success' => 'Успеш�
               <td><?= htmlspecialchars($activeSchedule) ?><div class="mailing-muted">Время: <?= htmlspecialchars($activeMailing['send_time']) ?></div></td>
               <td><?= !empty($activeMailing['last_run_at']) ? htmlspecialchars($activeMailing['last_run_at']) : '<span class="mailing-muted">Не запускалась</span>' ?></td>
               <td><div class="mailing-actions">
-                <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/report-mailings/run">
+                <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/report-mailings/run" data-mailing-run-form>
                   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>"><input type="hidden" name="id" value="<?= (int) $activeMailing['id'] ?>">
-                  <button class="mailing-icon-btn" type="submit" title="Сформировать немедленно" aria-label="Сформировать немедленно"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7Z"/></svg></button>
+                  <button class="mailing-icon-btn mailing-run-button" type="submit" title="Сформировать немедленно" aria-label="Сформировать немедленно" data-mailing-run-button><span class="mailing-run-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7Z"/></svg></span><span class="mailing-run-spinner" aria-hidden="true"></span><span class="mailing-run-label">Запуск…</span></button>
                 </form>
                 <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/report-mailings/active" onsubmit="return confirm('<?= $mailingEnabled ? 'Отключить' : 'Включить' ?> рассылку пользователя?')">
                   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>"><input type="hidden" name="id" value="<?= (int) $activeMailing['id'] ?>"><input type="hidden" name="is_active" value="<?= $mailingEnabled ? 0 : 1 ?>">
@@ -181,5 +181,6 @@ $statusNames = ['running' => 'Выполняется', 'success' => 'Успеш�
     </section>
   </main>
 </div>
+<script src="<?= htmlspecialchars($basePath) ?>/assets/js/mailing-run.js"></script>
 </body>
 </html>

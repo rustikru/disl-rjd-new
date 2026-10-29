@@ -6,6 +6,7 @@ $adminNavItems = [
     ['key' => 'roles', 'label' => 'Роли',         'url' => $basePath . '/admin/roles'],
     ['key' => 'report-mailings', 'label' => 'Рассылки', 'url' => $basePath . '/admin/report-mailings'],
     ['key' => 'organizations', 'label' => 'Организации',          'url' => $basePath . '/admin/directories/organizations'],
+    ['key' => 'audit', 'label' => 'Журнал действий', 'url' => $basePath . '/admin/audit'],
 ];
 
 

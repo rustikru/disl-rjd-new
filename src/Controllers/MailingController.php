@@ -6,6 +6,7 @@ namespace App\Controllers;
 use App\Database\DbInterface;
 use App\Reports\ReportConfig;
 use App\Services\Organizations;
+use App\Services\AuditLog;
 use App\Services\MailingRun;
 use App\Services\MailingService;
 use Psr\Http\Message\ResponseInterface;
@@ -108,6 +109,12 @@ final class MailingController
             $runMessage = (string) ($run['message'] ?? 'Файлы сформированы');
             $mailingService->recordRun((int) $mailing['id'], 'success', $run['directory'], $runMessage . ' администратором');
             $mailingService->finishRun($runId, 'success', $run['directory'], $runMessage . ' администратором');
+            (new AuditLog($this->db))->write(
+                'MAILING_RUN',
+                'MAILING',
+                (int) $mailing['id'],
+                'Ручной запуск администратором завершён: ' . $runMessage
+            );
             return $this->adminRedirect($response, 'ok', $runMessage);
         } catch (\Throwable $error) {
             $mailingService->recordRun((int) $mailing['id'], 'error', null, $error->getMessage());
@@ -125,6 +132,14 @@ final class MailingController
         $active = (int) ($form['is_active'] ?? 0) === 1;
         try {
             $changed = (new MailingService($this->db))->setActiveByAdmin((int) ($form['id'] ?? 0), $active);
+            if ($changed) {
+                (new AuditLog($this->db))->write(
+                    $active ? 'MAILING_ENABLE' : 'MAILING_DISABLE',
+                    'MAILING',
+                    (int) ($form['id'] ?? 0),
+                    $active ? 'Рассылка включена администратором' : 'Рассылка отключена администратором'
+                );
+            }
             return $this->adminRedirect(
                 $response,
                 $changed ? 'ok' : 'err',
@@ -188,7 +203,13 @@ final class MailingController
         }
         try {
             $editing = (int) ($form['id'] ?? 0) > 0;
-            (new MailingService($this->db))->save($form, $userId, $organizationId);
+            $mailingId = (new MailingService($this->db))->save($form, $userId, $organizationId);
+            (new AuditLog($this->db))->write(
+                $editing ? 'MAILING_UPDATE' : 'MAILING_CREATE',
+                'MAILING',
+                $mailingId,
+                ($editing ? 'Рассылка изменена: ' : 'Рассылка создана: ') . trim((string) ($form['name'] ?? ''))
+            );
             unset($_SESSION['mailing_form_draft']);
             return $this->redirect($response, 'ok', $editing ? 'Рассылка обновлена' : 'Рассылка сохранена');
         } catch (\InvalidArgumentException $error) {
@@ -211,6 +232,14 @@ final class MailingController
                 (int) ($_SESSION['user']['id'] ?? 0),
                 $active
             );
+            if ($changed) {
+                (new AuditLog($this->db))->write(
+                    $active ? 'MAILING_ENABLE' : 'MAILING_DISABLE',
+                    'MAILING',
+                    (int) ($form['id'] ?? 0),
+                    $active ? 'Рассылка включена' : 'Рассылка отключена'
+                );
+            }
             return $this->redirect(
                 $response,
                 $changed ? 'ok' : 'err',
@@ -232,6 +261,9 @@ final class MailingController
                 (int) ($form['id'] ?? 0),
                 (int) ($_SESSION['user']['id'] ?? 0)
             );
+            if ($deleted) {
+                (new AuditLog($this->db))->write('MAILING_DELETE', 'MAILING', (int) ($form['id'] ?? 0), 'Рассылка удалена');
+            }
             return $this->redirect($response, $deleted ? 'ok' : 'err', $deleted ? 'Рассылка удалена' : 'Рассылка не найдена');
         } catch (\Throwable $error) {
             return $this->redirect($response, 'err', 'Не удалось удалить рассылку: ' . $this->shortError($error));
@@ -269,6 +301,12 @@ final class MailingController
             $runMessage = (string) ($run['message'] ?? 'Файлы сформированы');
             $mailingService->recordRun((int) $mailing['id'], 'success', $run['directory'], $runMessage);
             $mailingService->finishRun($runId, 'success', $run['directory'], $runMessage);
+            (new AuditLog($this->db))->write(
+                'MAILING_RUN',
+                'MAILING',
+                (int) $mailing['id'],
+                'Ручной запуск завершён: ' . $runMessage
+            );
             if ($runMessage === 'Письма отправлены') {
                 $successMessage = $run['directory']
                     ? 'Письма отправлены. Копии файлов сохранены: ' . $run['directory']

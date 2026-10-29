@@ -5,6 +5,7 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Logging\ErrorLogger;
+use App\Services\AuditLog;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -47,6 +48,51 @@ class AdminController
     public function index(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         return $this->redirect($response, '/admin/users');
+    }
+
+    public function auditPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isAdmin()) {
+            return $this->forbidden($response);
+        }
+
+        $query = $request->getQueryParams();
+        $search = trim((string) ($query['q'] ?? ''));
+        $page = max(1, (int) ($query['page'] ?? 1));
+        $perPage = 25;
+        $where = '';
+        $params = [];
+        if ($search !== '') {
+            $where = " WHERE LOWER(NVL(a.username, '') || ' ' || a.action_code || ' ' || NVL(a.object_type, '') || ' ' || NVL(a.object_id, '') || ' ' || NVL(a.description, '')) LIKE :search";
+            $params['search'] = '%' . mb_strtolower($search) . '%';
+        }
+        $count = $this->db->fetchOne('SELECT COUNT(*) AS cnt FROM xx_rjd_audit_log a' . $where, $params);
+        $total = (int) ($count['cnt'] ?? 0);
+        $pages = max(1, (int) ceil($total / $perPage));
+        $page = min($page, $pages);
+        $params['offset_rows'] = ($page - 1) * $perPage;
+        $params['limit_rows'] = $perPage;
+        $appTimezone = str_replace("'", "''", (string) ($this->config['app_timezone'] ?? 'Asia/Yekaterinburg'));
+        $rows = $this->db->fetchAll(
+            "SELECT a.id, a.username, a.action_code, a.object_type, a.object_id,
+                    a.description, a.ip_address,
+                    TO_CHAR(
+                        FROM_TZ(CAST(a.created_at AS TIMESTAMP), DBTIMEZONE) AT TIME ZONE '{$appTimezone}',
+                        'DD.MM.YYYY HH24:MI:SS'
+                    ) AS created_at
+               FROM xx_rjd_audit_log a" . $where . "
+              ORDER BY a.id DESC
+              OFFSET :offset_rows ROWS FETCH NEXT :limit_rows ROWS ONLY",
+            $params
+        );
+
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user = $_SESSION['user'] ?? [];
+        ob_start();
+        include __DIR__ . '/../../templates/admin/audit.php';
+        $response->getBody()->write((string) ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 
     public function usersPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -391,6 +437,12 @@ class AdminController
             (new \App\Services\ClaimNorms($this->db, $organizationId))->save(
                 $body, (int) ($_SESSION['user']['id'] ?? 0)
             );
+            (new AuditLog($this->db))->write(
+                'NORM_SAVE',
+                'CLAIM_NORM',
+                (int) ($body['id'] ?? 0) ?: null,
+                'Норматив сохранён: ' . trim((string) ($body['rule_value'] ?? ''))
+            );
         } catch (\InvalidArgumentException $error) {
             return $this->normsPage($request->withAttribute('norm_error', $error->getMessage()), $response)->withStatus(422);
         }
@@ -415,6 +467,9 @@ class AdminController
             'DELETE FROM xx_rjd_claim_norms WHERE id = :id AND organization_id = :organization_id',
             ['id' => (int) ($body['id'] ?? 0), 'organization_id' => $organizationId]
         );
+        if ($deleted > 0) {
+            (new AuditLog($this->db))->write('NORM_DELETE', 'CLAIM_NORM', (int) ($body['id'] ?? 0), 'Норматив удалён');
+        }
         return $this->redirect($response, '/directories/norms?' . ($deleted ? 'ok=' . urlencode('Норматив удалён') : 'err=' . urlencode('Норматив не найден')));
     }
 
@@ -685,6 +740,7 @@ class AdminController
                 );
             }
             $this->db->commit();
+            (new AuditLog($this->db))->write('USER_ROLES_UPDATE', 'USER', $userId, 'Изменены роли пользователя');
         } catch (\Throwable $e) {
             $this->db->rollback();
             return $this->redirect($response, '/admin/users?err=' . urlencode('Не удалось обновить роли'));
@@ -745,6 +801,7 @@ class AdminController
                 );
             }
             $this->db->commit();
+            (new AuditLog($this->db))->write('USER_ORGANIZATIONS_UPDATE', 'USER', $userId, 'Изменены организации пользователя');
         } catch (\Throwable $error) {
             $this->db->rollback();
             return $this->redirect($response, '/admin/users?err=' . urlencode('Не удалось сохранить организации пользователя'));
@@ -773,6 +830,13 @@ class AdminController
         $this->db->execute(
             'UPDATE xx_rjd_users SET is_active = :active WHERE id = :id',
             ['active' => $active, 'id' => $userId]
+        );
+
+        (new AuditLog($this->db))->write(
+            $active === 1 ? 'USER_ENABLE' : 'USER_DISABLE',
+            'USER',
+            $userId,
+            $active === 1 ? 'Пользователь включён' : 'Пользователь отключён'
         );
 
         return $this->redirect(
@@ -859,6 +923,8 @@ class AdminController
             $this->db->rollback();
             return $this->redirect($response, '/admin/users/new?err=' . urlencode('Не удалось создать пользователя'));
         }
+
+        (new AuditLog($this->db))->write('USER_CREATE', 'USER', $newUserId, 'Создан пользователь ' . $username);
 
         return $this->redirect($response, '/admin/users/' . $newUserId . '/edit?ok=' . urlencode('Пользователь создан'));
     }
@@ -970,6 +1036,13 @@ class AdminController
             return $this->redirect($response, $editUrl . '?err=' . urlencode('Не удалось сохранить пользователя'));
         }
 
+        (new AuditLog($this->db))->write(
+            'USER_UPDATE',
+            'USER',
+            $userId,
+            'Изменён пользователь ' . $username . ($password !== '' ? '; изменён пароль' : '')
+        );
+
         return $this->redirect($response, $editUrl . '?ok=' . urlencode('Пользователь сохранён'));
     }
 
@@ -994,6 +1067,8 @@ class AdminController
             'UPDATE xx_rjd_users SET password_hash = :hash WHERE id = :id',
             ['hash' => password_hash($password, PASSWORD_BCRYPT), 'id' => $userId]
         );
+
+        (new AuditLog($this->db))->write('PASSWORD_CHANGE', 'USER', $userId, 'Пароль изменён администратором');
 
         return $this->redirect($response, '/admin/users?ok=' . urlencode('Пароль обновлён'));
     }
@@ -1037,6 +1112,8 @@ class AdminController
             $this->db->rollback();
             return $this->redirect($response, '/admin/roles/new?err=' . urlencode('Не удалось создать роль'));
         }
+
+        (new AuditLog($this->db))->write('ROLE_CREATE', 'ROLE', (int) $row['id'], 'Создана роль ' . $code . ' — ' . $name);
 
         return $this->redirect($response, '/admin/roles/' . (int) $row['id'] . '/edit?ok=' . urlencode('Роль создана'));
     }
@@ -1083,6 +1160,8 @@ class AdminController
             return $this->redirect($response, '/admin/roles/' . $roleId . '/edit?err=' . urlencode('Не удалось сохранить роль'));
         }
 
+        (new AuditLog($this->db))->write('ROLE_UPDATE', 'ROLE', $roleId, 'Роль изменена: ' . ($name !== '' ? $name : (string) $role['code']));
+
         return $this->redirect($response, '/admin/roles/' . $roleId . '/edit?ok=' . urlencode('Роль обновлена'));
     }
 
@@ -1114,6 +1193,7 @@ class AdminController
         }
 
         $this->db->execute('DELETE FROM xx_rjd_roles WHERE id = :id', ['id' => $roleId]);
+        (new AuditLog($this->db))->write('ROLE_DELETE', 'ROLE', $roleId, 'Удалена роль ' . (string) ($role['code'] ?? ''));
 
         return $this->redirect($response, '/admin/roles?ok=' . urlencode('Роль удалена'));
     }
@@ -1152,6 +1232,12 @@ class AdminController
                     'p_latitude' => $latitude,
                     'p_longitude' => $longitude,
                 ]
+            );
+            (new AuditLog($this->db))->write(
+                $isNew ? 'STATION_CREATE' : 'STATION_UPDATE',
+                'STATION',
+                $esrCode,
+                ($isNew ? 'Создана станция: ' : 'Изменена станция: ') . $stationName
             );
         } catch (\Throwable $error) {
             $errorId = ErrorLogger::logThrowable($error, [
@@ -1193,6 +1279,7 @@ class AdminController
                 'BEGIN xx_rjd_dislocation_new_pkg.delete_station(:p_esr_code); END;',
                 ['p_esr_code' => $esrCode]
             );
+            (new AuditLog($this->db))->write('STATION_DELETE', 'STATION', $esrCode, 'Станция удалена');
         } catch (\Throwable $error) {
             $errorId = ErrorLogger::logThrowable($error, [
                 'module' => self::class,
@@ -1307,6 +1394,13 @@ class AdminController
             );
         }
 
+        (new AuditLog($this->db))->write(
+            $isNew ? 'ORGANIZATION_CREATE' : 'ORGANIZATION_UPDATE',
+            'ORGANIZATION',
+            $id,
+            ($isNew ? 'Создана организация: ' : 'Изменена организация: ') . $code . ' — ' . $name
+        );
+
         return $this->redirect(
             $response,
             '/admin/directories/organizations/' . $id . '/edit?ok=' . urlencode($isNew ? 'Организация создана' : 'Организация сохранена')
@@ -1351,6 +1445,12 @@ class AdminController
         }
 
         $message = $active === 1 ? 'Организация включена' : 'Организация отключена';
+        (new AuditLog($this->db))->write(
+            $active === 1 ? 'ORGANIZATION_ENABLE' : 'ORGANIZATION_DISABLE',
+            'ORGANIZATION',
+            $id,
+            $message
+        );
         return $this->redirect($response, '/admin/directories/organizations?ok=' . urlencode($message));
     }
 

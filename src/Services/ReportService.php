@@ -59,4 +59,42 @@ final class ReportService
         return ['sql' => $sql, 'params' => $params];
     }
 
+    /** Детальные записи контроля простоев с фильтрами страницы. */
+    public function downtimeControlDetail(array $filters): array
+    {
+        $bindings = [];
+        $whereCond = '1=1';
+
+        $wagonNo = trim((string) ($filters['wagon_no'] ?? ''));
+        if ($wagonNo !== '') {
+            $wagons = array_values(array_filter(array_map('trim', explode(';', $wagonNo))));
+            if ($wagons) {
+                $placeholders = [];
+                foreach ($wagons as $index => $wagon) {
+                    $key = 'wagon_no_' . $index;
+                    $placeholders[] = ':' . $key;
+                    $bindings[$key] = $wagon;
+                }
+                $whereCond .= ' AND car_number IN (' . implode(', ', $placeholders) . ')';
+            }
+        }
+
+        $dateFrom = (string) ($filters['date_from'] ?? '');
+        if ($dateFrom !== '') {
+            $whereCond .= " AND (end_date IS NULL OR TRUNC(end_date) >= TO_DATE(:date_from, 'YYYY-MM-DD'))";
+            $bindings['date_from'] = $dateFrom;
+        }
+
+        $dateTo = (string) ($filters['date_to'] ?? '');
+        if ($dateTo !== '') {
+            $whereCond .= " AND (start_date IS NULL OR TRUNC(start_date) <= TO_DATE(:date_to, 'YYYY-MM-DD'))";
+            $bindings['date_to'] = $dateTo;
+        }
+
+        return $this->db->fetchAll(
+            "SELECT * FROM xx_disl_idle_control_v WHERE $whereCond ORDER BY id_control DESC",
+            $bindings
+        );
+    }
+
 }

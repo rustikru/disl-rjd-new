@@ -7,7 +7,119 @@ use App\Database\DbInterface;
 
 final class Claims
 {
-    public function __construct(private DbInterface $db, private int $organizationId) {}
+    private const WAGON_TYPE = "xx_etw.xx_rjd_dislocation_new_pkg.fnc_mapping_wag_type(wagon_type_code)";
+
+    private ReportService $reports;
+
+    public function __construct(private DbInterface $db, private Organizations $organizations)
+    {
+        $this->reports = new ReportService($db, $organizations);
+    }
+
+    public function filters(array $params): array
+    {
+        $source = $this->source($params);
+        if ($source['from'] === '') {
+            return ['stations' => [], 'wagon_type' => []];
+        }
+
+        $stations = $this->db->fetchAll(
+            "SELECT station_code, MIN(dest_station) AS station_name FROM {$source['from']}
+              WHERE station_code IS NOT NULL GROUP BY station_code ORDER BY station_name",
+            $source['bindings']
+        );
+        $types = $this->db->fetchAll(
+            "SELECT DISTINCT wagon_type_code FROM {$source['from']} ORDER BY wagon_type_code",
+            $source['bindings']
+        );
+
+        return [
+            'stations' => $stations,
+            'wagon_type' => array_column($types, 'wagon_type_code'),
+        ];
+    }
+
+    public function summary(array $params): array
+    {
+        $source = $this->source($params);
+        $rows = $this->rows($source, $params);
+        $empty = [
+            'wagon_type_code' => 'Общий итог',
+            'total' => 0,
+            'penalty_count' => 0,
+            'payable_days' => 0,
+            'amount' => 0,
+            'incomplete_count' => 0,
+        ];
+        $groups = [];
+        $total = $empty;
+
+        foreach ($rows as $row) {
+            $type = $row['wagon_type_code'] ?: 'Прочие';
+            if (!isset($groups[$type])) {
+                $groups[$type] = array_replace($empty, ['wagon_type_code' => $type]);
+            }
+            foreach ([$type, null] as $key) {
+                $group = &$total;
+                if ($key !== null) {
+                    $group = &$groups[$key];
+                }
+                $group['total']++;
+                $group['penalty_count'] += (int) ($row['claim_status'] === 'penalty');
+                $group['incomplete_count'] += (int) ($row['claim_status'] === 'incomplete');
+                $group['payable_days'] += $row['payable_days'] ?? 0;
+                $group['amount'] = round($group['amount'] + ($row['amount'] ?? 0), 2);
+                unset($group);
+            }
+        }
+
+        ksort($groups);
+        return [
+            'rows' => array_values($groups),
+            'totals' => $total,
+            'total' => count($rows),
+            'reports' => $source['reports'],
+        ];
+    }
+
+    public function detail(array $params): array
+    {
+        $rows = $this->rows($this->source($params), $params);
+        $fields = array_values(array_filter(array_map('trim', explode(',', (string) ($params['fields'] ?? '')))));
+        $sort = array_values(array_filter(array_map('trim', explode(',', (string) ($params['sort'] ?? '')))));
+        $directions = explode(',', (string) ($params['sort_dir'] ?? ''));
+
+        if ($sort && $rows) {
+            $allowed = array_keys($rows[0]);
+            $sort = array_values(array_filter($sort, static fn($key) => in_array($key, $allowed, true)));
+            usort($rows, static function ($a, $b) use ($sort, $directions) {
+                foreach ($sort as $index => $key) {
+                    if ($a[$key] === $b[$key]) {
+                        continue;
+                    }
+                    if ($a[$key] === null) {
+                        return 1;
+                    }
+                    if ($b[$key] === null) {
+                        return -1;
+                    }
+                    $result = is_numeric($a[$key]) && is_numeric($b[$key])
+                        ? (float) $a[$key] <=> (float) $b[$key]
+                        : strcmp((string) $a[$key], (string) $b[$key]);
+                    if ($result !== 0) {
+                        return strtolower($directions[$index] ?? 'asc') === 'desc' ? -$result : $result;
+                    }
+                }
+                return strcmp($a['wagon_no'], $b['wagon_no']);
+            });
+        }
+        if ($fields) {
+            $keys = array_flip($fields);
+            $rows = array_map(static fn($row) => array_intersect_key($row, $keys), $rows);
+        }
+
+        return ['rows' => $rows];
+    }
 
     public function rows(array $source, array $params = []): array
     {
@@ -41,10 +153,10 @@ final class Claims
             }
         }
         $data = $this->db->fetchAll("SELECT * FROM {$source['from']} WHERE $where", $bindings);
-        $norms = (new ClaimNorms($this->db, $this->organizationId))->list();
+        $norms = (new ClaimNorms($this->db, (int) $this->organizations->id()))->list();
         $rows = [];
         foreach ($data as $row) {
-            if ($this->key($row['owner'] ?? '') === 'АО "МЕТАФРАКС КЕМИКАЛС"') {
+            if ($this->organizations->isCurrentOrganizationName((string) ($row['owner'] ?? ''))) {
                 continue;
             }
             $row = $this->calculate($row, $norms);
@@ -145,5 +257,38 @@ final class Claims
     private function key(string $value): string
     {
         return str_replace('Ё', 'Е', mb_strtoupper(preg_replace('/\s+/u', ' ', trim($value))));
+    }
+
+    private function source(array $params): array
+    {
+        $reports = $this->reports->getLatestDtsByType(
+            $params['report_dt'] ?? null,
+            ['Подход', 'Отправка']
+        );
+        if (!$reports) {
+            return ['from' => '', 'bindings' => [], 'reports' => []];
+        }
+
+        $condition = $this->reports->latestDtCondition($reports, 'xdr');
+        $from = "(SELECT TRIM(wagon_no) AS wagon_no, wagon_type_code AS wagon_type_name,
+                         " . self::WAGON_TYPE . " AS wagon_type_code,
+                         cargo_name, prev_cargo, owner, consignor, consignor_name, consignee, consignee_name,
+                         oper_station, dest_station, trip_end_dt, asoup_arrive_dt, report_dt, waybill_no, type_reference,
+                         REGEXP_SUBSTR(dest_station, '[0-9]{6}') AS station_code
+                  FROM (
+                      SELECT xdr.*, ROW_NUMBER() OVER (
+                          PARTITION BY TRIM(wagon_no)
+                          ORDER BY oper_dt DESC NULLS LAST, report_dt DESC,
+                                   CASE WHEN type_reference = 'Подход' THEN 0 ELSE 1 END, id DESC
+                      ) AS claim_row
+                        FROM xx_dislocation_rjd xdr WHERE {$condition['sql']}
+                  )
+                 WHERE claim_row = 1 AND dist_remain_km = 0
+                   AND REGEXP_SUBSTR(oper_station, '[0-9]{6}') = REGEXP_SUBSTR(dest_station, '[0-9]{6}')
+                   AND TRIM(wagon_no) NOT LIKE '0%'
+                   AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), '[[:space:]]+', ' ')), ' ')
+                       NOT LIKE '%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%')";
+
+        return ['from' => $from, 'bindings' => $condition['params'], 'reports' => $reports];
     }
 }
