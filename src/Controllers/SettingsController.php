@@ -33,6 +33,7 @@ final class SettingsController
                     $enabled = array_filter((array) ($body['enabled'] ?? []), 'is_string');
                     $disabled = array_diff(array_keys(PageRegistry::labels()), $enabled);
                     $custom = preg_split('/\R/', (string) ($body['custom'] ?? ''), -1, PREG_SPLIT_NO_EMPTY);
+                    $custom = array_diff($custom, PageRegistry::legacyVisibilityAliases());
                     $updated['disabled_pages'] = array_values(array_unique(array_filter(array_map('trim', array_merge(array_keys(array_intersect_key(PageRegistry::labels(), array_flip($disabled))), $custom)))));
                 } else {
                     $updated = \App\Services\ConfigSchema::normalizeForStorage((array)($body['settings'] ?? []), $values);

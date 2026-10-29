@@ -27,7 +27,18 @@ final class PageAvailability
 
     public function isDisabled(string $page): bool
     {
-        return in_array(strtolower(trim($page)), $this->disabledPages, true);
+        $page = strtolower(trim($page));
+        if (in_array($page, $this->disabledPages, true)) {
+            return true;
+        }
+        if (isset(PageRegistry::all()[$page])) {
+            foreach (PageRegistry::availabilityKeys($page) as $key) {
+                if (in_array(strtolower(trim((string) $key)), $this->disabledPages, true)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** Убирает отключённые отчёты из настроек клиентской части. */

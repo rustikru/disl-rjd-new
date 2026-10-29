@@ -7,7 +7,6 @@ var DISABLED_PAGES = window.APP_DISABLED_PAGES || []
 // Проверка доступа к вкладке
 function canSeeTab(tab) {
   if (!tab.page) return true
-  if (window.APP_IS_ADMIN) return true
   return ALLOWED_PAGES.indexOf(tab.page) !== -1
 }
 
@@ -27,11 +26,11 @@ var TAB_GROUPS = (window.APP_NAV_CONFIG || []).map(function (group) {
   }
 })
 
-// Раздел администрирования — только для роли ADMIN
-if (window.APP_IS_ADMIN && DISABLED_PAGES.indexOf('admin') === -1) {
+// Ссылка в администрирование показывается только при наличии этого права.
+if (ALLOWED_PAGES.indexOf('admin') !== -1 && DISABLED_PAGES.indexOf('admin') === -1) {
   TAB_GROUPS.push({
     label: 'Администрирование',
-    tabs: [{ id: 'admin', label: 'Перейти', url: BASE + '/admin/users' }],
+    tabs: [{ id: 'admin', label: 'Перейти', url: BASE + '/admin' }],
   })
 }
 
@@ -404,10 +403,13 @@ function buildReportFilterFields(reportCode, reportDefinition) {
   var $filterFields = $('#panel-' + reportCode + ' .filters-inner').first()
   if (!$filterFields.length) return
   $filterFields.find('.filter-item').remove()
+  $filterFields.find('.filter-range').remove()
   var $filterActions = $filterFields.find('.filter-actions').first()
+  var $dateRange = null
 
   ;(reportDefinition.filters || []).forEach(function (filterDefinition) {
     var $filterItem = $('<div>').addClass('filter-item')
+    $filterItem.attr('data-filter', filterDefinition.key)
     var $label = $('<label>')
       .addClass('filter-label')
       .attr('for', filterDefinition.field_id)
@@ -435,7 +437,17 @@ function buildReportFilterFields(reportCode, reportDefinition) {
       .attr('id', filterDefinition.field_id)
       .val(reportInitialFilterValue(filterDefinition.initial_value))
     $filterItem.append($label, $field)
-    if ($filterActions.length) $filterItem.insertBefore($filterActions)
+    if (
+      reportCode === 'analysis-period' &&
+      ['date_from', 'date_to'].indexOf(filterDefinition.key) >= 0
+    ) {
+      if (!$dateRange) {
+        $dateRange = $('<div>').addClass('filter-range')
+        if ($filterActions.length) $dateRange.insertBefore($filterActions)
+        else $filterFields.append($dateRange)
+      }
+      $dateRange.append($filterItem)
+    } else if ($filterActions.length) $filterItem.insertBefore($filterActions)
     else $filterFields.append($filterItem)
   })
 }
@@ -1133,7 +1145,8 @@ function showTable($container, rows, colDefs) {
     var content = esc(String(display))
     if (
       (c.key === 'wagon_no' || c.key === 'car_number') &&
-      /^\d{8}$/.test(String(v))
+      /^\d{8}$/.test(String(v)) &&
+      ALLOWED_PAGES.indexOf('wagon-card') !== -1
     ) {
       content =
         '<a class="wagon-link" href="' +
@@ -2145,15 +2158,17 @@ $(document).on('click', '.row-sub-parent', function (e) {
 // Начало всего и конец тоже
 $(function () {
   var reportCodes = Object.keys(WAGON_TABS)
+  var visibleReports = reportCodes.filter(function (code) {
+    return ALLOWED_PAGES.indexOf(code) !== -1
+  })
   initSidebar()
   initInnerTabs()
 
-  var hasDashboard =
-    reportCodes.length > 0 &&
-    (window.APP_IS_ADMIN || ALLOWED_PAGES.indexOf('dashboard') !== -1)
+  var hasReports = visibleReports.length > 0
+  var hasDashboard = ALLOWED_PAGES.indexOf('dashboard') !== -1
 
-  // Если дашборд недоступен — скрываем все его панели и показываем заглушку
-  if (!hasDashboard) {
+  // Если отчёты не назначены — скрываем панели и показываем заглушку.
+  if (!hasReports) {
     var allPanels = document.querySelectorAll('.tab-panel')
     for (var pi = 0; pi < allPanels.length; pi++) {
       allPanels[pi].style.display = 'none'
@@ -2183,11 +2198,11 @@ $(function () {
   // Восстанавливаем активную вкладку из URL hash (при возврате с детализации)
   var hashTab = (location.hash || '').replace('#', '')
   var startTab =
-    hashTab && WAGON_TABS[hashTab]
+    hashTab && visibleReports.indexOf(hashTab) !== -1
       ? hashTab
-      : WAGON_TABS.dislocation
+      : visibleReports.indexOf('dislocation') !== -1
         ? 'dislocation'
-        : reportCodes[0] || ''
+        : visibleReports[0] || ''
   if (startTab) switchTab(startTab)
 
   var kpiXhrs = hasDashboard ? loadKPI() : null

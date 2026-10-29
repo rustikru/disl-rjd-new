@@ -4,7 +4,7 @@
 .organization-fields{grid-template-columns:220px 1fr}.status-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;font-weight:600;margin-top:16px}.status-row input{width:17px;height:17px;accent-color:var(--accent)}@media(max-width:650px){.organization-fields{grid-template-columns:1fr}}
 </style></head><body>
 <?php $headerSub='<div class="brand-sub">Администрирование</div>';$headerLeft='<a href="'.htmlspecialchars($basePath).'/admin/directories/organizations" class="btn-nav-back" title="К организациям">←</a>';$headerRight='';include __DIR__.'/../partials/header.php';?>
-<div class="app-body"><?php $activeAdminPage='organizations';include __DIR__.'/../partials/admin-sidebar.php';?><main class="main-content">
+<div class="app-body"><?php $activeAdminPage='organizations';include __DIR__.'/../partials/admin-sidebar.php';?><main class="main-content ui-form-page">
 <div class="ui-page-head ui-page-head--form"><a class="ui-back-link" href="<?=htmlspecialchars($basePath)?>/admin/directories/organizations">← К списку организаций</a><h1><?=$isNewOrganization?'Новая организация':'Редактирование организации'?></h1></div>
 <?php uiNotices($flashOk ?? null, $flashErr ?? null); ?>
 <form method="POST" action="<?=htmlspecialchars($basePath)?>/admin/directories/organizations/save"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($csrf)?>"><?php if(!$isNewOrganization):?><input type="hidden" name="id" value="<?=(int)$editedOrganization['id']?>"><?php endif;?>

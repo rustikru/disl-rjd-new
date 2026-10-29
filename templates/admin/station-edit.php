@@ -20,7 +20,7 @@ include __DIR__ . '/../partials/header.php';
 ?>
 <div class="app-body">
   <?php $activeAdminPage = 'stations'; include __DIR__ . '/../partials/directories-sidebar.php'; ?>
-  <main class="main-content">
+  <main class="main-content ui-form-page">
     <div class="ui-page-head ui-page-head--form"><a class="ui-back-link" href="<?= htmlspecialchars($basePath) ?>/directories/stations">← К списку станций</a><h1><?= $isNewStation ? 'Новая станция' : 'Редактирование станции' ?></h1></div>
     <?php uiNotices($flashOk ?? null, $flashErr ?? null); ?>
     <form method="POST" action="<?= htmlspecialchars($basePath) ?>/directories/stations/save">

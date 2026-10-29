@@ -34,7 +34,10 @@ return function (App $app, array $config): void {
         return (new \App\Controllers\AuthController(null, $config))->showLogin($req, $res);
     });
     // Публичные маршруты
-    $app->get('/tmp/admin-mockup.html', function ($req, $res) {
+    $app->get('/tmp/admin-mockup.html', function ($req, $res) use ($config) {
+        if (empty($config['app_debug']) || !\App\Services\Authorization::isSuper()) {
+            return $res->withStatus(404);
+        }
         $file = __DIR__ . '/../tmp/admin-mockup.html';
         if (file_exists($file)) {
             $res->getBody()->write(file_get_contents($file));
@@ -91,14 +94,16 @@ return function (App $app, array $config): void {
     });
 
     // Отдельная ручная страница: берёт последние XLSX из уже обработанных писем.
-    // Маршрут не включён в навигацию, но требует обычной авторизации приложения.
+    // Маршрут не включён в меню, но требует право «Загрузка справок».
     $app->map(['GET', 'POST'], '/bin/downloads_mail_rjd.php', function ($req, $res) {
         ob_start();
         require __DIR__ . '/../bin/downloads_mail_rjd.php';
         $html = (string) ob_get_clean();
         $res->getBody()->write($html);
         return $res->withHeader('Content-Type', 'text/html; charset=utf-8');
-    })->add(new \App\Middleware\AuthMiddleware($config['base_path'] ?? ''));
+    })
+        ->add(new \App\Middleware\PageAccessMiddleware($getDb, $config['base_path'] ?? '', $config))
+        ->add(new \App\Middleware\AuthMiddleware($config['base_path'] ?? ''));
 
     // маршруты
     $app->group('', function ($group) use ($config, $getDb, $getOrganizations) {

@@ -38,7 +38,17 @@ class AdminController
 
     public function index(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        return $this->redirect($response, '/admin/users');
+        $user = $_SESSION['user'] ?? [];
+        $pages = \App\Services\Authorization::isSuper($user)
+            ? array_keys(\App\Services\PageRegistry::labels())
+            : (array) ($user['allowed_pages'] ?? []);
+        foreach (\App\Services\PageRegistry::all() as $code => $definition) {
+            $item = $definition['admin_navigation'] ?? null;
+            if ($item && in_array($code, $pages, true)) {
+                return $this->redirect($response, (string) $item['url']);
+            }
+        }
+        return $this->forbidden($response);
     }
 
     public function auditPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -331,6 +341,9 @@ class AdminController
         if (!$this->isAdmin()) {
             return $this->forbidden($response);
         }
+        if ($this->isSuper()) {
+            return $this->redirect($response, '/admin/roles/' . (int) ($args['id'] ?? 0) . '/edit');
+        }
         $role = $this->db->fetchOne(
             "SELECT id, code, name, description, is_system FROM xx_rjd_roles WHERE id = :id AND code <> 'SUPER'",
             ['id' => (int) ($args['id'] ?? 0)]
@@ -338,12 +351,10 @@ class AdminController
         if (!$role) {
             return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
         }
-        $selectedPages = ($role['code'] ?? '') === 'ADMIN'
-            ? \App\Services\PageRegistry::adminPermissions()
-            : array_column($this->db->fetchAll(
-                'SELECT page FROM xx_rjd_role_pages WHERE role_id = :id',
-                ['id' => (int) $role['id']]
-            ), 'page');
+        $selectedPages = \App\Services\PageRegistry::expandPermissions(array_column($this->db->fetchAll(
+            'SELECT page FROM xx_rjd_role_pages WHERE role_id = :id',
+            ['id' => (int) $role['id']]
+        ), 'page'));
         return $this->roleFormPage($request, $response, $role, $selectedPages, false, true);
     }
 
@@ -362,10 +373,10 @@ class AdminController
         if (!$role) {
             return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
         }
-        $selectedPages = array_column($this->db->fetchAll(
+        $selectedPages = \App\Services\PageRegistry::expandPermissions(array_column($this->db->fetchAll(
             'SELECT page FROM xx_rjd_role_pages WHERE role_id = :id',
             ['id' => (int) $role['id']]
-        ), 'page');
+        ), 'page'));
         return $this->roleFormPage($request, $response, $role, $selectedPages, false, false);
     }
 
@@ -1196,8 +1207,6 @@ class AdminController
         if (!$role) {
             return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
         }
-        $isAdminRole = ($role['code'] ?? '') === 'ADMIN';
-
         $name = trim((string) ($body['name'] ?? ''));
         $desc = trim((string) ($body['description'] ?? ''));
 
@@ -1209,10 +1218,8 @@ class AdminController
                     ['name' => $name, 'dsc' => $desc !== '' ? $desc : null, 'id' => $roleId]
                 );
             }
-            if (!$isAdminRole) {
-                $this->db->execute('DELETE FROM xx_rjd_role_pages WHERE role_id = :id', ['id' => $roleId]);
-                $this->savePages($roleId, (array) ($body['pages'] ?? []));
-            }
+            $this->db->execute('DELETE FROM xx_rjd_role_pages WHERE role_id = :id', ['id' => $roleId]);
+            $this->savePages($roleId, (array) ($body['pages'] ?? []));
             $this->db->commit();
         } catch (\Throwable $e) {
             $this->db->rollback();
@@ -1516,7 +1523,8 @@ class AdminController
     private function savePages(int $roleId, array $pages): void
     {
         foreach ($pages as $page) {
-            if (!isset(\App\Services\PageRegistry::labels()[$page])) {
+            $definition = \App\Services\PageRegistry::all()[$page] ?? null;
+            if ($definition === null || !empty($definition['derived'])) {
                 continue;
             }
             $this->db->execute(

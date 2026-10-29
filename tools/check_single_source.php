@@ -34,7 +34,19 @@ $sourceKeys=array_column(ReportConfig::sourceColumns(),'key');
 if(count($sourceKeys)!==count(array_unique($sourceKeys))) $errors[]='source-columns.php содержит повторяющиеся key';
 foreach(PageRegistry::all() as $code=>$page){
     if(trim((string)($page['label']??''))==='') $errors[]="$code: отсутствует label";
-    foreach((array)($page['routes']??[]) as $route) if(!str_starts_with((string)$route,'/')) $errors[]="$code: маршрут должен начинаться с /: $route";
+    foreach((array)($page['routes']??[]) as $route){
+        if(!str_starts_with((string)$route,'/')) $errors[]="$code: маршрут должен начинаться с /: $route";
+        elseif(PageRegistry::pageForPath((string)$route)!==$code) $errors[]="$code: маршрут сопоставлен с другим правом: $route";
+    }
+    foreach(['navigation','user_menu','admin_navigation'] as $menuKey){
+        $url=$page[$menuKey]['url']??null;
+        if($url!==null && PageRegistry::pageForPath((string)$url)!==$code) $errors[]="$code: $menuKey ведёт на страницу ".(PageRegistry::pageForPath((string)$url)??'без права').": $url";
+    }
+    foreach((array)($page['directory_navigation']??[]) as $item){
+        $url=(string)($item['url']??'');
+        if(PageRegistry::pageForPath($url)!==$code) $errors[]="$code: directory_navigation ведёт на страницу ".(PageRegistry::pageForPath($url)??'без права').": $url";
+    }
 }
 try { ConfigSchema::normalize(ConfigSchema::defaults(),false); } catch(Throwable $e) { $errors[]='ConfigSchema: '.$e->getMessage(); }
+foreach(PageRegistry::accessPages('/api/technical-state/detail') as $code) if(!isset(PageRegistry::all()[$code])) $errors[]="Общий API ссылается на неизвестное право: $code";
 if($errors){fwrite(STDERR,implode(PHP_EOL,$errors).PHP_EOL);exit(1);} echo 'Single-source registries are consistent: '.count(PageRegistry::all()).' pages, '.count($endpoints).' report endpoints, '.count($sourceKeys).' source columns.'.PHP_EOL;

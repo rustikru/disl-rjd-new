@@ -61,7 +61,7 @@ class DashboardController
 
     /**
      * Возвращает список страниц, доступных текущему пользователю.
-     * SUPER получает весь каталог, ADMIN — каталог без super_only.
+     * SUPER получает весь каталог, остальные пользователи — права своих ролей.
      * При первичной настройке сохраняется прежний открытый режим.
      */
     private function resolveAllowedPages(array $user): array
@@ -70,10 +70,6 @@ class DashboardController
 
         if (\App\Services\Authorization::isSuper($user)) {
             return $allPages;
-        }
-
-        if (\App\Services\Authorization::isAdmin($user)) {
-            return \App\Services\PageRegistry::adminPermissions();
         }
 
         if ($this->db === null) {
@@ -102,7 +98,7 @@ class DashboardController
                 }
             }
 
-            return \App\Services\DirectoryAccess::expandPages($pages);
+            return \App\Services\PageRegistry::forUser($pages, $user);
         } catch (\Throwable $e) {
             // Инфраструктура ролей ещё не развёрнута
             return $allPages;

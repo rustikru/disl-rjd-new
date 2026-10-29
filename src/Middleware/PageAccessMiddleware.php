@@ -46,25 +46,41 @@ class PageAccessMiddleware implements MiddlewareInterface
             return $this->unavailable($request);
         }
 
+        $allowed = [];
+        if (!\App\Services\Authorization::isSuper($user)) {
+            try {
+                $allowed = $this->allowedPages((int) ($user['id'] ?? 0));
+                $_SESSION['user']['allowed_pages'] = $allowed;
+            } catch (\Throwable $e) {
+                // Таблицы ролей ещё нет — сохраняем прежний режим первичной настройки.
+                return $handler->handle($request);
+            }
+        }
+
         $page = $this->resolvePage($request->getUri()->getPath(), $request->getQueryParams());
         if ($page === null) {
             // Путь не относится к разграничиваемым страницам — пропускаем
             return $handler->handle($request);
         }
 
-        // Администратор — полный доступ
-        if (\App\Services\Authorization::isAdmin($user)) {
+        $definition = \App\Services\PageRegistry::all()[$page] ?? [];
+        if (!empty($definition['super_only']) && !\App\Services\Authorization::isSuper($user)) {
+            return $this->deny($request, $page);
+        }
+        if (!empty($definition['admin_only']) && !\App\Services\Authorization::isAdmin($user)) {
+            return $this->deny($request, $page);
+        }
+
+        // Безусловный доступ ко всем страницам есть только у SUPER.
+        if (\App\Services\Authorization::isSuper($user)) {
             return $handler->handle($request);
         }
 
-        try {
-            $allowed = $this->allowedPages((int) ($user['id'] ?? 0));
-        } catch (\Throwable $e) {
-            // таблицы ролей ещё нет — не блокируем
-            return $handler->handle($request);
-        }
-
-        if (in_array($page, $allowed, true)) {
+        $accessPages = \App\Services\PageRegistry::accessPages(
+            $this->path($request->getUri()->getPath()),
+            $request->getQueryParams()
+        );
+        if (array_intersect($accessPages, $allowed)) {
             return $handler->handle($request);
         }
 
@@ -78,10 +94,15 @@ class PageAccessMiddleware implements MiddlewareInterface
 
     private function resolvePage(string $path, array $query = []): ?string
     {
+        return \App\Services\PageRegistry::pageForPath($this->path($path), $query);
+    }
+
+    private function path(string $path): string
+    {
         if ($this->basePath !== '' && str_starts_with($path, $this->basePath)) {
             $path = substr($path, strlen($this->basePath));
         }
-        return \App\Services\PageRegistry::pageForPath($path, $query);
+        return '/' . ltrim($path, '/');
     }
 
     private function allowedPages(int $userId): array
@@ -93,7 +114,10 @@ class PageAccessMiddleware implements MiddlewareInterface
               WHERE ur.user_id = :id',
             ['id' => $userId]
         );
-        return \App\Services\DirectoryAccess::expandPages(array_map(static fn($r) => $r['page'], $rows));
+        return \App\Services\PageRegistry::forUser(
+            array_map(static fn($r) => $r['page'], $rows),
+            (array) ($_SESSION['user'] ?? [])
+        );
     }
 
     private function noAdminYet(): bool

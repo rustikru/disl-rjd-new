@@ -18,12 +18,12 @@ final class DirectoryAccess
 
     public function canView(): bool
     {
-        return Authorization::isAdmin() || in_array('directories', $this->pages(), true);
+        return Authorization::isSuper() || in_array('directories', $this->pages(), true);
     }
 
     public function canEdit(): bool
     {
-        return Authorization::isAdmin() || in_array('directories_edit', $this->pages(), true);
+        return Authorization::isSuper() || in_array('directories_edit', $this->pages(), true);
     }
 
     private function pages(): array

@@ -26,15 +26,16 @@ include __DIR__ . '/../partials/header.php';
     <section class="ui-panel">
       <div class="ui-panel-head"><span class="ui-panel-title">Роли (<?= count($roles) ?>)</span><input id="roleSearch" class="ui-search-input" type="search" placeholder="Поиск по коду и названию…"></div>
       <div class="ui-table-wrap"><table class="ui-table">
-        <thead><tr><th>ID</th><th>Код</th><th>Название</th><th>Описание</th></tr></thead>
+        <thead><tr><th>ID</th><th>Код</th><th>Название</th><th>Описание</th><?php if (!empty($canManageRoles)): ?><th></th><?php endif; ?></tr></thead>
         <tbody id="rolesBody">
         <?php foreach ($roles as $role): ?>
           <?php $searchText = mb_strtolower(implode(' ', [$role['code'] ?? '', $role['name'] ?? '', $role['description'] ?? ''])); ?>
           <tr data-role data-search="<?= htmlspecialchars($searchText) ?>">
             <td><?= (int) $role['id'] ?></td>
-            <td><a class="role-link ui-code" href="<?= htmlspecialchars($basePath) ?>/admin/roles/<?= (int) $role['id'] ?>/view"><?= htmlspecialchars($role['code']) ?></a></td>
+            <td><a class="role-link ui-code" href="<?= htmlspecialchars($basePath) ?>/admin/roles/<?= (int) $role['id'] ?>/<?= !empty($canManageRoles) ? 'edit' : 'view' ?>"><?= htmlspecialchars($role['code']) ?></a></td>
             <td><?php if (!empty($canManageRoles)): ?><a class="role-link" href="<?= htmlspecialchars($basePath) ?>/admin/roles/<?= (int) $role['id'] ?>/edit"><?= htmlspecialchars($role['name']) ?></a><?php else: ?><?= htmlspecialchars($role['name']) ?><?php endif; ?></td>
             <td><?= !empty($role['description']) ? htmlspecialchars($role['description']) : '<span class="ui-muted">—</span>' ?></td>
+            <?php if (!empty($canManageRoles)): ?><td><a class="btn btn-ghost btn-sm" href="<?= htmlspecialchars($basePath) ?>/admin/roles/<?= (int) $role['id'] ?>/edit">Изменить</a></td><?php endif; ?>
           </tr>
         <?php endforeach; ?>
         </tbody>

@@ -611,6 +611,13 @@ a.nav-item {
   gap: 6px;
 }
 
+.filter-range {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: nowrap;
+}
+
 .filter-label {
   font-size: 11px;
   font-weight: 600;
@@ -1454,6 +1461,16 @@ button.app-pagination__link {
 .ui-back-link:hover{border-color:var(--accent);background:var(--accent-lt)}
 .ui-page-head--form{display:block;margin-bottom:16px}
 .ui-page-head--form h1{font-size:19px;margin:10px 0 0}
+.ui-form-page .ui-page-head--form{display:flex;align-items:center;justify-content:flex-start;gap:12px;margin-bottom:10px}
+.ui-form-page .ui-page-head--form h1{margin:0;font-size:18px}
+.ui-form-page .ui-page-head--form .btn{margin-left:auto}
+.ui-form-page .ui-card-head{padding:9px 14px}
+.ui-form-page .ui-card-body{padding:12px 14px}
+.ui-form-page .ui-fields{gap:9px 12px}
+.ui-form-page .ui-field{gap:4px}
+.ui-form-page .ui-field input,.ui-form-page .ui-field select,.ui-form-page .ui-field textarea{padding:7px 9px}
+.ui-form-page .ui-field textarea{min-height:48px}
+.ui-form-page .ui-form-actions{margin-top:12px}
 .ui-pagination-wrap{border-top:1px solid var(--border-lt)}
 .ui-pagination-info{padding:9px 12px 0;color:var(--text-3);font-size:11px;text-align:center}
 

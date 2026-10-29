@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Database\DbInterface;
-use App\Services\DirectoryAccess;
 use App\Services\Organizations;
 use App\Services\PasswordReset;
 use Psr\Http\Message\ResponseInterface;
@@ -39,27 +38,6 @@ final class UserController
             return $response->withStatus(404);
         }
 
-        $roles = $this->db->fetchAll(
-            "SELECT r.code, r.name, r.description
-               FROM xx_rjd_roles r
-               JOIN xx_rjd_user_roles ur ON ur.role_id = r.id
-              WHERE ur.user_id = :id AND r.code <> 'SUPER'
-              ORDER BY r.name",
-            ['id' => $id]
-        );
-        $pages = $this->db->fetchAll(
-            'SELECT DISTINCT p.page FROM xx_rjd_role_pages p JOIN xx_rjd_user_roles ur ON ur.role_id = p.role_id WHERE ur.user_id = :id',
-            ['id' => $id]
-        );
-        $allowed = DirectoryAccess::expandPages(array_column($pages, 'page'));
-        $isSuper = \App\Services\Authorization::isSuper($user);
-        $isAdmin = $isSuper || \App\Services\Authorization::isAdmin($user) || in_array(\App\Services\Authorization::ADMIN, array_column($roles, 'code'), true);
-        $administrativeAccess = $isSuper
-            ? array_keys(\App\Services\PageRegistry::labels())
-            : \App\Services\PageRegistry::adminPermissions();
-        $access = $isAdmin
-            ? array_values(array_intersect_key(\App\Services\PageRegistry::labels(), array_flip($administrativeAccess)))
-            : array_values(array_intersect_key(\App\Services\PageRegistry::labels(), array_flip($allowed)));
         $organizations = $this->organizations->organizations();
         $organizationId = $this->organizations->id();
         $basePath = $this->config['base_path'] ?? '';

@@ -75,7 +75,7 @@ $statusNames = ['running' => 'Выполняется', 'success' => 'Успеш�
   include __DIR__ . '/../partials/header.php';
 ?>
 <div class="app-body">
-  <?php $activeAdminPage = 'report-mailings'; include __DIR__ . '/../partials/admin-sidebar.php'; ?>
+  <?php $activeAdminPage = 'admin-report-mailings'; include __DIR__ . '/../partials/admin-sidebar.php'; ?>
   <main class="main-content">
     <div class="admin-head"><div class="admin-title">Рассылки пользователей<small>Рассылки пользователей и журнал их запуска</small></div></div>
     <?php if (!empty($flashOk)): ?><div class="mailing-flash mailing-flash--ok"><?= htmlspecialchars($flashOk) ?></div><?php endif; ?>

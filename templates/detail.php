@@ -15,6 +15,7 @@ $basePath = $basePath ?? '';
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
   <script>
     window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
+    window.APP_CAN_OPEN_WAGON = <?= \App\Services\Authorization::isSuper($user) || in_array('wagon-card', (array) ($user['allowed_pages'] ?? []), true) ? 'true' : 'false' ?>;
     window.APP_REPORT_DEFINITIONS = <?= json_encode($reportDefinitions ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
   </script>
   <style>
@@ -318,7 +319,7 @@ $basePath = $basePath ?? '';
           else if (d >= 3) style = ' style="color:#E8A530;font-weight:600"';
         }
         var content = esc(String(display));
-        if ((c.key === 'wagon_no' || c.key === 'car_number') && /^\d{8}$/.test(String(v))) {
+        if ((c.key === 'wagon_no' || c.key === 'car_number') && /^\d{8}$/.test(String(v)) && window.APP_CAN_OPEN_WAGON) {
           content = '<a class="wagon-link" href="' + BASE + '/wagon?wagon_no=' + encodeURIComponent(v) + '" style="color:var(--accent);text-decoration:none" title="Карточка вагона">' + content + '</a>';
         }
         return '<div class="' + cls + '"' + style + '>' + content + '</div>';
