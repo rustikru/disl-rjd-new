@@ -5,11 +5,6 @@ use Slim\App;
 
 return function (App $app, array $config): void {
 
-    $app->add(new \App\Middleware\SessionMiddleware(
-        $config['session_name'],
-        (bool) ($config['session_cookie_secure'] ?? true),
-        $config['base_path'] ?? ''
-    ));
 
     $db = null;
     $auth = null;
@@ -18,6 +13,12 @@ return function (App $app, array $config): void {
     $getDb = function () use ($config, &$db) {
         return $db ??= \App\Database\DbFactory::create($config);
     };
+    $app->add(new \App\Middleware\SessionMiddleware(
+        $config['session_name'],
+        (bool) ($config['session_cookie_secure'] ?? true),
+        $config['base_path'] ?? '',
+        $getDb
+    ));
 
     $getAuth = function () use ($config, &$auth, $getDb) {
         return $auth ??= new \App\Auth\AuthService($getDb(), $config);
@@ -42,12 +43,7 @@ return function (App $app, array $config): void {
     });
 
     $app->post('/login', function ($req, $res) use ($getAuth, $config) {
-        try {
-            $auth = $getAuth();
-        } catch (\Throwable $e) {
-            $_SESSION['login_error'] = 'База данных недоступна. Проверьте подключение к Oracle.';
-            return $res->withHeader('Location', ($config['base_path'] ?? '') . '/login')->withStatus(302);
-        }
+        $auth = $getAuth();
         return (new \App\Controllers\AuthController($auth, $config))->handleLogin($req, $res);
     });
 
@@ -65,12 +61,7 @@ return function (App $app, array $config): void {
     });
 
     $app->get('/auth/kerberos', function ($req, $res) use ($getAuth, $config) {
-        try {
-            $auth = $getAuth();
-        } catch (\Throwable $e) {
-            $_SESSION['login_error'] = 'База данных недоступна. Проверьте подключение к Oracle.';
-            return $res->withHeader('Location', ($config['base_path'] ?? '') . '/login')->withStatus(302);
-        }
+        $auth = $getAuth();
         return (new \App\Controllers\AuthController($auth, $config))->handleKerberos($req, $res);
     });
 
@@ -89,6 +80,7 @@ return function (App $app, array $config): void {
             isset($currentUser['id']) ? (int) $currentUser['id'] : null,
             (string) ($currentUser['username'] ?? '')
         );
+        (new \App\Services\SessionRegistry($getDb()))->revoke(hash('sha256', session_id()));
         session_destroy();
         return $res->withHeader('Location', ($config['base_path'] ?? '') . '/login')->withStatus(302);
     });
@@ -161,6 +153,15 @@ return function (App $app, array $config): void {
         });
 
         // Администрирование (пользователи и роли)
+        $group->map(['GET', 'POST'], '/admin/sessions', function ($req, $res) use ($config, $getDb) {
+            return (new \App\Controllers\SessionsController($config, $getDb()))->page($req, $res);
+        });
+        $group->map(['GET', 'POST'], '/admin/settings', function ($req, $res) use ($config) {
+            return (new \App\Controllers\SettingsController($config))->page($req, $res);
+        });
+        $group->map(['GET', 'POST'], '/admin/page-visibility', function ($req, $res) use ($config) {
+            return (new \App\Controllers\SettingsController($config))->page($req, $res, true);
+        });
         $group->get('/admin', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->index($req, $res);
         });
@@ -178,6 +179,9 @@ return function (App $app, array $config): void {
         });
         $group->get('/admin/roles/new', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->roleCreatePage($req, $res);
+        });
+        $group->get('/admin/roles/{id}/view', function ($req, $res, $args) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->roleViewPage($req, $res, $args);
         });
         $group->get('/admin/roles/{id}/edit', function ($req, $res, $args) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->roleEditPage($req, $res, $args);

@@ -40,7 +40,11 @@ final class UserController
         }
 
         $roles = $this->db->fetchAll(
-            'SELECT r.code, r.name, r.description FROM xx_rjd_roles r JOIN xx_rjd_user_roles ur ON ur.role_id = r.id WHERE ur.user_id = :id ORDER BY r.name',
+            "SELECT r.code, r.name, r.description
+               FROM xx_rjd_roles r
+               JOIN xx_rjd_user_roles ur ON ur.role_id = r.id
+              WHERE ur.user_id = :id AND r.code <> 'SUPER'
+              ORDER BY r.name",
             ['id' => $id]
         );
         $pages = $this->db->fetchAll(

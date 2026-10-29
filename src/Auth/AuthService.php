@@ -67,7 +67,8 @@ class AuthService
             'auth_source' => 'kerberos',
             'role_codes' => $roleCodes,
             'role_names' => array_column($roles, 'name'),
-            'is_admin' => in_array('ADMIN', $roleCodes, true),
+            'is_admin' => in_array('ADMIN', $roleCodes, true) || in_array('SUPER', $roleCodes, true),
+            'is_super' => in_array('SUPER', $roleCodes, true),
         ];
     }
 
@@ -92,7 +93,9 @@ class AuthService
                 $roles = $this->fetchUserRoles((int) ($dbUser['id'] ?? 0));
                 $adUser['role_codes'] = array_column($roles, 'code');
                 $adUser['role_names'] = array_column($roles, 'name');
-                $adUser['is_admin']   = in_array('ADMIN', $adUser['role_codes'], true);
+                $adUser['is_admin']   = in_array('ADMIN', $adUser['role_codes'], true)
+                    || in_array('SUPER', $adUser['role_codes'], true);
+                $adUser['is_super']   = in_array('SUPER', $adUser['role_codes'], true);
                 return $adUser;
             }
         }
@@ -125,7 +128,9 @@ class AuthService
             'auth_source'  => 'local',
             'role_codes'   => array_column($roles, 'code'),
             'role_names'   => array_column($roles, 'name'),
-            'is_admin'     => in_array('ADMIN', array_column($roles, 'code'), true),
+            'is_admin'     => in_array('ADMIN', array_column($roles, 'code'), true)
+                || in_array('SUPER', array_column($roles, 'code'), true),
+            'is_super'     => in_array('SUPER', array_column($roles, 'code'), true),
         ];
     }
 

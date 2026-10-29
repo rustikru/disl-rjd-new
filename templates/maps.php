@@ -4,6 +4,7 @@ $appName = $appName ?? 'Дислокация РЖД';
 $basePath = $basePath ?? '';
 $user = $user ?? ['display_name' => 'Пользователь'];
 $reportDtLabel = $reportDtLabel ?? '';
+$reportIsStale = $reportIsStale ?? false;
 $stationsWithoutCoordinatesJson = $stationsWithoutCoordinatesJson ?? '[]';
 ?>
 <!DOCTYPE html>
@@ -369,6 +370,7 @@ $stationsWithoutCoordinatesJson = $stationsWithoutCoordinatesJson ?? '[]';
     <?php
     $headerSub = '<div id="brandDateSub" class="brand-date-sub">'
         . ($reportDtLabel ? 'Дислокация РЖД на ' . htmlspecialchars($reportDtLabel) : '')
+        . ($reportDtLabel && $reportIsStale ? ' &middot; <span class="brand-date-warning">НЕАКТУАЛЬНАЯ ДИСЛОКАЦИЯ</span>' : '')
         . '</div>';
     $headerLeft = '<button type="button" class="btn-nav-back" onclick="goBack()" title="Назад"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg></button>';
     $headerRight = '';

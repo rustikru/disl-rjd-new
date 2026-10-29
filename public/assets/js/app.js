@@ -2,6 +2,7 @@
 
 var BASE = window.APP_BASE || ''
 var ALLOWED_PAGES = window.APP_ALLOWED_PAGES || []
+var DISABLED_PAGES = window.APP_DISABLED_PAGES || []
 
 // Проверка доступа к вкладке
 function canSeeTab(tab) {
@@ -27,7 +28,7 @@ var TAB_GROUPS = (window.APP_NAV_CONFIG || []).map(function (group) {
 })
 
 // Раздел администрирования — только для роли ADMIN
-if (window.APP_IS_ADMIN) {
+if (window.APP_IS_ADMIN && DISABLED_PAGES.indexOf('admin') === -1) {
   TAB_GROUPS.push({
     label: 'Администрирование',
     tabs: [{ id: 'admin', label: 'Перейти', url: BASE + '/admin/users' }],
@@ -64,7 +65,7 @@ function initSidebar() {
           switchTab(tab.id)
         })
       }
-      el.className = 'nav-item' + (tab.id === 'dislocation' ? ' active' : '')
+      el.className = 'nav-item'
       el.textContent = tab.label
       el.dataset.tab = tab.id
       groupEl.appendChild(el)
@@ -128,13 +129,46 @@ function loadKPI(keys) {
       function (data) {
         //console.log('Ключ:', data)
         if (data.updated_at) {
-          $('#brandDateSub').text('Дислокация РЖД на ' + data.updated_at)
+          showDislocationDate(data.updated_at)
           $('#headerDate').text(data.updated_at)
         }
         showKpi(data, board.containerId)
       },
     )
   })
+}
+
+// Дата в API приходит в формате DD.MM.YYYY HH:MM.
+// Если она старше заданного срока, рядом показываем заметное предупреждение.
+function showDislocationDate(value) {
+  var container = document.getElementById('brandDateSub')
+  if (!container) return
+
+  container.replaceChildren()
+  container.append(document.createTextNode('Дислокация РЖД на ' + value))
+
+  var match = String(value).match(
+    /^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})$/,
+  )
+  if (!match) return
+
+  var reportTime =
+    Date.UTC(
+      Number(match[3]),
+      Number(match[2]) - 1,
+      Number(match[1]),
+      Number(match[4]),
+      Number(match[5]),
+    ) -
+    Number(window.APP_TIMEZONE_OFFSET_SECONDS || 0) * 1000
+  var staleHours = Math.max(1, Number(window.DISLOCATION_STALE_HOURS) || 8)
+  if (Date.now() - reportTime <= staleHours * 60 * 60 * 1000) return
+
+  var warning = document.createElement('span')
+  warning.className = 'brand-date-warning'
+  warning.textContent = 'НЕАКТУАЛЬНАЯ ДИСЛОКАЦИЯ'
+  container.append(document.createTextNode(' · '))
+  container.append(warning)
 }
 
 // KPI карточки
@@ -2110,11 +2144,13 @@ $(document).on('click', '.row-sub-parent', function (e) {
 /******** НАЧАЛО ЗАПУСКА САЙТА ********/
 // Начало всего и конец тоже
 $(function () {
+  var reportCodes = Object.keys(WAGON_TABS)
   initSidebar()
   initInnerTabs()
 
   var hasDashboard =
-    window.APP_IS_ADMIN || ALLOWED_PAGES.indexOf('dashboard') !== -1
+    reportCodes.length > 0 &&
+    (window.APP_IS_ADMIN || ALLOWED_PAGES.indexOf('dashboard') !== -1)
 
   // Если дашборд недоступен — скрываем все его панели и показываем заглушку
   if (!hasDashboard) {
@@ -2147,15 +2183,17 @@ $(function () {
   // Восстанавливаем активную вкладку из URL hash (при возврате с детализации)
   var hashTab = (location.hash || '').replace('#', '')
   var startTab =
-    hashTab && document.getElementById('panel-' + hashTab)
+    hashTab && WAGON_TABS[hashTab]
       ? hashTab
-      : 'dislocation'
-  if (startTab !== 'dislocation') switchTab(startTab)
+      : WAGON_TABS.dislocation
+        ? 'dislocation'
+        : reportCodes[0] || ''
+  if (startTab) switchTab(startTab)
 
   var kpiXhrs = hasDashboard ? loadKPI() : null
   var summaryXhr = null
-  if (hasDashboard) {
-    summaryXhr = initTab(WAGON_TABS[startTab] || WAGON_TABS.dislocation)
+  if (hasDashboard && startTab) {
+    summaryXhr = initTab(WAGON_TABS[startTab])
   }
 
   // Скрываем оверлей когда готовы и KPI, и сводная таблица

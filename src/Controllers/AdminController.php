@@ -52,7 +52,7 @@ class AdminController
 
     public function auditPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!$this->isAdmin()) {
+        if (!$this->isSuper()) {
             return $this->forbidden($response);
         }
 
@@ -101,7 +101,7 @@ class AdminController
             return $this->forbidden($response);
         }
 
-        $roles = $this->db->fetchAll('SELECT id, code, name FROM xx_rjd_roles ORDER BY id');
+        $roles = $this->db->fetchAll("SELECT id, code, name FROM xx_rjd_roles WHERE code <> 'SUPER' ORDER BY id");
         $organizations = $this->db->fetchAll(
             'SELECT id, code, name, short_name, is_active
                FROM xx_rjd_organizations
@@ -115,16 +115,23 @@ class AdminController
                  TO_CHAR((FROM_TZ(CAST(u.updated_at AS TIMESTAMP), DBTIMEZONE) AT TIME ZONE '{$appTimezone}'), 'DD.MM.YYYY HH24:MI') AS updated_at,
                  TO_CHAR((FROM_TZ(CAST(u.last_login_at AS TIMESTAMP), DBTIMEZONE) AT TIME ZONE '{$appTimezone}'), 'DD.MM.YYYY HH24:MI') AS last_login_at"
             : ', NULL AS created_at, NULL AS updated_at, NULL AS last_login_at';
+        $superUserFilter = $this->isSuper() ? '' : " WHERE NOT EXISTS (
+            SELECT 1 FROM xx_rjd_user_roles sur
+            JOIN xx_rjd_roles sr ON sr.id = sur.role_id
+            WHERE sur.user_id = u.id AND sr.code = 'SUPER'
+        )";
         $rawUsers = $this->db->fetchAll(
             'SELECT u.id, u.username, u.display_name, u.email, u.is_active, u.organization_id' . $dateSelect . '
                FROM xx_rjd_users u
+              ' . $superUserFilter . '
               ORDER BY NLSSORT(u.display_name, \'NLS_SORT=RUSSIAN\'), u.username'
         );
 
         $userRolesRaw = $this->db->fetchAll(
             'SELECT ur.user_id, r.id, r.code, r.name
                FROM xx_rjd_user_roles ur
-               JOIN xx_rjd_roles r ON r.id = ur.role_id'
+               JOIN xx_rjd_roles r ON r.id = ur.role_id
+              WHERE r.code <> \'SUPER\''
         );
         $rolesByUser = [];
         foreach ($userRolesRaw as $ur) {
@@ -196,9 +203,12 @@ class AdminController
         if (!$editedUser) {
             return $this->redirect($response, '/admin/users?err=' . urlencode('Пользователь не найден'));
         }
+        if (!$this->canManageUser($userId)) {
+            return $this->forbidden($response);
+        }
         $isNewUser = false;
 
-        $roles = $this->db->fetchAll('SELECT id, code, name FROM xx_rjd_roles ORDER BY id');
+        $roles = $this->db->fetchAll("SELECT id, code, name FROM xx_rjd_roles WHERE code <> 'SUPER' ORDER BY id");
         $organizations = $this->db->fetchAll(
             'SELECT id, code, name, short_name, is_active FROM xx_rjd_organizations ORDER BY is_active DESC, name'
         );
@@ -255,7 +265,7 @@ class AdminController
             'last_login_at' => null,
         ];
         $isNewUser = true;
-        $roles = $this->db->fetchAll('SELECT id, code, name FROM xx_rjd_roles ORDER BY id');
+        $roles = $this->db->fetchAll("SELECT id, code, name FROM xx_rjd_roles WHERE code <> 'SUPER' ORDER BY id");
         $organizations = $this->db->fetchAll(
             'SELECT id, code, name, short_name, is_active FROM xx_rjd_organizations ORDER BY is_active DESC, name'
         );
@@ -280,8 +290,9 @@ class AdminController
         }
 
         $roles = $this->db->fetchAll(
-            'SELECT id, code, name, description, is_system FROM xx_rjd_roles ORDER BY id'
+            "SELECT id, code, name, description, is_system FROM xx_rjd_roles WHERE code <> 'SUPER' ORDER BY id"
         );
+        $canManageRoles = $this->isSuper();
 
         $rolePages = [];
         foreach ($this->db->fetchAll('SELECT role_id, page FROM xx_rjd_role_pages') as $rp) {
@@ -309,7 +320,7 @@ class AdminController
 
     public function roleCreatePage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!$this->isAdmin()) {
+        if (!$this->isSuper()) {
             return $this->forbidden($response);
         }
         return $this->roleFormPage($request, $response, [
@@ -318,10 +329,10 @@ class AdminController
             'name' => '',
             'description' => '',
             'is_system' => 0,
-        ], [], true);
+        ], [], true, false);
     }
 
-    public function roleEditPage(
+    public function roleViewPage(
         ServerRequestInterface $request,
         ResponseInterface $response,
         array $args
@@ -330,7 +341,31 @@ class AdminController
             return $this->forbidden($response);
         }
         $role = $this->db->fetchOne(
-            'SELECT id, code, name, description, is_system FROM xx_rjd_roles WHERE id = :id',
+            "SELECT id, code, name, description, is_system FROM xx_rjd_roles WHERE id = :id AND code <> 'SUPER'",
+            ['id' => (int) ($args['id'] ?? 0)]
+        );
+        if (!$role) {
+            return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
+        }
+        $selectedPages = ($role['code'] ?? '') === 'ADMIN'
+            ? array_keys(self::PAGES)
+            : array_column($this->db->fetchAll(
+                'SELECT page FROM xx_rjd_role_pages WHERE role_id = :id',
+                ['id' => (int) $role['id']]
+            ), 'page');
+        return $this->roleFormPage($request, $response, $role, $selectedPages, false, true);
+    }
+
+    public function roleEditPage(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args
+    ): ResponseInterface {
+        if (!$this->isSuper()) {
+            return $this->forbidden($response);
+        }
+        $role = $this->db->fetchOne(
+            "SELECT id, code, name, description, is_system FROM xx_rjd_roles WHERE id = :id AND code <> 'SUPER'",
             ['id' => (int) ($args['id'] ?? 0)]
         );
         if (!$role) {
@@ -340,7 +375,7 @@ class AdminController
             'SELECT page FROM xx_rjd_role_pages WHERE role_id = :id',
             ['id' => (int) $role['id']]
         ), 'page');
-        return $this->roleFormPage($request, $response, $role, $selectedPages, false);
+        return $this->roleFormPage($request, $response, $role, $selectedPages, false, false);
     }
 
     private function roleFormPage(
@@ -348,7 +383,8 @@ class AdminController
         ResponseInterface $response,
         array $editedRole,
         array $selectedPages,
-        bool $isNewRole
+        bool $isNewRole,
+        bool $isViewOnly
     ): ResponseInterface {
         $pages = self::PAGES;
         $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
@@ -729,7 +765,11 @@ class AdminController
         if ($userId <= 0) {
             return $this->redirect($response, '/admin/users?err=' . urlencode('Пользователь не найден'));
         }
-
+        if (!$this->canManageUser($userId)) {
+            return $this->forbidden($response);
+        }
+        $roleIds = $this->allowedRoleIds($roleIds);
+        $keepSuperRole = $this->userHasSuperRole($userId);
         $this->db->beginTransaction();
         try {
             $this->db->execute('DELETE FROM xx_rjd_user_roles WHERE user_id = :user_id', ['user_id' => $userId]);
@@ -737,6 +777,13 @@ class AdminController
                 $this->db->execute(
                     'INSERT INTO xx_rjd_user_roles (user_id, role_id) VALUES (:user_id, :role_id)',
                     ['user_id' => $userId, 'role_id' => $roleId]
+                );
+            }
+            if ($keepSuperRole) {
+                $this->db->execute(
+                    "INSERT INTO xx_rjd_user_roles (user_id, role_id)
+                     SELECT :user_id, id FROM xx_rjd_roles WHERE code = 'SUPER'",
+                    ['user_id' => $userId]
                 );
             }
             $this->db->commit();
@@ -774,7 +821,9 @@ class AdminController
         if ($userId <= 0 || !$organization) {
             return $this->redirect($response, '/admin/users?err=' . urlencode('Выберите основную организацию'));
         }
-
+        if (!$this->canManageUser($userId)) {
+            return $this->forbidden($response);
+        }
         $this->db->beginTransaction();
         try {
             $this->db->execute(
@@ -826,6 +875,9 @@ class AdminController
         if ($userId <= 0) {
             return $this->redirect($response, '/admin/users?err=' . urlencode('Пользователь не найден'));
         }
+        if (!$this->canManageUser($userId)) {
+            return $this->forbidden($response);
+        }
 
         $this->db->execute(
             'UPDATE xx_rjd_users SET is_active = :active WHERE id = :id',
@@ -863,6 +915,7 @@ class AdminController
         $isActive = (int) ($body['is_active'] ?? 0) === 1 ? 1 : 0;
         $roleIds     = array_map('intval', (array) ($body['role_ids'] ?? []));
         $roleIds     = array_filter($roleIds, static fn(int $id) => $id > 0);
+        $roleIds     = $this->allowedRoleIds($roleIds);
         $extraOrganizationIds = array_values(array_unique(array_filter(
             array_map('intval', (array) ($body['organization_ids'] ?? [])),
             static fn(int $id): bool => $id > 0 && $id !== $organizationId
@@ -950,6 +1003,7 @@ class AdminController
             array_map('intval', (array) ($body['role_ids'] ?? [])),
             static fn(int $id): bool => $id > 0
         )));
+        $roleIds = $this->allowedRoleIds($roleIds);
         $extraOrganizationIds = array_values(array_unique(array_filter(
             array_map('intval', (array) ($body['organization_ids'] ?? [])),
             static fn(int $id): bool => $id > 0 && $id !== $organizationId
@@ -958,6 +1012,9 @@ class AdminController
         $editUrl = '/admin/users/' . $userId . '/edit';
         if ($userId <= 0 || $username === '' || $displayName === '' || $organizationId <= 0) {
             return $this->redirect($response, $editUrl . '?err=' . urlencode('Укажите логин, имя и основную организацию'));
+        }
+        if (!$this->canManageUser($userId)) {
+            return $this->forbidden($response);
         }
         if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
             return $this->redirect($response, $editUrl . '?err=' . urlencode('Укажите корректный e-mail'));
@@ -987,6 +1044,7 @@ class AdminController
             'organization_id' => $organizationId,
             'id'           => $userId,
         ];
+        $keepSuperRole = $this->userHasSuperRole($userId);
         $this->db->beginTransaction();
         try {
             if ($password !== '') {
@@ -1013,6 +1071,13 @@ class AdminController
                 $this->db->execute(
                     'INSERT INTO xx_rjd_user_roles (user_id, role_id) VALUES (:user_id, :role_id)',
                     ['user_id' => $userId, 'role_id' => $roleId]
+                );
+            }
+            if ($keepSuperRole) {
+                $this->db->execute(
+                    "INSERT INTO xx_rjd_user_roles (user_id, role_id)
+                     SELECT :user_id, id FROM xx_rjd_roles WHERE code = 'SUPER'",
+                    ['user_id' => $userId]
                 );
             }
 
@@ -1062,6 +1127,9 @@ class AdminController
         if ($userId <= 0 || $password === '') {
             return $this->redirect($response, '/admin/users?err=' . urlencode('Укажите новый пароль'));
         }
+        if (!$this->canManageUser($userId)) {
+            return $this->forbidden($response);
+        }
 
         $this->db->execute(
             'UPDATE xx_rjd_users SET password_hash = :hash WHERE id = :id',
@@ -1075,7 +1143,7 @@ class AdminController
 
     public function createRole(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!$this->isAdmin()) {
+        if (!$this->isSuper()) {
             return $this->forbidden($response);
         }
         $body = (array) $request->getParsedBody();
@@ -1120,7 +1188,7 @@ class AdminController
 
     public function saveRolePages(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!$this->isAdmin()) {
+        if (!$this->isSuper()) {
             return $this->forbidden($response);
         }
         $body = (array) $request->getParsedBody();
@@ -1133,7 +1201,7 @@ class AdminController
             return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
         }
 
-        $role = $this->db->fetchOne('SELECT id, code FROM xx_rjd_roles WHERE id = :id', ['id' => $roleId]);
+        $role = $this->db->fetchOne("SELECT id, code FROM xx_rjd_roles WHERE id = :id AND code <> 'SUPER'", ['id' => $roleId]);
         if (!$role) {
             return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
         }
@@ -1167,7 +1235,7 @@ class AdminController
 
     public function deleteRole(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!$this->isAdmin()) {
+        if (!$this->isSuper()) {
             return $this->forbidden($response);
         }
         $body = (array) $request->getParsedBody();
@@ -1176,7 +1244,7 @@ class AdminController
         }
 
         $roleId = (int) ($body['role_id'] ?? 0);
-        $role = $this->db->fetchOne('SELECT id, code FROM xx_rjd_roles WHERE id = :id', ['id' => $roleId]);
+        $role = $this->db->fetchOne("SELECT id, code FROM xx_rjd_roles WHERE id = :id AND code <> 'SUPER'", ['id' => $roleId]);
         if (!$role) {
             return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
         }
@@ -1524,12 +1592,68 @@ class AdminController
             $row = $this->db->fetchOne(
                 "SELECT COUNT(*) AS cnt FROM xx_rjd_user_roles ur
                   JOIN xx_rjd_roles r ON r.id = ur.role_id
-                 WHERE r.code = 'ADMIN'"
+                 WHERE r.code IN ('ADMIN', 'SUPER')"
             );
             return (int) ($row['cnt'] ?? 0) === 0;
         } catch (\Throwable $e) {
             return true;
         }
+    }
+
+    private function isSuper(): bool
+    {
+        return !empty($_SESSION['user']['is_super']);
+    }
+
+    private function canManageUser(int $userId): bool
+    {
+        if ($userId <= 0 || $this->isSuper()) {
+            return $userId > 0;
+        }
+
+        $row = $this->db->fetchOne(
+            "SELECT COUNT(*) AS cnt
+               FROM xx_rjd_user_roles ur
+               JOIN xx_rjd_roles r ON r.id = ur.role_id
+              WHERE ur.user_id = :user_id AND r.code = 'SUPER'",
+            ['user_id' => $userId]
+        );
+        return (int) ($row['cnt'] ?? 0) === 0;
+    }
+
+    private function userHasSuperRole(int $userId): bool
+    {
+        $row = $this->db->fetchOne(
+            "SELECT COUNT(*) AS cnt
+               FROM xx_rjd_user_roles ur
+               JOIN xx_rjd_roles r ON r.id = ur.role_id
+              WHERE ur.user_id = :user_id AND r.code = 'SUPER'",
+            ['user_id' => $userId]
+        );
+        return (int) ($row['cnt'] ?? 0) > 0;
+    }
+
+    private function allowedRoleIds(array $roleIds): array
+    {
+        $roleIds = array_values(array_unique(array_map('intval', $roleIds)));
+        if ($roleIds === []) {
+            return [];
+        }
+
+        $allowed = [];
+        foreach ($roleIds as $roleId) {
+            if ($roleId <= 0) {
+                continue;
+            }
+            $role = $this->db->fetchOne(
+                "SELECT id FROM xx_rjd_roles WHERE id = :id AND code <> 'SUPER'",
+                ['id' => $roleId]
+            );
+            if ($role) {
+                $allowed[] = $roleId;
+            }
+        }
+        return $allowed;
     }
 
     private function checkCsrf(array $body): bool

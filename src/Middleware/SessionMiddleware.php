@@ -19,7 +19,7 @@ class SessionMiddleware implements MiddlewareInterface
     private bool $secureCookie;
     private string $cookiePath;
 
-    public function __construct(string $sessionName, bool $secureCookie = true, string $basePath = '')
+    public function __construct(string $sessionName, bool $secureCookie = true, string $basePath = '', private ?\Closure $getDb = null)
     {
         $this->sessionName = $sessionName;
         $this->secureCookie = $secureCookie;
@@ -46,6 +46,18 @@ class SessionMiddleware implements MiddlewareInterface
         if (empty($_SESSION['csrf_token'])) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
         }
-        return $handler->handle($request);
+        $sync = function () use ($request): void {
+            if (session_status() !== PHP_SESSION_ACTIVE || empty($_SESSION['user'])) return;
+            $registry = new \App\Services\SessionRegistry(($this->getDb)());
+            if (!$registry->touch(session_id(), $_SESSION['user'], (string) ($request->getServerParams()['REMOTE_ADDR'] ?? ''), $request->getHeaderLine('User-Agent'))) {
+                $_SESSION = [];
+                session_regenerate_id(true);
+                $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+            }
+        };
+        $sync();
+        $response = $handler->handle($request);
+        $sync();
+        return $response;
     }
 }

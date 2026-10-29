@@ -23,7 +23,9 @@ class OracleDb implements DbInterface
 
         if (!$this->connection) {
             $err = oci_error();
-            throw new \RuntimeException('Oracle: ошибка подключения — ' . $err['message']);
+            throw new DatabaseUnavailableException(
+                'Oracle: ошибка подключения — ' . ($err['message'] ?? 'неизвестная ошибка')
+            );
         }
 
         // Устанавливаем формат дат чтобы строки 'YYYY-MM-DD HH24:MI:SS' корректно парсились
@@ -43,7 +45,7 @@ class OracleDb implements DbInterface
         $stmt = oci_parse($this->connection, $sql);
         if (!$stmt) {
             $err = oci_error($this->connection);
-            throw new \RuntimeException('Oracle oci_parse: ' . ($err['message'] ?? 'unknown error'));
+            throw $this->oracleException('Oracle oci_parse', $err);
         }
         $binds = $params;
 
@@ -62,7 +64,7 @@ class OracleDb implements DbInterface
         if (!$ok) {
             $err = oci_error($stmt);
             oci_free_statement($stmt);
-            throw new \RuntimeException('Oracle fetchAll: ' . ($err['message'] ?? 'unknown error'));
+            throw $this->oracleException('Oracle fetchAll', $err);
         }
 
         $data = [];
@@ -93,7 +95,7 @@ class OracleDb implements DbInterface
         $stmt = oci_parse($this->connection, $sql);
         if (!$stmt) {
             $err = oci_error($this->connection);
-            throw new \RuntimeException('Oracle oci_parse: ' . ($err['message'] ?? 'unknown error'));
+            throw $this->oracleException('Oracle oci_parse', $err);
         }
         $binds = $params;
 
@@ -113,7 +115,7 @@ class OracleDb implements DbInterface
         if (!$ok) {
             $err = oci_error($stmt);
             oci_free_statement($stmt);
-            throw new \RuntimeException('Oracle execute: ' . ($err['message'] ?? 'unknown error'));
+            throw $this->oracleException('Oracle execute', $err);
         }
         $count = oci_num_rows($stmt);
         oci_free_statement($stmt);
@@ -145,6 +147,28 @@ class OracleDb implements DbInterface
     public function limit(int $n): string
     {
         return "FETCH FIRST $n ROWS ONLY";
+    }
+
+    private function oracleException(string $operation, array|false $error): \RuntimeException
+    {
+        $code = (int) ($error['code'] ?? 0);
+        $message = trim((string) ($error['message'] ?? 'unknown error'));
+        $text = $operation . ': ' . $message;
+
+        // Ошибки сети, listener-а, остановки Oracle и потерянной сессии.
+        $unavailableCodes = [
+            28, 1012, 1033, 1034, 1089, 1090,
+            3113, 3114, 3135,
+            12170, 12514, 12518, 12520, 12521,
+            12528, 12537, 12541, 12543, 12545,
+            12547, 12560,
+        ];
+
+        if (in_array($code, $unavailableCodes, true)) {
+            return new DatabaseUnavailableException($text, $code);
+        }
+
+        return new \RuntimeException($text, $code);
     }
 
     /** @return resource */

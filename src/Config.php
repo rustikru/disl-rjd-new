@@ -8,6 +8,9 @@ if (!file_exists($configFile)) {
 }
 
 $config = require $configFile;
+foreach (\App\Services\ProjectPath::SETTINGS as $pathKey) {
+    if (isset($config[$pathKey])) $config[$pathKey] = \App\Services\ProjectPath::resolve((string) $config[$pathKey]);
+}
 
 if (!is_array($config)) {
     throw new RuntimeException('Файл rjd_config.php должен возвращать массив');
@@ -28,11 +31,18 @@ try {
     throw new RuntimeException('Некорректная часовая зона app_timezone: ' . $appTimezone, 0, $error);
 }
 
+$disabledPages = array_values(array_unique(array_filter(array_map(
+    static fn(mixed $page): string => strtolower(trim((string) $page)),
+    (array) ($config['disabled_pages'] ?? [])
+))));
+
 return [
     'app_env' => (string) ($config['app_env'] ?? 'development'),
     'app_debug' => $bool($config['app_debug'] ?? false),
     'app_name' => (string) ($config['app_name'] ?? 'Дислокация РЖД'),
     'app_timezone' => $appTimezone,
+    'dislocation_stale_hours' => max(1, (int) ($config['dislocation_stale_hours'] ?? 8)),
+    'disabled_pages' => $disabledPages,
 
     'db_host' => (string) ($config['db_host'] ?? 'localhost'),
     'db_port' => (string) ($config['db_port'] ?? '1521'),
@@ -63,8 +73,8 @@ return [
     'password_reset_ttl_minutes' => (int) ($config['password_reset_ttl_minutes'] ?? 30),
     'password_reset_storage_dir' => (string) ($config['password_reset_storage_dir'] ?? (__DIR__ . '/../tmp/password-reset')),
 
-    'auth_log_file' => (string) ($config['auth_log_file'] ?? '/tmp/auth_debug.log'),
-    'ldap_log_file' => (string) ($config['ldap_log_file'] ?? '/tmp/ldap_debug.log'),
+    'auth_log_file' => (string) ($config['auth_log_file'] ?? (__DIR__ . '/../tmp/auth_debug.log')),
+    'ldap_log_file' => (string) ($config['ldap_log_file'] ?? (__DIR__ . '/../tmp/ldap_debug.log')),
 
     'session_name' => (string) ($config['session_name'] ?? 'disl_session'),
     'session_cookie_secure' => $bool(

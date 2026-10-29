@@ -29,9 +29,12 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
     window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
     window.APP_IS_ADMIN = <?= !empty($user['is_admin']) ? 'true' : 'false' ?>;
     window.APP_ALLOWED_PAGES = <?= json_encode($allowedPages ?? [], JSON_UNESCAPED_UNICODE) ?>;
+    window.APP_DISABLED_PAGES = <?= json_encode($disabledPages ?? [], JSON_UNESCAPED_UNICODE) ?>;
     window.APP_NAV_CONFIG = <?= json_encode($navConfig ?? [], JSON_UNESCAPED_UNICODE) ?>;
     window.APP_ORGANIZATION_CODE = <?= json_encode($activeOrganizationCode, JSON_UNESCAPED_UNICODE) ?>;
     window.APP_REPORT_DEFINITIONS = <?= json_encode($reportDefinitions ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.DISLOCATION_STALE_HOURS = <?= (int) ($dislocationStaleHours ?? 8) ?>;
+    window.APP_TIMEZONE_OFFSET_SECONDS = <?= (new DateTimeImmutable('now'))->getOffset() ?>;
   </script>
 </head>
 

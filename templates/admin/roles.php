@@ -21,21 +21,20 @@ include __DIR__ . '/../partials/header.php';
 <div class="app-body">
   <?php $activeAdminPage = 'roles'; include __DIR__ . '/../partials/admin-sidebar.php'; ?>
   <main class="main-content">
-    <div class="ui-page-head"><div class="ui-page-title">Роли<small>Права доступа пользователей</small></div><a class="btn btn-primary" href="<?= htmlspecialchars($basePath) ?>/admin/roles/new">+ Роль</a></div>
+    <div class="ui-page-head"><div class="ui-page-title">Роли<small>Права доступа пользователей</small></div><?php if (!empty($canManageRoles)): ?><a class="btn btn-primary" href="<?= htmlspecialchars($basePath) ?>/admin/roles/new">+ Роль</a><?php endif; ?></div>
     <?php uiNotices($flashOk ?? null, $flashErr ?? null); ?>
     <section class="ui-panel">
       <div class="ui-panel-head"><span class="ui-panel-title">Роли (<?= count($roles) ?>)</span><input id="roleSearch" class="ui-search-input" type="search" placeholder="Поиск по коду и названию…"></div>
       <div class="ui-table-wrap"><table class="ui-table">
-        <thead><tr><th>ID</th><th>Код</th><th>Название</th><th>Описание</th><th></th></tr></thead>
+        <thead><tr><th>ID</th><th>Код</th><th>Название</th><th>Описание</th></tr></thead>
         <tbody id="rolesBody">
         <?php foreach ($roles as $role): ?>
           <?php $searchText = mb_strtolower(implode(' ', [$role['code'] ?? '', $role['name'] ?? '', $role['description'] ?? ''])); ?>
           <tr data-role data-search="<?= htmlspecialchars($searchText) ?>">
             <td><?= (int) $role['id'] ?></td>
-            <td><span class="ui-code"><?= htmlspecialchars($role['code']) ?></span></td>
-            <td><a class="role-link" href="<?= htmlspecialchars($basePath) ?>/admin/roles/<?= (int) $role['id'] ?>/edit"><?= htmlspecialchars($role['name']) ?></a></td>
+            <td><a class="role-link ui-code" href="<?= htmlspecialchars($basePath) ?>/admin/roles/<?= (int) $role['id'] ?>/view"><?= htmlspecialchars($role['code']) ?></a></td>
+            <td><?php if (!empty($canManageRoles)): ?><a class="role-link" href="<?= htmlspecialchars($basePath) ?>/admin/roles/<?= (int) $role['id'] ?>/edit"><?= htmlspecialchars($role['name']) ?></a><?php else: ?><?= htmlspecialchars($role['name']) ?><?php endif; ?></td>
             <td><?= !empty($role['description']) ? htmlspecialchars($role['description']) : '<span class="ui-muted">—</span>' ?></td>
-            <td><a class="ui-icon-button ui-icon-button--edit" href="<?= htmlspecialchars($basePath) ?>/admin/roles/<?= (int) $role['id'] ?>/edit" title="Редактировать" aria-label="Редактировать"><?= uiEditIcon() ?></a></td>
           </tr>
         <?php endforeach; ?>
         </tbody>
