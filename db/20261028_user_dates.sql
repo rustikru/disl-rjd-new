@@ -1,0 +1,42 @@
+-- Даты создания, изменения и последней успешной авторизации пользователя.
+DECLARE
+    l_count NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO l_count
+      FROM user_tab_columns
+     WHERE table_name = 'XX_RJD_USERS' AND column_name = 'CREATED_AT';
+    IF l_count = 0 THEN
+        EXECUTE IMMEDIATE 'ALTER TABLE XX_RJD_USERS ADD (CREATED_AT DATE DEFAULT SYSDATE NOT NULL)';
+    END IF;
+
+    SELECT COUNT(*) INTO l_count
+      FROM user_tab_columns
+     WHERE table_name = 'XX_RJD_USERS' AND column_name = 'UPDATED_AT';
+    IF l_count = 0 THEN
+        EXECUTE IMMEDIATE 'ALTER TABLE XX_RJD_USERS ADD (UPDATED_AT DATE DEFAULT SYSDATE NOT NULL)';
+    END IF;
+
+    SELECT COUNT(*) INTO l_count
+      FROM user_tab_columns
+     WHERE table_name = 'XX_RJD_USERS' AND column_name = 'LAST_LOGIN_AT';
+    IF l_count = 0 THEN
+        EXECUTE IMMEDIATE 'ALTER TABLE XX_RJD_USERS ADD (LAST_LOGIN_AT DATE)';
+    END IF;
+END;
+/
+
+CREATE OR REPLACE TRIGGER XX_RJD_USERS_BU
+BEFORE UPDATE ON XX_RJD_USERS
+FOR EACH ROW
+BEGIN
+    IF NVL(:NEW.USERNAME, CHR(0)) <> NVL(:OLD.USERNAME, CHR(0))
+       OR NVL(:NEW.DISPLAY_NAME, CHR(0)) <> NVL(:OLD.DISPLAY_NAME, CHR(0))
+       OR NVL(:NEW.EMAIL, CHR(0)) <> NVL(:OLD.EMAIL, CHR(0))
+       OR NVL(:NEW.PASSWORD_HASH, CHR(0)) <> NVL(:OLD.PASSWORD_HASH, CHR(0))
+       OR NVL(:NEW.IS_ACTIVE, -1) <> NVL(:OLD.IS_ACTIVE, -1)
+       OR NVL(:NEW.ORGANIZATION_ID, -1) <> NVL(:OLD.ORGANIZATION_ID, -1)
+    THEN
+        :NEW.UPDATED_AT := SYSDATE;
+    END IF;
+END;
+/

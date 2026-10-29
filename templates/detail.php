@@ -13,59 +13,14 @@ $basePath = $basePath ?? '';
   <title><?= htmlspecialchars($appName) ?> — Детализация</title>
   <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
-  <script>window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';</script>
+  <script>
+    window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
+    window.APP_REPORT_DEFINITIONS = <?= json_encode($reportDefinitions ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+  </script>
   <style>
-    .detail-breadcrumb {
-      font-size: 12px;
-      color: var(--text-3);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      flex-wrap: wrap;
-    }
-
-    .detail-breadcrumb .bc-sep {
-      color: var(--border);
-    }
-
-    .detail-breadcrumb .bc-item {
-      color: var(--text-2);
-    }
-
-    .detail-breadcrumb .bc-item.bc-active {
-      color: var(--text-1);
-      font-weight: 700;
-    }
-
-    .bc-back {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 12px 4px 8px;
-      border-radius: 99px;
-      background: var(--hover-green);
-      color: var(--text-2);
-      font-size: 12px;
-      font-weight: 500;
-      text-decoration: none;
-      transition: background .15s, color .15s;
-    }
-
-    .bc-back:hover {
-      background: var(--accent-lt);
-      color: var(--accent);
-    }
-
     .detail-page-body {
       padding: 16px 20px 40px;
       max-width: 100%;
-    }
-
-    .detail-header-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 14px;
     }
 
     #detailTable {
@@ -111,15 +66,12 @@ $basePath = $basePath ?? '';
 
   <?php
   $headerSub = '<div id="brandDateSub" class="brand-date-sub"></div>';
+  $headerLeft = '<a href="' . htmlspecialchars($basePath) . '/" class="btn-nav-back" id="backBtn" title="Назад" aria-label="Назад"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg></a>';
   $headerRight = '';
   include __DIR__ . '/partials/header.php';
   ?>
 
   <div class="detail-page-body">
-
-    <div class="detail-header-row">
-      <div class="detail-breadcrumb" id="breadcrumb"></div>
-    </div>
 
     <section class="table-section">
       <div class="table-toolbar">
@@ -138,7 +90,8 @@ $basePath = $basePath ?? '';
   </div>
 
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jquery/jquery-3.7.1.min.js"></script>
-  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js"></script>
+  <script
+    src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/detail-contexts.js') ?>"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/csv-export.js"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/excel-export.js"></script>
   <script>
@@ -146,49 +99,20 @@ $basePath = $basePath ?? '';
 
     var BASE = window.APP_BASE || '';
 
-    function goBack() {
-      if (window.history.length > 1) {
-        window.history.back();
-      } else {
-        // Страница открыта в новой вкладке — закрываем её
-        window.close();
-        // Если браузер не разрешил закрыть — идём на главную
-        setTimeout(function () { window.location.href = BASE + '/'; }, 200);
-      }
-    }
+    // Закрытие вкладки детализации.
+    document.getElementById('backBtn').addEventListener('click', function (event) {
+      event.preventDefault();
+      window.close();
+      setTimeout(function () {
+        if (!window.closed) window.location.replace(BASE + '/');
+      }, 200);
+    });
 
     function esc(str) {
       if (!str && str !== 0) return '';
       return String(str)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;')
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    function attachFloatScrollbar(scrollEl) {
-      if (scrollEl._floatScrollbar) scrollEl._floatScrollbar.remove();
-      var floater = document.createElement('div');
-      floater.className = 'float-scrollbar';
-      var inner = document.createElement('div');
-      inner.className = 'float-scrollbar-inner';
-      floater.appendChild(inner);
-      document.body.appendChild(floater);
-      scrollEl._floatScrollbar = floater;
-      var syncing = false;
-      floater.addEventListener('scroll', function () { if (syncing) return; syncing = true; scrollEl.scrollLeft = floater.scrollLeft; syncing = false; });
-      scrollEl.addEventListener('scroll', function () { if (syncing) return; syncing = true; floater.scrollLeft = scrollEl.scrollLeft; syncing = false; });
-      function update() {
-        var rect = scrollEl.getBoundingClientRect();
-        var needsScroll = scrollEl.scrollWidth > scrollEl.clientWidth;
-        if (needsScroll && rect.top < window.innerHeight && rect.bottom > window.innerHeight) {
-          floater.style.display = 'block';
-          floater.style.left = rect.left + 'px';
-          floater.style.width = rect.width + 'px';
-          inner.style.width = scrollEl.scrollWidth + 'px';
-        } else { floater.style.display = 'none'; }
-      }
-      window.addEventListener('scroll', update, { passive: true });
-      window.addEventListener('resize', update, { passive: true });
-      update();
     }
 
     /* Данные для CSV — обновляются при каждом showTable */
@@ -214,7 +138,6 @@ $basePath = $basePath ?? '';
         };
       }
 
-      $('#breadcrumb').html('<a href="#" class="bc-back" onclick="goBack();return false;">← Вернуться</a>');
 
       var bcpathRaw = params.get('_bcpath') || '';
       var bcpathParts = [];
@@ -233,8 +156,8 @@ $basePath = $basePath ?? '';
         return;
       }
 
-      // Все параметры детализации заданы в WAGON_TABS[ctx].mapDetailParams на фронтенде.
-      // Здесь просто прокидываем их дальше на бэкенд (кроме ctx и _bcpath).
+      // Все параметры детализации заданы в WAGON_TABS[ctx].mapDetailParams .
+      // Если в URL есть дополнительные параметры, они будут добавлены к запросу.
       var apiParams = new URLSearchParams();
       var skipKeys = { ctx: 1, _bcpath: 1, _endpoint: 1 };
       params.forEach(function (v, k) { if (!skipKeys[k] && v) { apiParams.set(k, v); } });
@@ -252,7 +175,6 @@ $basePath = $basePath ?? '';
       }
 
       // Вкладки drill-down (только если DETAIL_TABS определён и контекст их поддерживает)
-      // detail.php показывает все поля; showInline управляет только inline-детализацией в app.js
       var allCols = ctxDef.cols
       _vtAllCols = allCols
       var hasTabs = typeof DETAIL_TABS !== 'undefined' && DETAIL_TABS.length > 0
@@ -324,6 +246,8 @@ $basePath = $basePath ?? '';
     }
 
     function showTable(rows, cols) {
+      var host = document.getElementById('detailTable');
+      if (host._vtCleanup) host._vtCleanup();
       cols = cols.map(function (c) {
         if (c.formatData && !c.fmt) {
           var mask = c.formatData;
@@ -366,8 +290,9 @@ $basePath = $basePath ?? '';
       $('#detailTable').html(
         '<div class="vt-viewport" id="vtVp">' +
         '<div class="vt-content" style="width:' + totalW + 'px">' +
+        '<div class="vt-sticky">' +
         '<div class="vt-head"   id="vtHead"   style="grid-template-columns:' + template + ';width:' + totalW + 'px"></div>' +
-        '<div class="vt-filter" id="vtFilter" style="grid-template-columns:' + template + ';width:' + totalW + 'px"></div>' +
+        '<div class="vt-filter" id="vtFilter" style="grid-template-columns:' + template + ';width:' + totalW + 'px"></div></div>' +
         '<div id="vtRows"></div>' +
         '</div>' +
         '</div>'
@@ -392,7 +317,11 @@ $basePath = $basePath ?? '';
           if (d >= 7) style = ' style="color:#E8392A;font-weight:700"';
           else if (d >= 3) style = ' style="color:#E8A530;font-weight:600"';
         }
-        return '<div class="' + cls + '"' + style + '>' + esc(String(display)) + '</div>';
+        var content = esc(String(display));
+        if ((c.key === 'wagon_no' || c.key === 'car_number') && /^\d{8}$/.test(String(v))) {
+          content = '<a class="wagon-link" href="' + BASE + '/wagon?wagon_no=' + encodeURIComponent(v) + '" style="color:var(--accent);text-decoration:none" title="Карточка вагона">' + content + '</a>';
+        }
+        return '<div class="' + cls + '"' + style + '>' + content + '</div>';
       }
 
       var vp = document.getElementById('vtVp');
@@ -462,7 +391,10 @@ $basePath = $basePath ?? '';
       window.addEventListener('scroll', fitVpHeight, { passive: true });
 
       render(true);
-      attachFloatScrollbar(vp);
+      host._vtCleanup = function () {
+        window.removeEventListener('resize', fitVpHeight);
+        window.removeEventListener('scroll', fitVpHeight);
+      };
     }
 
     function saveCSV(filename) {

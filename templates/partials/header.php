@@ -47,25 +47,55 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
       <?php endif; ?>
       <div class="user-info">
         <?= $headerRight ?>
-        <svg class="user-info-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="12" cy="8" r="4" fill="currentColor"/>
-          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
-        </svg>
-        <span class="user-name" title="<?= htmlspecialchars($user['auth_source'] ?? '') ?>">
-          <?= htmlspecialchars($user['display_name'] ?? $user['username'] ?? '') ?>
-        </span>
-        <span class="user-info-divider"></span>
-        <form method="POST" action="<?= htmlspecialchars($basePath) ?>/logout" style="display:inline">
-          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
-          <button type="submit" class="btn btn-ghost btn-icon" title="Выйти">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-          </button>
-        </form>
+        <details class="user-menu">
+          <summary class="user-menu-toggle" title="Меню пользователя">
+            <svg class="user-info-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg>
+            <span class="user-name"><?= htmlspecialchars($user['display_name'] ?? $user['username'] ?? '') ?></span>
+            <svg class="user-menu-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </summary>
+          <div class="user-menu-panel">
+            <a href="<?= htmlspecialchars($basePath) ?>/profile">Мой профиль</a>
+            <a href="<?= htmlspecialchars($basePath) ?>/profile/report-mailings">Рассылка отчётов</a>
+            <form method="POST" action="<?= htmlspecialchars($basePath) ?>/logout">
+              <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
+              <button type="submit">Выйти</button>
+            </form>
+          </div>
+        </details>
       </div>
     </div>
   </div>
 </header>
+
+<style>
+.user-menu { position:relative; }
+.user-info { background:transparent; padding:0; height:auto; }
+.user-menu summary { list-style:none; }
+.user-menu-toggle { display:flex; align-items:center; gap:8px; min-height:34px; padding:0 10px; border:1px solid var(--border); border-radius:8px; background:transparent; color:var(--text-1); cursor:pointer; transition:background .15s,border-color .15s; }
+.user-menu-toggle:hover, .user-menu[open] .user-menu-toggle { background:var(--bg); border-color:var(--accent); }
+.user-menu-toggle:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.user-menu-toggle .user-name { padding:0; color:var(--text-1); }
+.user-menu-toggle .user-info-icon { margin:0; color:var(--text-2); }
+.user-menu-chevron { color:var(--text-2); transition:transform .15s; }
+.user-menu summary::-webkit-details-marker { display:none; }
+.user-menu[open] .user-menu-chevron { transform:rotate(180deg); }
+.user-menu-panel { position:absolute; top:calc(100% + 10px); right:0; min-width:190px; padding:6px; background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:0 8px 24px rgba(35,24,65,.12); z-index:1000; }
+.user-menu-panel a, .user-menu-panel button { display:block; width:100%; box-sizing:border-box; padding:10px 12px; border:0; border-radius:6px; background:transparent; color:var(--text-1); font:inherit; text-align:left; text-decoration:none; cursor:pointer; }
+.user-menu-panel a:hover, .user-menu-panel button:hover { color:var(--accent); background:var(--accent-lt); }
+.user-menu-panel form { margin-top:4px; padding-top:4px; border-top:1px solid var(--border); }
+</style>
+<script>
+(function () {
+  const menu = document.querySelector('.user-menu');
+  if (!menu) return;
+  document.addEventListener('click', function (event) {
+    if (!menu.contains(event.target)) menu.open = false;
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && menu.open) {
+      menu.open = false;
+      menu.querySelector('summary').focus();
+    }
+  });
+})();
+</script>

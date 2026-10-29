@@ -3,8 +3,11 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Services\AuditLog;
+
 use App\Database\DbInterface;
-use App\Services\OrganizationService;
+use App\Reports\ReportConfig;
+use App\Services\Organizations;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Psr\Http\Message\ResponseInterface;
@@ -15,7 +18,7 @@ class ImportController
 {
     private DbInterface $db;
     private array $config;
-    private OrganizationService $organizations;
+    private Organizations $organizations;
 
     /** Поля, которые хранятся как DATE в БД (Excel: 'DD.MM.YYYY' или 'DD.MM.YYYY HH:MI') */
     private const DATE_FIELDS = [
@@ -71,12 +74,12 @@ class ImportController
     public function __construct(
         DbInterface $db,
         array $config = [],
-        ?OrganizationService $organizations = null
+        ?Organizations $organizations = null
     )
     {
         $this->db = $db;
         $this->config = $config;
-        $this->organizations = $organizations ?? new OrganizationService($db);
+        $this->organizations = $organizations ?? new Organizations($db);
     }
 
     /** GET /import */
@@ -155,6 +158,12 @@ class ImportController
             } else {
                 $successes[] = '«' . $name . '»: загружено ' . $result['rows'] . ' строк ('
                     . $result['type'] . ', ' . $result['report_dt'] . ')';
+                (new AuditLog($this->db))->write(
+                    'IMPORT_UPLOAD',
+                    'REFERENCE',
+                    (string) $result['type'],
+                    'Загружен файл «' . $name . '»: ' . $result['rows'] . ' строк, дата ' . $result['report_dt']
+                );
             }
         }
 
@@ -211,6 +220,13 @@ class ImportController
                 'type' => $result['type'],
             ]);
         }
+
+        (new AuditLog($this->db))->write(
+            'IMPORT_UPLOAD',
+            'REFERENCE',
+            (string) $result['type'],
+            'Загружен файл «' . $name . '»: ' . $result['rows'] . ' строк, дата ' . $result['report_dt']
+        );
 
         return $this->jsonResponse($response, 200, [
             'status' => 'ok',
@@ -276,25 +292,24 @@ class ImportController
         $insertSql = 'INSERT INTO xx_dislocation_rjd (organization_id, report_dt, type_reference, ' . implode(', ', $fields) . ')'
             . ' VALUES (:p_organization_id, :p_report_dt, :p_type_reference, ' . implode(', ', $placeholders) . ')';
 
-        // Удаляем предыдущую справку того же дня и того же типа —
-        // оставляем только максимальную (последнюю по времени) за каждый день.
         $reportDate = substr($reportDt, 0, 10); // 'YYYY-MM-DD'
-        $this->db->execute(
-            "DELETE FROM xx_dislocation_rjd
-              WHERE TRUNC(report_dt) = TO_DATE(:p_report_date, 'YYYY-MM-DD')
-                AND type_reference   = :p_file_type
-                AND organization_id  = :p_organization_id",
-            [
-                'p_report_date' => $reportDate,
-                'p_file_type' => $fileType,
-                'p_organization_id' => $organizationId,
-            ]
-        );
-
         $inserted = 0;
 
         $this->db->beginTransaction();
         try {
+            // Замена справки атомарна: при ошибке вставки удаление также откатится.
+            $this->db->execute(
+                "DELETE FROM xx_dislocation_rjd
+                  WHERE TRUNC(report_dt) = TO_DATE(:p_report_date, 'YYYY-MM-DD')
+                    AND type_reference   = :p_file_type
+                    AND organization_id  = :p_organization_id",
+                [
+                    'p_report_date' => $reportDate,
+                    'p_file_type' => $fileType,
+                    'p_organization_id' => $organizationId,
+                ]
+            );
+
             for ($row = 5; $row <= $highestRow; $row++) {
                 $vals = [];
                 for ($col = 1; $col <= 126; $col++) {
@@ -344,134 +359,7 @@ class ImportController
 
     private function columnFieldNames(): array
     {
-        return [
-            'wagon_no',
-            'waybill_no',
-            'wagon_type_code',
-            'owner_admin',
-            'trip_start_dt',
-            'depart_state',
-            'depart_road',
-            'depart_station',
-            'trip_end_dt',
-            'dest_state',
-            'dest_road',
-            'dest_station',
-            'consignor_tgnl',
-            'consignor',
-            'consignor_okpo',
-            'consignor_name',
-            'consignee_tgnl',
-            'consignee',
-            'consignee_okpo',
-            'consignee_name',
-            'cargo_name',
-            'cargo_gng',
-            'cargo_weight_kg',
-            'mileage_loaded_km',
-            'mileage_empty_km',
-            'mileage_total_km',
-            'mileage_norm_km',
-            'mileage_remain_km',
-            'mileage_sign',
-            'special_marks',
-            'prev_cargo',
-            'oper_station',
-            'oper_road',
-            'operation',
-            'oper_mnemonic',
-            'oper_dt',
-            'park_type',
-            'handover_road',
-            'receive_road',
-            'train_index',
-            'train_no',
-            'wagon_in_train',
-            'park_no',
-            'track_no',
-            'seals_count',
-            'loaded_containers',
-            'empty_containers',
-            'container_nos',
-            'norm_delivery_dt',
-            'dist_passed_km',
-            'dist_remain_km',
-            'dist_total_km',
-            'idle_time_hhmmss',
-            'idle_time_days',
-            'extra_waybill_no',
-            'extra_send_id',
-            'asoup_depart_dt',
-            'asoup_arrive_dt',
-            'send_id',
-            'waybill_id',
-            'wagon_no2',
-            'quality_sign',
-            'state_assign_dt',
-            'wagon_state',
-            'state_reason',
-            'state_station',
-            'reg_date',
-            'build_date',
-            'next_repair_dt',
-            'next_repair_type',
-            'factory_no',
-            'manufacturer',
-            'wagon_type_name',
-            'wagon_model',
-            'tare_weight',
-            'load_capacity',
-            'length_mm',
-            'last_cap_repair_depot',
-            'last_cap_repair_dt',
-            'last_dep_repair_depot',
-            'last_dep_repair_dt',
-            'home_road',
-            'home_depot',
-            'exclude_date',
-            'no_transit_reason',
-            'prev_wagon_no',
-            'owner',
-            'owner_okpo',
-            'owner_local_code',
-            'home_station',
-            'threshold_sign',
-            'lease_sign',
-            'life_ext_date',
-            'lessee',
-            'lessee_okpo',
-            'lessee_local_code',
-            'lease_home_station',
-            'lease_end_date',
-            'service_life',
-            'body_material_code',
-            'body_material_name',
-            'body_volume',
-            'clearance',
-            'air_dist_type',
-            'automode',
-            'auto_lever',
-            'brake_type',
-            'coupler_type',
-            'bogie_model',
-            'shock_absorber',
-            'life_ext_sign',
-            'boiler_caliber',
-            'drain_device',
-            'lever_gear',
-            'wagon_model_code',
-            'repair_by_mileage',
-            'proxy_operator',
-            'proxy_operator_okpo',
-            'wagon_type_code2',
-            'wagon_type_cond',
-            'axles_count',
-            'exclude_depot',
-            'exclude_reason',
-            'days_to_repair',
-            'days_no_oper',
-            'days_no_move',
-        ];
+        return array_column(ReportConfig::sourceColumns(), 'key');
     }
 
     /**

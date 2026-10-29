@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Database\DatabaseUnavailableException;
 use App\Logging\ErrorLogger;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -24,7 +25,8 @@ class ErrorHandler
         bool $logErrors,
         bool $logErrorDetails
     ): ResponseInterface {
-        $status = $this->httpStatus($exception);
+        $databaseUnavailable = $this->isDatabaseUnavailable($exception);
+        $status = $databaseUnavailable ? 503 : $this->httpStatus($exception);
         $isApi = $this->isApiRequest($request);
         $errorId = ErrorLogger::logThrowable($exception, [
             'module' => self::class,
@@ -32,10 +34,13 @@ class ErrorHandler
         ], $request);
 
         $response = $this->responseFactory->createResponse($status);
+        if ($databaseUnavailable) {
+            $response = $response->withHeader('Retry-After', '30');
+        }
 
         return $isApi
-            ? $this->jsonResponse($response, $exception, $status, $displayErrorDetails, $errorId)
-            : $this->htmlResponse($response, $exception, $status, $displayErrorDetails, $errorId);
+            ? $this->jsonResponse($response, $exception, $status, $displayErrorDetails, $errorId, $databaseUnavailable)
+            : $this->htmlResponse($response, $exception, $status, $displayErrorDetails, $errorId, $databaseUnavailable);
     }
 
     private function httpStatus(Throwable $e): int
@@ -63,13 +68,16 @@ class ErrorHandler
         Throwable $exception,
         int $status,
         bool $details,
-        string $errorId
+        string $errorId,
+        bool $databaseUnavailable
     ): ResponseInterface {
         $body = [
             'status'  => 'error',
-            'message' => $status >= 500
-                ? 'Внутренняя ошибка сервера. Код ошибки: ' . $errorId
-                : $exception->getMessage(),
+            'message' => $databaseUnavailable
+                ? 'База данных временно недоступна. Попробуйте повторить позже.'
+                : ($status >= 500
+                    ? 'Внутренняя ошибка сервера. Код ошибки: ' . $errorId
+                    : $exception->getMessage()),
             'error_id' => $errorId,
         ];
 
@@ -91,9 +99,12 @@ class ErrorHandler
         Throwable $exception,
         int $status,
         bool $details,
-        string $errorId
+        string $errorId,
+        bool $databaseUnavailable
     ): ResponseInterface {
-        $tpl = __DIR__ . '/../../templates/' . $status . '.php';
+        $tpl = $databaseUnavailable
+            ? __DIR__ . '/../../templates/database-unavailable.php'
+            : __DIR__ . '/../../templates/' . $status . '.php';
         if (!file_exists($tpl)) {
             $tpl = __DIR__ . '/../../templates/500.php';
         }
@@ -120,5 +131,17 @@ class ErrorHandler
 
         $response->getBody()->write($html);
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    private function isDatabaseUnavailable(Throwable $exception): bool
+    {
+        do {
+            if ($exception instanceof DatabaseUnavailableException) {
+                return true;
+            }
+            $exception = $exception->getPrevious();
+        } while ($exception !== null);
+
+        return false;
     }
 }

@@ -2,6 +2,7 @@
 /** @var string $appName */
 /** @var string $basePath */
 /** @var string|null $error */
+/** @var string|null $notice */
 /** @var bool $kerberosEnabled */
 $basePath = $basePath ?? '';
 ?>
@@ -31,6 +32,9 @@ $basePath = $basePath ?? '';
       <?php if ($error): ?>
         <div class="error-msg visible"><?= htmlspecialchars($error) ?></div>
       <?php endif; ?>
+      <?php if ($notice): ?>
+        <div class="success-msg visible"><?= htmlspecialchars($notice) ?></div>
+      <?php endif; ?>
 
       <?php if ($kerberosEnabled): ?>
         <a class="btn-login btn-auto" href="<?= htmlspecialchars($basePath) ?>/auth/kerberos">
@@ -59,6 +63,9 @@ $basePath = $basePath ?? '';
           <span class="btn-spinner" aria-hidden="true"></span>
         </button>
       </form>
+      <?php if (!empty($passwordResetEnabled)): ?>
+        <a class="auth-link" href="<?= htmlspecialchars($basePath) ?>/forgot-password">Восстановить пароль</a>
+      <?php endif; ?>
     </div>
 
   </div>

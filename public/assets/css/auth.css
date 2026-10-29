@@ -127,6 +127,24 @@ body {
   display: block;
 }
 
+.success-msg {
+  display: none;
+  background: #edf8f2;
+  border: 1px solid #bfe6d2;
+  border-radius: 7px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #237a50;
+  margin-bottom: 16px;
+}
+.success-msg.visible { display: block; }
+.card-note { margin: -10px 0 18px; color: var(--text-2); font-size: 13px; line-height: 1.45; }
+.confirmation-text { color:var(--text-2); font-size:14px; line-height:1.5; }
+.auth-link { display:block; margin-top:14px; color:var(--primary); font-size:13px; text-align:center; text-decoration:none; }
+.auth-link:hover { text-decoration:underline; }
+.auth-link--back { margin-top:18px; }
+.auth-button-link { text-decoration:none; }
+
 .btn-login {
   display: flex;
   width: 100%;

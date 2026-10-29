@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Services\PageAvailability;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -29,6 +30,20 @@ class PageAccessMiddleware implements MiddlewareInterface
         if (!$user) {
             // Неавторизованных обрабатывает AuthMiddleware
             return $handler->handle($request);
+        }
+
+        $settingsPath = substr($request->getUri()->getPath(), strlen(rtrim($this->basePath, '/')));
+        if (!empty($user['is_super']) && in_array($settingsPath, ['/admin/settings', '/admin/page-visibility'], true)) {
+            return $handler->handle($request);
+        }
+
+        $pageAvailability = new PageAvailability(
+            (array) ($this->config['disabled_pages'] ?? []),
+            $this->basePath
+        );
+        $disabledPage = $pageAvailability->disabledPageForRequest($request);
+        if ($disabledPage !== null) {
+            return $this->unavailable($request);
         }
 
         $page = $this->resolvePage($request->getUri()->getPath());
@@ -72,8 +87,18 @@ class PageAccessMiddleware implements MiddlewareInterface
             // главная всегда доступна — вкладки фильтрует клиент, данные защищены через /api
             return null;
         }
+        if ($path === '/directories' || $path === '/directories/') {
+            return 'directories';
+        }
+        if (preg_match('~^/(?:admin/)?directories/(norms|stations)(/.*)?$~', $path, $match)) {
+            $action = $match[2] ?? '';
+            return in_array($action, ['/save', '/delete'], true) ? 'directories_edit' : 'directories';
+        }
         if (str_starts_with($path, '/admin')) {
             return 'admin';
+        }
+        if ($path === '/wagon') {
+            return 'dashboard';
         }
         if (str_starts_with($path, '/maps')) {
             return 'maps';
@@ -96,7 +121,7 @@ class PageAccessMiddleware implements MiddlewareInterface
               WHERE ur.user_id = :id',
             ['id' => $userId]
         );
-        return array_map(static fn($r) => $r['page'], $rows);
+        return \App\Services\DirectoryAccess::expandPages(array_map(static fn($r) => $r['page'], $rows));
     }
 
     private function noAdminYet(): bool
@@ -105,7 +130,7 @@ class PageAccessMiddleware implements MiddlewareInterface
             $row = ($this->dbResolver)()->fetchOne(
                 "SELECT COUNT(*) AS cnt FROM xx_rjd_user_roles ur
                   JOIN xx_rjd_roles r ON r.id = ur.role_id
-                 WHERE r.code = 'ADMIN'"
+                 WHERE r.code IN ('ADMIN', 'SUPER')"
             );
             return (int) ($row['cnt'] ?? 0) === 0;
         } catch (\Throwable $e) {
@@ -138,6 +163,32 @@ class PageAccessMiddleware implements MiddlewareInterface
         $html = ob_get_clean();
 
         $response->getBody()->write((string) $html);
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    /** Формирует ответ для временно отключённой страницы. */
+    private function unavailable(ServerRequestInterface $request): ResponseInterface
+    {
+        $response = new Response(503);
+        $path = $request->getUri()->getPath();
+
+        if (str_contains($path, '/api/')) {
+            $response->getBody()->write(json_encode(
+                ['status' => 'error', 'message' => 'Раздел временно недоступен'],
+                JSON_UNESCAPED_UNICODE
+            ));
+            return $response->withHeader('Content-Type', 'application/json; charset=utf-8');
+        }
+
+        $appName = $this->config['app_name'] ?? '';
+        $basePath = $this->basePath;
+        $user = $_SESSION['user'] ?? [];
+        $headerSub = '<div class="brand-sub">Раздел отключён</div>';
+        $headerRight = '';
+
+        ob_start();
+        include __DIR__ . '/../../templates/503.php';
+        $response->getBody()->write((string) ob_get_clean());
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 }

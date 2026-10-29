@@ -1,31 +1,26 @@
 <?php
 $basePath = $basePath ?? '';
+require_once __DIR__ . '/../partials/ui.php';
 $organizations = $organizations ?? [];
 $organizationsById = [];
 foreach ($organizations as $organization) {
-    $organizationsById[(int) $organization['id']] = $organization;
+  $organizationsById[(int) $organization['id']] = $organization;
 }
-
-// Инициалы для аватара
-$initials = function (string $name) {
-    $parts = preg_split('/\s+/', trim($name));
-    $a = mb_substr($parts[0] ?? '', 0, 1);
-    $b = mb_substr($parts[1] ?? '', 0, 1);
-    return mb_strtoupper($a . $b);
-};
-
-// CSS-класс бейджа по коду роли
-$roleClass = function (?string $code) {
-    switch ($code) {
-        case 'ADMIN':    return 'role-admin';
-        case 'OPERATOR': return 'role-operator';
-        case 'VIEWER':   return 'role-viewer';
-        default:         return 'role-custom';
+$organizationNames = static function (array $row) use ($organizationsById): array {
+  $ids = array_values(array_unique(array_merge([(int) ($row['organization_id'] ?? 0)], array_map('intval', $row['organization_ids'] ?? []))));
+  $names = [];
+  foreach ($ids as $id) {
+    if ($id > 0 && isset($organizationsById[$id])) {
+      $organization = $organizationsById[$id];
+      $names[] = (string) ($organization['short_name'] ?: $organization['name']);
     }
+  }
+  return $names;
 };
 ?>
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -33,540 +28,228 @@ $roleClass = function (?string $code) {
   <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
   <style>
-    /* --- Раздел администрирования --- */
-    .admin-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; flex-wrap:wrap; }
-    .admin-title { font-size:18px; font-weight:700; color:var(--text-1); }
-    .admin-title small { display:block; font-size:12px; font-weight:500; color:var(--text-3); margin-top:2px; }
-    .admin-actions { display:flex; gap:8px; align-items:center; }
-
-    .flash { padding:10px 14px; border-radius:9px; font-size:13px; margin-bottom:16px; }
-    .flash-ok  { background:#e8f6ef; color:var(--brand-green); border:1px solid #bfe6d2; }
-    .flash-err { background:#fbecec; color:var(--brand-neg);   border:1px solid #f0c9c9; }
-
-    .panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
-    .panel + .panel { margin-top:18px; }
-    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
-    .panel-title { font-size:14px; font-weight:600; }
-    .search-input { border:1px solid var(--border); border-radius:9px; padding:7px 12px; font-family:inherit; font-size:13px; outline:none; color:var(--text-1); width:240px; max-width:50vw; }
-    .search-input:focus { border-color:var(--accent); }
-
-    .admin-table { width:100%; border-collapse:collapse; }
-    .admin-table th { padding:10px 16px; text-align:left; font-size:10.5px; font-weight:700; color:var(--text-3);
-      text-transform:uppercase; letter-spacing:.06em; background:var(--row-head); border-bottom:1px solid var(--border); }
-    .admin-table td { padding:9px 12px; border-bottom:1px solid var(--border-lt); vertical-align:middle; font-size:13px; }
-    .admin-table tr:last-child td { border-bottom:none; }
-    .admin-table tbody tr:hover td { background:var(--hover-green); }
-
-    .u-cell { display:flex; align-items:center; gap:10px; }
-    .u-avatar { width:30px; height:30px; border-radius:50%; background:var(--accent-lt); color:var(--accent);
-      font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; flex:none; }
-    .u-name { font-weight:600; }
-    .u-login { font-size:11px; color:var(--text-3); }
-
-    .role-badge { display:inline-flex; align-items:center; padding:3px 11px; border-radius:99px; font-size:11.5px; font-weight:600; }
-    .role-admin    { background:var(--accent-lt); color:var(--accent); }
-    .role-operator { background:#e4eefa; color:var(--brand-blue); }
-    .role-viewer   { background:var(--hover-green); color:var(--text-2); }
-    .role-custom   { background:#fbf0e3; color:#a4671b; }
-
-    .status { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; }
-    .status-dot { width:7px; height:7px; border-radius:50%; flex:none; }
-    .dot-on  { background:var(--brand-green); }
-    .dot-off { background:var(--text-3); }
-
-    .row-actions { display:flex; gap:2px; justify-content:flex-end; align-items:center; }
-    .inline-form { display:inline-flex; }
-    .icon-btn {
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      width:32px;
-      height:32px;
-      border:none;
-      border-radius:8px;
-      background:transparent;
-      cursor:pointer;
-      color:var(--text-3);
-      transition:background .15s, color .15s;
-      padding:0;
+    .user-link {
+      font-weight: 400;
+      color: var(--accent);
+      text-decoration: none
     }
-    .icon-btn:hover { background:var(--hover-green,#f0eef8); color:var(--text-1); }
-    .icon-btn--edit:hover   { color:var(--accent); }
-    .icon-btn--lock:hover   { color:var(--brand-neg); }
-    .icon-btn--unlock:hover { color:var(--brand-green,#2aa26b); }
 
-    .pager { display:flex; align-items:center; justify-content:flex-end; gap:10px; padding:12px 18px; border-top:1px solid var(--border-lt); font-size:12.5px; color:var(--text-2); }
-    .pager button { border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:5px 11px; cursor:pointer; font-size:12.5px; color:var(--text-1); }
-    .pager button:disabled { opacity:.4; cursor:default; }
+    .user-link:hover {
+      text-decoration: underline
+    }
 
-    /* Модалки на JS */
-    .modal-wrap { position:fixed; inset:0; background:rgba(27,23,38,.45); display:none; align-items:center; justify-content:center; z-index:200; }
-    .modal-wrap.open { display:flex; }
-    .modal { background:var(--surface); border-radius:14px; width:520px; max-width:92vw; overflow:hidden; box-shadow:0 24px 60px rgba(27,23,38,.25); }
-    .modal-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); }
-    .modal-head .t { font-size:15px; font-weight:700; }
-    .modal-x { cursor:pointer; color:var(--text-3); font-size:18px; line-height:1; background:none; border:none; }
-    .modal-x:hover { color:var(--text-1); }
-    .modal-body { padding:20px; display:flex; flex-direction:column; gap:14px; }
-    .fg { display:flex; flex-direction:column; gap:5px; }
-    .fg label { font-size:12px; font-weight:600; color:var(--text-2); }
-    .fg input, .fg select { border:1px solid var(--border); border-radius:8px; padding:8px 11px; font-family:inherit; font-size:13px; outline:none; color:var(--text-1); background:var(--surface); }
-    .fg input:focus, .fg select:focus { border-color:var(--accent); }
-    .role-select { border:1px solid var(--border); border-radius:8px; padding:6px 9px; font-family:inherit; font-size:12.5px; color:var(--text-1); background:var(--surface); }
-    .fg2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-    .modal-foot { padding:14px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px; }
+    .muted {
+      display: block;
+      color: var(--text-3);
+      font-size: 10.5px;
+      margin-top: 2px
+    }
 
-    /* pages-list — компактные чекбоксы ролей в модалке */
-    .pages-list { display:flex; flex-direction:column; gap:7px; }
-    .pages-list .lbl { font-size:11px; font-weight:700; color:var(--text-3); text-transform:uppercase; letter-spacing:.05em; }
-    .pg { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-1); cursor:pointer; }
-    .pg input { width:15px; height:15px; accent-color:var(--accent); cursor:pointer; }
+    .pager {
+      border-top: 1px solid var(--border-lt)
+    }
 
-    /* Компактный выпадающий селектор ролей */
-    .role-picker { position:relative; display:inline-block; }
-    summary.role-picker-btn { cursor:pointer; display:flex; align-items:center; gap:5px; flex-wrap:nowrap;
-      min-height:32px; max-width:190px; padding:3px 7px; border:1px solid var(--border); border-radius:8px;
-      list-style:none; overflow:hidden; }
-    summary.role-picker-btn::marker,
-    summary.role-picker-btn::-webkit-details-marker { display:none; content:''; }
-    .rp-empty { font-size:11px; color:var(--text-3); white-space:nowrap; flex:none; }
-    .rp-arrow { font-size:9px; color:var(--text-3); margin-left:auto; flex:none; transition:transform .15s; }
-    .picker-value { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .picker-value.role-badge { display:block; }
-    .organization-picker summary.role-picker-btn { width:190px; }
-    .role-picker[open] .rp-arrow { transform:rotate(180deg); }
-    /* позиция переопределяется JS (fixed) чтобы вырваться из overflow:hidden панели */
-    .role-picker-drop { position:absolute; top:calc(100% + 4px); left:0; z-index:200;
-      background:var(--surface); border:1px solid var(--border); border-radius:10px;
-      box-shadow:0 6px 20px rgba(27,23,38,.14); min-width:180px; padding:8px 0 0; }
-    .rp-item { display:flex; align-items:center; gap:8px; padding:6px 14px; cursor:pointer; }
-    .rp-item:hover { background:var(--hover-green); }
-    .rp-item input { accent-color:var(--accent); width:15px; height:15px; flex:none; cursor:pointer; }
-    .rp-foot { padding:8px 14px 10px; border-top:1px solid var(--border-lt); margin-top:4px; }
+    .pager .app-pagination {
+      padding: 12px 18px
+    }
+
+    .pager-empty {
+      padding: 12px 18px;
+      text-align: center;
+      color: var(--text-3);
+      font-size: 12px
+    }
+
+    .modal-wrap {
+      position: fixed;
+      inset: 0;
+      background: rgba(27, 23, 38, .45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200
+    }
+
+    .modal-wrap.open {
+      display: flex
+    }
+
+    .modal {
+      background: var(--surface);
+      border-radius: 14px;
+      width: 520px;
+      max-width: 92vw;
+      overflow: hidden;
+      box-shadow: 0 24px 60px rgba(27, 23, 38, .25)
+    }
+
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .modal-head .t {
+      font-size: 15px;
+      font-weight: 700
+    }
+
+    .modal-x {
+      cursor: pointer;
+      color: var(--text-3);
+      font-size: 18px;
+      background: none;
+      border: none
+    }
+
+    .modal-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px
+    }
+
+    .fg {
+      display: flex;
+      flex-direction: column;
+      gap: 5px
+    }
+
+    .fg label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-2)
+    }
+
+    .fg input,
+    .fg select {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 11px;
+      font: inherit;
+      font-size: 13px;
+      background: var(--surface)
+    }
+
+    .fg2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px
+    }
+
+    .checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px
+    }
+
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px
+    }
+
+    .check input {
+      accent-color: var(--accent)
+    }
+
+    .modal-foot {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px
+    }
+
+    @media(max-width:700px) {
+      .fg2 {
+        grid-template-columns: 1fr
+      }
+    }
   </style>
 </head>
-<body>
 
-<?php
-  $headerSub   = '<div class="brand-sub">Администрирование</div>';
-  $headerLeft  = '<a href="' . htmlspecialchars($basePath) . '/" class="btn-nav-back" id="backBtn" title="На главную"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="11 6 5 12 11 18"/></svg></a>';
+<body>
+  <?php
+  $headerSub = '<div class="brand-sub">Администрирование</div>';
+  $headerLeft = '<a href="' . htmlspecialchars($basePath) . '/" class="btn-nav-back" title="На главную">←</a>';
   $headerRight = '';
   include __DIR__ . '/../partials/header.php';
-?>
-
-<div class="app-body">
-
-  <?php $activeAdminPage = 'users'; include __DIR__ . '/../partials/admin-sidebar.php'; ?>
-
-  <main class="main-content">
-
-    <div class="admin-head">
-      <div class="admin-title">
-        Пользователи
-        <small>Управление доступом</small>
+  ?>
+  <div class="app-body">
+    <?php $activeAdminPage = 'users';
+    include __DIR__ . '/../partials/admin-sidebar.php'; ?>
+    <main class="main-content">
+      <div class="ui-page-head">
+        <div class="ui-page-title">Пользователи<small></small></div>
+        <a class="btn btn-primary" href="<?= htmlspecialchars($basePath) ?>/admin/users/new">+ Пользователь</a>
       </div>
-      <div class="admin-actions">
-        <button type="button" class="btn btn-primary" onclick="openModal('userModal')">+ Пользователь</button>
-      </div>
-    </div>
-
-    <?php if (!empty($flashOk)): ?>
-      <div class="flash flash-ok"><?= htmlspecialchars($flashOk) ?></div>
-    <?php endif; ?>
-    <?php if (!empty($flashErr)): ?>
-      <div class="flash flash-err"><?= htmlspecialchars($flashErr) ?></div>
-    <?php endif; ?>
-
-    <!-- Пользователи -->
-    <div class="panel">
-      <div class="panel-head">
-        <span class="panel-title">Пользователи (<?= count($users) ?>)</span>
-        <input type="search" id="userSearch" class="search-input" placeholder="Поиск по имени, логину, e-mail…" autocomplete="off">
-      </div>
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th>Пользователь</th>
-            <th>E-mail</th>
-            <th>Роли</th>
-            <th>Организации</th>
-            <th>Статус</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="usersBody">
-          <?php foreach ($users as $u): ?>
-            <?php
-              $isActive = (int) ($u['is_active'] ?? 0) === 1;
-              $name = (string) ($u['display_name'] ?: $u['username']);
-              $haystack = mb_strtolower($name . ' ' . ($u['username'] ?? '') . ' ' . ($u['email'] ?? ''));
-            ?>
-            <tr data-user data-search="<?= htmlspecialchars($haystack) ?>">
-              <td>
-                <div class="u-cell">
-                  <span class="u-avatar"><?= htmlspecialchars($initials($name)) ?></span>
-                  <div>
-                    <div class="u-name"><?= htmlspecialchars($name) ?></div>
-                    <div class="u-login"><?= htmlspecialchars($u['username']) ?></div>
-                  </div>
-                </div>
-              </td>
-              <td><?= htmlspecialchars($u['email'] ?? '') !== '' ? htmlspecialchars($u['email']) : '<span style="color:var(--text-3)">—</span>' ?></td>
-              <td>
-                <details class="role-picker">
-                  <summary class="role-picker-btn">
-                    <?php if (!empty($u['roles'])): ?>
-                      <?php $mainRole = $u['roles'][0]; ?>
-                      <span class="role-badge picker-value <?= $roleClass($mainRole['code']) ?>"><?= htmlspecialchars($mainRole['name']) ?></span>
-                      <?php if (count($u['roles']) > 1): ?>
-                        <span class="rp-empty">+<?= count($u['roles']) - 1 ?></span>
-                      <?php endif; ?>
-                    <?php else: ?>
-                      <span class="rp-empty">— не назначена —</span>
-                    <?php endif; ?>
-                    <span class="rp-arrow">▾</span>
-                  </summary>
-                  <div class="role-picker-drop">
-                    <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/users/roles">
-                      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-                      <input type="hidden" name="user_id" value="<?= (int) $u['id'] ?>">
-                      <?php foreach ($roles as $r): ?>
-                        <label class="rp-item">
-                          <input type="checkbox" name="role_ids[]" value="<?= (int) $r['id'] ?>"
-                            <?= in_array((int) $r['id'], array_map('intval', array_column($u['roles'], 'id')), true) ? 'checked' : '' ?>>
-                          <span class="role-badge <?= $roleClass($r['code']) ?>"><?= htmlspecialchars($r['name']) ?></span>
-                        </label>
-                      <?php endforeach; ?>
-                      <div class="rp-foot">
-                        <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
-                      </div>
-                    </form>
-                  </div>
-                </details>
-              </td>
-              <td>
+      <?php uiNotices($flashOk ?? null, $flashErr ?? null); ?>
+      <section class="ui-panel">
+        <div class="ui-panel-head"><span class="ui-panel-title">Пользователи (<?= count($users) ?>)</span><input
+            type="search" id="userSearch" class="ui-search-input" placeholder="Поиск по имени, логину, e-mail…"
+            autocomplete="off"></div>
+        <div class="ui-table-wrap">
+          <table class="ui-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Логин</th>
+                <th>Имя</th>
+                <th>E-mail</th>
+                <th>Последняя авторизация</th>
+                <th>Статус</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="usersBody">
+              <?php foreach ($users as $row): ?>
                 <?php
-                  $mainOrganizationId = (int) ($u['organization_id'] ?? 0);
-                  $mainOrganization = $organizationsById[$mainOrganizationId] ?? null;
-                  $extraOrganizationIds = array_map('intval', $u['organization_ids'] ?? []);
+                $active = (int) ($row['is_active'] ?? 0) === 1;
+                $name = (string) ($row['display_name'] ?: $row['username']);
+                $rowOrganizations = $organizationNames($row);
+                $searchText = mb_strtolower(implode(' ', [$name, $row['username'] ?? '', $row['email'] ?? '', implode(' ', $rowOrganizations), implode(' ', array_column($row['roles'] ?? [], 'name'))]));
                 ?>
-                <details class="role-picker organization-picker">
-                  <summary class="role-picker-btn">
-                    <?php if ($mainOrganization): ?>
-                      <span class="role-badge role-custom picker-value">
-                        <?= htmlspecialchars($mainOrganization['short_name'] ?: $mainOrganization['name']) ?>
-                      </span>
-                      <?php if (count($extraOrganizationIds) > 0): ?>
-                        <span class="rp-empty">+<?= count($extraOrganizationIds) ?></span>
-                      <?php endif; ?>
-                    <?php else: ?>
-                      <span class="rp-empty">— не назначена —</span>
-                    <?php endif; ?>
-                    <span class="rp-arrow">▾</span>
-                  </summary>
-                  <div class="role-picker-drop" style="min-width:280px">
-                    <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/users/organizations">
-                      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-                      <input type="hidden" name="user_id" value="<?= (int) $u['id'] ?>">
-                      <div style="padding:8px 14px">
-                        <label style="display:block;font-size:11px;font-weight:700;color:var(--text-3);margin-bottom:5px">Основная</label>
-                        <select name="organization_id" class="role-select" required style="width:100%">
-                          <option value="">— Выберите —</option>
-                          <?php foreach ($organizations as $organization): ?>
-                            <?php if ((int) ($organization['is_active'] ?? 1) !== 1 && (int) $organization['id'] !== $mainOrganizationId) continue; ?>
-                            <option value="<?= (int) $organization['id'] ?>" <?= (int) $organization['id'] === $mainOrganizationId ? 'selected' : '' ?>>
-                              <?= htmlspecialchars($organization['short_name'] ?: $organization['name']) ?>
-                            </option>
-                          <?php endforeach; ?>
-                        </select>
-                      </div>
-                      <div style="border-top:1px solid var(--border-lt);padding-top:5px">
-                        <?php foreach ($organizations as $organization): ?>
-                          <?php if ((int) ($organization['is_active'] ?? 1) !== 1) continue; ?>
-                          <label class="rp-item">
-                            <input type="checkbox"
-                                   name="organization_ids[]"
-                                   value="<?= (int) $organization['id'] ?>"
-                                   <?= in_array((int) $organization['id'], $extraOrganizationIds, true) ? 'checked' : '' ?>>
-                            <span><?= htmlspecialchars($organization['short_name'] ?: $organization['name']) ?></span>
-                          </label>
-                        <?php endforeach; ?>
-                      </div>
-                      <div class="rp-foot">
-                        <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
-                      </div>
-                    </form>
-                  </div>
-                </details>
-              </td>
-              <td>
-                <span class="status">
-                  <span class="status-dot <?= $isActive ? 'dot-on' : 'dot-off' ?>"></span>
-                  <?= $isActive ? 'Активен' : 'Заблокирован' ?>
-                </span>
-              </td>
-              <td>
-                <div class="row-actions">
-                  <!-- Редактировать запись -->
-                  <button type="button"
-                          class="icon-btn icon-btn--edit"
-                          title="Редактировать"
-                          onclick="openEditUser(<?= (int) $u['id'] ?>, '<?= htmlspecialchars(addslashes($u['username']), ENT_QUOTES) ?>', '<?= htmlspecialchars(addslashes((string) ($u['display_name'] ?: $u['username'])), ENT_QUOTES) ?>', '<?= htmlspecialchars(addslashes($u['email'] ?? ''), ENT_QUOTES) ?>')">
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M9.5 1.5a1.414 1.414 0 0 1 2 2L4 11l-3 1 1-3Z"/>
-                    </svg>
-                  </button>
-                  <!-- Заблокировать / Разблокировать -->
-                  <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/users/active" class="inline-form">
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-                    <input type="hidden" name="user_id" value="<?= (int) $u['id'] ?>">
-                    <input type="hidden" name="is_active" value="<?= $isActive ? 0 : 1 ?>">
-                    <?php if ($isActive): ?>
-                      <button type="submit" class="icon-btn icon-btn--lock" title="Заблокировать"
-                              onclick="return confirm('Заблокировать пользователя «<?= htmlspecialchars(addslashes($name), ENT_QUOTES) ?>»?')">
-                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                          <rect x="3" y="7" width="9" height="6.5" rx="1.5"/>
-                          <path d="M5 7V5a2.5 2.5 0 0 1 5 0v2"/>
-                          <line x1="7.5" y1="9.5" x2="7.5" y2="11"/>
-                        </svg>
-                      </button>
-                    <?php else: ?>
-                      <button type="submit" class="icon-btn icon-btn--unlock" title="Разблокировать">
-                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                          <rect x="3" y="7" width="9" height="6.5" rx="1.5"/>
-                          <path d="M5 7V5a2.5 2.5 0 0 1 5 0"/>
-                          <line x1="10" y1="3.5" x2="12" y2="3.5"/>
-                        </svg>
-                      </button>
-                    <?php endif; ?>
-                  </form>
-                </div>
-              </td>
-            </tr>
-          <?php endforeach; ?>
-          <?php if (empty($users)): ?>
-            <tr><td colspan="6" style="text-align:center; color:var(--text-3); padding:24px">Пользователей нет</td></tr>
-          <?php endif; ?>
-        </tbody>
-      </table>
-      <div class="pager" id="usersPager" style="display:none">
-        <span id="emptyNote" style="display:none; margin-right:auto; color:var(--text-3)">Ничего не найдено</span>
-        <button type="button" id="prevBtn">←</button>
-        <span id="pageInfo">1 / 1</span>
-        <button type="button" id="nextBtn">→</button>
-      </div>
-    </div>
-
-  </main>
-</div>
-
-<!-- Модалка: добавить пользователя -->
-<div class="modal-wrap" id="userModal">
-  <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/users" class="modal">
-    <div class="modal-head">
-      <span class="t">Новый пользователь</span>
-      <button type="button" class="modal-x" onclick="closeModal('userModal')">✕</button>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-      <div class="fg">
-        <label>Имя пользователя</label>
-        <input type="text" name="display_name" placeholder="Иванов Иван" required>
-      </div>
-      <div class="fg2">
-        <div class="fg">
-          <label>Логин</label>
-          <input type="text" name="username" placeholder="ivanov_i" required>
+                <tr data-user data-search="<?= htmlspecialchars($searchText) ?>">
+                  <td><?= (int) $row['id'] ?></td>
+                  <td><a class="user-link"
+                      href="<?= htmlspecialchars($basePath) ?>/admin/users/<?= (int) $row['id'] ?>/edit"><?= htmlspecialchars($row['username']) ?></a>
+                  </td>
+                  <td><?= htmlspecialchars($name) ?></td>
+                  <td><?= !empty($row['email']) ? htmlspecialchars($row['email']) : '<span class="ui-muted">—</span>' ?>
+                  </td>
+                  <td>
+                    <?= !empty($row['last_login_at']) ? htmlspecialchars($row['last_login_at']) : '<span class="ui-muted">—</span>' ?>
+                  </td>
+                  <td><span
+                      class="ui-status <?= $active ? 'ui-status--on' : '' ?>"><?= $active ? 'Активен' : 'Отключён' ?></span>
+                  </td>
+                  <td><a class="ui-icon-button ui-icon-button--edit"
+                      href="<?= htmlspecialchars($basePath) ?>/admin/users/<?= (int) $row['id'] ?>/edit"
+                      title="Редактировать" aria-label="Редактировать"><?= uiEditIcon() ?></a></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
         </div>
-        <div class="fg">
-          <label>E-mail</label>
-          <input type="email" name="email" placeholder="ivanov@mail.ru">
+        <div class="pager" id="usersPager" hidden>
+          <div class="pager-empty" id="emptyNote" hidden>Ничего не найдено</div>
+          <nav class="app-pagination" id="usersPagination" aria-label="Страницы списка пользователей"></nav>
         </div>
-      </div>
-      <div class="fg">
-        <label>Пароль <span style="color:var(--text-3); font-weight:400">(пусто — для входа через AD)</span></label>
-        <input type="password" name="password" autocomplete="new-password">
-      </div>
-      <div class="fg">
-        <label>Основная организация</label>
-        <select name="organization_id" required>
-          <option value="">— Выберите —</option>
-          <?php foreach ($organizations as $organization): ?>
-            <?php if ((int) ($organization['is_active'] ?? 1) !== 1) continue; ?>
-            <option value="<?= (int) $organization['id'] ?>">
-              <?= htmlspecialchars($organization['short_name'] ?: $organization['name']) ?>
-            </option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <div class="fg">
-        <label>Роли</label>
-        <div style="display:flex; flex-wrap:wrap; gap:6px 16px">
-          <?php foreach ($roles as $r): ?>
-            <label class="pg">
-              <input type="checkbox" name="role_ids[]" value="<?= (int) $r['id'] ?>">
-              <span class="role-badge <?= $roleClass($r['code']) ?>"><?= htmlspecialchars($r['name']) ?></span>
-            </label>
-          <?php endforeach; ?>
-        </div>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button type="button" class="btn btn-ghost" onclick="closeModal('userModal')">Отмена</button>
-      <button type="submit" class="btn btn-primary">Создать</button>
-    </div>
-  </form>
-</div>
-
-<!-- Модалка: редактировать пользователя -->
-<div class="modal-wrap" id="editUserModal">
-  <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/users/save" class="modal">
-    <div class="modal-head">
-      <span class="t">Редактирование пользователя</span>
-      <button type="button" class="modal-x" onclick="closeModal('editUserModal')">✕</button>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
-      <input type="hidden" name="user_id" id="euId" value="">
-      <div class="fg2">
-        <div class="fg">
-          <label>Логин</label>
-          <input type="text" id="euLogin" name="username" required autocomplete="off">
-        </div>
-        <div class="fg">
-          <label>Имя</label>
-          <input type="text" id="euName" name="display_name" required>
-        </div>
-      </div>
-      <div class="fg">
-        <label>E-mail</label>
-        <input type="email" id="euEmail" name="email" placeholder="user@mail.ru">
-      </div>
-      <div class="fg">
-        <label>Новый пароль <span style="color:var(--text-3); font-weight:400">(пусто — не менять)</span></label>
-        <input type="password" id="euPwd" name="password" placeholder="••••••••" autocomplete="new-password">
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button type="button" class="btn btn-ghost" onclick="closeModal('editUserModal')">Отмена</button>
-      <button type="submit" class="btn btn-primary">Сохранить</button>
-    </div>
-  </form>
-</div>
-
-<script>
-  'use strict'
-  // --- Модалки ---
-  function openModal(id) { var m = document.getElementById(id); if (m) m.classList.add('open') }
-  function closeModal(id) { var m = document.getElementById(id); if (m) m.classList.remove('open') }
-  // закрытие по клику на подложку и по Esc
-  var wraps = document.querySelectorAll('.modal-wrap')
-  for (var i = 0; i < wraps.length; i++) {
-    wraps[i].addEventListener('click', function (e) {
-      if (e.target === this) this.classList.remove('open')
-    })
-  }
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      for (var j = 0; j < wraps.length; j++) wraps[j].classList.remove('open')
-    }
-  })
-
-  // --- Поиск и пагинация по таблице пользователей ---
-  ;(function () {
-    var search = document.getElementById('userSearch')
-    var rows = [].slice.call(document.querySelectorAll('#usersBody tr[data-user]'))
-    if (!rows.length) return
-    var PER = 10
-    var page = 1
-    var filtered = rows
-    var pager = document.getElementById('usersPager')
-    var prevBtn = document.getElementById('prevBtn')
-    var nextBtn = document.getElementById('nextBtn')
-    var pageInfo = document.getElementById('pageInfo')
-    var emptyNote = document.getElementById('emptyNote')
-
-    function totalPages() { return Math.max(1, Math.ceil(filtered.length / PER)) }
-
-    function render() {
-      var pages = totalPages()
-      if (page > pages) page = pages
-      var i
-      for (i = 0; i < rows.length; i++) rows[i].style.display = 'none'
-      var start = (page - 1) * PER
-      for (i = start; i < start + PER && i < filtered.length; i++) filtered[i].style.display = ''
-      pageInfo.textContent = page + ' / ' + pages
-      emptyNote.style.display = filtered.length ? 'none' : ''
-      prevBtn.disabled = page <= 1
-      nextBtn.disabled = page >= pages
-      pager.style.display = (filtered.length > PER || filtered.length === 0) ? '' : 'flex'
-    }
-
-    function apply() {
-      var q = (search.value || '').toLowerCase().trim()
-      filtered = q
-        ? rows.filter(function (tr) { return tr.getAttribute('data-search').indexOf(q) !== -1 })
-        : rows
-      page = 1
-      render()
-    }
-
-    search.addEventListener('input', apply)
-    prevBtn.addEventListener('click', function () { if (page > 1) { page--; render() } })
-    nextBtn.addEventListener('click', function () { if (page < totalPages()) { page++; render() } })
-    render()
-  })()
-
-  // --- Role-picker: вырываем dropdown из overflow:hidden через position:fixed ---
-  ;(function () {
-    var pickers = [].slice.call(document.querySelectorAll('.role-picker'))
-    for (var i = 0; i < pickers.length; i++) {
-      (function (picker) {
-        var drop = picker.querySelector('.role-picker-drop')
-        if (!drop) return
-        picker.addEventListener('toggle', function () {
-          if (picker.open) {
-            var r = picker.getBoundingClientRect()
-            drop.style.position = 'fixed'
-            drop.style.top      = (r.bottom + 4) + 'px'
-            drop.style.left     = r.left + 'px'
-            drop.style.minWidth = Math.max(r.width, 200) + 'px'
-            drop.style.zIndex   = '500'
-          } else {
-            drop.style.cssText = ''
-          }
-        })
-      })(pickers[i])
-    }
-  })()
-
-  // --- Открыть модалку редактирования пользователя ---
-  function openEditUser(id, login, name, email) {
-    document.getElementById('euId').value    = id
-    document.getElementById('euLogin').value = login
-    document.getElementById('euName').value  = name
-    document.getElementById('euEmail').value = email
-    document.getElementById('euPwd').value   = ''
-    openModal('editUserModal')
-  }
-</script>
-
-<script>
-  /* --- Кнопка «← На главную»: history.back() если пришли не со страницы /admin, иначе идём на / --- */
-  ;(function () {
-    var btn = document.getElementById('backBtn')
-    if (!btn) return
-    var base = '<?= addslashes($basePath) ?>'
-    btn.addEventListener('click', function (e) {
-      var ref = document.referrer
-      if (ref && ref.indexOf(location.origin + base + '/admin') === -1 && history.length > 1) {
-        e.preventDefault()
-        history.back()
-      }
-      // иначе следуем href как обычная ссылка (на главную)
-    })
-  })()
-</script>
-
+      </section>
+    </main>
+  </div>
+  <script>
+    ; (function () {
+      var input = document.getElementById('userSearch'), rows = [].slice.call(document.querySelectorAll('#usersBody tr[data-user]')), per = 10, page = 1, filtered = rows, pager = document.getElementById('usersPager'), nav = document.getElementById('usersPagination'), empty = document.getElementById('emptyNote');
+      function button(label, target, disabled, active) { var b = document.createElement('button'); b.type = 'button'; b.className = 'app-pagination__link' + (disabled ? ' is-disabled' : '') + (active ? ' is-active' : ''); b.textContent = label; b.disabled = disabled; b.onclick = function () { if (!disabled) { page = target; render() } }; return b }
+      function render() { var pages = Math.max(1, Math.ceil(filtered.length / per)); page = Math.min(page, pages); rows.forEach(function (r) { r.hidden = true }); filtered.slice((page - 1) * per, page * per).forEach(function (r) { r.hidden = false }); empty.hidden = filtered.length > 0; nav.innerHTML = ''; nav.appendChild(button('‹', page - 1, page === 1, false)); var nums = [1, 2, 3, page - 1, page, page + 1, pages].filter(function (n, i, a) { return n > 0 && n <= pages && a.indexOf(n) === i }).sort(function (a, b) { return a - b }), prev = 0; nums.forEach(function (n) { if (prev && n - prev > 1) { var d = document.createElement('span'); d.className = 'app-pagination__dots'; d.textContent = '…'; nav.appendChild(d) } nav.appendChild(button(String(n), n, false, n === page)); prev = n }); nav.appendChild(button('›', page + 1, page === pages, false)); pager.hidden = filtered.length > 0 && filtered.length <= per }
+      input.addEventListener('input', function () { var q = this.value.toLowerCase().trim(); filtered = q ? rows.filter(function (r) { return r.dataset.search.indexOf(q) >= 0 }) : rows; page = 1; render() }); render();
+    })()
+  </script>
 </body>
+
 </html>

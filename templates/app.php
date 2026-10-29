@@ -6,13 +6,13 @@ $basePath = $basePath ?? '';
 $activeOrganizationCode = '';
 $activeOrganizationName = '';
 foreach ($_SESSION['organizations'] ?? [] as $organization) {
-    if ((int) ($organization['id'] ?? 0) === (int) ($_SESSION['organization_id'] ?? 0)) {
-        $activeOrganizationCode = (string) ($organization['code'] ?? '');
-        $activeOrganizationName = (string) (
-            ($organization['short_name'] ?? '') ?: ($organization['name'] ?? '')
-        );
-        break;
-    }
+  if ((int) ($organization['id'] ?? 0) === (int) ($_SESSION['organization_id'] ?? 0)) {
+    $activeOrganizationCode = (string) ($organization['code'] ?? '');
+    $activeOrganizationName = (string) (
+      ($organization['short_name'] ?? '') ?: ($organization['name'] ?? '')
+    );
+    break;
+  }
 }
 $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
 ?>
@@ -29,8 +29,12 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
     window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
     window.APP_IS_ADMIN = <?= !empty($user['is_admin']) ? 'true' : 'false' ?>;
     window.APP_ALLOWED_PAGES = <?= json_encode($allowedPages ?? [], JSON_UNESCAPED_UNICODE) ?>;
+    window.APP_DISABLED_PAGES = <?= json_encode($disabledPages ?? [], JSON_UNESCAPED_UNICODE) ?>;
     window.APP_NAV_CONFIG = <?= json_encode($navConfig ?? [], JSON_UNESCAPED_UNICODE) ?>;
     window.APP_ORGANIZATION_CODE = <?= json_encode($activeOrganizationCode, JSON_UNESCAPED_UNICODE) ?>;
+    window.APP_REPORT_DEFINITIONS = <?= json_encode($reportDefinitions ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.DISLOCATION_STALE_HOURS = <?= (int) ($dislocationStaleHours ?? 8) ?>;
+    window.APP_TIMEZONE_OFFSET_SECONDS = <?= (new DateTimeImmutable('now'))->getOffset() ?>;
   </script>
 </head>
 
@@ -61,17 +65,6 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fDislocationWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fDislocationWagonNo"
-                placeholder="Номер вагона1; Номер вагона2; ...">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fDislocationCargo">Груз</label>
-              <select class="filter-input" id="fDislocationCargo">
-                <option value="">— Все —</option>
-              </select>
-            </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnDislocationApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnDislocationReset">Сбросить</button>
@@ -84,7 +77,8 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
             <div class="table-toolbar">
               <div class="table-info">
                 <span class="table-title">
-                  Сводная дислокация<?= $activeOrganizationName !== '' ? ' ' . htmlspecialchars($activeOrganizationName) : '' ?>
+                  Сводная
+                  дислокация<?= $activeOrganizationName !== '' ? ' ' . htmlspecialchars($activeOrganizationName) : '' ?>
                 </span>
                 <span class="table-sub" id="mainTableSub"></span>
               </div>
@@ -124,23 +118,6 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         <!-- Фильтры -->
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fApproachWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fApproachWagonNo"
-                placeholder="Номер вагона1; Номер вагона2; ...">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fApproachCargo">Груз</label>
-              <select class="filter-input" id="fApproachCargo">
-                <option value="">— Все —</option>
-              </select>
-            </div>
-            <!-- <div class="filter-item">
-              <label class="filter-label" for="fApproachPrevCargo">Ранее выгружен</label>
-              <select class="filter-input" id="fApproachPrevCargo">
-                <option value="">— Все —</option>
-              </select>
-            </div> -->
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnApproachApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnApproachReset">Сбросить</button>
@@ -152,7 +129,8 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title"><?= $isMtf ? 'Подход вагонов к ст. Углеуральская (сводная)' : 'Подход вагонов (сводная)' ?></span>
+                <span
+                  class="table-title"><?= $isMtf ? 'Подход вагонов к ст. Углеуральская (сводная)' : 'Подход вагонов (сводная)' ?></span>
                 <span class="table-sub" id="approachSumSub"></span>
               </div>
               <div class="table-acts">
@@ -189,23 +167,6 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fDepartureWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fDepartureWagonNo"
-                placeholder="Номер вагона1; Номер вагона2; ...">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fDepartureCargo">Груз</label>
-              <select class="filter-input" id="fDepartureCargo">
-                <option value="">— Все —</option>
-              </select>
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fDestStation">Ст. назначения</label>
-              <select class="filter-input" id="fDestStation">
-                <option value="">— Все —</option>
-              </select>
-            </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnDepartureApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnDepartureReset">Сбросить</button>
@@ -216,7 +177,8 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title"><?= $isMtf ? 'Отправление вагонов со ст. Углеуральская — сводная' : 'Отправление вагонов — сводная' ?></span>
+                <span
+                  class="table-title"><?= $isMtf ? 'Отправление вагонов со ст. Углеуральская — сводная' : 'Отправление вагонов — сводная' ?></span>
                 <span class="table-sub" id="departureSumSub"></span>
               </div>
               <div class="table-acts">
@@ -251,17 +213,6 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fLoadingWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fLoadingWagonNo"
-                placeholder="Номер вагона1; Номер вагона2; ...">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fLoadingCargo">Груз</label>
-              <select class="filter-input" id="fLoadingCargo">
-                <option value="">— Все —</option>
-              </select>
-            </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnLoadingApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnLoadingReset">Сбросить</button>
@@ -301,22 +252,11 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
       <!-- Простои -->
       <div id="panel-downtime" class="tab-panel">
         <div class="inner-tabs">
-          <button class="inner-tab active" data-inner="downtime-summary">Сводная по станциям</button>
+          <button class="inner-tab active" data-inner="downtime-summary">Сводная</button>
           <button class="inner-tab" data-inner="downtime-detail">Подробная</button>
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fDowntimeWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fDowntimeWagonNo"
-                placeholder="Номер вагона1; Номер вагона2; ...">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label">Ст. назначения</label>
-              <select class="filter-select" id="fDowntimeDestStation" style="width:220px">
-                <option value="">— Все —</option>
-              </select>
-            </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnDowntimeApply">Применить</button>
             </div>
@@ -352,19 +292,75 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         </div>
       </div>
 
-      <!-- Сырьё -->
+      <div id="panel-technical-state" class="tab-panel">
+        <div class="filters-bar">
+          <div class="filters-inner">
+            <div class="filter-actions" style="flex-basis:100%">
+              <button class="btn btn-primary btn-sm" id="btnTechnicalApply">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="btnTechnicalReset">Сбросить</button>
+            </div>
+          </div>
+        </div>
+        <section class="table-section">
+          <div class="table-toolbar">
+            <div class="table-info"><span class="table-title">Техническое состояние</span><span class="table-sub"
+                id="technicalDetSub"></span></div>
+            <div class="table-acts"></div>
+          </div>
+          <div id="technicalDetTable"></div>
+        </section>
+      </div>
+
+      <div id="panel-claims" class="tab-panel">
+        <div class="kpi-grid" id="claimsMetrics" style="margin-bottom:16px"></div>
+        <div class="inner-tabs">
+          <button class="inner-tab active" data-inner="claims-summary">Сводная</button>
+          <button class="inner-tab" data-inner="claims-detail">Подробная</button>
+        </div>
+        <div class="filters-bar">
+          <div class="filters-inner">
+            <div class="filter-actions" style="flex-basis:100%">
+              <button class="btn btn-primary btn-sm" id="btnClaimsApply">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="btnClaimsReset">Сбросить</button>
+            </div>
+          </div>
+        </div>
+        <div id="claims-summary" class="inner-panel active">
+          <section class="table-section">
+            <div class="table-toolbar">
+              <div class="table-info">
+                <span class="table-title">Претензии — сводная</span>
+                <span class="table-sub" id="claimsSumSub"></span>
+
+              </div>
+              <div class="table-acts"><button class="btn btn-ghost btn-sm" id="btnClaimsExportSummary">Выгрузить в
+                  Excel</button></div>
+            </div>
+            <div class="table-scroll">
+              <table class="data-table" id="claimsSumTable"></table>
+            </div>
+          </section>
+        </div>
+        <div id="claims-detail" class="inner-panel">
+          <section class="table-section">
+            <div class="table-toolbar">
+              <div class="table-info"><span class="table-title">Претензии — подробная</span><span class="table-sub"
+                  id="claimsDetSub"></span></div>
+              <div class="table-acts"></div>
+            </div>
+            <div id="claimsDetTable"></div>
+          </section>
+        </div>
+      </div>
+
       <div id="panel-raw-material" class="tab-panel">
         <div class="kpi-grid" id="rawMetrics" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
-          <button class="inner-tab active" data-inner="raw-summary">Сводная по грузам</button>
+          <button class="inner-tab active" data-inner="raw-summary">Сводная</button>
           <button class="inner-tab" data-inner="raw-detail">Подробная</button>
         </div>
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fRawWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fRawWagonNo" placeholder="Номер вагона1; Номер вагона2; ...">
-            </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnRawApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnRawReset">Сбросить</button>
@@ -375,10 +371,12 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
           <section class="table-section">
             <div class="table-toolbar">
               <div class="table-info">
-                <span class="table-title">Сырьё — гружёные вагоны</span>
+                <span class="table-title">Сырьё - простои</span>
                 <span class="table-sub" id="rawSumSub"></span>
               </div>
-              <div class="table-acts"></div>
+              <div class="table-acts">
+                <button class="btn btn-ghost btn-sm" data-toggle-table="rawSumTable">Свернуть все</button>
+              </div>
             </div>
             <div class="table-scroll">
               <table class="data-table" id="rawSumTable"></table>
@@ -403,27 +401,6 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
       <div id="panel-analysis-period" class="tab-panel">
         <div class="filters-bar">
           <div class="filters-inner" style="flex-wrap:wrap;gap:8px 16px">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label">№ вагона</label>
-              <input class="filter-input" type="text" id="fAnalysisPeriodWagonNo"
-                placeholder="Номер вагона1; Номер вагона2; ..."">
-            </div>
-            <div class=" filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fAnalysisPeriodCargo">Груз</label>
-              <select class="filter-input" id="fAnalysisPeriodCargo">
-                <option value="">— Все —</option>
-              </select>
-            </div>
-            <div class=" filter-item">
-              <label class="filter-label">Дата операции с</label>
-              <input class="filter-input" type="date" id="fAnalysisPeriodDateFrom" value="<?= date('Y-m-01') ?>"
-                style="width:145px">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label">по</label>
-              <input class="filter-input" type="date" id="fAnalysisPeriodDateTo" value="<?= date('Y-m-d') ?>"
-                style="width:145px">
-            </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnAnalysisPeriodApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnAnalysisPeriodReset">Сбросить</button>
@@ -448,21 +425,6 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
       <div id="panel-downtime-control" class="tab-panel">
         <div class="filters-bar">
           <div class="filters-inner">
-            <div class="filter-item" style="flex-basis:100%">
-              <label class="filter-label" for="fDowntimeControlWagonNo">№ вагона</label>
-              <input class="filter-input" type="text" id="fDowntimeControlWagonNo"
-                placeholder="Номер вагона1; Номер вагона2; ...">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fDowntimeControlDateFrom">Дата действия с</label>
-              <input class="filter-input" type="date" id="fDowntimeControlDateFrom" value="<?= date('Y-m-01') ?>"
-                style="width:145px">
-            </div>
-            <div class="filter-item">
-              <label class="filter-label" for="fDowntimeControlDateTo">по</label>
-              <input class="filter-input" type="date" id="fDowntimeControlDateTo" value="<?= date('Y-m-d') ?>"
-                style="width:145px">
-            </div>
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="btnDowntimeControlApply">Применить</button>
               <button class="btn btn-ghost btn-sm" id="btnDowntimeControlReset">Сбросить</button>
@@ -484,10 +446,12 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
   </div>
 
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jquery/jquery-3.7.1.min.js"></script>
-  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js"></script>
+  <script
+    src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/detail-contexts.js') ?>"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/csv-export.js"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/excel-export.js"></script>
-  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/app.js"></script>
+  <script
+    src="<?= htmlspecialchars($basePath) ?>/assets/js/app.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/app.js') ?>"></script>
 </body>
 
 </html>
