@@ -6,6 +6,8 @@ $user = $user ?? ['display_name' => 'Пользователь'];
 $reportDtLabel = $reportDtLabel ?? '';
 $reportIsStale = $reportIsStale ?? false;
 $stationsWithoutCoordinatesJson = $stationsWithoutCoordinatesJson ?? '[]';
+$canOpenDetail = \App\Services\Authorization::isSuper($user)
+    || in_array('wagon-detail', (array) ($user['allowed_pages'] ?? $_SESSION['user']['allowed_pages'] ?? []), true);
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -23,7 +25,10 @@ $stationsWithoutCoordinatesJson = $stationsWithoutCoordinatesJson ?? '[]';
     <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/Leaflet/leaflet.css" />
     <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/Leaflet/MarkerCluster.css" />
 
-    <script>window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';</script>
+    <script>
+        window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
+        window.APP_CAN_OPEN_DETAIL = <?= $canOpenDetail ? 'true' : 'false' ?>;
+    </script>
     <style>
         :root {
             --ink: #1f2024;
@@ -609,12 +614,14 @@ $stationsWithoutCoordinatesJson = $stationsWithoutCoordinatesJson ?? '[]';
                 });
 
                 var wagonsListHtml = wagons.map(function (w) {
+                    var wagonNumber = '<strong style="color: var(--primary); font-family: var(--mono); font-size: 12px;">' +
+                        w.wagon_num + '</strong>';
+                    if (window.APP_CAN_OPEN_DETAIL) {
+                        wagonNumber = '<a href="' + (window.APP_BASE || '') + '/detail?ctx=dislocation&wagon_no=' + encodeURIComponent(w.wagon_num) + '" target="_blank" title="Открыть детализацию по вагону">' +
+                            wagonNumber + '</a>';
+                    }
                     return '<div style="border-bottom: 1px solid #e2e1e7; padding: 5px 0; font-size: 11px; line-height: 1.4;">' +
-                        '<a href="' + (window.APP_BASE || '') + '/detail?ctx=dislocation&wagon_no=' + encodeURIComponent(w.wagon_num) + '" target="_blank" title="Открыть детализацию по вагону">' +
-                        '<strong style="color: var(--primary); font-family: var(--mono); font-size: 12px;">' +
-                        w.wagon_num +
-                        '</strong>' +
-                        '</a> — ' + w.wagon_type + '<br>' +
+                        wagonNumber + ' — ' + w.wagon_type + '<br>' +
                         '<span style="color: ' + (w.ld ? 'var(--loaded)' : 'var(--empty)') + '; font-weight: 600;">' +
                         (w.ld ? 'Гружёный' : 'Порожний') +
                         '</span>' +

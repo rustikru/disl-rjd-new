@@ -8,12 +8,12 @@ $selectedOrganizationName = '';
 foreach ($headerOrganizations as $headerOrganization) {
     if ((int) ($headerOrganization['id'] ?? 0) === $headerOrganizationId) {
         $selectedOrganizationName = (string) (
-            ($headerOrganization['short_name'] ?? '') ?: ($headerOrganization['name'] ?? '')
+            ($headerOrganization['name'] ?? '') ?: ($headerOrganization['short_name'] ?? '')
         );
         break;
     }
 }
-$headerName = $headerName ?? ($selectedOrganizationName !== '' ? $selectedOrganizationName : $appName);
+$headerName = $headerName ?? ($appName . ($selectedOrganizationName !== '' ? ' - ' . $selectedOrganizationName : ''));
 $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
 ?>
 <header class="site-header">

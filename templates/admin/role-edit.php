@@ -2,6 +2,7 @@
 $basePath = $basePath ?? '';
 require_once __DIR__ . '/../partials/ui.php';
 $isAdminRole = ($editedRole['code'] ?? '') === \App\Services\Authorization::ADMIN;
+$canDelete = !$isViewOnly && !$isNewRole && (int) ($editedRole['is_system'] ?? 0) !== 1 && !$isAdminRole;
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -72,13 +73,14 @@ $isAdminRole = ($editedRole['code'] ?? '') === \App\Services\Authorization::ADMI
       accent-color: var(--accent)
     }
 
-    .delete-row {
-      max-width: 900px;
-      margin-top: 22px;
-      padding-top: 15px;
-      border-top: 1px solid var(--border);
+    .role-actions {
+      justify-content: space-between
+    }
+
+    .role-actions-main {
       display: flex;
-      justify-content: flex-end
+      align-items: center;
+      gap: 8px;
     }
 
     .btn-danger {
@@ -92,6 +94,14 @@ $isAdminRole = ($editedRole['code'] ?? '') === \App\Services\Authorization::ADMI
       .role-fields,
       .pages {
         grid-template-columns: 1fr
+      }
+
+      .role-actions {
+        align-items: stretch
+      }
+
+      .role-actions-main {
+        justify-content: flex-end
       }
     }
   </style>
@@ -157,19 +167,12 @@ $isAdminRole = ($editedRole['code'] ?? '') === \App\Services\Authorization::ADMI
             </div>
           </div>
         </section>
-        <div class="ui-form-actions"><a class="btn btn-ghost"
-            href="<?= htmlspecialchars($basePath) ?>/admin/roles"><?= $isViewOnly ? 'Назад' : 'Отмена' ?></a><?php if (!$isViewOnly): ?><button
-              class="btn btn-primary" type="submit"><?= $isNewRole ? 'Создать' : 'Сохранить' ?></button><?php endif; ?>
+        <div class="ui-form-actions role-actions">
+          <?php if ($canDelete): ?><button class="btn btn-danger" type="submit" form="deleteRoleForm" onclick="return confirm('Удалить роль?')">Удалить роль</button><?php else: ?><span></span><?php endif; ?>
+          <div class="role-actions-main"><a class="btn btn-ghost" href="<?= htmlspecialchars($basePath) ?>/admin/roles"><?= $isViewOnly ? 'Назад' : 'Отмена' ?></a><?php if (!$isViewOnly): ?><button class="btn btn-primary" type="submit"><?= $isNewRole ? 'Создать' : 'Сохранить' ?></button><?php endif; ?></div>
         </div>
       </form>
-      <?php if (!$isViewOnly && !$isNewRole && (int) ($editedRole['is_system'] ?? 0) !== 1 && !$isAdminRole): ?>
-        <div class="delete-row">
-          <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/roles/delete"
-            onsubmit="return confirm('Удалить роль?')"><input type="hidden" name="csrf_token"
-              value="<?= htmlspecialchars($csrf) ?>"><input type="hidden" name="role_id"
-              value="<?= (int) $editedRole['id'] ?>"><button class="btn btn-danger" type="submit">Удалить роль</button>
-          </form>
-        </div><?php endif; ?>
+      <?php if ($canDelete): ?><form id="deleteRoleForm" method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/roles/delete"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>"><input type="hidden" name="role_id" value="<?= (int) $editedRole['id'] ?>"></form><?php endif; ?>
     </main>
   </div>
 </body>

@@ -18,6 +18,16 @@ $app = \Slim\Factory\AppFactory::create();
 
 $isDev = $config['app_env'] === 'development';
 
+if ($config['base_path'] !== '') {
+    $app->setBasePath($config['base_path']);
+}
+
+$app->addBodyParsingMiddleware();
+
+(require __DIR__ . '/../src/routes.php')($app, $config);
+
+// Обработчик ошибок добавляется последним, чтобы перехватывать исключения
+// из всех middleware, включая подключение к БД при проверке сессии.
 $errorMiddleware = $app->addErrorMiddleware($isDev, true, $isDev);
 
 $errorMiddleware->setDefaultErrorHandler(
@@ -42,13 +52,5 @@ $errorMiddleware->setErrorHandler(
         return $response;
     }
 );
-
-if ($config['base_path'] !== '') {
-    $app->setBasePath($config['base_path']);
-}
-
-$app->addBodyParsingMiddleware();
-
-(require __DIR__ . '/../src/routes.php')($app, $config);
 
 $app->run();

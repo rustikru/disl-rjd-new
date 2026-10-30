@@ -9,12 +9,13 @@ final class PageRegistry
 {
     /** API, которые используются несколькими страницами. */
     private const SHARED_ROUTES = [
-        '/api/technical-state/detail' => ['technical-state', 'wagon-card'],
+        '/api/technical-state/detail' => ['wagon-card'],
     ];
 
     private const CORE = [
         'dashboard' => ['label' => 'Дашборд', 'routes' => ['/api/dashboard', '/api/kpi'], 'visibility_group' => 'Сайт — основные разделы'],
         'wagon-card' => ['label' => 'Карточка вагона', 'routes' => ['/wagon', '/api/wagon/movement'], 'visibility_group' => 'Сайт — основные разделы'],
+        'wagon-detail' => ['label' => 'Детализация по вагону', 'routes' => ['/detail'], 'visibility_group' => 'Сайт — основные разделы'],
         'maps' => ['label' => 'Карта', 'routes' => ['/maps'], 'visibility_group' => 'Сайт — основные разделы', 'navigation' => ['group' => 'analytics', 'order' => 90, 'url' => '/maps', 'target' => '_blank']],
         'import' => ['label' => 'Загрузка справок', 'routes' => ['/import', '/api/import', '/bin/downloads_mail_rjd.php'], 'visibility_group' => 'Сайт — основные разделы', 'navigation' => ['group' => 'import', 'order' => 10, 'url' => '/import', 'label' => 'Загрузка справки РЖД']],
         'directories' => [
@@ -105,10 +106,6 @@ final class PageRegistry
     public static function pageForPath(string $path, array $query = []): ?string
     {
         $path = '/' . ltrim($path, '/');
-        if ($path === '/detail') {
-            $ctx = (string) ($query['ctx'] ?? '');
-            return isset(self::all()[$ctx]) ? $ctx : null;
-        }
         if ($path === '/')
             return null;
         $matches = [];
@@ -126,13 +123,27 @@ final class PageRegistry
     public static function accessPages(string $path, array $query = []): array
     {
         $path = '/' . ltrim($path, '/');
-        foreach (self::SHARED_ROUTES as $prefix => $pages) {
-            if ($path === $prefix || str_starts_with($path, rtrim($prefix, '/') . '/')) {
-                return $pages;
+        $pages = [];
+        $isDetail = false;
+
+        foreach (ReportConfig::all() as $report) {
+            $endpoint = rtrim((string) ($report['detail_endpoint'] ?? ''), '/');
+            if ($endpoint !== '' && ($path === $endpoint || str_starts_with($path, $endpoint . '/'))) {
+                $pages[] = 'wagon-detail';
+                $isDetail = true;
+                break;
             }
         }
+
         $page = self::pageForPath($path, $query);
-        return $page === null ? [] : [$page];
+        if (!$isDetail && $page !== null)
+            $pages[] = $page;
+
+        foreach (self::SHARED_ROUTES as $prefix => $sharedPages) {
+            if ($path === $prefix || str_starts_with($path, rtrim($prefix, '/') . '/'))
+                $pages = array_merge($pages, $sharedPages);
+        }
+        return array_values(array_unique($pages));
     }
 
     public static function expandPermissions(array $pages): array

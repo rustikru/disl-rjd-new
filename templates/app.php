@@ -41,7 +41,6 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
 <body>
 
   <?php
-  $headerName = $activeOrganizationName !== '' ? $activeOrganizationName : $appName;
   $headerSub = '<div id="brandDateSub" class="brand-date-sub"></div>';
   $headerRight = '';
   include __DIR__ . '/partials/header.php';

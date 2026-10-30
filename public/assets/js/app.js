@@ -3,6 +3,7 @@
 var BASE = window.APP_BASE || ''
 var ALLOWED_PAGES = window.APP_ALLOWED_PAGES || []
 var DISABLED_PAGES = window.APP_DISABLED_PAGES || []
+var CAN_OPEN_DETAIL = ALLOWED_PAGES.indexOf('wagon-detail') !== -1
 
 // Проверка доступа к вкладке
 function canSeeTab(tab) {
@@ -299,7 +300,7 @@ function showClaimsSummary(data, tabSettings) {
         detailFilters.claim_filter = 'penalty'
       if (column.key === 'payable_days') detailFilters.claim_filter = 'payable'
       var content = esc(String(text))
-      if (!columnIndex || Number(value) > 0) {
+      if (CAN_OPEN_DETAIL && (!columnIndex || Number(value) > 0)) {
         var query = new URLSearchParams({ ctx: 'claims' })
         Object.keys(detailFilters).forEach(function (filterKey) {
           if (
@@ -2040,6 +2041,7 @@ function navNewTab(url) {
 
 // Служебные колонки не передаём в параметры детализации.
 function openDetail(ctx, road, station, col, groupBy, subs, extra) {
+  if (!CAN_OPEN_DETAIL) return
   var p = new URLSearchParams()
   p.set('ctx', ctx)
   if (groupBy) p.set('group_by', groupBy)
@@ -2088,6 +2090,11 @@ function openDetail(ctx, road, station, col, groupBy, subs, extra) {
 
 // Переход к детализации из ячейки сводной.
 $(document).on('click', '.cell-link', function (e) {
+  if (!CAN_OPEN_DETAIL) {
+    e.preventDefault()
+    e.stopPropagation()
+    return
+  }
   if ($(this).hasClass('claims-detail-link')) return
   e.preventDefault()
   e.stopPropagation()
@@ -2113,6 +2120,7 @@ $(document).on('click', '.cell-link', function (e) {
 
 // Клик по KPI-карточке с детализацией
 $(document).on('click', '.kpi-card--link', function () {
+  if (!CAN_OPEN_DETAIL) return
   var raw = $(this).attr('data-detail')
   if (!raw) return
   var d

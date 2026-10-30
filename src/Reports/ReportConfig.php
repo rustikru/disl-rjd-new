@@ -126,7 +126,7 @@ final class ReportConfig
 
             // Техническое состояние
             'technical-state' => self::report(
-                'НСИ вагона',
+                'Тех.состояние',
                 '/api/technical-state/filters',
                 null,
                 '/api/technical-state/detail',
@@ -237,20 +237,26 @@ final class ReportConfig
     /** Нормализует и проверяет фильтры по тому же описанию, из которого строится UI. */
     public static function validateFilters(string $reportCode, array $values, bool $require = true): array
     {
-        $definition=self::all()[$reportCode]??null;
-        if($definition===null) throw new \InvalidArgumentException('Неизвестный отчёт: '.$reportCode);
-        $result=[];
-        foreach((array)($definition['filters']??[]) as $filter){
-            $key=(string)$filter['key']; $value=trim((string)($values[$key]??''));
-            if($require && !empty($filter['required']) && $value==='') throw new \InvalidArgumentException('Укажите поле «'.$filter['label'].'»');
-            if($value==='') continue;
-            if(($filter['value_type']??'')==='date'){
-                $date=\DateTimeImmutable::createFromFormat('!Y-m-d',$value);
-                if(!$date || $date->format('Y-m-d')!==$value) throw new \InvalidArgumentException('Некорректная дата в поле «'.$filter['label'].'»');
+        $definition = self::all()[$reportCode] ?? null;
+        if ($definition === null)
+            throw new \InvalidArgumentException('Неизвестный отчёт: ' . $reportCode);
+        $result = [];
+        foreach ((array) ($definition['filters'] ?? []) as $filter) {
+            $key = (string) $filter['key'];
+            $value = trim((string) ($values[$key] ?? ''));
+            if ($require && !empty($filter['required']) && $value === '')
+                throw new \InvalidArgumentException('Укажите поле «' . $filter['label'] . '»');
+            if ($value === '')
+                continue;
+            if (($filter['value_type'] ?? '') === 'date') {
+                $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+                if (!$date || $date->format('Y-m-d') !== $value)
+                    throw new \InvalidArgumentException('Некорректная дата в поле «' . $filter['label'] . '»');
             }
-            $choices=(array)($filter['choices']??[]);
-            if($choices!==[] && !in_array($value,array_column($choices,'value'),true)) throw new \InvalidArgumentException('Недопустимое значение поля «'.$filter['label'].'»');
-            $result[$key]=$value;
+            $choices = (array) ($filter['choices'] ?? []);
+            if ($choices !== [] && !in_array($value, array_column($choices, 'value'), true))
+                throw new \InvalidArgumentException('Недопустимое значение поля «' . $filter['label'] . '»');
+            $result[$key] = $value;
         }
         return $result;
     }
@@ -276,16 +282,16 @@ final class ReportConfig
     private static function apiHandlers(): array
     {
         return [
-            'dislocation'=>['filters'=>'dislFilters','summary'=>'dislSummary','detail'=>'dislDetail'],
-            'approach'=>['filters'=>'approachFilters','summary'=>'approachSummary','detail'=>'approachDetail'],
-            'departure'=>['filters'=>'departureFilters','summary'=>'departureSummary','detail'=>'departureDetail'],
-            'loading'=>['filters'=>'loadingFilters','summary'=>'loadingSummary','detail'=>'loadingDetail'],
-            'downtime'=>['filters'=>'downtimeFilters','summary'=>'downtimeSummary','detail'=>'downtimeDetail'],
-            'technical-state'=>['filters'=>'technicalFilters','detail'=>'technicalDetail'],
-            'claims'=>['filters'=>'claimsFilters','summary'=>'claimsSummary','detail'=>'claimsDetail'],
-            'raw-material'=>['summary'=>'rawSummary','detail'=>'rawDetail'],
-            'analysis-period'=>['filters'=>'analysisFilters','detail'=>'analysisPeriod'],
-            'downtime-control'=>['detail'=>'downtimeControlDetail'],
+            'dislocation' => ['filters' => 'dislFilters', 'summary' => 'dislSummary', 'detail' => 'dislDetail'],
+            'approach' => ['filters' => 'approachFilters', 'summary' => 'approachSummary', 'detail' => 'approachDetail'],
+            'departure' => ['filters' => 'departureFilters', 'summary' => 'departureSummary', 'detail' => 'departureDetail'],
+            'loading' => ['filters' => 'loadingFilters', 'summary' => 'loadingSummary', 'detail' => 'loadingDetail'],
+            'downtime' => ['filters' => 'downtimeFilters', 'summary' => 'downtimeSummary', 'detail' => 'downtimeDetail'],
+            'technical-state' => ['filters' => 'technicalFilters', 'detail' => 'technicalDetail'],
+            'claims' => ['filters' => 'claimsFilters', 'summary' => 'claimsSummary', 'detail' => 'claimsDetail'],
+            'raw-material' => ['summary' => 'rawSummary', 'detail' => 'rawDetail'],
+            'analysis-period' => ['filters' => 'analysisFilters', 'detail' => 'analysisPeriod'],
+            'downtime-control' => ['detail' => 'downtimeControlDetail'],
         ];
     }
 

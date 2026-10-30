@@ -49,4 +49,8 @@ foreach(PageRegistry::all() as $code=>$page){
 }
 try { ConfigSchema::normalize(ConfigSchema::defaults(),false); } catch(Throwable $e) { $errors[]='ConfigSchema: '.$e->getMessage(); }
 foreach(PageRegistry::accessPages('/api/technical-state/detail') as $code) if(!isset(PageRegistry::all()[$code])) $errors[]="Общий API ссылается на неизвестное право: $code";
+if(PageRegistry::pageForPath('/detail',['ctx'=>'dislocation'])!=='wagon-detail') $errors[]='/detail должен использовать право wagon-detail';
+if(PageRegistry::accessPages('/api/dislocation/detail')!==['wagon-detail']) $errors[]='Detail API должен использовать право wagon-detail';
+if(PageRegistry::accessPages('/api/technical-state/detail')!==['wagon-detail','wagon-card']) $errors[]='Технический detail API должен быть доступен из детализации и карточки вагона';
+if(PageRegistry::accessPages('/api/dislocation/summary')!==['dislocation']) $errors[]='Summary API должен сохранять право своего отчёта';
 if($errors){fwrite(STDERR,implode(PHP_EOL,$errors).PHP_EOL);exit(1);} echo 'Single-source registries are consistent: '.count(PageRegistry::all()).' pages, '.count($endpoints).' report endpoints, '.count($sourceKeys).' source columns.'.PHP_EOL;
