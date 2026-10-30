@@ -5,6 +5,18 @@ $isNewUser = $isNewUser ?? false;
 $roleIds = array_map('intval', $editedUser['role_ids'] ?? []);
 $extraOrganizationIds = array_map('intval', $editedUser['organization_ids'] ?? []);
 $mainOrganizationId = (int) ($editedUser['organization_id'] ?? 0);
+$accessGroups = $accessGroups ?? [];
+$selectedAccessGroupId = 0;
+foreach ($accessGroups as $accessGroup) {
+  $groupRoleIds = array_map('intval', $accessGroup['role_ids'] ?? []);
+  sort($groupRoleIds);
+  $currentRoleIds = $roleIds;
+  sort($currentRoleIds);
+  if ($groupRoleIds === $currentRoleIds && $groupRoleIds !== []) {
+    $selectedAccessGroupId = (int) $accessGroup['id'];
+    break;
+  }
+}
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -55,8 +67,23 @@ include __DIR__ . '/../partials/header.php';
             </div>
           </section>
           <section class="ui-card">
-            <div class="ui-card-head">Роли</div>
-            <div class="ui-card-body"><div class="option-list"><?php foreach ($roles as $role): ?><label class="option"><input type="checkbox" name="role_ids[]" value="<?= (int) $role['id'] ?>" <?= in_array((int) $role['id'], $roleIds, true) ? 'checked' : '' ?>><?= htmlspecialchars($role['name']) ?></label><?php endforeach; ?></div></div>
+            <div class="ui-card-head">Доступ</div>
+            <div class="ui-card-body">
+              <div class="ui-field">
+                <label for="accessGroup">Группа доступа</label>
+                <select name="access_group_id" id="accessGroup">
+                  <option value="0" <?= $selectedAccessGroupId === 0 ? 'selected' : '' ?>>Индивидуальный набор ролей</option>
+                  <?php foreach ($accessGroups as $accessGroup): ?>
+                    <option value="<?= (int) $accessGroup['id'] ?>" data-role-ids="<?= htmlspecialchars(implode(',', array_map('intval', $accessGroup['role_ids'] ?? []))) ?>" <?= $selectedAccessGroupId === (int) $accessGroup['id'] ? 'selected' : '' ?>><?= htmlspecialchars($accessGroup['name']) ?></option>
+                  <?php endforeach; ?>
+                </select>
+                <span class="ui-help">Выбор группы автоматически назначает входящие в неё роли. При необходимости можно изменить набор вручную.</span>
+              </div>
+              <div class="ui-field" style="margin-top:14px">
+                <label>Роли пользователя</label>
+                <div class="option-list" id="userRoles"><?php foreach ($roles as $role): ?><label class="option"><input type="checkbox" name="role_ids[]" value="<?= (int) $role['id'] ?>" <?= in_array((int) $role['id'], $roleIds, true) ? 'checked' : '' ?>><?= htmlspecialchars($role['name']) ?></label><?php endforeach; ?></div>
+              </div>
+            </div>
           </section>
         </div>
         <?php if (!$isNewUser): ?><aside>
@@ -76,6 +103,6 @@ include __DIR__ . '/../partials/header.php';
   </main>
 </div>
 <script>
-;(function(){var main=document.getElementById('mainOrganization'),extra=document.getElementById('extraOrganizations');function sync(){[].slice.call(extra.querySelectorAll('input')).forEach(function(box){var same=box.value===main.value;if(same)box.checked=false;box.disabled=same;box.closest('label').classList.toggle('is-main',same)})}main.addEventListener('change',sync);sync()})()
+;(function(){var main=document.getElementById('mainOrganization'),extra=document.getElementById('extraOrganizations');function sync(){[].slice.call(extra.querySelectorAll('input')).forEach(function(box){var same=box.value===main.value;if(same)box.checked=false;box.disabled=same;box.closest('label').classList.toggle('is-main',same)})}main.addEventListener('change',sync);sync();var group=document.getElementById('accessGroup'),roles=document.getElementById('userRoles');if(group&&roles){group.addEventListener('change',function(){var option=group.options[group.selectedIndex];if(group.value==='0')return;var ids=(option.getAttribute('data-role-ids')||'').split(',');[].slice.call(roles.querySelectorAll('input[type=checkbox]')).forEach(function(box){box.checked=ids.indexOf(box.value)>=0})});roles.addEventListener('change',function(){group.value='0'})}})()
 </script>
 </body></html>

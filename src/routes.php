@@ -196,6 +196,15 @@ return function (App $app, array $config): void {
         $group->get('/admin/roles/{id}/edit', function ($req, $res, $args) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->roleEditPage($req, $res, $args);
         });
+        $group->get('/admin/access-groups', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->accessGroupsPage($req, $res);
+        });
+        $group->get('/admin/access-groups/new', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->accessGroupCreatePage($req, $res);
+        });
+        $group->get('/admin/access-groups/{id:[0-9]+}/edit', function ($req, $res, $args) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->accessGroupEditPage($req, $res, $args);
+        });
         $group->get('/admin/report-mailings', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\MailingController($getDb(), $config))->adminPage($req, $res);
         });
@@ -302,6 +311,12 @@ return function (App $app, array $config): void {
         });
         $group->post('/admin/roles/delete', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->deleteRole($req, $res);
+        });
+        $group->post('/admin/access-groups/save', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->saveAccessGroup($req, $res);
+        });
+        $group->post('/admin/access-groups/delete', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->deleteAccessGroup($req, $res);
         });
         $group->post('/admin/directories/stations/save', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->saveStation($req, $res);

@@ -213,6 +213,7 @@ class AdminController
         $organizations = $this->db->fetchAll(
             'SELECT id, code, name, short_name, is_active FROM xx_rjd_organizations ORDER BY is_active DESC, name'
         );
+        $accessGroups = $this->accessGroupsWithRoles();
         $editedUser['role_ids'] = array_map(
             'intval',
             array_column($this->db->fetchAll(
@@ -270,6 +271,7 @@ class AdminController
         $organizations = $this->db->fetchAll(
             'SELECT id, code, name, short_name, is_active FROM xx_rjd_organizations ORDER BY is_active DESC, name'
         );
+        $accessGroups = $this->accessGroupsWithRoles();
         $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
         $user = $_SESSION['user'] ?? [];
@@ -282,6 +284,228 @@ class AdminController
         include __DIR__ . '/../../templates/admin/user-edit.php';
         $response->getBody()->write((string) ob_get_clean());
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function accessGroupsPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isAdmin()) {
+            return $this->forbidden($response);
+        }
+
+        $groups = $this->db->fetchAll(
+            'SELECT g.id, g.name, g.description,
+                    (SELECT COUNT(*) FROM xx_rjd_access_group_roles gr WHERE gr.access_group_id = g.id) AS role_count
+               FROM xx_rjd_access_groups g
+              ORDER BY NLSSORT(g.name, \'NLS_SORT=RUSSIAN\')'
+        );
+        $groupRoles = [];
+        foreach ($this->db->fetchAll(
+            'SELECT gr.access_group_id, r.name
+               FROM xx_rjd_access_group_roles gr
+               JOIN xx_rjd_roles r ON r.id = gr.role_id
+              ORDER BY r.name'
+        ) as $row) {
+            $groupRoles[(int) $row['access_group_id']][] = (string) $row['name'];
+        }
+
+        $canManageAccessGroups = $this->isSuper();
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user = $_SESSION['user'] ?? [];
+        $query = $request->getQueryParams();
+        $flashOk = $query['ok'] ?? null;
+        $flashErr = $query['err'] ?? null;
+
+        ob_start();
+        include __DIR__ . '/../../templates/admin/access-groups.php';
+        $response->getBody()->write((string) ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function accessGroupCreatePage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isSuper()) {
+            return $this->forbidden($response);
+        }
+        return $this->accessGroupFormPage($request, $response, [
+            'id' => 0,
+            'name' => '',
+            'description' => '',
+        ], [], true);
+    }
+
+    public function accessGroupEditPage(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args
+    ): ResponseInterface {
+        if (!$this->isSuper()) {
+            return $this->forbidden($response);
+        }
+
+        $groupId = (int) ($args['id'] ?? 0);
+        $group = $this->db->fetchOne(
+            'SELECT id, name, description FROM xx_rjd_access_groups WHERE id = :id',
+            ['id' => $groupId]
+        );
+        if (!$group) {
+            return $this->redirect($response, '/admin/access-groups?err=' . urlencode('Группа доступа не найдена'));
+        }
+        $roleIds = array_map('intval', array_column($this->db->fetchAll(
+            'SELECT role_id FROM xx_rjd_access_group_roles WHERE access_group_id = :id',
+            ['id' => $groupId]
+        ), 'role_id'));
+        return $this->accessGroupFormPage($request, $response, $group, $roleIds, false);
+    }
+
+    private function accessGroupFormPage(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $editedAccessGroup,
+        array $selectedRoleIds,
+        bool $isNewAccessGroup
+    ): ResponseInterface {
+        $roles = $this->db->fetchAll("SELECT id, code, name FROM xx_rjd_roles WHERE code <> 'SUPER' ORDER BY name");
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user = $_SESSION['user'] ?? [];
+        $query = $request->getQueryParams();
+        $flashOk = $query['ok'] ?? null;
+        $flashErr = $query['err'] ?? null;
+        $csrf = $_SESSION['csrf_token'] ?? '';
+
+        ob_start();
+        include __DIR__ . '/../../templates/admin/access-group-edit.php';
+        $response->getBody()->write((string) ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function saveAccessGroup(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isSuper()) {
+            return $this->forbidden($response);
+        }
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body)) {
+            return $this->redirect($response, '/admin/access-groups?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+        }
+
+        $groupId = (int) ($body['access_group_id'] ?? 0);
+        $name = trim((string) ($body['name'] ?? ''));
+        $description = trim((string) ($body['description'] ?? ''));
+        $roleIds = $this->allowedRoleIds((array) ($body['role_ids'] ?? []));
+        $formUrl = $groupId > 0 ? '/admin/access-groups/' . $groupId . '/edit' : '/admin/access-groups/new';
+
+        if ($name === '' || mb_strlen($name) > 120 || mb_strlen($description) > 500 || $roleIds === []) {
+            return $this->redirect($response, $formUrl . '?err=' . urlencode('Укажите название группы и выберите хотя бы одну роль'));
+        }
+        $duplicate = $this->db->fetchOne(
+            'SELECT id FROM xx_rjd_access_groups WHERE LOWER(name) = LOWER(:name) AND (:exclude_id = 0 OR id <> :exclude_id)',
+            ['name' => $name, 'exclude_id' => $groupId]
+        );
+        if ($duplicate) {
+            return $this->redirect($response, $formUrl . '?err=' . urlencode('Группа доступа с таким названием уже существует'));
+        }
+
+        $this->db->beginTransaction();
+        try {
+            if ($groupId > 0) {
+                $this->db->execute(
+                    'UPDATE xx_rjd_access_groups SET name = :name, description = :description WHERE id = :id',
+                    ['name' => $name, 'description' => $description !== '' ? $description : null, 'id' => $groupId]
+                );
+                $exists = $this->db->fetchOne('SELECT id FROM xx_rjd_access_groups WHERE id = :id', ['id' => $groupId]);
+                if (!$exists) {
+                    throw new \RuntimeException('Access group not found');
+                }
+                $this->db->execute('DELETE FROM xx_rjd_access_group_roles WHERE access_group_id = :id', ['id' => $groupId]);
+            } else {
+                $this->db->execute(
+                    'INSERT INTO xx_rjd_access_groups (name, description) VALUES (:name, :description)',
+                    ['name' => $name, 'description' => $description !== '' ? $description : null]
+                );
+                $group = $this->db->fetchOne('SELECT id FROM xx_rjd_access_groups WHERE name = :name', ['name' => $name]);
+                $groupId = (int) ($group['id'] ?? 0);
+                if ($groupId <= 0) {
+                    throw new \RuntimeException('Access group ID was not created');
+                }
+            }
+            foreach ($roleIds as $roleId) {
+                $this->db->execute(
+                    'INSERT INTO xx_rjd_access_group_roles (access_group_id, role_id) VALUES (:group_id, :role_id)',
+                    ['group_id' => $groupId, 'role_id' => $roleId]
+                );
+            }
+            $this->db->commit();
+        } catch (\Throwable $error) {
+            $this->db->rollback();
+            return $this->redirect($response, $formUrl . '?err=' . urlencode('Не удалось сохранить группу доступа'));
+        }
+
+        (new AuditLog($this->db))->write(
+            $formUrl === '/admin/access-groups/new' ? 'ACCESS_GROUP_CREATE' : 'ACCESS_GROUP_UPDATE',
+            'ACCESS_GROUP',
+            $groupId,
+            'Сохранена группа доступа «' . $name . '»'
+        );
+        return $this->redirect($response, '/admin/access-groups/' . $groupId . '/edit?ok=' . urlencode('Группа доступа сохранена'));
+    }
+
+    public function deleteAccessGroup(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isSuper()) {
+            return $this->forbidden($response);
+        }
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body)) {
+            return $this->redirect($response, '/admin/access-groups?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+        }
+
+        $groupId = (int) ($body['access_group_id'] ?? 0);
+        $group = $this->db->fetchOne('SELECT id, name FROM xx_rjd_access_groups WHERE id = :id', ['id' => $groupId]);
+        if (!$group) {
+            return $this->redirect($response, '/admin/access-groups?err=' . urlencode('Группа доступа не найдена'));
+        }
+        $this->db->beginTransaction();
+        try {
+            $this->db->execute('DELETE FROM xx_rjd_access_group_roles WHERE access_group_id = :id', ['id' => $groupId]);
+            $this->db->execute('DELETE FROM xx_rjd_access_groups WHERE id = :id', ['id' => $groupId]);
+            $this->db->commit();
+        } catch (\Throwable $error) {
+            $this->db->rollback();
+            return $this->redirect($response, '/admin/access-groups?err=' . urlencode('Не удалось удалить группу доступа'));
+        }
+        (new AuditLog($this->db))->write('ACCESS_GROUP_DELETE', 'ACCESS_GROUP', $groupId, 'Удалена группа доступа «' . (string) $group['name'] . '»');
+        return $this->redirect($response, '/admin/access-groups?ok=' . urlencode('Группа доступа удалена'));
+    }
+
+    private function accessGroupsWithRoles(): array
+    {
+        $groups = $this->db->fetchAll('SELECT id, name, description FROM xx_rjd_access_groups ORDER BY name');
+        $roles = $this->db->fetchAll(
+            'SELECT access_group_id, role_id FROM xx_rjd_access_group_roles ORDER BY role_id'
+        );
+        $rolesByGroup = [];
+        foreach ($roles as $row) {
+            $rolesByGroup[(int) $row['access_group_id']][] = (int) $row['role_id'];
+        }
+        foreach ($groups as &$group) {
+            $group['role_ids'] = $rolesByGroup[(int) $group['id']] ?? [];
+        }
+        unset($group);
+        return $groups;
+    }
+
+    private function accessGroupRoleIds(int $groupId): ?array
+    {
+        $group = $this->db->fetchOne('SELECT id FROM xx_rjd_access_groups WHERE id = :id', ['id' => $groupId]);
+        if (!$group) {
+            return null;
+        }
+        return $this->allowedRoleIds(array_column($this->db->fetchAll(
+            'SELECT role_id FROM xx_rjd_access_group_roles WHERE access_group_id = :id',
+            ['id' => $groupId]
+        ), 'role_id'));
     }
 
     public function rolesPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -915,9 +1139,11 @@ class AdminController
         $password    = (string) ($body['password'] ?? '');
         $organizationId = (int) ($body['organization_id'] ?? 0);
         $isActive = (int) ($body['is_active'] ?? 0) === 1 ? 1 : 0;
-        $roleIds     = array_map('intval', (array) ($body['role_ids'] ?? []));
-        $roleIds     = array_filter($roleIds, static fn(int $id) => $id > 0);
-        $roleIds     = $this->allowedRoleIds($roleIds);
+        $accessGroupId = (int) ($body['access_group_id'] ?? 0);
+        $roleIds = $accessGroupId > 0 ? $this->accessGroupRoleIds($accessGroupId) : $this->allowedRoleIds((array) ($body['role_ids'] ?? []));
+        if ($roleIds === null) {
+            return $this->redirect($response, '/admin/users/new?err=' . urlencode('Выбранная группа доступа не найдена'));
+        }
         $extraOrganizationIds = array_values(array_unique(array_filter(
             array_map('intval', (array) ($body['organization_ids'] ?? [])),
             static fn(int $id): bool => $id > 0 && $id !== $organizationId
@@ -1001,11 +1227,11 @@ class AdminController
         $password    = (string) ($body['password'] ?? '');
         $isActive    = (int) ($body['is_active'] ?? 0) === 1 ? 1 : 0;
         $organizationId = (int) ($body['organization_id'] ?? 0);
-        $roleIds = array_values(array_unique(array_filter(
-            array_map('intval', (array) ($body['role_ids'] ?? [])),
-            static fn(int $id): bool => $id > 0
-        )));
-        $roleIds = $this->allowedRoleIds($roleIds);
+        $accessGroupId = (int) ($body['access_group_id'] ?? 0);
+        $roleIds = $accessGroupId > 0 ? $this->accessGroupRoleIds($accessGroupId) : $this->allowedRoleIds((array) ($body['role_ids'] ?? []));
+        if ($roleIds === null) {
+            return $this->redirect($response, '/admin/users/' . $userId . '/edit?err=' . urlencode('Выбранная группа доступа не найдена'));
+        }
         $extraOrganizationIds = array_values(array_unique(array_filter(
             array_map('intval', (array) ($body['organization_ids'] ?? [])),
             static fn(int $id): bool => $id > 0 && $id !== $organizationId
