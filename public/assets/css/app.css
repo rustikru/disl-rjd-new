@@ -325,6 +325,40 @@ body {
   height: 16px;
 }
 
+/* Иконки пунктов меню пользователя */
+.user-menu-panel a,
+.user-menu-panel button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-menu-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  color: var(--text-2);
+}
+
+.user-menu-item-icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.user-menu-panel a:hover .user-menu-item-icon,
+.user-menu-panel button:hover .user-menu-item-icon {
+  color: var(--accent);
+}
+
 /* ==========================================================================
    3. МАКЕТ 
    ========================================================================== */
