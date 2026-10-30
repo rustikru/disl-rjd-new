@@ -27,17 +27,6 @@ var TAB_GROUPS = (window.APP_NAV_CONFIG || []).map(function (group) {
   }
 })
 
-// Ссылка в администрирование показывается только при наличии этого права.
-if (
-  ALLOWED_PAGES.indexOf('admin') !== -1 &&
-  DISABLED_PAGES.indexOf('admin') === -1
-) {
-  TAB_GROUPS.push({
-    label: 'Администрирование',
-    tabs: [{ id: 'admin', label: 'Перейти', url: BASE + '/admin' }],
-  })
-}
-
 // Сайдбар
 function initSidebar() {
   var sidebar = document.getElementById('sidebar')

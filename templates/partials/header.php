@@ -84,12 +84,11 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
                       <img src=" <?= htmlspecialchars($basePath) ?>/assets/img/icon/admin-lock.svg"
                         class="user-menu-item-icon"">
                     <?php endif; ?>
-
                     <span><?= htmlspecialchars($menuItem['label']) ?></span>
                   </a>
                 <?php endforeach; ?>
               <?php endif; ?>
-              <form method=" POST" action="<?= htmlspecialchars($basePath) ?>/logout">
+              <form method="POST" action="<?= htmlspecialchars($basePath) ?>/logout">
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
                 <button type="submit">
                   <img src=" <?= htmlspecialchars($basePath) ?>/assets/img/icon/logout.svg" class="user-menu-item-icon"">
