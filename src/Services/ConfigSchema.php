@@ -13,6 +13,11 @@ final class ConfigSchema
             'app_debug'=>self::d('bool',false,'Приложение'), 'app_name'=>self::d('string','Дислокация РЖД','Приложение'),
             'app_timezone'=>self::d('timezone','Asia/Yekaterinburg','Приложение'), 'base_path'=>self::d('string','','Приложение'),
             'dislocation_stale_hours'=>self::d('int',8,'Приложение',null,1,720), 'disabled_pages'=>self::d('array',[],'Видимость'),
+            'maintenance_enabled'=>self::d('bool',false,'Технические работы',label:'Режим технических работ'),
+            'maintenance_start'=>self::d('datetime','','Технические работы',label:'Начало',help:'Оставьте пустым, чтобы включить сразу.'),
+            'maintenance_end'=>self::d('datetime','','Технические работы',label:'Окончание',help:'Оставьте пустым для бессрочного режима.'),
+            'maintenance_title'=>self::d('string','Проводятся технические работы','Технические работы',label:'Заголовок'),
+            'maintenance_message'=>self::d('string','Сайт временно недоступен. Мы проводим техническое обслуживание и скоро вернёмся.','Технические работы',label:'Текст'),
             'db_host'=>self::d('string','localhost','База данных'), 'db_port'=>self::d('string','1521','База данных'),
             'db_name'=>self::d('string','','База данных'), 'db_user'=>self::d('string','','База данных'), 'db_pass'=>self::d('secret','','База данных'),
             'ad_debug'=>self::d('bool',false,'LDAP'), 'ad_enabled'=>self::d('bool',false,'LDAP'), 'ad_host'=>self::d('string','','LDAP'),
@@ -35,8 +40,8 @@ final class ConfigSchema
         ];
     }
 
-    private static function d(string $type, mixed $default, string $section, ?array $choices=null, ?int $min=null, ?int $max=null): array
-    { return compact('type','default','section','choices','min','max'); }
+    private static function d(string $type, mixed $default, string $section, ?array $choices=null, ?int $min=null, ?int $max=null, ?string $label=null, ?string $help=null): array
+    { return compact('type','default','section','choices','min','max','label','help'); }
 
     public static function defaults(): array
     { return array_map(static fn(array $d): mixed => $d['default'], self::definitions()); }
@@ -61,8 +66,9 @@ final class ConfigSchema
         $candidate=array_replace(self::defaults(),$current);
         foreach(self::definitions() as $key=>$definition){
             if($key==='disabled_pages') continue;
+            if(!array_key_exists($key,$input)) continue;
             if($definition['type']==='secret' && (string)($input[$key]??'')==='') continue;
-            $candidate[$key]=$input[$key]??$definition['default'];
+            $candidate[$key]=$input[$key];
         }
         return self::normalize($candidate,false);
     }
@@ -77,6 +83,11 @@ final class ConfigSchema
         if($d['choices']!==null && !in_array($value,$d['choices'],true)) throw new \InvalidArgumentException("Недопустимое значение настройки $key");
         if($d['min']!==null && $value<$d['min'] || $d['max']!==null && $value>$d['max']) throw new \InvalidArgumentException("Настройка $key вне допустимого диапазона");
         if($type==='timezone' && !in_array($value,\DateTimeZone::listIdentifiers(),true)) throw new \InvalidArgumentException('Некорректная часовая зона.');
+        if($type==='datetime' && $value!=='') {
+            $date=\DateTimeImmutable::createFromFormat('!Y-m-d\TH:i',$value);
+            $errors=\DateTimeImmutable::getLastErrors();
+            if(!$date || ($errors!==false && ($errors['warning_count']>0 || $errors['error_count']>0)) || $date->format('Y-m-d\TH:i')!==$value) throw new \InvalidArgumentException("Некорректные дата и время: $key");
+        }
         if($type==='memory' && !preg_match('/^\d+[KMG]?$/i',$value)) throw new \InvalidArgumentException("Некорректный лимит памяти: $key");
         if($type==='path') { ProjectPath::resolve($value); if($resolvePaths) $value=ProjectPath::resolve($value); }
         if($key==='base_path') $value=rtrim($value,'/');
@@ -87,5 +98,6 @@ final class ConfigSchema
     {
         if($config['app_env']==='production' && !$config['session_cookie_secure']) throw new \InvalidArgumentException('В production session_cookie_secure должен быть включён.');
         if($config['ad_enabled'] && ($config['ad_host']==='' || $config['ad_domain']==='' || $config['ad_base_dn']==='')) throw new \InvalidArgumentException('Для LDAP заполните ad_host, ad_domain и ad_base_dn.');
+        if($config['maintenance_start']!=='' && $config['maintenance_end']!=='' && $config['maintenance_end']<=$config['maintenance_start']) throw new \InvalidArgumentException('Окончание технических работ должно быть позже начала.');
     }
 }

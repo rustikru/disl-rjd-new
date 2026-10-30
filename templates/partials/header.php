@@ -2,6 +2,7 @@
 $headerSub   = $headerSub   ?? '';
 $headerRight = $headerRight ?? '';
 $headerLeft  = $headerLeft  ?? '';
+$headerSimple = $headerSimple ?? false;
 $headerOrganizations = $_SESSION['organizations'] ?? [];
 $headerOrganizationId = (int) ($_SESSION['organization_id'] ?? 0);
 $selectedOrganizationName = '';
@@ -31,7 +32,7 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
       </div>
     </div>
     <div class="header-meta">
-      <?php if (count($headerOrganizations) > 1): ?>
+      <?php if (!$headerSimple && count($headerOrganizations) > 1): ?>
         <form method="POST" action="<?= htmlspecialchars($basePath) ?>/organization/select" class="organization-select-form">
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
           <input type="hidden" name="return_url" value="<?= htmlspecialchars($returnUrl) ?>">
@@ -45,6 +46,7 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
           </select>
         </form>
       <?php endif; ?>
+      <?php if ($user !== []): ?>
       <div class="user-info">
         <?= $headerRight ?>
         <details class="user-menu">
@@ -54,9 +56,11 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
             <svg class="user-menu-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
           </summary>
           <div class="user-menu-panel">
+            <?php if (!$headerSimple): ?>
             <?php $userMenu=[]; $headerAvailability=new \App\Services\PageAvailability((array)(\App\Services\ConfigSchema::current()['disabled_pages']??[])); $headerPages=\App\Services\Authorization::isSuper($user)?array_keys(\App\Services\PageRegistry::labels()):(array)($user['allowed_pages']??[]); foreach (\App\Services\PageRegistry::all() as $pageCode=>$pageDefinition) { if (!empty($pageDefinition['user_menu']) && in_array($pageCode,$headerPages,true) && !$headerAvailability->isDisabled($pageCode)) $userMenu[]=$pageDefinition['user_menu']+['page'=>$pageCode]; } usort($userMenu,static fn($a,$b)=>($a['order']??0)<=>($b['order']??0)); foreach($userMenu as $menuItem): ?>
             <a href="<?= htmlspecialchars($basePath . $menuItem['url']) ?>"><?= htmlspecialchars($menuItem['label']) ?></a>
             <?php endforeach; ?>
+            <?php endif; ?>
             <form method="POST" action="<?= htmlspecialchars($basePath) ?>/logout">
               <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
               <button type="submit">Выйти</button>
@@ -64,6 +68,7 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
           </div>
         </details>
       </div>
+      <?php endif; ?>
     </div>
   </div>
 </header>
@@ -84,6 +89,7 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
 .user-menu-panel a, .user-menu-panel button { display:block; width:100%; box-sizing:border-box; padding:10px 12px; border:0; border-radius:6px; background:transparent; color:var(--text-1); font:inherit; text-align:left; text-decoration:none; cursor:pointer; }
 .user-menu-panel a:hover, .user-menu-panel button:hover { color:var(--accent); background:var(--accent-lt); }
 .user-menu-panel form { margin-top:4px; padding-top:4px; border-top:1px solid var(--border); }
+.user-menu-panel form:first-child { margin-top:0; padding-top:0; border-top:0; }
 </style>
 <script>
 (function () {

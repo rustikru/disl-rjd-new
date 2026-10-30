@@ -1800,3 +1800,47 @@ button.app-pagination__link {
     grid-column: auto;
   }
 }
+
+/* Технические работы */
+.maintenance-page {
+  display: flex;
+  min-height: calc(100vh - 56px);
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+.maintenance-code {
+  color: var(--accent);
+  font-size: 72px;
+  font-weight: 800;
+  line-height: 1;
+  opacity: 0.16;
+}
+.maintenance-page h1 {
+  margin: -8px 0 8px;
+  color: var(--text-1);
+  font-size: 22px;
+}
+.maintenance-page p {
+  max-width: 520px;
+  margin: 0 0 14px;
+  color: var(--text-3);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.maintenance-end {
+  margin: 0 0 20px;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+.maintenance-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}

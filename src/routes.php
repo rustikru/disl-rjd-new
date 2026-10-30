@@ -13,6 +13,7 @@ return function (App $app, array $config): void {
     $getDb = function () use ($config, &$db) {
         return $db ??= \App\Database\DbFactory::create($config);
     };
+    $app->add(new \App\Middleware\MaintenanceMiddleware($config));
     $app->add(new \App\Middleware\SessionMiddleware(
         $config['session_name'],
         (bool) $config['session_cookie_secure'],
@@ -167,6 +168,9 @@ return function (App $app, array $config): void {
         });
         $group->map(['GET', 'POST'], '/admin/page-visibility', function ($req, $res) use ($config) {
             return (new \App\Controllers\SettingsController($config))->page($req, $res, true);
+        });
+        $group->map(['GET', 'POST'], '/admin/maintenance', function ($req, $res) use ($config) {
+            return (new \App\Controllers\SettingsController($config))->maintenancePage($req, $res);
         });
         $group->get('/admin', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->index($req, $res);
