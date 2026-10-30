@@ -26,7 +26,7 @@ final class MailingService
     {
         $perPage = max(1, min($perPage, 100));
         $offset = (max(1, $page) - 1) * $perPage;
-        $mailings = $this->db->fetchAll(
+        $mailings = $this->db->page(
             "SELECT m.id, m.organization_id, m.name, m.recipients, m.subject, m.message_body, m.file_format,
                     m.schedule_type, m.send_time, m.week_days, m.month_day, m.is_active,
                     TO_CHAR(m.last_run_at, 'DD.MM.YYYY HH24:MI') AS last_run_at,
@@ -35,9 +35,10 @@ final class MailingService
                FROM xx_rjd_user_mailings m
                JOIN xx_rjd_organizations o ON o.id = m.organization_id
               WHERE m.user_id = :user_id
-              ORDER BY m.is_active DESC, m.updated_at DESC, m.id DESC
-              OFFSET $offset ROWS FETCH NEXT $perPage ROWS ONLY",
-            ['user_id' => $userId]
+              ORDER BY m.is_active DESC, m.updated_at DESC, m.id DESC",
+            ['user_id' => $userId],
+            $offset,
+            $perPage
         );
 
         foreach ($mailings as &$mailing) {
@@ -360,7 +361,7 @@ final class MailingService
             : ($status === 'disabled' ? 'WHERE m.is_active <> 1' : '');
         $perPage = max(1, min($perPage, 100));
         $offset = (max(1, $page) - 1) * $perPage;
-        return $this->db->fetchAll(
+        return $this->db->page(
             "SELECT m.id, m.name, m.recipients, m.file_format, m.schedule_type,
                     m.send_time, m.week_days, m.month_day, m.is_active,
                     TO_CHAR(m.last_run_at, 'DD.MM.YYYY HH24:MI') AS last_run_at,
@@ -372,8 +373,10 @@ final class MailingService
                JOIN xx_rjd_users u ON u.id = m.user_id
                JOIN xx_rjd_organizations o ON o.id = m.organization_id
               $where
-              ORDER BY m.is_active DESC, m.send_time, u.display_name, m.name
-              OFFSET $offset ROWS FETCH NEXT $perPage ROWS ONLY"
+              ORDER BY m.is_active DESC, m.send_time, u.display_name, m.name",
+            [],
+            $offset,
+            $perPage
         );
     }
 
@@ -387,7 +390,7 @@ final class MailingService
     {
         $perPage = max(1, min($perPage, 100));
         $offset = (max(1, $page) - 1) * $perPage;
-        return $this->db->fetchAll(
+        return $this->db->page(
             "SELECT r.id, r.mailing_id,
                     TO_CHAR(r.started_at, 'DD.MM.YYYY HH24:MI:SS') AS started_at,
                     TO_CHAR(r.finished_at, 'DD.MM.YYYY HH24:MI:SS') AS finished_at,
@@ -398,8 +401,10 @@ final class MailingService
                JOIN xx_rjd_user_mailings m ON m.id = r.mailing_id
                JOIN xx_rjd_users u ON u.id = m.user_id
                JOIN xx_rjd_organizations o ON o.id = m.organization_id
-              ORDER BY r.started_at DESC, r.id DESC
-              OFFSET $offset ROWS FETCH NEXT $perPage ROWS ONLY"
+              ORDER BY r.started_at DESC, r.id DESC",
+            [],
+            $offset,
+            $perPage
         );
     }
     // Получить список элементов рассылки

@@ -89,6 +89,29 @@ class OracleDb implements DbInterface
         return $rows[0] ?? null;
     }
 
+    public function page(string $sql, array $params, int $offset, int $limit): array
+    {
+        $offset = max(0, $offset);
+        $limit = max(1, $limit);
+        $params['page_end'] = $offset + $limit;
+        $params['page_offset'] = $offset;
+        $rows = $this->fetchAll(
+            "SELECT *
+               FROM (
+                    SELECT page_data.*, ROWNUM AS page_row
+                      FROM ($sql) page_data
+                     WHERE ROWNUM <= :page_end
+               )
+              WHERE page_row > :page_offset",
+            $params
+        );
+        foreach ($rows as &$row) {
+            unset($row['page_row']);
+        }
+        unset($row);
+        return $rows;
+    }
+
     public function execute(string $sql, array $params = []): int
     {
         $t0   = QueryLogger::isEnabled() ? microtime(true) : 0.0;
@@ -142,11 +165,6 @@ class OracleDb implements DbInterface
     {
         oci_rollback($this->connection);
         $this->inTransaction = false;
-    }
-
-    public function limit(int $n): string
-    {
-        return "FETCH FIRST $n ROWS ONLY";
     }
 
     private function oracleException(string $operation, array|false $error): \RuntimeException

@@ -28,7 +28,7 @@ final class ConfigSchema
             'report_mail_enabled'=>self::d('bool',false,'Почта и отчёты'), 'mail_mode'=>self::d('enum','file','Почта и отчёты',['file','oracle']),
             'report_storage_dir'=>self::d('path','tmp','Почта и отчёты'), 'report_mail_memory_limit'=>self::d('memory','512M','Почта и отчёты'),
             'report_mail_sender'=>self::d('string','noreply@metafrax.ru','Почта и отчёты'),
-            'report_mail_oracle_package'=>self::d('string','XX_RJD_DISLOCATION_NEW_PKG','Почта и отчёты'),
+            'system_mail_subject'=>self::d('string','ИС «МТФ-Дислокация»','Почта и отчёты',label:'Тема системных писем',help:'Добавляется в начало темы системного письма. На рассылки отчётов не влияет.'),
             'password_reset_enabled'=>self::d('bool',true,'Безопасность и сессии'),
             'password_reset_ttl_minutes'=>self::d('int',30,'Безопасность и сессии',null,5,1440),
             'password_reset_storage_dir'=>self::d('path','tmp/password-reset','Безопасность и сессии'),

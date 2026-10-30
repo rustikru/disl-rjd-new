@@ -71,10 +71,9 @@ class AdminController
         $total = (int) ($count['cnt'] ?? 0);
         $pages = max(1, (int) ceil($total / $perPage));
         $page = min($page, $pages);
-        $params['offset_rows'] = ($page - 1) * $perPage;
-        $params['limit_rows'] = $perPage;
+        $offset = ($page - 1) * $perPage;
         $appTimezone = str_replace("'", "''", (string) ($this->config['app_timezone'] ?? 'Asia/Yekaterinburg'));
-        $rows = $this->db->fetchAll(
+        $rows = $this->db->page(
             "SELECT a.id, a.username, a.action_code, a.object_type, a.object_id,
                     a.description, a.ip_address,
                     TO_CHAR(
@@ -82,9 +81,10 @@ class AdminController
                         'DD.MM.YYYY HH24:MI:SS'
                     ) AS created_at
                FROM xx_rjd_audit_log a" . $where . "
-              ORDER BY a.id DESC
-              OFFSET :offset_rows ROWS FETCH NEXT :limit_rows ROWS ONLY",
-            $params
+              ORDER BY a.id DESC",
+            $params,
+            $offset,
+            $perPage
         );
 
         $appName = $this->config['app_name'] ?? 'Дислокация РЖД';

@@ -71,7 +71,7 @@ final class PasswordReset
         }
 
         $resetUrl = rtrim($baseUrl, '/') . '/reset-password?token=' . rawurlencode($token);
-        $this->saveOrSendMessage($user, $resetUrl, $ttlMinutes);
+        $this->saveOrSendMessage($user, $resetUrl);
     }
 
     public function isTokenValid(string $token): bool
@@ -132,28 +132,52 @@ final class PasswordReset
         );
     }
 
-    private function saveOrSendMessage(array $user, string $resetUrl, int $ttlMinutes): void
+    private function saveOrSendMessage(array $user, string $resetUrl): void
     {
         $mode = (string) $this->config['mail_mode'];
         if (!in_array($mode, ['file', 'oracle'], true)) {
             throw new \RuntimeException('Режим mail_mode должен быть file или oracle');
         }
 
-        $safeUrl = htmlspecialchars($resetUrl, ENT_QUOTES, 'UTF-8');
-        $html = '<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Восстановление пароля</title>'
-            . '<style>body{font-family:Arial,sans-serif;color:#1c2128;line-height:1.5;padding:32px}'
-            . '.card{max-width:620px;margin:auto;border:1px solid #e2e1e7;border-radius:12px;padding:28px}'
-            . 'a{display:inline-block;background:#4f328e;color:#fff!important;text-decoration:none;padding:11px 18px;border-radius:7px}'
-            . '.muted{color:#777;font-size:13px}</style></head><body><div class="card">'
-            . '<h2>Восстановление пароля</h2><p>Здравствуйте.</p>'
-            . '<p>Чтобы установить новый пароль, нажмите кнопку ниже.</p>'
-            . '<p><a href="' . $safeUrl . '">Сбросить пароль</a></p>'
-            . '</div></body></html>';
+        $safeUrl = htmlspecialchars($resetUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+        $html = '<!DOCTYPE html>'
+            . '<html lang="ru">'
+            . '<head>'
+            . '<meta charset="UTF-8">'
+            . '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+            . '<meta name="color-scheme" content="light">'
+            . '<title>Сброс пароля — Дислокация</title>'
+            . '</head>'
+            . '<body style="margin:0;padding:0;background:#f3f2f6;font-family:Arial,Helvetica,sans-serif;color:#262334;">'
+            . '<div style="display:none;max-height:0;overflow:hidden;opacity:0;">Сброс пароля для вашей учётной записи.</div>'
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;background:#f3f2f6;">'
+            . '<tr><td align="center" style="padding:36px 16px;">'
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;border-collapse:separate;border-spacing:0;">'
+            . '<tr><td align="center" style="padding:0 0 18px;">'
+            . '<div style="font-size:21px;line-height:28px;font-weight:700;letter-spacing:-.4px;color:#46297f;">Дислокация</div>'
+            . '<div style="padding-top:3px;font-size:11px;line-height:16px;color:#8b8797;letter-spacing:.5px;">АО «Метафракс-Кемикалс»</div>'
+            . '</td></tr>'
+            . '<tr><td style="background:#fff;border:1px solid #e7e4ed;border-radius:12px;padding:34px 36px 30px;">'
+            . '<div style="font-size:19px;line-height:26px;font-weight:700;color:#262334;margin:0 0 14px;">Сброс пароля</div>'
+            . '<div style="font-size:14px;line-height:22px;color:#625e6e;margin:0 0 22px;">Чтобы сбросить пароль, нажмите кнопку ниже.</div>'
+            . '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 22px;">'
+            . '<tr><td align="center" bgcolor="#46297f" style="border-radius:7px;">'
+            . '<a href="' . $safeUrl . '" target="_blank" style="display:inline-block;padding:12px 22px;font-size:13px;line-height:18px;font-weight:700;color:#fff;text-decoration:none;border-radius:7px;">Создать новый пароль</a>'
+            . '</td></tr></table>'
+            . '<div style="height:1px;background:#eeecf2;margin:24px 0 18px;font-size:1px;line-height:1px;">&nbsp;</div>'
+            . '<div style="font-size:12px;line-height:19px;color:#777282;">Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо. Ваш текущий пароль останется без изменений.</div>'
+            . '</td></tr>'
+            . '<tr><td align="center" style="padding:18px 20px 0;">'
+            . '<div style="font-size:10px;line-height:16px;color:#9a96a4;">Это письмо создано автоматически. Пожалуйста, не отвечайте на него.</div>'
+            . '</td></tr>'
+            . '</table></td></tr></table>'
+            . '</body></html>';
 
         if ($mode === 'oracle') {
-            (new OracleMail($this->db, $this->config))->send(
+            (new OracleMail($this->db, $this->config))->sendSystem(
                 [(string) $user['email']],
-                'Восстановление пароля',
+                'Сброс пароля',
                 $html,
                 []
             );
