@@ -8,7 +8,7 @@
   <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
   <style>
-    .role-link{font-weight:400;color:var(--accent);text-decoration:none}.role-link:hover{text-decoration:underline}
+    .role-link{font-weight:400;color:var(--accent);text-decoration:none}.role-link:hover{text-decoration:underline}.actions{display:flex;align-items:center;justify-content:flex-end}
   </style>
 </head>
 <body>
@@ -35,7 +35,7 @@ include __DIR__ . '/../partials/header.php';
             <td><a class="role-link ui-code" href="<?= htmlspecialchars($basePath) ?>/admin/roles/<?= (int) $role['id'] ?>/<?= !empty($canManageRoles) ? 'edit' : 'view' ?>"><?= htmlspecialchars($role['code']) ?></a></td>
             <td><?php if (!empty($canManageRoles)): ?><a class="role-link" href="<?= htmlspecialchars($basePath) ?>/admin/roles/<?= (int) $role['id'] ?>/edit"><?= htmlspecialchars($role['name']) ?></a><?php else: ?><?= htmlspecialchars($role['name']) ?><?php endif; ?></td>
             <td><?= !empty($role['description']) ? htmlspecialchars($role['description']) : '<span class="ui-muted">—</span>' ?></td>
-            <?php if (!empty($canManageRoles)): ?><td><a class="btn btn-ghost btn-sm" href="<?= htmlspecialchars($basePath) ?>/admin/roles/<?= (int) $role['id'] ?>/edit">Изменить</a></td><?php endif; ?>
+            <?php if (!empty($canManageRoles)): ?><td><div class="actions"><a class="ui-icon-button ui-icon-button--edit" href="<?= htmlspecialchars($basePath) ?>/admin/roles/<?= (int) $role['id'] ?>/edit" title="Редактировать" aria-label="Редактировать"><?= uiEditIcon() ?></a></div></td><?php endif; ?>
           </tr>
         <?php endforeach; ?>
         </tbody>
