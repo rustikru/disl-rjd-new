@@ -31,7 +31,7 @@ final class PageRegistry
         'directories_edit' => ['label' => 'Редактирование справочников', 'routes' => ['/directories/norms/save', '/directories/norms/delete', '/directories/stations/save', '/directories/stations/delete', '/admin/directories/norms/save', '/admin/directories/norms/delete', '/admin/directories/stations/save', '/admin/directories/stations/delete'], 'visibility_group' => 'Сайт — основные разделы', 'implies' => ['directories']],
         'profile' => ['label' => 'Мой профиль', 'routes' => ['/profile'], 'visibility_group' => 'Пользователь', 'user_menu' => ['order' => 10, 'url' => '/profile', 'label' => 'Мой профиль']],
         'user-report-mailings' => ['label' => 'Мои рассылки', 'routes' => ['/profile/report-mailings'], 'visibility_group' => 'Пользователь', 'legacy_permission' => 'report-mailings', 'legacy_visibility' => ['report-mailings'], 'user_menu' => ['order' => 20, 'url' => '/profile/report-mailings', 'label' => 'Мои рассылки']],
-        'admin' => ['label' => 'Администрирование', 'routes' => ['/admin'], 'visibility_group' => 'Администрирование', 'admin_only' => true, 'derived' => true],
+        'admin' => ['label' => 'Администрирование', 'routes' => ['/admin'], 'user_menu' => ['order' => 30, 'url' => '/admin', 'label' => 'Администрирование'], 'visibility_group' => 'Администрирование', 'admin_only' => true, 'derived' => true],
         'users' => ['label' => 'Пользователи', 'routes' => ['/admin/users'], 'visibility_group' => 'Администрирование', 'admin_only' => true, 'admin_navigation' => ['group' => 'Пользователи и доступ', 'order' => 10, 'url' => '/admin/users']],
         'roles' => ['label' => 'Роли', 'routes' => ['/admin/roles'], 'visibility_group' => 'Администрирование', 'admin_only' => true, 'admin_navigation' => ['group' => 'Пользователи и доступ', 'order' => 20, 'url' => '/admin/roles']],
         'access-groups' => ['label' => 'Группы доступа', 'routes' => ['/admin/access-groups'], 'visibility_group' => 'Администрирование', 'admin_only' => true, 'admin_navigation' => ['group' => 'Пользователи и доступ', 'order' => 30, 'url' => '/admin/access-groups']],
@@ -42,6 +42,7 @@ final class PageRegistry
         'admin-report-mailings' => ['label' => 'Управление рассылками', 'routes' => ['/admin/report-mailings'], 'visibility_group' => 'Администрирование', 'legacy_visibility' => ['report-mailings'], 'super_only' => true, 'admin_navigation' => ['group' => 'Рассылки', 'order' => 10, 'url' => '/admin/report-mailings']],
         'sessions' => ['label' => 'Активные сессии', 'routes' => ['/admin/sessions'], 'visibility_group' => 'Администрирование', 'super_only' => true, 'admin_navigation' => ['group' => 'Контроль и обслуживание', 'order' => 10, 'url' => '/admin/sessions']],
         'audit' => ['label' => 'Журнал действий', 'routes' => ['/admin/audit'], 'visibility_group' => 'Администрирование', 'super_only' => true, 'admin_navigation' => ['group' => 'Контроль и обслуживание', 'order' => 20, 'url' => '/admin/audit']],
+        'system' => ['label' => 'О системе', 'routes' => ['/admin/system'], 'visibility_group' => 'Администрирование', 'super_only' => true, 'admin_navigation' => ['group' => 'Контроль и обслуживание', 'order' => 30, 'url' => '/admin/system']],
     ];
 
     private const GROUPS = [
@@ -170,9 +171,12 @@ final class PageRegistry
         $definitions = self::all();
         $pages = array_values(array_filter($pages, static function (string $code) use ($definitions, $user): bool {
             $definition = $definitions[$code] ?? [];
-            if (!empty($definition['derived'])) return false;
-            if (!empty($definition['super_only']) && !Authorization::isSuper($user)) return false;
-            if (!empty($definition['admin_only']) && !Authorization::isAdmin($user)) return false;
+            if (!empty($definition['derived']))
+                return false;
+            if (!empty($definition['super_only']) && !Authorization::isSuper($user))
+                return false;
+            if (!empty($definition['admin_only']) && !Authorization::isAdmin($user))
+                return false;
             return true;
         }));
         if (Authorization::isAdmin($user)) {

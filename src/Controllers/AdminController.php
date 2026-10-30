@@ -96,6 +96,123 @@ class AdminController
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 
+    public function systemPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isSuper()) {
+            return $this->forbidden($response);
+        }
+
+        $root = dirname(__DIR__, 2);
+        $phpVersion = PHP_VERSION;
+        $os = php_uname('s') . ' ' . php_uname('r');
+        $timezone = (string) ($this->config['app_timezone'] ?? date_default_timezone_get());
+        $environment = (string) ($this->config['app_env'] ?? 'unknown');
+        $checkedAt = date('d.m.Y H:i:s');
+
+        $uptimeSeconds = null;
+        if (is_readable('/proc/uptime')) {
+            $uptimeContent = @file_get_contents('/proc/uptime');
+            if ($uptimeContent !== false) {
+                $uptimeSeconds = max(0, (int) (float) strtok($uptimeContent, ' '));
+            }
+        }
+
+        $memory = null;
+        if (is_readable('/proc/meminfo')) {
+            $memInfo = (string) @file_get_contents('/proc/meminfo');
+            preg_match('/^MemTotal:\\s+(\\d+)\\s+kB$/m', $memInfo, $totalMatch);
+            preg_match('/^MemAvailable:\\s+(\\d+)\\s+kB$/m', $memInfo, $availableMatch);
+            if (!empty($totalMatch[1]) && isset($availableMatch[1])) {
+                $total = (int) $totalMatch[1] * 1024;
+                $available = (int) $availableMatch[1] * 1024;
+                $used = max(0, $total - $available);
+                $memory = [
+                    'total' => $total,
+                    'used' => $used,
+                    'available' => $available,
+                    'percent' => (int) round($used / $total * 100),
+                ];
+            }
+        }
+
+        $disk = null;
+        $diskTotal = @disk_total_space($root);
+        $diskFree = @disk_free_space($root);
+        if ($diskTotal !== false && $diskFree !== false && $diskTotal > 0) {
+            $diskUsed = $diskTotal - $diskFree;
+            $disk = [
+                'total' => (float) $diskTotal,
+                'used' => (float) $diskUsed,
+                'free' => (float) $diskFree,
+                'percent' => (int) round($diskUsed / $diskTotal * 100),
+            ];
+        }
+
+        $loadAverage = function_exists('sys_getloadavg') ? sys_getloadavg() : false;
+        $loadAverage = is_array($loadAverage) ? $loadAverage : null;
+
+        $oracleStatus = 'Не проверено';
+        $oracleDescription = 'Контрольное подключение к Oracle';
+        $oracleState = 'warning';
+        $oracleLatency = null;
+        try {
+            $startedAt = microtime(true);
+            $this->db->fetchOne('SELECT 1 AS status FROM DUAL');
+            $oracleLatency = (int) round((microtime(true) - $startedAt) * 1000);
+            $oracleStatus = 'Подключено';
+            $oracleDescription = 'Контрольный запрос выполнен';
+            $oracleState = 'ok';
+        } catch (\Throwable $error) {
+            $oracleStatus = 'Недоступна';
+            $oracleDescription = 'Не удалось выполнить контрольный запрос';
+            $oracleState = 'error';
+        }
+
+        $tempDirectory = sys_get_temp_dir();
+        $components = [
+            [
+                'name' => 'PHP Runtime',
+                'description' => 'Среда выполнения PHP',
+                'status' => 'ok',
+                'label' => 'Работает',
+            ],
+            [
+                'name' => 'Oracle Database',
+                'description' => $oracleDescription,
+                'status' => $oracleState,
+                'label' => $oracleStatus,
+            ],
+            [
+                'name' => 'Расширение OCI8',
+                'description' => 'Драйвер подключения PHP к Oracle',
+                'status' => extension_loaded('oci8') ? 'ok' : 'error',
+                'label' => extension_loaded('oci8') ? 'Доступно' : 'Не установлено',
+            ],
+            [
+                'name' => 'Файловая система',
+                'description' => 'Каталог приложения',
+                'status' => is_readable($root) ? 'ok' : 'error',
+                'label' => is_readable($root) ? 'Доступна' : 'Нет доступа',
+            ],
+            [
+                'name' => 'Временный каталог',
+                'description' => $tempDirectory,
+                'status' => is_writable($tempDirectory) ? 'ok' : 'error',
+                'label' => is_writable($tempDirectory) ? 'Доступен для записи' : 'Нет записи',
+            ],
+        ];
+
+        $appName = (string) ($this->config['app_name'] ?? 'Дислокация');
+        $basePath = (string) ($this->config['base_path'] ?? '');
+        $user = $_SESSION['user'] ?? [];
+
+        ob_start();
+        include __DIR__ . '/../../templates/admin/system.php';
+        $response->getBody()->write((string) ob_get_clean());
+
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
     public function usersPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         if (!$this->isAdmin()) {

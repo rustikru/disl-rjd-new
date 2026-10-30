@@ -211,6 +211,9 @@ return function (App $app, array $config): void {
         $group->get('/admin/audit', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->auditPage($req, $res);
         });
+        $group->get('/admin/system', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->systemPage($req, $res);
+        });
         $group->post('/admin/report-mailings/run', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\MailingController($getDb(), $config))->adminRun($req, $res);
         });
