@@ -7,16 +7,6 @@ final class ReportConfig
 {
     public static function all(): array
     {
-        // Здесь собраны настройки всех отчётов. Обычная страница, экспорт и в будущем
-        // рассылка берут параметры отсюда, поэтому одинаковые настройки в других местах
-        // добавлять не нужно.
-        //
-        // Для отчёта указываются название, адреса API, фильтры, группировка строк
-        // и разбивка колонок. У фильтра задаются его ключ, подпись, тип поля, id поля
-        // на странице и ключ списка значений, если это выпадающий список.
-        //
-        // Если появился новый фильтр или поменялся старый — править нужно здесь.
-        // contexts определяет, где настройка доступна: page, mailing или export.
         $reports = [
             // Дислокация
             'dislocation' => self::report(
@@ -278,7 +268,7 @@ final class ReportConfig
             'source-departure' => 'sourceDeparture',
         ];
     }
-
+    //
     private static function apiHandlers(): array
     {
         return [
@@ -294,7 +284,7 @@ final class ReportConfig
             'downtime-control' => ['detail' => 'downtimeControlDetail'],
         ];
     }
-
+    // Определяет, в каком разделе меню находится отчёт и его порядок внутри раздела.
     private static function navigationSettings(): array
     {
         // определяется раздел меню и порядок отчётов внутри него.
@@ -311,10 +301,11 @@ final class ReportConfig
             'downtime-control' => ['group' => 'registry', 'order' => 10],
         ];
     }
-
+    // Настройки, специфичные для страницы отчёта. Используются в JS.
     private static function pageSettings(): array
     {
         return [
+            // Дислокация
             'dislocation' => [
                 'summary_file' => 'дислокация',
                 'detail_file' => 'дислокация-расширенная',
@@ -330,6 +321,7 @@ final class ReportConfig
                 'apply_button_id' => 'btnDislocationApply',
                 'total_column_dimensions' => ['wagon_type_code'],
             ],
+            // Подход вагонов
             'approach' => [
                 'summary_file' => 'подход',
                 'detail_file' => 'подход-расширенная',
@@ -347,6 +339,7 @@ final class ReportConfig
                     'MTF' => ['pinned_row_label' => 'ст. Углеуральская', 'pinned_station_key' => 'УГЛЕУР', 'first_road_key' => 'СВЕРДЛ'],
                 ],
             ],
+            // Отправление вагонов
             'departure' => [
                 'summary_file' => 'отправление',
                 'detail_file' => 'отправление-расширенная',
@@ -362,6 +355,7 @@ final class ReportConfig
                 'total_column_dimensions' => ['wagon_type_code'],
                 'organization_overrides' => ['MTF' => ['total_text' => 'Всего отправлено со ст. Углеуральская']],
             ],
+            // Погрузка
             'loading' => [
                 'summary_file' => 'погрузка',
                 'detail_file' => 'погрузка-расширенная',
@@ -376,6 +370,7 @@ final class ReportConfig
                 'detail_loaded_key' => '_loadingDetLoaded',
                 'total_column_dimensions' => ['wagon_type_code'],
             ],
+            // Простои
             'downtime' => [
                 'summary_file' => 'простои',
                 'detail_file' => 'простои-расширенная',
@@ -391,6 +386,7 @@ final class ReportConfig
                 'apply_button_id' => 'btnDowntimeApply',
                 'total_column_dimensions' => ['m_wagon_type_code'],
             ],
+            // Контроль простоев
             'downtime-control' => [
                 'detail_file' => 'контроль-простоев',
                 'detail_table_id' => 'downtimeControlTable',
@@ -401,6 +397,7 @@ final class ReportConfig
                 'apply_button_id' => 'btnDowntimeControlApply',
                 'reset_button_id' => 'btnDowntimeControlReset',
             ],
+            // Техническое состояние
             'technical-state' => [
                 'detail_file' => 'техническое-состояние',
                 'detail_table_id' => 'technicalDetTable',
@@ -412,6 +409,7 @@ final class ReportConfig
                 'reset_button_id' => 'btnTechnicalReset',
                 'page_behavior' => 'technical_state',
             ],
+            // Претензии
             'claims' => [
                 'detail_file' => 'претензии-подробная',
                 'metrics_id' => 'claimsMetrics',
@@ -433,6 +431,7 @@ final class ReportConfig
                     ['key' => 'amount', 'label' => 'Сумма, ₽'],
                 ],
             ],
+            // Сырьё
             'raw-material' => [
                 'summary_file' => 'сырьё',
                 'detail_file' => 'сырьё-расширенная',
@@ -448,6 +447,7 @@ final class ReportConfig
                 'apply_button_id' => 'btnRawApply',
                 'reset_button_id' => 'btnRawReset',
             ],
+            // Анализ за период
             'analysis-period' => [
                 'detail_file' => 'анализ-за-период',
                 'detail_table_id' => 'analysisPeriodDetTable',
@@ -565,7 +565,7 @@ final class ReportConfig
     {
         return [['key' => 'main', 'name' => 'Основная информация'], ['key' => 'data-wagon', 'name' => 'Данные о вагоне'], ['key' => 'disl-wagon', 'name' => 'Дислокация вагона'], ['key' => 'techn-state-wagon', 'name' => 'Техн. состояние']];
     }
-
+    // Настройки для детальной таблицы отчёта. Используются в JS.
     private static function detailSettings(): array
     {
         $standardColumns = self::uniqueColumns(array_merge(self::baseColumns(), self::lesseeColumns()));
@@ -611,12 +611,12 @@ final class ReportConfig
         ];
     }
 
-    /** Поля полной справки в исходном порядке; изменяются только в source-columns.php. */
+    /** Поля полной справки в исходном порядке;  */
     public static function sourceColumns(): array
     {
         return require __DIR__ . '/source-columns.php';
     }
-
+    //
     private static function baseColumns(): array
     {
         return [
@@ -691,7 +691,7 @@ final class ReportConfig
             ['key' => 'lease_home_station', 'label' => 'Станция приписки арендатора', 'danger' => true, 'w' => 105, 'tab' => 'main', 'showInline' => true],
         ];
     }
-
+    // Дополнительные колонки для отчёта "Подход вагонов"
     private static function approachExtraColumns(): array
     {
         return [
@@ -773,7 +773,7 @@ final class ReportConfig
             ['key' => 'created_name', 'label' => 'Создал', 'meta' => true],
         ];
     }
-
+    // Колонки для отчёта "Претензии"
     private static function claimsColumns(): array
     {
         return [

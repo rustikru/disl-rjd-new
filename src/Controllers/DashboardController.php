@@ -5,6 +5,7 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Reports\ReportConfig;
+use App\Reports\WagonConfig;
 use App\Services\PageAvailability;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -17,18 +18,18 @@ class DashboardController
     public function __construct(array $config, ?DbInterface $db = null)
     {
         $this->config = $config;
-        $this->db     = $db;
+        $this->db = $db;
     }
 
     /** GET / */
     public function index(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $appName  = $this->config['app_name'];
+        $appName = $this->config['app_name'];
         $basePath = $this->config['base_path'] ?? '';
-        $user     = $_SESSION['user'];
+        $user = $_SESSION['user'];
 
         $allowedPages = $this->resolveAllowedPages($user);
-        $navConfig    = require __DIR__ . '/../Navigation.php';
+        $navConfig = require __DIR__ . '/../Navigation.php';
         $reportDefinitions = ReportConfig::forContext('page');
         $pageAvailability = new PageAvailability(
             (array) ($this->config['disabled_pages'] ?? []),
@@ -53,6 +54,7 @@ class DashboardController
         $appName = $this->config['app_name'] ?? 'Дислокация';
         $user = $_SESSION['user'] ?? [];
         $number = trim((string) ($request->getQueryParams()['wagon_no'] ?? ''));
+        $wagonConfig = WagonConfig::all();
         ob_start();
         include __DIR__ . '/../../templates/wagon.php';
         $response->getBody()->write((string) ob_get_clean());
@@ -100,7 +102,6 @@ class DashboardController
 
             return \App\Services\PageRegistry::forUser($pages, $user);
         } catch (\Throwable $e) {
-            // Инфраструктура ролей ещё не развёрнута
             return $allPages;
         }
     }

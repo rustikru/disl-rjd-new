@@ -4,6 +4,7 @@ require dirname(__DIR__).'/vendor/autoload.php';
 
 use App\Controllers\ApiController;
 use App\Reports\ReportConfig;
+use App\Reports\WagonConfig;
 use App\Services\ConfigSchema;
 use App\Services\PageRegistry;
 
@@ -32,6 +33,13 @@ foreach(ReportConfig::all() as $code=>$report){
 }
 $sourceKeys=array_column(ReportConfig::sourceColumns(),'key');
 if(count($sourceKeys)!==count(array_unique($sourceKeys))) $errors[]='source-columns.php содержит повторяющиеся key';
+$wagonConfig=WagonConfig::all(); $wagonFields=(array)($wagonConfig['fields']??[]);
+if(count($wagonFields)!==count(array_unique($wagonFields))) $errors[]='WagonConfig содержит повторяющиеся поля';
+$wagonKnown=array_merge($sourceKeys,['report_dt','type_reference']);
+foreach($wagonFields as $field) if(!in_array($field,$wagonKnown,true)) $errors[]="WagonConfig содержит неизвестное поле: $field";
+$wagonTabs=array_column((array)($wagonConfig['tabs']??[]),'key');
+if(count($wagonTabs)!==count(array_unique($wagonTabs))) $errors[]='WagonConfig содержит повторяющиеся вкладки';
+foreach((array)($wagonConfig['tabs']??[]) as $tab) if(empty($tab['history']) && !isset($wagonConfig['sections'][$tab['section']??''])) $errors[]='WagonConfig: для вкладки '.($tab['key']??'').' не найден раздел';
 foreach(PageRegistry::all() as $code=>$page){
     if(trim((string)($page['label']??''))==='') $errors[]="$code: отсутствует label";
     foreach((array)($page['routes']??[]) as $route){
@@ -53,4 +61,4 @@ if(PageRegistry::pageForPath('/detail',['ctx'=>'dislocation'])!=='wagon-detail')
 if(PageRegistry::accessPages('/api/dislocation/detail')!==['wagon-detail']) $errors[]='Detail API должен использовать право wagon-detail';
 if(PageRegistry::accessPages('/api/technical-state/detail')!==['wagon-detail','wagon-card']) $errors[]='Технический detail API должен быть доступен из детализации и карточки вагона';
 if(PageRegistry::accessPages('/api/dislocation/summary')!==['dislocation']) $errors[]='Summary API должен сохранять право своего отчёта';
-if($errors){fwrite(STDERR,implode(PHP_EOL,$errors).PHP_EOL);exit(1);} echo 'Single-source registries are consistent: '.count(PageRegistry::all()).' pages, '.count($endpoints).' report endpoints, '.count($sourceKeys).' source columns.'.PHP_EOL;
+if($errors){fwrite(STDERR,implode(PHP_EOL,$errors).PHP_EOL);exit(1);} echo 'Single-source registries are consistent: '.count(PageRegistry::all()).' pages, '.count($endpoints).' report endpoints, '.count($sourceKeys).' source columns, '.count($wagonFields).' wagon fields.'.PHP_EOL;

@@ -28,7 +28,10 @@ var TAB_GROUPS = (window.APP_NAV_CONFIG || []).map(function (group) {
 })
 
 // Ссылка в администрирование показывается только при наличии этого права.
-if (ALLOWED_PAGES.indexOf('admin') !== -1 && DISABLED_PAGES.indexOf('admin') === -1) {
+if (
+  ALLOWED_PAGES.indexOf('admin') !== -1 &&
+  DISABLED_PAGES.indexOf('admin') === -1
+) {
   TAB_GROUPS.push({
     label: 'Администрирование',
     tabs: [{ id: 'admin', label: 'Перейти', url: BASE + '/admin' }],
@@ -1516,11 +1519,10 @@ function drawSummary(
     )
   }
 
-  // Переходим на массив строк вместо конкатенации строк
   var h = []
   var rowspan = depth > 1 ? ' rowspan="' + depth + '"' : ''
 
-  // Один заголовочный столбец иерархии: «Страна / Дорога / Станция»
+  // Один столбец иерархии: «Страна / Дорога / Станция»
   var groupHeader = groupCols
     .map(function (gc) {
       return esc(gc.label)

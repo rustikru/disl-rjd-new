@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Database\DbInterface;
+use App\Reports\WagonConfig;
 
 final class WagonMovement
 {
@@ -45,9 +46,14 @@ final class WagonMovement
         }
         $params['trip_until'] = $trip['report_dt'];
         $where .= " AND oper_dt <= TO_DATE(:trip_until, 'YYYY-MM-DD HH24:MI:SS')";
+        $fields = implode(', ', WagonConfig::historyFields());
+        $sourceFields = implode(', ', array_unique(array_merge(
+            WagonConfig::historyFields(),
+            ['oper_mnemonic']
+        )));
         $rows = $this->db->fetchAll(
-            "SELECT oper_dt, operation, oper_mnemonic, oper_station, oper_road, train_no, train_index, waybill_no
-               FROM (SELECT oper_dt, operation, oper_mnemonic, oper_station, oper_road, train_no, train_index, waybill_no,
+            "SELECT $fields
+               FROM (SELECT $sourceFields,
                             ROW_NUMBER() OVER (
                                 PARTITION BY oper_dt, UPPER(TRIM(NVL(operation, oper_mnemonic))),
                                              LTRIM(TRIM(oper_station_esr_code), '0'), UPPER(TRIM(oper_station))

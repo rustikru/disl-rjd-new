@@ -9,12 +9,6 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-/**
- * Единое место оформления Excel-файлов отчётов.
- *
- * Этот класс используют и ручная выгрузка, и рассылка. Чтобы изменить внешний
- * вид Excel-файлов, достаточно изменить настройки здесь.
- */
 final class ExcelStyle
 {
     private const HEADER_BACKGROUND_COLOR = 'FFDDEBF7';
