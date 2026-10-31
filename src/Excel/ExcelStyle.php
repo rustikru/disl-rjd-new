@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace App\Excel;
 
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -16,6 +18,38 @@ final class ExcelStyle
     private const TABLE_BORDER_COLOR = 'FF7F8C99';
     private const HEADER_FONT_SIZE = 12;
 
+    /** Записывает дату как значение Excel, сохраняя наличие или отсутствие времени. */
+    public static function setCellValue(Worksheet $sheet, string|array $cell, mixed $value, array $column = []): void
+    {
+        if ($value === null || $value === '') {
+            $sheet->setCellValue($cell, '');
+            return;
+        }
+
+        $key = (string) ($column['key'] ?? '');
+        $formatData = strtoupper((string) ($column['formatData'] ?? ''));
+        $isDateColumn = str_contains($formatData, 'YYYY')
+            || preg_match('/(?:_dt|_date|_at)$/i', $key) === 1;
+        $valueString = trim((string) $value);
+
+        if ($isDateColumn && preg_match('/^(?:\d{4}-\d{2}-\d{2}|\d{2}\.\d{2}\.\d{4})(?:[ T]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)?$/', $valueString)) {
+            try {
+                $date = new \DateTimeImmutable($valueString);
+                $hasTime = preg_match('/[ T]\d{2}:\d{2}/', $valueString) === 1
+                    && ($date->format('H:i:s') !== '00:00:00' || str_contains($formatData, 'HH24'));
+                $sheet->setCellValueExplicit($cell, Date::PHPToExcel($date), DataType::TYPE_NUMERIC);
+                $sheet->getStyle($cell)->getNumberFormat()->setFormatCode(
+                    $hasTime ? 'dd.mm.yyyy hh:mm:ss' : 'dd.mm.yyyy'
+                );
+                return;
+            } catch (\Exception $e) {
+                // Некорректную дату оставляем исходным текстом.
+            }
+        }
+
+        $sheet->setCellValueExplicit($cell, $valueString, DataType::TYPE_STRING);
+    }
+
     public static function applyDetailTable(Worksheet $sheet, int $columnCount): void
     {
         if ($columnCount <= 0) {
@@ -27,6 +61,33 @@ final class ExcelStyle
         $lastRow = max(1, $sheet->getHighestDataRow());
         self::applyTableBorders($sheet, "A1:{$lastColumn}{$lastRow}");
         $sheet->setAutoFilter("A1:{$lastColumn}{$lastRow}");
+        self::applyAutomaticColumnWidth($sheet, $columnCount);
+    }
+
+    public static function applyReferenceTable(Worksheet $sheet, int $columnCount): void
+    {
+        if ($columnCount <= 0) {
+            return;
+        }
+
+        $lastColumn = Coordinate::stringFromColumnIndex($columnCount);
+        $lastRow = max(2, $sheet->getHighestDataRow());
+
+        $titleStyle = $sheet->getStyle("A1:{$lastColumn}1");
+        $titleStyle->getFont()->setBold(true)->setSize(12);
+        $titleStyle->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
+        self::applyHeader($sheet, "A2:{$lastColumn}2", true);
+        $sheet->getStyle("A2:{$lastColumn}2")->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+            ->setVertical(Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+
+        self::applyTableBorders($sheet, "A2:{$lastColumn}{$lastRow}");
+        $sheet->setAutoFilter("A2:{$lastColumn}{$lastRow}");
+        $sheet->freezePane('A3');
         self::applyAutomaticColumnWidth($sheet, $columnCount);
     }
 

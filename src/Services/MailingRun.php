@@ -7,7 +7,6 @@ use App\Controllers\ApiController;
 use App\Database\DbInterface;
 use App\Excel\ExcelStyle;
 use App\Reports\ReportConfig;
-use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Slim\Psr7\Factory\ResponseFactory;
@@ -90,7 +89,10 @@ final class MailingRun
             $rows = is_array($payload['rows'] ?? null) ? $payload['rows'] : [];
             $fileBase = sprintf('%02d_%s', $position + 1, $this->safeFileName($reportDefinition['name']));
             $filePath = $runDirectory . DIRECTORY_SEPARATOR . $fileBase . '.xlsx';
-            $this->writeXlsx($filePath, $columns, $rows, $reportDefinition['name']);
+            $reportDate = in_array($reportCode, ['source-approach', 'source-departure'], true)
+                ? (string) ($payload['report_date'] ?? '')
+                : null;
+            $this->writeXlsx($filePath, $columns, $rows, $reportDefinition['name'], $reportDate);
             $createdFiles[] = $filePath;
             $reportSummaries[] = [
                 'report_code' => $reportCode,
@@ -153,26 +155,45 @@ final class MailingRun
         ];
     }
 
-    private function writeXlsx(string $filePath, array $columns, array $rows, string $reportName): void
+    private function writeXlsx(string $filePath, array $columns, array $rows, string $reportName, ?string $reportDate = null): void
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheetTitle = str_replace(['\\', '/', '?', '*', '[', ']', ':'], '', $reportName);
         $sheet->setTitle(mb_substr($sheetTitle !== '' ? $sheetTitle : 'Отчёт', 0, 31));
+        $hasReportDate = $reportDate !== null && $reportDate !== '';
+        $headerRow = $hasReportDate ? 2 : 1;
+        $dataRow = $headerRow + 1;
+
+        if ($hasReportDate) {
+            $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($columns));
+            $sheet->setCellValue('A1', 'Справка РЖД на ');
+            $sheet->setCellValue('B1', $reportDate);
+            if (count($columns) > 1) {
+                $sheet->mergeCells('B1:' . $lastColumn . '1');
+            }
+        }
+
         foreach ($columns as $columnIndex => $column) {
-            $sheet->setCellValue([$columnIndex + 1, 1], $column['label'] ?? $column['key']);
+            $sheet->setCellValue([$columnIndex + 1, $headerRow], $column['label'] ?? $column['key']);
         }
         foreach ($rows as $rowIndex => $row) {
             foreach ($columns as $columnIndex => $column) {
                 $value = $row[$column['key']] ?? '';
-                $sheet->setCellValueExplicit(
-                    [$columnIndex + 1, $rowIndex + 2],
-                    $value === null ? '' : (string) $value,
-                    DataType::TYPE_STRING
+                ExcelStyle::setCellValue(
+                    $sheet,
+                    [$columnIndex + 1, $rowIndex + $dataRow],
+                    $value,
+                    $column
                 );
             }
         }
-        ExcelStyle::applyDetailTable($sheet, count($columns));
+
+        if ($hasReportDate) {
+            ExcelStyle::applyReferenceTable($sheet, count($columns));
+        } else {
+            ExcelStyle::applyDetailTable($sheet, count($columns));
+        }
         $writer = new Xlsx($spreadsheet);
         $writer->setPreCalculateFormulas(false);
         $writer->save($filePath);

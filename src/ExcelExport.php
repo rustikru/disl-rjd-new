@@ -41,11 +41,11 @@ class ExcelExport
                 $val = is_array($row) ? ($row[$key] ?? '') : ($row->$key ?? '');
                 $colLetter = Coordinate::stringFromColumnIndex($colIdx);
 
-                // Защита номеров вагонов и станций от порчи числовым форматом Excel
-                if (is_numeric($val) && strlen((string) $val) < 10) {
+                // Защита числовых идентификаторов и единый формат дат.
+                if (is_numeric($val) && strlen((string) $val) < 10 && empty($c['formatData'])) {
                     $sheet->setCellValue($colLetter . $rowIdx, (float) $val);
                 } else {
-                    $sheet->setCellValueExplicit($colLetter . $rowIdx, $val, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                    ExcelStyle::setCellValue($sheet, $colLetter . $rowIdx, $val, $c);
                 }
                 $colIdx++;
             }

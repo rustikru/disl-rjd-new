@@ -197,8 +197,8 @@ final class ReportConfig
             ),
 
             // Полные строки последней загруженной справки без условий экранных отчётов.
-            'source-approach' => self::mailingReport('Справка РЖД - Подход'),
-            'source-departure' => self::mailingReport('Справка РЖД - Отправка'),
+            'source-approach' => self::mailingReport('Справка РЖД - Подход', 'rjd-reference'),
+            'source-departure' => self::mailingReport('Справка РЖД - Отправка', 'rjd-reference'),
         ];
 
         $detailSettings = self::detailSettings();
@@ -512,10 +512,11 @@ final class ReportConfig
         ];
     }
 
-    private static function mailingReport(string $name): array
+    private static function mailingReport(string $name, string $excelStyle = 'default'): array
     {
         return [
             'name' => $name,
+            'excel_style' => $excelStyle,
             'contexts' => ['mailing'],
             'mailing_selectable' => true,
             'organization_required' => true,

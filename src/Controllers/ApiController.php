@@ -75,7 +75,7 @@ class ApiController
         $sections = [];
 
         try {
-            $dtLabel = (new \DateTime($dt))->format('d.m.Y H:i');
+            $dtLabel = (new \DateTime($dt))->format('d.m.Y H:i:s');
         } catch (\Exception $e) {
             $dtLabel = $dt;
         }
@@ -960,7 +960,13 @@ class ApiController
             $bindings
         );
 
-        return $this->json($response, ['rows' => $rows]);
+        try {
+            $reportDate = (new \DateTimeImmutable($reportDt))->format('d.m.Y H:i');
+        } catch (\Exception $e) {
+            $reportDate = $reportDt;
+        }
+
+        return $this->json($response, ['rows' => $rows, 'report_date' => $reportDate]);
     }
 
     /** Отправление: вагоны с положительным оставшимся расстоянием. */
