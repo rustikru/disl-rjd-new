@@ -8,23 +8,57 @@
 <div class="ui-page-head"><h1><?= htmlspecialchars($title) ?></h1></div>
 <?php uiNotices($success, $error); ?>
 <form method="post"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
-<section class="ui-card"><div class="ui-card-body"><div class="ui-fields">
+<section class="ui-card"><div class="ui-card-body">
 <?php if ($visibility): ?>
-<p class="ui-field--full">Отмеченные страницы доступны. Снимите галочку, чтобы отключить страницу для всех пользователей.</p>
-<?php $visibilityAvailability = new \App\Services\PageAvailability((array) ($values['disabled_pages'] ?? [])); $pageGroups = []; foreach (\App\Services\PageRegistry::all() as $key => $definition) { $pageGroups[$definition['visibility_group'] ?? 'Дополнительно'][] = $key; } foreach ($pageGroups as $section => $keys): ?>
-<h2 class="settings-section-title"><?= htmlspecialchars($section) ?></h2>
-<?php foreach ($keys as $key): $label = \App\Services\PageRegistry::labels()[$key]; ?>
-<label class="option"><input type="checkbox" name="enabled[]" value="<?= htmlspecialchars($key) ?>" <?= !$visibilityAvailability->isDisabled($key) ? 'checked' : '' ?>> <?= htmlspecialchars($label) ?></label>
-<?php endforeach; endforeach; ?>
-<div class="ui-field ui-field--full"><label>Дополнительно отключённые пути, по одному на строку</label><textarea name="custom"><?= htmlspecialchars(implode("\n", array_diff($values['disabled_pages'] ?? [], array_keys(\App\Services\PageRegistry::labels()), \App\Services\PageRegistry::legacyVisibilityAliases()))) ?></textarea></div>
+<?php
+$visibilityAvailability = new \App\Services\PageAvailability((array) ($values['disabled_pages'] ?? []));
+$pageGroups = [];
+foreach (\App\Services\PageRegistry::all() as $key => $definition) {
+    $pageGroups[$definition['visibility_group'] ?? 'Дополнительно'][$key] = $definition;
+}
+foreach ($pageGroups as &$groupPages) {
+    uasort($groupPages, static fn(array $a, array $b): int =>
+        mb_strtolower((string) ($a['label'] ?? '')) <=> mb_strtolower((string) ($b['label'] ?? ''))
+    );
+}
+unset($groupPages);
+$enabledCount = 0;
+foreach (array_keys(\App\Services\PageRegistry::labels()) as $key) {
+    if (!$visibilityAvailability->isDisabled($key)) $enabledCount++;
+}
+?>
+<div class="visibility-tools">
+  <div><strong id="visibilityTotal" data-total="<?= count(\App\Services\PageRegistry::labels()) ?>"><?= $enabledCount ?> из <?= count(\App\Services\PageRegistry::labels()) ?></strong> страниц доступно</div>
+  <label class="visibility-search"><input type="search" id="visibilitySearch" aria-label="Найти страницу" placeholder="Найти страницу…" autocomplete="off"></label>
+</div>
+<p class="visibility-help">Отмеченные страницы доступны. Отключённые скрыты и заблокированы для всех, кроме SUPER.</p>
+<div class="visibility-groups">
+<?php foreach ($pageGroups as $section => $groupPages): ?>
+  <details class="visibility-group">
+    <summary><span><?= htmlspecialchars($section) ?></span><span class="visibility-count"><?= count($groupPages) ?></span></summary>
+    <div class="visibility-list">
+    <?php foreach ($groupPages as $key => $definition): $isEnabled = !$visibilityAvailability->isDisabled($key); ?>
+      <label class="visibility-item" data-search="<?= htmlspecialchars(mb_strtolower(($definition['label'] ?? $key) . ' ' . $key)) ?>">
+        <input type="checkbox" name="enabled[]" value="<?= htmlspecialchars($key) ?>" <?= $isEnabled ? 'checked' : '' ?>>
+        <span class="visibility-name"><strong><?= htmlspecialchars($definition['label'] ?? $key) ?></strong><small><?= htmlspecialchars($key) ?></small></span>
+        <span class="visibility-status"><?= $isEnabled ? 'Включено' : 'Отключено' ?></span>
+      </label>
+    <?php endforeach; ?>
+    </div>
+  </details>
+<?php endforeach; ?>
+</div>
+<details class="visibility-custom"><summary>Дополнительные пути</summary><div class="ui-field"><label>По одному пути на строку</label><textarea name="custom"><?= htmlspecialchars(implode("\n", array_diff($values['disabled_pages'] ?? [], array_keys(\App\Services\PageRegistry::labels()), \App\Services\PageRegistry::legacyVisibilityAliases()))) ?></textarea></div></details>
 <?php else:
 $grouped = []; foreach ($definitions as $key => $definition) { if ($key === 'disabled_pages' || $definition['section'] === 'Технические работы') continue; $grouped[$definition['section']][$key] = $values[$key]; }
-foreach ($grouped as $section => $settings): ?>
+?><div class="ui-fields"><?php foreach ($grouped as $section => $settings): ?>
 <h2 class="settings-section-title"><?= htmlspecialchars($section) ?></h2>
 <?php foreach ($settings as $key => $value): $definition = $definitions[$key]; ?>
 <div class="ui-field"><label><?= htmlspecialchars($definition['label'] ?? $key) ?></label>
 <?php if ($definition['type'] === 'bool'): ?><select name="settings[<?= htmlspecialchars($key) ?>]"><option value="1" <?= $value ? 'selected' : '' ?>>Включено</option><option value="0" <?= !$value ? 'selected' : '' ?>>Выключено</option></select>
 <?php elseif ($definition['type'] === 'enum'): ?><select name="settings[<?= htmlspecialchars($key) ?>]"><?php foreach($definition['choices'] as $choice): ?><option value="<?= htmlspecialchars($choice) ?>" <?= $value === $choice ? 'selected' : '' ?>><?= htmlspecialchars($choice) ?></option><?php endforeach; ?></select>
 <?php else: $secret = $definition['type'] === 'secret'; ?><input type="<?= $secret ? 'password' : ($definition['type'] === 'int' ? 'number' : ($definition['type'] === 'datetime' ? 'datetime-local' : 'text')) ?>" name="settings[<?= htmlspecialchars($key) ?>]" value="<?= $secret ? '' : htmlspecialchars((string) $value) ?>" <?= $definition['min'] !== null ? 'min="'.(int)$definition['min'].'"' : '' ?> <?= $definition['max'] !== null ? 'max="'.(int)$definition['max'].'"' : '' ?> <?= $secret ? 'placeholder="Оставьте пустым, чтобы сохранить" autocomplete="new-password"' : '' ?> <?= $definition['type'] === 'path' ? 'title="Путь от корня проекта. Для журнала укажите также имя файла."' : '' ?>><?php endif; ?><?php if (!empty($definition['help'])): ?><div class="ui-help"><?= htmlspecialchars($definition['help']) ?></div><?php endif; ?></div>
-<?php endforeach; endforeach; endif; ?>
-</div></div></section><div class="ui-form-actions"><button class="btn btn-primary" type="submit">Сохранить</button></div></form></main></div></body></html>
+<?php endforeach; endforeach; ?></div><?php endif; ?>
+</div></section><div class="ui-form-actions"><button class="btn btn-primary" type="submit">Сохранить</button></div></form></main></div>
+<?php if ($visibility): ?><script src="<?= htmlspecialchars($basePath) ?>/assets/js/page-visibility.js"></script><?php endif; ?>
+</body></html>

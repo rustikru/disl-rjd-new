@@ -37,8 +37,10 @@ class DashboardController
         );
         $disabledPages = (array) ($this->config['disabled_pages'] ?? []);
         $dislocationStaleHours = (int) $this->config['dislocation_stale_hours'];
-        $navConfig = $pageAvailability->filterNavigation($navConfig);
-        $reportDefinitions = $pageAvailability->filterReports($reportDefinitions);
+        if (!\App\Services\Authorization::isSuper($user)) {
+            $navConfig = $pageAvailability->filterNavigation($navConfig);
+            $reportDefinitions = $pageAvailability->filterReports($reportDefinitions);
+        }
 
         ob_start();
         require __DIR__ . '/../../templates/app.php';

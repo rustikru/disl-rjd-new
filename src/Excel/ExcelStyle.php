@@ -26,10 +26,8 @@ final class ExcelStyle
             return;
         }
 
-        $key = (string) ($column['key'] ?? '');
         $formatData = strtoupper((string) ($column['formatData'] ?? ''));
-        $isDateColumn = str_contains($formatData, 'YYYY')
-            || preg_match('/(?:_dt|_date|_at)$/i', $key) === 1;
+        $isDateColumn = str_contains($formatData, 'YYYY');
         $valueString = trim((string) $value);
 
         if ($isDateColumn && preg_match('/^(?:\d{4}-\d{2}-\d{2}|\d{2}\.\d{2}\.\d{4})(?:[ T]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)?$/', $valueString)) {

@@ -83,6 +83,11 @@ CREATE OR REPLACE package xx_rjd_dislocation_new_pkg as
       p_search in varchar2 default null
    ) return number;
 
+   function station (
+      p_esr_code in varchar2
+   ) return station_tab
+      pipelined;
+
    function stations_no_coord return station_no_coord_tab
       pipelined;
 

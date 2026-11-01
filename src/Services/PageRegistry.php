@@ -20,13 +20,29 @@ final class PageRegistry
         'import' => ['label' => 'Загрузка справок', 'routes' => ['/import', '/api/import', '/bin/downloads_mail_rjd.php'], 'visibility_group' => 'Сайт — основные разделы', 'navigation' => ['group' => 'import', 'order' => 10, 'url' => '/import', 'label' => 'Загрузка справки РЖД']],
         'directories' => [
             'label' => 'Справочники',
-            'routes' => ['/directories', '/admin/directories/norms', '/admin/directories/stations'],
+            'routes' => ['/directories'],
             'visibility_group' => 'Сайт — основные разделы',
             'navigation' => ['group' => 'directories', 'order' => 10, 'url' => '/directories/'],
+        ],
+        'directory-norms' => [
+            'label' => 'Нормативы',
+            'routes' => ['/directories/norms', '/admin/directories/norms'],
+            'visibility_group' => 'Справочники',
+            'legacy_permission' => 'directories',
+            'role_hidden' => true,
             'directory_navigation' => [
-                ['key' => 'norms', 'label' => 'Нормативы', 'url' => '/directories/norms', 'order' => 10],
-                ['key' => 'stations', 'label' => 'Станции и координаты', 'url' => '/directories/stations', 'order' => 20],
-            ]
+                ['key' => 'norms', 'url' => '/directories/norms', 'order' => 10],
+            ],
+        ],
+        'directory-stations' => [
+            'label' => 'Станции и координаты',
+            'routes' => ['/directories/stations', '/admin/directories/stations'],
+            'visibility_group' => 'Справочники',
+            'legacy_permission' => 'directories',
+            'role_hidden' => true,
+            'directory_navigation' => [
+                ['key' => 'stations', 'url' => '/directories/stations', 'order' => 20],
+            ],
         ],
         'directories_edit' => ['label' => 'Редактирование справочников', 'routes' => ['/directories/norms/save', '/directories/norms/delete', '/directories/stations/save', '/directories/stations/delete', '/admin/directories/norms/save', '/admin/directories/norms/delete', '/admin/directories/stations/save', '/admin/directories/stations/delete'], 'visibility_group' => 'Сайт — основные разделы', 'implies' => ['directories']],
         'profile' => ['label' => 'Мой профиль', 'routes' => ['/profile'], 'visibility_group' => 'Пользователь', 'user_menu' => ['order' => 10, 'url' => '/profile', 'label' => 'Мой профиль']],
@@ -82,7 +98,7 @@ final class PageRegistry
     {
         $definition = self::all()[$code] ?? [];
         return array_values(array_unique(array_filter(array_merge(
-            [$code, $definition['legacy_permission'] ?? null],
+            [$code],
             (array) ($definition['legacy_visibility'] ?? [])
         ))));
     }
@@ -97,10 +113,17 @@ final class PageRegistry
     }
     public static function availabilityKeysForPath(string $path, array $query = []): array
     {
-        $page = self::pageForPath($path, $query);
-        if ($page === null)
-            return [];
-        $keys = self::availabilityKeys($page);
+        $path = '/' . ltrim($path, '/');
+        $keys = [];
+        foreach (self::all() as $code => $definition) {
+            foreach ((array) ($definition['routes'] ?? []) as $prefix) {
+                $prefix = rtrim((string) $prefix, '/');
+                if ($prefix !== '' && ($path === $prefix || str_starts_with($path, $prefix . '/'))) {
+                    $keys = array_merge($keys, self::availabilityKeys($code));
+                    break;
+                }
+            }
+        }
         if (str_starts_with('/' . ltrim($path, '/'), '/admin'))
             $keys[] = 'admin';
         return array_values(array_unique($keys));

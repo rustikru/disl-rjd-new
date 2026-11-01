@@ -1835,6 +1835,141 @@ button.app-pagination__link {
   }
 }
 
+/* Видимость страниц */
+.visibility-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+.visibility-search input {
+  width: 260px;
+  height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+.visibility-help {
+  margin: 0 0 10px;
+  color: var(--text-3);
+  font-size: 11px;
+}
+.visibility-groups {
+  display: grid;
+  max-height: 520px;
+  overflow-y: auto;
+  gap: 6px;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
+}
+.visibility-group,
+.visibility-custom {
+  border: 1px solid var(--border-lt);
+  border-radius: 7px;
+  background: var(--surface);
+}
+.visibility-group > summary,
+.visibility-custom > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.visibility-group > summary {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-radius: 7px 7px 0 0;
+  background: var(--surface);
+}
+.visibility-count {
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: var(--accent-lt);
+  text-align: center;
+  font-size: 10px;
+}
+.visibility-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: 0 10px 10px;
+}
+.visibility-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border-top: 1px solid var(--border-lt);
+  cursor: pointer;
+}
+.visibility-item:last-child {
+  border-bottom: 1px solid var(--border-lt);
+}
+.visibility-item input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+.visibility-name {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+.visibility-name strong {
+  overflow: hidden;
+  color: var(--text-1);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.visibility-name small {
+  color: var(--text-3);
+  font-size: 9px;
+}
+.visibility-status {
+  color: var(--text-3);
+  font-size: 9px;
+}
+.visibility-custom {
+  margin-top: 8px;
+}
+.visibility-custom .ui-field {
+  padding: 0 10px 10px;
+}
+.visibility-custom textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+@media (max-width: 600px) {
+  .visibility-tools {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .visibility-search input {
+    width: 100%;
+  }
+  .visibility-status {
+    display: none;
+  }
+  .visibility-groups {
+    max-height: 440px;
+  }
+}
+
 /* Технические работы */
 .maintenance-page {
   display: flex;

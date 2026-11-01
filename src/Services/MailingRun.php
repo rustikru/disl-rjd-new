@@ -89,10 +89,11 @@ final class MailingRun
             $rows = is_array($payload['rows'] ?? null) ? $payload['rows'] : [];
             $fileBase = sprintf('%02d_%s', $position + 1, $this->safeFileName($reportDefinition['name']));
             $filePath = $runDirectory . DIRECTORY_SEPARATOR . $fileBase . '.xlsx';
-            $reportDate = in_array($reportCode, ['source-approach', 'source-departure'], true)
+            $excelStyle = (string) ($reportDefinition['excel_style'] ?? 'default');
+            $reportDate = $excelStyle === 'rjd-reference'
                 ? (string) ($payload['report_date'] ?? '')
                 : null;
-            $this->writeXlsx($filePath, $columns, $rows, $reportDefinition['name'], $reportDate);
+            $this->writeXlsx($filePath, $columns, $rows, $reportDefinition['name'], $excelStyle, $reportDate);
             $createdFiles[] = $filePath;
             $reportSummaries[] = [
                 'report_code' => $reportCode,
@@ -155,21 +156,30 @@ final class MailingRun
         ];
     }
 
-    private function writeXlsx(string $filePath, array $columns, array $rows, string $reportName, ?string $reportDate = null): void
+    private function writeXlsx(
+        string $filePath,
+        array $columns,
+        array $rows,
+        string $reportName,
+        string $excelStyle = 'default',
+        ?string $reportDate = null
+    ): void
     {
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheetTitle = str_replace(['\\', '/', '?', '*', '[', ']', ':'], '', $reportName);
         $sheet->setTitle(mb_substr($sheetTitle !== '' ? $sheetTitle : 'Отчёт', 0, 31));
-        $hasReportDate = $reportDate !== null && $reportDate !== '';
-        $headerRow = $hasReportDate ? 2 : 1;
+        $isReference = $excelStyle === 'rjd-reference';
+        $headerRow = $isReference ? 2 : 1;
         $dataRow = $headerRow + 1;
 
-        if ($hasReportDate) {
-            $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($columns));
-            $sheet->setCellValue('A1', 'Справка РЖД на ');
-            $sheet->setCellValue('B1', $reportDate);
-            if (count($columns) > 1) {
+        if ($isReference) {
+            $sheet->setCellValue('A1', $reportDate !== null && $reportDate !== '' ? 'Справка РЖД на ' : 'Справка РЖД');
+            if ($reportDate !== null && $reportDate !== '') {
+                $sheet->setCellValue('B1', $reportDate);
+            }
+            if ($reportDate !== null && $reportDate !== '' && count($columns) > 1) {
+                $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($columns));
                 $sheet->mergeCells('B1:' . $lastColumn . '1');
             }
         }
@@ -189,7 +199,7 @@ final class MailingRun
             }
         }
 
-        if ($hasReportDate) {
+        if ($isReference) {
             ExcelStyle::applyReferenceTable($sheet, count($columns));
         } else {
             ExcelStyle::applyDetailTable($sheet, count($columns));

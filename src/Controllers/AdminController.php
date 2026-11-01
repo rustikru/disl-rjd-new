@@ -958,10 +958,8 @@ class AdminController
         }
 
         $station = $this->db->fetchOne(
-            'SELECT esr_code, station_name, latitude, longitude
-               FROM xx_rjd_stations
-              WHERE esr_code = :code',
-            ['code' => (string) ($args['code'] ?? '')]
+            'SELECT * FROM TABLE(xx_rjd_dislocation_new_pkg.station(:p_esr_code))',
+            ['p_esr_code' => (string) ($args['code'] ?? '')]
         );
         if (!$station) {
             return $this->redirect($response, '/directories/stations?err=' . urlencode('Станция не найдена'));
@@ -1867,7 +1865,7 @@ class AdminController
     {
         foreach ($pages as $page) {
             $definition = \App\Services\PageRegistry::all()[$page] ?? null;
-            if ($definition === null || !empty($definition['derived'])) {
+            if ($definition === null || !empty($definition['derived']) || !empty($definition['role_hidden'])) {
                 continue;
             }
             $this->db->execute(

@@ -69,7 +69,7 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
                 $headerAvailability = new \App\Services\PageAvailability((array) (\App\Services\ConfigSchema::current()['disabled_pages'] ?? []));
                 $headerPages = \App\Services\Authorization::isSuper($user) ? array_keys(\App\Services\PageRegistry::labels()) : (array) ($user['allowed_pages'] ?? []);
                 foreach (\App\Services\PageRegistry::all() as $pageCode => $pageDefinition) {
-                  if (!empty($pageDefinition['user_menu']) && in_array($pageCode, $headerPages, true) && !$headerAvailability->isDisabled($pageCode))
+                  if (!empty($pageDefinition['user_menu']) && in_array($pageCode, $headerPages, true) && (\App\Services\Authorization::isSuper($user) || !$headerAvailability->isDisabled($pageCode)))
                     $userMenu[] = $pageDefinition['user_menu'] + ['page' => $pageCode];
                 }
                 usort($userMenu, static fn($a, $b) => ($a['order'] ?? 0) <=> ($b['order'] ?? 0));

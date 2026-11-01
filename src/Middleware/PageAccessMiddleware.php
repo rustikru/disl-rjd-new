@@ -32,8 +32,7 @@ class PageAccessMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        $settingsPath = substr($request->getUri()->getPath(), strlen(rtrim($this->basePath, '/')));
-        if (\App\Services\Authorization::isSuper($user) && in_array($settingsPath, ['/admin/settings', '/admin/page-visibility'], true)) {
+        if (\App\Services\Authorization::isSuper($user)) {
             return $handler->handle($request);
         }
 
@@ -47,14 +46,12 @@ class PageAccessMiddleware implements MiddlewareInterface
         }
 
         $allowed = [];
-        if (!\App\Services\Authorization::isSuper($user)) {
-            try {
-                $allowed = $this->allowedPages((int) ($user['id'] ?? 0));
-                $_SESSION['user']['allowed_pages'] = $allowed;
-            } catch (\Throwable $e) {
-                // Таблицы ролей ещё нет — сохраняем прежний режим первичной настройки.
-                return $handler->handle($request);
-            }
+        try {
+            $allowed = $this->allowedPages((int) ($user['id'] ?? 0));
+            $_SESSION['user']['allowed_pages'] = $allowed;
+        } catch (\Throwable $e) {
+            // Таблицы ролей ещё нет — сохраняем прежний режим первичной настройки.
+            return $handler->handle($request);
         }
 
         $page = $this->resolvePage($request->getUri()->getPath(), $request->getQueryParams());
@@ -69,11 +66,6 @@ class PageAccessMiddleware implements MiddlewareInterface
         }
         if (!empty($definition['admin_only']) && !\App\Services\Authorization::isAdmin($user)) {
             return $this->deny($request, $page);
-        }
-
-        // Безусловный доступ ко всем страницам есть только у SUPER.
-        if (\App\Services\Authorization::isSuper($user)) {
-            return $handler->handle($request);
         }
 
         $accessPages = \App\Services\PageRegistry::accessPages(

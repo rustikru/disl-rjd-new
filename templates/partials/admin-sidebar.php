@@ -8,7 +8,7 @@ $sidebarAvailability = new \App\Services\PageAvailability((array)(\App\Services\
 $adminNavGroups = [];
 foreach (\App\Services\PageRegistry::all() as $key => $definition) {
     $item = $definition['admin_navigation'] ?? null;
-    if (!$item || !in_array($key, $adminPages, true) || $sidebarAvailability->isDisabled('admin') || $sidebarAvailability->isDisabled($key) || ((!empty($definition['super_only']) || !empty($item['super_only'])) && !$isSuperAdmin)) continue;
+    if (!$item || !in_array($key, $adminPages, true) || (!$isSuperAdmin && ($sidebarAvailability->isDisabled('admin') || $sidebarAvailability->isDisabled($key))) || ((!empty($definition['super_only']) || !empty($item['super_only'])) && !$isSuperAdmin)) continue;
     $adminNavGroups[$item['group']][] = ['key'=>$item['active_key']??$key,'label'=>$item['label']??$definition['label'],'url'=>$basePath.$item['url'],'order'=>(int)($item['order']??0)];
 }
 foreach ($adminNavGroups as &$items) { usort($items, static fn(array $a,array $b): int => $a['order'] <=> $b['order']); } unset($items);

@@ -35,6 +35,7 @@ return array(
     array(
       'key' => 'trip_start_dt',
       'label' => 'Дата и время начала рейса',
+      'formatData' => 'DD.MM.YYYY HH24:MI:SS',
       'w' => 180,
       'showInline' => true,
     ),
@@ -63,6 +64,7 @@ return array(
     array(
       'key' => 'trip_end_dt',
       'label' => 'Дата и время окончания рейса',
+      'formatData' => 'DD.MM.YYYY HH24:MI:SS',
       'w' => 180,
       'showInline' => true,
     ),
@@ -252,6 +254,7 @@ return array(
     array(
       'key' => 'oper_dt',
       'label' => 'Дата и время операции',
+      'formatData' => 'DD.MM.YYYY HH24:MI:SS',
       'w' => 180,
       'showInline' => true,
     ),
@@ -343,6 +346,7 @@ return array(
     array(
       'key' => 'norm_delivery_dt',
       'label' => 'Нормативный срок доставки',
+      'formatData' => 'DD.MM.YYYY',
       'w' => 180,
       'showInline' => true,
     ),
@@ -399,6 +403,7 @@ return array(
     array(
       'key' => 'asoup_depart_dt',
       'label' => 'Дата и время отправления (АСОУП) со станции приема груза к перевозке',
+      'formatData' => 'DD.MM.YYYY HH24:MI:SS',
       'w' => 180,
       'showInline' => true,
     ),
@@ -406,6 +411,7 @@ return array(
     array(
       'key' => 'asoup_arrive_dt',
       'label' => 'Дата и время прибытия (АСОУП) на станцию назначения',
+      'formatData' => 'DD.MM.YYYY HH24:MI:SS',
       'w' => 180,
       'showInline' => true,
     ),
@@ -441,6 +447,7 @@ return array(
     array(
       'key' => 'state_assign_dt',
       'label' => 'Дата и время назначения состояния',
+      'formatData' => 'DD.MM.YYYY HH24:MI:SS',
       'w' => 180,
       'showInline' => true,
     ),
@@ -469,6 +476,7 @@ return array(
     array(
       'key' => 'reg_date',
       'label' => 'Дата регистрации',
+      'formatData' => 'DD.MM.YYYY',
       'w' => 180,
       'showInline' => true,
     ),
@@ -476,6 +484,7 @@ return array(
     array(
       'key' => 'build_date',
       'label' => 'Дата постройки',
+      'formatData' => 'DD.MM.YYYY',
       'w' => 180,
       'showInline' => true,
     ),
@@ -483,6 +492,7 @@ return array(
     array(
       'key' => 'next_repair_dt',
       'label' => 'Дата следующего планового ремонта',
+      'formatData' => 'DD.MM.YYYY',
       'w' => 180,
       'showInline' => true,
     ),
@@ -553,6 +563,7 @@ return array(
     array(
       'key' => 'last_cap_repair_dt',
       'label' => 'Дата последнего кап. ремонта',
+      'formatData' => 'DD.MM.YYYY',
       'w' => 180,
       'showInline' => true,
     ),
@@ -567,6 +578,7 @@ return array(
     array(
       'key' => 'last_dep_repair_dt',
       'label' => 'Дата последнего деп. ремонта',
+      'formatData' => 'DD.MM.YYYY',
       'w' => 180,
       'showInline' => true,
     ),
@@ -588,6 +600,7 @@ return array(
     array(
       'key' => 'exclude_date',
       'label' => 'Дата исключения',
+      'formatData' => 'DD.MM.YYYY',
       'w' => 180,
       'showInline' => true,
     ),
@@ -651,6 +664,7 @@ return array(
     array(
       'key' => 'life_ext_date',
       'label' => 'Утв. дата продления срока службы',
+      'formatData' => 'DD.MM.YYYY',
       'w' => 180,
       'showInline' => true,
     ),
@@ -686,6 +700,7 @@ return array(
     array(
       'key' => 'lease_end_date',
       'label' => 'Дата окончания аренды',
+      'formatData' => 'DD.MM.YYYY',
       'w' => 180,
       'showInline' => true,
     ),
@@ -693,6 +708,7 @@ return array(
     array(
       'key' => 'service_life',
       'label' => 'Срок службы вагона',
+      'formatData' => 'DD.MM.YYYY',
       'w' => 180,
       'showInline' => true,
     ),

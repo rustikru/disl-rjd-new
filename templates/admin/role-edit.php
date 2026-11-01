@@ -147,6 +147,8 @@ $canDelete = !$isViewOnly && !$isNewRole && (int) ($editedRole['is_system'] ?? 0
                 continue;
               if (!empty($definition['derived']))
                 continue;
+              if (!empty($definition['role_hidden']))
+                continue;
               if (!empty($definition['admin_only']) && ($editedRole['code'] ?? '') !== \App\Services\Authorization::ADMIN)
                 continue;
               if ($onlySelected && !in_array($pageCode, $selectedPages, true))

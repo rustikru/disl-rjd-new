@@ -1142,6 +1142,6 @@
             "install-path": "../slim/slim"
         }
     ],
-    "dev": true,
+    "dev": false,
     "dev-package-names": []
 }

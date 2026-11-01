@@ -1,9 +1,16 @@
 <?php
 $activeAdminPage = $activeAdminPage ?? '';
+$directoryUser = $user ?? ($_SESSION['user'] ?? []);
+$isDirectorySuper = \App\Services\Authorization::isSuper($directoryUser);
 $directoryAvailability = new \App\Services\PageAvailability((array)(\App\Services\ConfigSchema::current()['disabled_pages']??[]));
-$directoryDisabled = $directoryAvailability->isDisabled('directories');
-$directoryNavItems = \App\Services\PageRegistry::all()['directories']['directory_navigation'] ?? [];
-if ($directoryDisabled) $directoryNavItems = [];
+$directoryNavItems = [];
+foreach (\App\Services\PageRegistry::all() as $pageCode => $definition) {
+    if (!$isDirectorySuper && $directoryAvailability->isDisabled($pageCode)) continue;
+    foreach ((array) ($definition['directory_navigation'] ?? []) as $item) {
+        $directoryNavItems[] = $item + ['label' => $definition['label'], 'page' => $pageCode];
+    }
+}
+if (!$isDirectorySuper && $directoryAvailability->isDisabled('directories')) $directoryNavItems = [];
 usort($directoryNavItems, static fn(array $a,array $b): int => ($a['order']??0) <=> ($b['order']??0));
 foreach ($directoryNavItems as &$item) $item['url'] = $basePath . $item['url']; unset($item);
 ?>

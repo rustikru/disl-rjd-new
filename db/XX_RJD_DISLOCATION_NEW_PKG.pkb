@@ -1015,6 +1015,31 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
       return l_count;
    end stations_count;
 
+   function station (
+      p_esr_code in varchar2
+   ) return station_tab
+      pipelined
+   is
+      l_row station_rec;
+   begin
+      for station_row in (
+         select esr_code,
+                station_name,
+                latitude,
+                longitude
+           from xx_rjd_stations
+          where esr_code = trim(p_esr_code)
+      ) loop
+         l_row.esr_code := station_row.esr_code;
+         l_row.station_name := station_row.station_name;
+         l_row.latitude := station_row.latitude;
+         l_row.longitude := station_row.longitude;
+         pipe row ( l_row );
+      end loop;
+
+      return;
+   end station;
+
    function stations_no_coord return station_no_coord_tab
       pipelined
    is
