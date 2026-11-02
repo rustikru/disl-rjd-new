@@ -102,6 +102,25 @@ CREATE OR REPLACE package xx_rjd_dislocation_new_pkg as
       p_esr_code in varchar2
    );
 
+   procedure save_idle_control (
+      p_id_control      in number,
+      p_created_by      in number,
+      p_car_number     in varchar2,
+      p_start_date     in date,
+      p_end_date       in date,
+      p_note           in varchar2,
+      p_is_excluded    in varchar2,
+      p_idle_reasons_id in number
+   );
+
+   procedure delete_idle_control (
+      p_id_control in number,
+      p_deleted_by in number
+   );
+
+   procedure save_idle_reason (p_id in number, p_name in varchar2, p_descr in varchar2);
+   procedure delete_idle_reason (p_id in number);
+
    procedure mail_start;
 
    procedure mail_add_file (

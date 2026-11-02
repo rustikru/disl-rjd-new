@@ -1195,6 +1195,91 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
        where esr_code = trim(p_esr_code);
    end delete_station;
 
+   procedure save_idle_control (
+      p_id_control       in number,
+      p_created_by       in number,
+      p_car_number       in varchar2,
+      p_start_date       in date,
+      p_end_date         in date,
+      p_note             in varchar2,
+      p_is_excluded      in varchar2,
+      p_idle_reasons_id  in number
+   ) is
+      l_id number := p_id_control;
+      l_overlap number;
+   begin
+      if p_car_number is null or p_start_date is null or p_idle_reasons_id is null then
+         raise_application_error(-20001, 'Не заполнены обязательные поля');
+      end if;
+      if p_end_date is not null and p_end_date < p_start_date then
+         raise_application_error(-20002, 'Дата окончания раньше даты начала');
+      end if;
+      select count(*) into l_overlap
+        from xx_etw.xx_disl_idle_control
+       where upper(trim(car_number)) = upper(trim(p_car_number))
+         and nvl(deleted, 'N') = 'N'
+         and (p_id_control is null or id_control <> p_id_control)
+         and start_date <= nvl(p_end_date, date '9999-12-31')
+         and nvl(end_date, date '9999-12-31') >= p_start_date;
+      if l_overlap > 0 then
+         raise_application_error(-20003, 'Для вагона уже есть пересекающийся период');
+      end if;
+      if l_id is null then
+         select xx_etw.xx_disl_idle_control_seq.nextval into l_id from dual;
+         insert into xx_etw.xx_disl_idle_control
+            (id_control, created_by, creation_date, last_updated_by, last_update_date,
+             car_number, is_excluded, note, start_date, end_date, deleted, idle_reasons_id)
+         values (l_id, p_created_by, sysdate, p_created_by, sysdate,
+                 trim(p_car_number), nvl(upper(p_is_excluded), 'N'), p_note,
+                 p_start_date, p_end_date, 'N', p_idle_reasons_id);
+      else
+         update xx_etw.xx_disl_idle_control
+            set last_updated_by = p_created_by,
+                last_update_date = sysdate,
+                car_number = trim(p_car_number),
+                is_excluded = nvl(upper(p_is_excluded), 'N'),
+                note = p_note,
+                start_date = p_start_date,
+                end_date = p_end_date,
+                idle_reasons_id = p_idle_reasons_id
+          where id_control = l_id and nvl(deleted, 'N') = 'N';
+      end if;
+   end save_idle_control;
+
+   procedure delete_idle_control (
+      p_id_control in number,
+      p_deleted_by in number
+   ) is
+   begin
+      update xx_etw.xx_disl_idle_control
+         set deleted = 'Y', deleted_by = p_deleted_by, deleted_date = sysdate,
+             last_updated_by = p_deleted_by, last_update_date = sysdate
+       where id_control = p_id_control and nvl(deleted, 'N') = 'N';
+   end delete_idle_control;
+
+   procedure save_idle_reason (p_id in number, p_name in varchar2, p_descr in varchar2) is
+      l_id number := p_id;
+      l_count number;
+   begin
+      if trim(p_name) is null then raise_application_error(-20001, 'Укажите название причины'); end if;
+      select count(*) into l_count from xx_etw.xx_disl_idle_reasons
+       where upper(trim(name)) = upper(trim(p_name)) and (p_id is null or id <> p_id);
+      if l_count > 0 then raise_application_error(-20002, 'Причина с таким названием уже существует'); end if;
+      if l_id is null then
+         select xx_etw.xx_disl_idle_reasons_seq.nextval into l_id from dual;
+         insert into xx_etw.xx_disl_idle_reasons(id,name,descr) values(l_id,trim(p_name),trim(p_descr));
+      else
+         update xx_etw.xx_disl_idle_reasons set name=trim(p_name), descr=trim(p_descr) where id=l_id;
+      end if;
+   end save_idle_reason;
+
+   procedure delete_idle_reason (p_id in number) is l_count number;
+   begin
+      select count(*) into l_count from xx_etw.xx_disl_idle_control where idle_reasons_id=p_id and nvl(deleted,'N')='N';
+      if l_count > 0 then raise_application_error(-20003, 'Причина используется в контроле простоев'); end if;
+      delete from xx_etw.xx_disl_idle_reasons where id=p_id;
+   end delete_idle_reason;
+
    
    procedure mail_start is
    begin

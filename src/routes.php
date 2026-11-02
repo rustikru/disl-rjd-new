@@ -127,6 +127,9 @@ return function (App $app, array $config): void {
         $group->get('/profile', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\UserController($getDb(), $config))->profile($req, $res);
         });
+        $group->post('/profile/password', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\UserController($getDb(), $config))->changePassword($req, $res);
+        });
 
         // Личные настройки рассылки отчётов
         $group->get('/profile/report-mailings', function ($req, $res) use ($getDb, $config) {
@@ -257,6 +260,36 @@ return function (App $app, array $config): void {
         });
         $group->post('/directories/stations/delete', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->deleteStation($req, $res);
+        });
+        $group->get('/directories/idle-control', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->idleControlPage($req, $res);
+        });
+        $group->get('/directories/idle-control/new', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->idleControlCreatePage($req, $res);
+        });
+        $group->get('/directories/idle-control/{id:[0-9]+}/edit', function ($req, $res, $args) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->idleControlEditPage($req, $res, $args);
+        });
+        $group->post('/directories/idle-control/save', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->saveIdleControl($req, $res);
+        });
+        $group->post('/directories/idle-control/delete', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->deleteIdleControl($req, $res);
+        });
+        $group->get('/directories/idle-reasons', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->idleReasonsPage($req, $res);
+        });
+        $group->get('/directories/idle-reasons/new', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->idleReasonCreatePage($req, $res);
+        });
+        $group->get('/directories/idle-reasons/{id:[0-9]+}/edit', function ($req, $res, $args) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->idleReasonEditPage($req, $res, $args);
+        });
+        $group->post('/directories/idle-reasons/save', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->saveIdleReason($req, $res);
+        });
+        $group->post('/directories/idle-reasons/delete', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->deleteIdleReason($req, $res);
         });
 
         // --- Нормативы ---

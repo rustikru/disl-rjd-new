@@ -44,6 +44,8 @@ $isActive = (int) $profile['is_active'] === 1;
     .profile-item { padding:7px 0; color:var(--text-1); }
     .profile-item small { display:block; margin-top:2px; color:var(--text-3); font-size:10.5px; }
     .profile-empty { padding:7px 0; color:var(--text-3); }
+    .profile-notice { margin-bottom:14px; padding:10px 12px; border-radius:8px; background:var(--accent-lt); color:var(--accent); font-size:12px; }
+    .profile-error { background:#fce8e8; color:var(--brand-neg); }
     @media(max-width:700px) {
       .profile-page { padding:16px 12px 28px; }
       .profile-sections { grid-template-columns:1fr; }
@@ -65,6 +67,8 @@ $isActive = (int) $profile['is_active'] === 1;
     <div class="profile-heading">
       <h1>Мой профиль</h1>
     </div>
+    <?php if ($message): ?><div class="profile-notice"><?= $e($message) ?></div><?php endif; ?>
+    <?php if ($error): ?><div class="profile-notice profile-error"><?= $e($error) ?></div><?php endif; ?>
 
     <section class="profile-panel">
       <div class="profile-summary">

@@ -1091,3 +1091,4 @@ db/20261029_sessions.sql
 db/20261030_wagon_card_permission.sql
 db/20261030_wagon_detail_permission.sql
 db/station.sql
+task

@@ -113,7 +113,9 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
 
   .user-menu {
     position: relative;
-    width: 196px;
+    width: max-content;
+    min-width: 196px;
+    max-width: none;
   }
 
   .user-menu summary {
@@ -158,9 +160,10 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
 
   .user-menu-toggle .user-name {
     flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    min-width: max-content;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
     padding: 0;
     color: var(--text-1);
     text-align: left;

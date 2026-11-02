@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Reports\ReportConfig;
 
-/** Единый каталог страниц, маршрутов, прав, видимости и меню. */
+/** каталог страниц, маршрутов, прав, видимости и меню. */
 final class PageRegistry
 {
     /** API, которые используются несколькими страницами. */
@@ -44,7 +44,23 @@ final class PageRegistry
                 ['key' => 'stations', 'url' => '/directories/stations', 'order' => 20],
             ],
         ],
-        'directories_edit' => ['label' => 'Редактирование справочников', 'routes' => ['/directories/norms/save', '/directories/norms/delete', '/directories/stations/save', '/directories/stations/delete', '/admin/directories/norms/save', '/admin/directories/norms/delete', '/admin/directories/stations/save', '/admin/directories/stations/delete'], 'visibility_group' => 'Сайт — основные разделы', 'implies' => ['directories']],
+        'directory-idle-control' => [
+            'label' => 'Контроль простоев',
+            'routes' => ['/directories/idle-control'],
+            'visibility_group' => 'Справочники',
+            'legacy_permission' => 'directories',
+            'role_hidden' => true,
+            'directory_navigation' => [['key' => 'idle-control', 'url' => '/directories/idle-control', 'order' => 30]],
+        ],
+        'directory-idle-reasons' => [
+            'label' => 'Причины простоя',
+            'routes' => ['/directories/idle-reasons'],
+            'visibility_group' => 'Справочники',
+            'legacy_permission' => 'directories',
+            'role_hidden' => true,
+            'directory_navigation' => [['key' => 'idle-reasons', 'url' => '/directories/idle-reasons', 'order' => 25]],
+        ],
+        'directories_edit' => ['label' => 'Редактирование справочников', 'routes' => ['/directories/norms/save', '/directories/norms/delete', '/directories/stations/save', '/directories/stations/delete', '/directories/idle-control/save', '/directories/idle-control/delete', '/directories/idle-reasons/save', '/directories/idle-reasons/delete', '/admin/directories/norms/save', '/admin/directories/norms/delete', '/admin/directories/stations/save', '/admin/directories/stations/delete'], 'visibility_group' => 'Сайт — основные разделы', 'implies' => ['directories']],
         'profile' => ['label' => 'Мой профиль', 'routes' => ['/profile'], 'visibility_group' => 'Пользователь', 'user_menu' => ['order' => 10, 'url' => '/profile', 'label' => 'Мой профиль']],
         'user-report-mailings' => ['label' => 'Мои рассылки', 'routes' => ['/profile/report-mailings'], 'visibility_group' => 'Пользователь', 'legacy_permission' => 'report-mailings', 'legacy_visibility' => ['report-mailings'], 'user_menu' => ['order' => 20, 'url' => '/profile/report-mailings', 'label' => 'Мои рассылки']],
         'admin' => ['label' => 'Администрирование', 'routes' => ['/admin'], 'user_menu' => ['order' => 30, 'url' => '/admin', 'label' => 'Администрирование'], 'visibility_group' => 'Администрирование', 'admin_only' => true, 'derived' => true],

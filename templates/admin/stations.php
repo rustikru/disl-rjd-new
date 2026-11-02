@@ -40,7 +40,7 @@ include __DIR__ . '/../partials/header.php';
   <main class="main-content">
     <div class="ui-page-head">
       <div class="ui-page-title">Станции и координаты<small>Справочник для карты</small></div>
-      <?php if ($canEdit): ?><a class="btn btn-primary" href="<?= htmlspecialchars($basePath) ?>/directories/stations/new">+ Станция</a><?php endif; ?>
+      <?php if ($canEdit): ?><a class="btn btn-primary" href="<?= htmlspecialchars($basePath) ?>/directories/stations/new">+ Новая запись</a><?php endif; ?>
     </div>
     <?php uiNotices($flashOk ?? null, $flashErr ?? null); ?>
     <section class="ui-panel">

@@ -41,8 +41,9 @@ class ExcelExport
                 $val = is_array($row) ? ($row[$key] ?? '') : ($row->$key ?? '');
                 $colLetter = Coordinate::stringFromColumnIndex($colIdx);
 
-                // Защита числовых идентификаторов и единый формат дат.
-                if (is_numeric($val) && strlen((string) $val) < 10 && empty($c['formatData'])) {
+                // Номера вагонов и другие идентификаторы должны оставаться текстом.
+                $isTextIdentifier = in_array($key, ['wagon_no', 'car_number', 'prev_wagon_no', 'wagon_no2'], true);
+                if (is_numeric($val) && !$isTextIdentifier && strlen((string) $val) < 10 && empty($c['formatData'])) {
                     $sheet->setCellValue($colLetter . $rowIdx, (float) $val);
                 } else {
                     ExcelStyle::setCellValue($sheet, $colLetter . $rowIdx, $val, $c);
