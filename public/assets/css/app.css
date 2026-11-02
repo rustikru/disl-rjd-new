@@ -484,9 +484,9 @@ a.nav-item {
 }
 
 .kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
-  justify-content: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 10px;
   margin-bottom: 14px;
 }
@@ -496,7 +496,11 @@ a.nav-item {
   border: 1px solid var(--border);
   border-radius: 9px;
   padding: 9px 12px;
+  width: fit-content;
+  max-width: min(320px, 100%);
   min-width: 0;
+  flex: 0 0 auto;
+  align-self: flex-start;
   gap: 4px;
   display: flex;
   flex-direction: column;

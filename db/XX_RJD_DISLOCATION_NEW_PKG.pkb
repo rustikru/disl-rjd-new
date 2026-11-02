@@ -212,6 +212,8 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
             return 'UPPER(dest_station) LIKE UPPER(''%Забайкальск%'')';
          elsif l_kpi.code = 'luzskaya' then
             return 'UPPER(dest_station) LIKE UPPER(''%Лужская%'')';
+         elsif l_kpi.code = 'abandoned_trains' then
+            return 'type_reference = ''Отправление'' AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
          end if;
         -- KPI для страницы "Дислокация/Дашборд"
       elsif l_kpi.type = 'dashboard_kpi' then
@@ -237,6 +239,10 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
          elsif l_kpi.code = 'delivery_time' then
             return 'oper_dt > norm_delivery_dt AND UPPER(oper_station) NOT LIKE UPPER(''%Угле%'') AND type_reference = ''Подход'''
             ;
+         elsif l_kpi.code = 'abandoned_wagons' then
+            return 'type_reference = ''Подход'' AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
+         elsif l_kpi.code = 'formed_trains' then
+            return 'type_reference = ''Подход'' AND REGEXP_REPLACE(TRIM(train_index), ''[^0-9]'', '''') LIKE ''%768207'' AND UPPER(NVL(oper_station, '' '')) NOT LIKE ''%УГЛЕУРАЛ%''';
          end if;
       end if;
 
@@ -270,17 +276,25 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
       l_kpi_where varchar2(2000);
       l_sql       varchar2(4000);
       l_value     number;
+      l_kpi_code  xx_rjd_kpi_tbl_v.code%type;
+      l_count_expr varchar2(300) := 'COUNT(*)';
    begin
+      select code into l_kpi_code from xx_rjd_kpi_tbl_v where id = p_kpi_id;
       l_kpi_where := get_kpi_where(p_kpi_id);
 
         -- Неизвестный KPI
       if l_kpi_where = '1=0' then
          return '';
       end if;
+      if l_kpi_code = 'formed_trains' then
+         l_count_expr := 'COUNT(DISTINCT TRIM(train_index))';
+      elsif l_kpi_code = 'abandoned_trains' then
+         l_count_expr := 'COUNT(DISTINCT NVL(TRIM(train_index), NVL(TRIM(train_no), TRIM(TO_CHAR(wagon_no)))) || '':'' || TRIM(oper_station))';
+      end if;
       l_kpi_where := l_kpi_where || ' AND NOT EXISTS (SELECT 1 FROM xx_disl_idle_control_v dic WHERE TRIM(dic.car_number) = TRIM(TO_CHAR(wagon_no)) AND UPPER(TRIM(dic.is_excluded)) = ''Y'' AND UPPER(REPLACE(TRIM(dic.idle_reasons_name), ''Ё'', ''Е'')) IN (''ЛОМ'', ''МЕТАЛЛОЛОМ'', ''СНЯТЬ с АВТОСЛЕЖЕНИЯ''))';
       if p_date is null then
             -- Текущие данные (последний report_dt по каждому type_reference)
-         l_sql := 'SELECT COUNT(*) FROM xx_dislocation_rjd'
+         l_sql := 'SELECT ' || l_count_expr || ' FROM xx_dislocation_rjd'
                   || ' WHERE organization_id = TO_NUMBER(SYS_CONTEXT(''USERENV'', ''CLIENT_IDENTIFIER''))'
                   || ' AND (report_dt, type_reference) IN ('
                   || '   SELECT MAX(report_dt), type_reference'
@@ -289,13 +303,13 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
                   || '   GROUP BY type_reference'
                   || ' ) AND '
                   || l_kpi_where;
-         dbms_output.put_line(' 1_l_sql =' || l_sql);
+         --dbms_output.put_line(' 1_l_sql =' || l_sql);
          execute immediate l_sql
            into l_value;
       else
             
             -- Последняя максимальная справка за вчера
-         l_sql := 'SELECT COUNT(*) FROM xx_dislocation_rjd'
+         l_sql := 'SELECT ' || l_count_expr || ' FROM xx_dislocation_rjd'
                   || ' WHERE organization_id = TO_NUMBER(SYS_CONTEXT(''USERENV'', ''CLIENT_IDENTIFIER''))'
                   || ' AND (report_dt, type_reference) IN ('
                   || '   SELECT MAX(report_dt), type_reference'
@@ -306,7 +320,7 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
                   || '    GROUP BY type_reference'
                   || ' ) AND '
                   || l_kpi_where;
-         dbms_output.put_line(' 2_l_sql=' || l_sql);
+         --dbms_output.put_line(' 2_l_sql=' || l_sql);
          execute immediate l_sql
            into l_value
             using p_date,p_date;
@@ -1184,7 +1198,6 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
    
    procedure mail_start is
    begin
-      -- Раскомментировать после установки APPS.XX_MTF_SEND_MAIL_PKG и выдачи прав:
       -- apps.xx_mtf_send_mail_pkg.attachments := apps.xx_mtf_send_mail_pkg.attach_list();
       null;
    end mail_start;
@@ -1195,12 +1208,12 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
       p_mime_type in varchar2
    ) is
    begin
-      -- Раскомментировать после установки APPS.XX_MTF_SEND_MAIL_PKG и выдачи прав:
-      -- apps.xx_mtf_send_mail_pkg.add_attachment(
-      --    p_blob        => p_file,
-      --    p_filename    => p_file_name,
-      --    p_attach_mime => p_mime_type
-      -- );
+    
+ /*      apps.xx_mtf_send_mail_pkg.add_attachment(
+         p_blob        => p_file,
+         p_filename    => p_file_name,
+         p_attach_mime => p_mime_type
+      ); */
       null;
    end mail_add_file;
 
@@ -1211,13 +1224,12 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
       p_text      in clob
    ) is
    begin
-      -- Раскомментировать после установки APPS.XX_MTF_SEND_MAIL_PKG и выдачи прав:
-      -- apps.xx_mtf_send_mail_pkg.send_mail(
-      --    p_sender    => p_sender,
-      --    p_recipient => p_recipient,
-      --    p_subject   => p_subject,
-      --    p_text_clob => p_text
-      -- );
+/*    apps.xx_mtf_send_mail_pkg.send_mail(
+          p_sender    => p_sender,
+          p_recipient => p_recipient,
+          p_subject   => p_subject,
+          p_text_clob => p_text
+       ); */
       raise_application_error(-20020, 'Отправка почты через Oracle пока не подключена');
    end mail_send;
 end xx_rjd_dislocation_new_pkg;
