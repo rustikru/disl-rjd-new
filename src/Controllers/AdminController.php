@@ -256,7 +256,7 @@ class AdminController
         $rolesByUser = [];
         foreach ($userRolesRaw as $ur) {
             $rolesByUser[(int) $ur['user_id']][] = [
-                'id'   => $ur['id'],
+                'id' => $ur['id'],
                 'code' => $ur['code'],
                 'name' => $ur['name'],
             ];
@@ -282,17 +282,17 @@ class AdminController
         foreach ($rawUsers as $u) {
             $u['roles'] = $rolesByUser[(int) $u['id']] ?? [];
             $u['organization_ids'] = $organizationsByUser[(int) $u['id']] ?? [];
-            $users[]    = $u;
+            $users[] = $u;
         }
 
-        $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
-        $user     = $_SESSION['user'] ?? [];
+        $user = $_SESSION['user'] ?? [];
 
-        $query    = $request->getQueryParams();
-        $flashOk  = $query['ok']  ?? null;
+        $query = $request->getQueryParams();
+        $flashOk = $query['ok'] ?? null;
         $flashErr = $query['err'] ?? null;
-        $csrf     = $_SESSION['csrf_token'] ?? '';
+        $csrf = $_SESSION['csrf_token'] ?? '';
 
         ob_start();
         include __DIR__ . '/../../templates/admin/users.php';
@@ -674,14 +674,14 @@ class AdminController
 
         $pages = \App\Services\PageRegistry::labels();
 
-        $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
-        $user     = $_SESSION['user'] ?? [];
+        $user = $_SESSION['user'] ?? [];
 
-        $query    = $request->getQueryParams();
-        $flashOk  = $query['ok']  ?? null;
+        $query = $request->getQueryParams();
+        $flashOk = $query['ok'] ?? null;
         $flashErr = $query['err'] ?? null;
-        $csrf     = $_SESSION['csrf_token'] ?? '';
+        $csrf = $_SESSION['csrf_token'] ?? '';
 
         ob_start();
         include __DIR__ . '/../../templates/admin/roles.php';
@@ -800,8 +800,17 @@ class AdminController
             $norms = [];
             $flashErr = $error->getMessage();
         }
-        $form = ['id' => '', 'station_code' => '', 'station_name' => '', 'rule_type' => 'SHIPPER', 'rule_value' => '', 'free_days' => 0,
-                 'daily_rate' => 0, 'valid_from' => date('Y-m-d'), 'valid_to' => ''];
+        $form = [
+            'id' => '',
+            'station_code' => '',
+            'station_name' => '',
+            'rule_type' => 'SHIPPER',
+            'rule_value' => '',
+            'free_days' => 0,
+            'daily_rate' => 0,
+            'valid_from' => date('Y-m-d'),
+            'valid_to' => ''
+        ];
         if ($request->getAttribute('norm_error') !== null) {
             $form = array_intersect_key((array) $request->getParsedBody(), $form) + $form;
         } elseif ($canEdit && !empty($query['edit'])) {
@@ -845,7 +854,8 @@ class AdminController
         }
         try {
             (new \App\Services\ClaimNorms($this->db, $organizationId))->save(
-                $body, (int) ($_SESSION['user']['id'] ?? 0)
+                $body,
+                (int) ($_SESSION['user']['id'] ?? 0)
             );
             (new AuditLog($this->db))->write(
                 'NORM_SAVE',
@@ -895,7 +905,8 @@ class AdminController
         $params = $request->getQueryParams();
         try {
             $values = (new \App\Services\ClaimNorms($this->db, $organizationId))->values(
-                (string) ($params['type'] ?? ''), mb_substr((string) ($params['q'] ?? ''), 0, 100)
+                (string) ($params['type'] ?? ''),
+                mb_substr((string) ($params['q'] ?? ''), 0, 100)
             );
         } catch (\InvalidArgumentException $error) {
             return $this->json($response, ['error' => $error->getMessage()], 400);
@@ -950,12 +961,12 @@ class AdminController
             ]
         );
 
-        $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
-        $user     = $_SESSION['user'] ?? [];
-        $flashOk  = $query['ok']  ?? null;
+        $user = $_SESSION['user'] ?? [];
+        $flashOk = $query['ok'] ?? null;
         $flashErr = $query['err'] ?? null;
-        $csrf     = $_SESSION['csrf_token'] ?? '';
+        $csrf = $_SESSION['csrf_token'] ?? '';
 
         ob_start();
         include __DIR__ . '/../../templates/admin/stations.php';
@@ -1046,12 +1057,12 @@ class AdminController
             $params
         );
 
-        $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
-        $user     = $_SESSION['user'] ?? [];
-        $flashOk  = $query['ok']  ?? null;
+        $user = $_SESSION['user'] ?? [];
+        $flashOk = $query['ok'] ?? null;
         $flashErr = $query['err'] ?? null;
-        $csrf     = $_SESSION['csrf_token'] ?? '';
+        $csrf = $_SESSION['csrf_token'] ?? '';
 
         ob_start();
         include __DIR__ . '/../../templates/admin/organizations.php';
@@ -1130,7 +1141,7 @@ class AdminController
             return $this->redirect($response, '/admin/users?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
-        $userId  = (int) ($body['user_id'] ?? 0);
+        $userId = (int) ($body['user_id'] ?? 0);
         $roleIds = array_map('intval', (array) ($body['role_ids'] ?? []));
         $roleIds = array_filter($roleIds, static fn(int $id) => $id > 0);
 
@@ -1293,10 +1304,10 @@ class AdminController
             return $this->redirect($response, '/admin/users?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
-        $username    = trim((string) ($body['username'] ?? ''));
+        $username = trim((string) ($body['username'] ?? ''));
         $displayName = trim((string) ($body['display_name'] ?? ''));
-        $email       = trim((string) ($body['email'] ?? ''));
-        $password    = (string) ($body['password'] ?? '');
+        $email = trim((string) ($body['email'] ?? ''));
+        $password = (string) ($body['password'] ?? '');
         $organizationId = (int) ($body['organization_id'] ?? 0);
         $isActive = (int) ($body['is_active'] ?? 0) === 1 ? 1 : 0;
         $accessGroupId = (int) ($body['access_group_id'] ?? 0);
@@ -1329,11 +1340,11 @@ class AdminController
                 'INSERT INTO xx_rjd_users (username, display_name, email, password_hash, is_active, organization_id)
                  VALUES (:username, :display_name, :email, :hash, :is_active, :organization_id)',
                 [
-                    'username'     => $username,
+                    'username' => $username,
                     'display_name' => $displayName,
-                    'email'        => $email !== '' ? $email : null,
-                    'hash'         => $hash,
-                    'is_active'    => $isActive,
+                    'email' => $email !== '' ? $email : null,
+                    'hash' => $hash,
+                    'is_active' => $isActive,
                     'organization_id' => $organizationId,
                 ]
             );
@@ -1391,12 +1402,12 @@ class AdminController
             return $this->redirect($response, '/admin/users?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
-        $userId      = (int) ($body['user_id'] ?? 0);
-        $username    = trim((string) ($body['username'] ?? ''));
+        $userId = (int) ($body['user_id'] ?? 0);
+        $username = trim((string) ($body['username'] ?? ''));
         $displayName = trim((string) ($body['display_name'] ?? ''));
-        $email       = trim((string) ($body['email'] ?? ''));
-        $password    = (string) ($body['password'] ?? '');
-        $isActive    = (int) ($body['is_active'] ?? 0) === 1 ? 1 : 0;
+        $email = trim((string) ($body['email'] ?? ''));
+        $password = (string) ($body['password'] ?? '');
+        $isActive = (int) ($body['is_active'] ?? 0) === 1 ? 1 : 0;
         $organizationId = (int) ($body['organization_id'] ?? 0);
         $accessGroupId = (int) ($body['access_group_id'] ?? 0);
         $roleIds = $accessGroupId > 0 ? $this->accessGroupRoleIds($accessGroupId) : $this->allowedRoleIds((array) ($body['role_ids'] ?? []));
@@ -1436,12 +1447,12 @@ class AdminController
         }
 
         $bindings = [
-            'username'     => $username,
+            'username' => $username,
             'display_name' => $displayName,
-            'email'        => $email !== '' ? $email : null,
-            'is_active'    => $isActive,
+            'email' => $email !== '' ? $email : null,
+            'is_active' => $isActive,
             'organization_id' => $organizationId,
-            'id'           => $userId,
+            'id' => $userId,
         ];
         $keepSuperRole = $this->userHasSuperRole($userId);
         $this->db->beginTransaction();
@@ -1532,7 +1543,7 @@ class AdminController
             return $this->redirect($response, '/admin/users?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
-        $userId   = (int) ($body['user_id'] ?? 0);
+        $userId = (int) ($body['user_id'] ?? 0);
         $password = (string) ($body['password'] ?? '');
 
         if ($userId <= 0 || $password === '') {
@@ -1750,36 +1761,55 @@ class AdminController
     public function idleControlPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $access = new \App\Services\DirectoryAccess($this->db);
-        if (!$access->canView()) return $this->forbidden($response);
+        if (!$access->canView())
+            return $this->forbidden($response);
         $query = $request->getQueryParams();
         $rows = $this->db->fetchAll("SELECT id_control, car_number, TO_CHAR(start_date,'YYYY-MM-DD') start_date, TO_CHAR(end_date,'YYYY-MM-DD') end_date, idle_reasons_id, idle_reasons_name, note, is_excluded, created_name FROM xx_disl_idle_control_v ORDER BY id_control DESC");
         $search = mb_strtolower(trim((string) ($query['q'] ?? '')));
-        if ($search !== '') $rows = array_values(array_filter($rows, static fn(array $row): bool => str_contains(mb_strtolower(implode(' ', $row)), $search)));
-        $perPage = 25; $totalRows = count($rows); $totalPages = max(1, (int) ceil($totalRows / $perPage));
+        if ($search !== '')
+            $rows = array_values(array_filter($rows, static fn(array $row): bool => str_contains(mb_strtolower(implode(' ', $row)), $search)));
+        $perPage = 25;
+        $totalRows = count($rows);
+        $totalPages = max(1, (int) ceil($totalRows / $perPage));
         $page = min(max(1, (int) ($query['page'] ?? 1)), $totalPages);
         $rows = array_slice($rows, ($page - 1) * $perPage, $perPage);
-        $canEdit = $access->canEdit(); $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
-        $basePath = $this->config['base_path'] ?? ''; $user = $_SESSION['user'] ?? [];
-        $flashOk = $query['ok'] ?? null; $flashErr = $query['err'] ?? null; $csrf = $_SESSION['csrf_token'] ?? '';
-        ob_start(); include __DIR__ . '/../../templates/admin/idle-control.php';
+        $canEdit = $access->canEdit();
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user = $_SESSION['user'] ?? [];
+        $flashOk = $query['ok'] ?? null;
+        $flashErr = $query['err'] ?? null;
+        $csrf = $_SESSION['csrf_token'] ?? '';
+        ob_start();
+        include __DIR__ . '/../../templates/admin/idle-control.php';
         $response->getBody()->write((string) ob_get_clean());
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 
     public function saveIdleControl(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit()) return $this->forbidden($response);
+        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+            return $this->forbidden($response);
         $body = (array) $request->getParsedBody();
-        if (!$this->checkCsrf($body)) return $this->redirect($response, '/directories/idle-control?err=' . urlencode('Ошибка запроса'));
-        $car = trim((string) ($body['car_number'] ?? '')); $start = (string) ($body['start_date'] ?? '');
-        $reason = (int) ($body['idle_reasons_id'] ?? 0); $id = (int) ($body['id_control'] ?? 0);
+        if (!$this->checkCsrf($body))
+            return $this->redirect($response, '/directories/idle-control?err=' . urlencode('Ошибка запроса'));
+        $car = trim((string) ($body['car_number'] ?? ''));
+        $start = (string) ($body['start_date'] ?? '');
+        $reason = (int) ($body['idle_reasons_id'] ?? 0);
+        $id = (int) ($body['id_control'] ?? 0);
         $formPath = $id > 0 ? '/directories/idle-control/' . $id . '/edit' : '/directories/idle-control/new';
-        if ($car === '' || $start === '' || $reason <= 0) return $this->redirect($response, $formPath . '?err=' . urlencode('Заполните обязательные поля'));
+        if ($car === '' || $start === '' || $reason <= 0)
+            return $this->redirect($response, $formPath . '?err=' . urlencode('Заполните обязательные поля'));
         try {
             $this->db->execute("BEGIN xx_rjd_dislocation_new_pkg.save_idle_control(:id,:uid,:car,TO_DATE(:dt1,'YYYY-MM-DD'),TO_DATE(:dt2,'YYYY-MM-DD'),:note,:excluded,:reason); END;", [
-                'id' => $id ?: null, 'uid' => (int) ($_SESSION['user']['id'] ?? 0), 'car' => $car, 'dt1' => $start,
-                'dt2' => trim((string) ($body['end_date'] ?? '')) ?: null, 'note' => trim((string) ($body['note'] ?? '')) ?: null,
-                'excluded' => ($body['is_excluded'] ?? 'N') === 'Y' ? 'Y' : 'N', 'reason' => $reason,
+                'id' => $id ?: null,
+                'uid' => (int) ($_SESSION['user']['id'] ?? 0),
+                'car' => $car,
+                'dt1' => $start,
+                'dt2' => trim((string) ($body['end_date'] ?? '')) ?: null,
+                'note' => trim((string) ($body['note'] ?? '')) ?: null,
+                'excluded' => ($body['is_excluded'] ?? 'N') === 'Y' ? 'Y' : 'N',
+                'reason' => $reason,
             ]);
         } catch (\Throwable $error) {
             $code = ErrorLogger::logThrowable($error, ['operation' => 'save_idle_control', 'id_control' => $id], $request);
@@ -1791,34 +1821,51 @@ class AdminController
     public function idleControlCreatePage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         return $this->idleControlFormPage($request, $response, [
-            'id_control' => 0, 'car_number' => '', 'start_date' => (new \DateTimeImmutable('today', new \DateTimeZone('Europe/Moscow')))->format('Y-m-d'),
-            'end_date' => '', 'idle_reasons_id' => 0, 'is_excluded' => 'N', 'note' => '',
+            'id_control' => 0,
+            'car_number' => '',
+            'start_date' => (new \DateTimeImmutable('today', new \DateTimeZone('Europe/Moscow')))->format('Y-m-d'),
+            'end_date' => '',
+            'idle_reasons_id' => 0,
+            'is_excluded' => 'N',
+            'note' => '',
         ], true);
     }
 
     public function idleControlEditPage(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit()) return $this->forbidden($response);
-        $row = $this->db->fetchOne("SELECT id_control, car_number, TO_CHAR(start_date,'YYYY-MM-DD') start_date, TO_CHAR(end_date,'YYYY-MM-DD') end_date, idle_reasons_id, note, is_excluded FROM xx_disl_idle_control_v WHERE id_control=:id", ['id' => (int)($args['id'] ?? 0)]);
-        if (!$row) return $this->redirect($response, '/directories/idle-control?err=' . urlencode('Запись не найдена'));
+        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+            return $this->forbidden($response);
+        $row = $this->db->fetchOne("SELECT id_control, car_number, TO_CHAR(start_date,'YYYY-MM-DD') start_date, TO_CHAR(end_date,'YYYY-MM-DD') end_date, idle_reasons_id, note, is_excluded FROM xx_disl_idle_control_v WHERE id_control=:id", ['id' => (int) ($args['id'] ?? 0)]);
+        if (!$row)
+            return $this->redirect($response, '/directories/idle-control?err=' . urlencode('Запись не найдена'));
         return $this->idleControlFormPage($request, $response, $row, false);
     }
 
     private function idleControlFormPage(ServerRequestInterface $request, ResponseInterface $response, array $edited, bool $isNew): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit()) return $this->forbidden($response);
+        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+            return $this->forbidden($response);
         $reasons = $this->db->fetchAll('SELECT id,name FROM xx_disl_idle_reasons ORDER BY name');
-        $appName=$this->config['app_name']??'Дислокация РЖД';$basePath=$this->config['base_path']??'';$user=$_SESSION['user']??[];$csrf=$_SESSION['csrf_token']??'';
-        $query=$request->getQueryParams();$flashOk=$query['ok']??null;$flashErr=$query['err']??null;
-        ob_start();include __DIR__.'/../../templates/admin/idle-control-edit.php';$response->getBody()->write((string)ob_get_clean());
-        return $response->withHeader('Content-Type','text/html; charset=utf-8');
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user = $_SESSION['user'] ?? [];
+        $csrf = $_SESSION['csrf_token'] ?? '';
+        $query = $request->getQueryParams();
+        $flashOk = $query['ok'] ?? null;
+        $flashErr = $query['err'] ?? null;
+        ob_start();
+        include __DIR__ . '/../../templates/admin/idle-control-edit.php';
+        $response->getBody()->write((string) ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 
     public function deleteIdleControl(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit()) return $this->forbidden($response);
+        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+            return $this->forbidden($response);
         $body = (array) $request->getParsedBody();
-        if (!$this->checkCsrf($body)) return $this->redirect($response, '/directories/idle-control?err=' . urlencode('Ошибка запроса'));
+        if (!$this->checkCsrf($body))
+            return $this->redirect($response, '/directories/idle-control?err=' . urlencode('Ошибка запроса'));
         try {
             $this->db->execute('BEGIN xx_rjd_dislocation_new_pkg.delete_idle_control(:id,:uid); END;', ['id' => (int) ($body['id_control'] ?? 0), 'uid' => (int) ($_SESSION['user']['id'] ?? 0)]);
         } catch (\Throwable $error) {
@@ -1831,56 +1878,98 @@ class AdminController
     public function idleReasonsPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $access = new \App\Services\DirectoryAccess($this->db);
-        if (!$access->canView()) return $this->forbidden($response);
-        $query=$request->getQueryParams(); $rows=$this->db->fetchAll('SELECT id,name,descr FROM xx_disl_idle_reasons ORDER BY name');
-        $search=mb_strtolower(trim((string)($query['q']??''))); if($search!=='')$rows=array_values(array_filter($rows,static fn(array $row):bool=>str_contains(mb_strtolower(implode(' ',$row)),$search)));
-        $perPage=25;$totalRows=count($rows);$totalPages=max(1,(int)ceil($totalRows/$perPage));$page=min(max(1,(int)($query['page']??1)),$totalPages);$rows=array_slice($rows,($page-1)*$perPage,$perPage);
-        $canEdit=$access->canEdit(); $appName=$this->config['app_name']??'Дислокация РЖД'; $basePath=$this->config['base_path']??'';
-        $user=$_SESSION['user']??[]; $csrf=$_SESSION['csrf_token']??''; $flashOk=$query['ok']??null; $flashErr=$query['err']??null;
-        ob_start(); include __DIR__.'/../../templates/admin/idle-reasons.php'; $response->getBody()->write((string)ob_get_clean());
-        return $response->withHeader('Content-Type','text/html; charset=utf-8');
+        if (!$access->canView())
+            return $this->forbidden($response);
+        $query = $request->getQueryParams();
+        $rows = $this->db->fetchAll('SELECT id,name,descr FROM xx_disl_idle_reasons ORDER BY name');
+        $search = mb_strtolower(trim((string) ($query['q'] ?? '')));
+        if ($search !== '')
+            $rows = array_values(array_filter($rows, static fn(array $row): bool => str_contains(mb_strtolower(implode(' ', $row)), $search)));
+        $perPage = 25;
+        $totalRows = count($rows);
+        $totalPages = max(1, (int) ceil($totalRows / $perPage));
+        $page = min(max(1, (int) ($query['page'] ?? 1)), $totalPages);
+        $rows = array_slice($rows, ($page - 1) * $perPage, $perPage);
+        $canEdit = $access->canEdit();
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user = $_SESSION['user'] ?? [];
+        $csrf = $_SESSION['csrf_token'] ?? '';
+        $flashOk = $query['ok'] ?? null;
+        $flashErr = $query['err'] ?? null;
+        ob_start();
+        include __DIR__ . '/../../templates/admin/idle-reasons.php';
+        $response->getBody()->write((string) ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 
     public function saveIdleReason(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if(!(new \App\Services\DirectoryAccess($this->db))->canEdit()) return $this->forbidden($response);
-        $body=(array)$request->getParsedBody(); if(!$this->checkCsrf($body)) return $this->redirect($response,'/directories/idle-reasons?err='.urlencode('Ошибка запроса'));
-        $id=(int)($body['id']??0);$name=trim((string)($body['name']??''));$formPath=$id>0?'/directories/idle-reasons/'.$id.'/edit':'/directories/idle-reasons/new';
-        if($name==='')return $this->redirect($response,$formPath.'?err='.urlencode('Укажите название причины'));
-        try{$this->db->execute('BEGIN xx_rjd_dislocation_new_pkg.save_idle_reason(:id,:name,:descr); END;',['id'=>$id?:null,'name'=>$name,'descr'=>trim((string)($body['descr']??''))?:null]);}
-        catch(\Throwable $error){$code=ErrorLogger::logThrowable($error,['operation'=>'save_idle_reason'], $request);return $this->redirect($response,$formPath.'?err='.urlencode($this->cleanDbMessage($error).'. Код ошибки: '.$code));}
-        return $this->redirect($response,'/directories/idle-reasons?ok='.urlencode('Причина сохранена'));
+        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+            return $this->forbidden($response);
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body))
+            return $this->redirect($response, '/directories/idle-reasons?err=' . urlencode('Ошибка запроса'));
+        $id = (int) ($body['id'] ?? 0);
+        $name = trim((string) ($body['name'] ?? ''));
+        $formPath = $id > 0 ? '/directories/idle-reasons/' . $id . '/edit' : '/directories/idle-reasons/new';
+        if ($name === '')
+            return $this->redirect($response, $formPath . '?err=' . urlencode('Укажите название причины'));
+        try {
+            $this->db->execute('BEGIN xx_rjd_dislocation_new_pkg.save_idle_reason(:id,:name,:descr); END;', ['id' => $id ?: null, 'name' => $name, 'descr' => trim((string) ($body['descr'] ?? '')) ?: null]);
+        } catch (\Throwable $error) {
+            $code = ErrorLogger::logThrowable($error, ['operation' => 'save_idle_reason'], $request);
+            return $this->redirect($response, $formPath . '?err=' . urlencode($this->cleanDbMessage($error) . '. Код ошибки: ' . $code));
+        }
+        return $this->redirect($response, '/directories/idle-reasons?ok=' . urlencode('Причина сохранена'));
     }
 
     public function idleReasonCreatePage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        return $this->idleReasonFormPage($request, $response, ['id'=>0,'name'=>'','descr'=>''], true);
+        return $this->idleReasonFormPage($request, $response, ['id' => 0, 'name' => '', 'descr' => ''], true);
     }
 
     public function idleReasonEditPage(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
-        if(!(new \App\Services\DirectoryAccess($this->db))->canEdit())return $this->forbidden($response);
-        $row=$this->db->fetchOne('SELECT id,name,descr FROM xx_disl_idle_reasons WHERE id=:id',['id'=>(int)($args['id']??0)]);
-        if(!$row)return $this->redirect($response,'/directories/idle-reasons?err='.urlencode('Причина не найдена'));
-        return $this->idleReasonFormPage($request,$response,$row,false);
+        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+            return $this->forbidden($response);
+        $row = $this->db->fetchOne('SELECT id,name,descr FROM xx_disl_idle_reasons WHERE id=:id', ['id' => (int) ($args['id'] ?? 0)]);
+        if (!$row)
+            return $this->redirect($response, '/directories/idle-reasons?err=' . urlencode('Причина не найдена'));
+        return $this->idleReasonFormPage($request, $response, $row, false);
     }
 
     private function idleReasonFormPage(ServerRequestInterface $request, ResponseInterface $response, array $edited, bool $isNew): ResponseInterface
     {
-        if(!(new \App\Services\DirectoryAccess($this->db))->canEdit())return $this->forbidden($response);
-        $appName=$this->config['app_name']??'Дислокация РЖД';$basePath=$this->config['base_path']??'';$user=$_SESSION['user']??[];$csrf=$_SESSION['csrf_token']??'';
-        $query=$request->getQueryParams();$flashOk=$query['ok']??null;$flashErr=$query['err']??null;
-        ob_start();include __DIR__.'/../../templates/admin/idle-reason-edit.php';$response->getBody()->write((string)ob_get_clean());
-        return $response->withHeader('Content-Type','text/html; charset=utf-8');
+        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+            return $this->forbidden($response);
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user = $_SESSION['user'] ?? [];
+        $csrf = $_SESSION['csrf_token'] ?? '';
+        $query = $request->getQueryParams();
+        $flashOk = $query['ok'] ?? null;
+        $flashErr = $query['err'] ?? null;
+        ob_start();
+        include __DIR__ . '/../../templates/admin/idle-reason-edit.php';
+        $response->getBody()->write((string) ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 
     public function deleteIdleReason(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if(!(new \App\Services\DirectoryAccess($this->db))->canEdit()) return $this->forbidden($response);
-        $body=(array)$request->getParsedBody(); if(!$this->checkCsrf($body)) return $this->redirect($response,'/directories/idle-reasons?err='.urlencode('Ошибка запроса'));
-        try{$this->db->execute('BEGIN xx_rjd_dislocation_new_pkg.delete_idle_reason(:id); END;',['id'=>(int)($body['id']??0)]);}
-        catch(\Throwable $error){$code=ErrorLogger::logThrowable($error,['operation'=>'delete_idle_reason'], $request);return $this->redirect($response,'/directories/idle-reasons?err='.urlencode($this->cleanDbMessage($error).'. Код ошибки: '.$code));}
-        return $this->redirect($response,'/directories/idle-reasons?ok='.urlencode('Причина удалена'));
+        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+            return $this->forbidden($response);
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body))
+            return $this->redirect($response, '/directories/idle-reasons?err=' . urlencode('Ошибка запроса'));
+        try {
+            $this->db->execute('BEGIN xx_rjd_dislocation_new_pkg.delete_idle_reason(:id); END;', ['id' => (int) ($body['id'] ?? 0)]);
+        } catch (\Throwable $error) {
+            $code = ErrorLogger::logThrowable($error, ['operation' => 'delete_idle_reason'], $request);
+            return $this->redirect($response, '/directories/idle-reasons?err=' . urlencode($this->cleanDbMessage($error) . '. Код ошибки: ' . $code));
+        }
+        return $this->redirect($response, '/directories/idle-reasons?ok=' . urlencode('Причина удалена'));
     }
 
     public function deleteStation(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
