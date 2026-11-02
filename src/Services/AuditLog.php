@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Database\DbInterface;
+use App\Logging\ErrorLogger;
 
 final class AuditLog
 {
@@ -44,6 +45,15 @@ final class AuditLog
             );
         } catch (\Throwable $error) {
             // Ошибка аудита не должна отменять выполненное действие пользователя.
+            ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'write',
+                'params' => [
+                    'action' => $action,
+                    'object_type' => $objectType,
+                    'object_id' => $objectId,
+                ],
+            ]);
         }
     }
 

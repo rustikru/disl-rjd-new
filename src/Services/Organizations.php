@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Database\DbInterface;
+use App\Logging\ErrorLogger;
 
 final class Organizations
 {
@@ -186,6 +187,11 @@ final class Organizations
             }
         } catch (\Throwable $error) {
             // Дополнительные организации могли быть ещё не перенесены в старой схеме.
+            ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'organizations',
+                'params' => ['user_id' => $userId],
+            ]);
         }
 
         return array_values($result);

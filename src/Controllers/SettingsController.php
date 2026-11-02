@@ -2,13 +2,17 @@
 declare(strict_types=1);
 namespace App\Controllers;
 
+use App\Logging\ErrorLogger;
+use App\Database\DbInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use App\Services\PageRegistry;
+use App\Services\PageVisibility;
+use App\Services\AuditLog;
 
 final class SettingsController
 {
-    public function __construct(private array $config) {}
+    public function __construct(private array $config, private DbInterface $db) {}
 
     public function page(ServerRequestInterface $request, ResponseInterface $response, bool $visibility = false): ResponseInterface
     {
@@ -16,6 +20,9 @@ final class SettingsController
             return $response->withStatus(403);
         }
         [$file, $definitions, $values] = $this->load();
+        if ($visibility) {
+            $values['disabled_pages'] = (new PageVisibility($this->db))->disabledPages();
+        }
         $error = null;
         $success = null;
         if ($request->getMethod() === 'POST') {
@@ -29,14 +36,31 @@ final class SettingsController
                     $custom = preg_split('/\R/', (string) ($body['custom'] ?? ''), -1, PREG_SPLIT_NO_EMPTY);
                     $custom = array_diff($custom, PageRegistry::legacyVisibilityAliases());
                     $updated['disabled_pages'] = array_values(array_unique(array_filter(array_map('trim', array_merge(array_keys(array_intersect_key(PageRegistry::labels(), array_flip($disabled))), $custom)))));
+                    (new PageVisibility($this->db))->save(
+                        $updated['disabled_pages'],
+                        isset($_SESSION['user']['id']) ? (int) $_SESSION['user']['id'] : null
+                    );
+                    (new AuditLog($this->db))->write(
+                        'PAGE_VISIBILITY_UPDATE',
+                        'PAGE_VISIBILITY',
+                        null,
+                        'Изменена глобальная видимость страниц; отключено: ' . count($updated['disabled_pages'])
+                    );
                 } else {
                     $updated = \App\Services\ConfigSchema::normalizeForStorage((array)($body['settings'] ?? []), $values);
+                    $this->save($file, $updated);
                 }
-                $this->save($file, $updated);
                 $values = $updated;
                 $success = 'Настройки сохранены. Изменения применяются со следующего запроса.';
-            } catch (\Throwable $e) {
-                $error = $e->getMessage();
+            } catch (\InvalidArgumentException $exception) {
+                $error = $exception->getMessage();
+            } catch (\Throwable $exception) {
+                $errorId = ErrorLogger::logThrowable($exception, [
+                    'module' => self::class,
+                    'function' => 'page',
+                    'params' => ['visibility' => $visibility],
+                ], $request);
+                $error = 'Не удалось сохранить настройки. Код ошибки: ' . $errorId;
             }
         }
         $basePath = $this->config['base_path'] ?? '';
@@ -72,8 +96,14 @@ final class SettingsController
                 $this->save($file, $updated);
                 $values = $updated;
                 $success = 'Настройки технических работ сохранены.';
-            } catch (\Throwable $e) {
-                $error = $e->getMessage();
+            } catch (\InvalidArgumentException $exception) {
+                $error = $exception->getMessage();
+            } catch (\Throwable $exception) {
+                $errorId = ErrorLogger::logThrowable($exception, [
+                    'module' => self::class,
+                    'function' => 'maintenancePage',
+                ], $request);
+                $error = 'Не удалось сохранить настройки технических работ. Код ошибки: ' . $errorId;
             }
         }
         $basePath = $this->config['base_path'] ?? '';

@@ -31,11 +31,11 @@ class DashboardController
         $allowedPages = $this->resolveAllowedPages($user);
         $navConfig = require __DIR__ . '/../Navigation.php';
         $reportDefinitions = ReportConfig::forContext('page');
+        $disabledPages = (array) (\App\Services\ConfigSchema::current()['disabled_pages'] ?? []);
         $pageAvailability = new PageAvailability(
-            (array) ($this->config['disabled_pages'] ?? []),
+            $disabledPages,
             (string) ($this->config['base_path'] ?? '')
         );
-        $disabledPages = (array) ($this->config['disabled_pages'] ?? []);
         $dislocationStaleHours = (int) $this->config['dislocation_stale_hours'];
         if (!\App\Services\Authorization::isSuper($user)) {
             $navConfig = $pageAvailability->filterNavigation($navConfig);

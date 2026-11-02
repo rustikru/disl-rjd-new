@@ -12,7 +12,7 @@ final class ConfigSchema
             'app_env'=>self::d('enum','development','Приложение',['development','production']),
             'app_debug'=>self::d('bool',false,'Приложение'), 'app_name'=>self::d('string','Дислокация РЖД','Приложение'),
             'app_timezone'=>self::d('timezone','Asia/Yekaterinburg','Приложение'), 'base_path'=>self::d('string','','Приложение'),
-            'dislocation_stale_hours'=>self::d('int',8,'Приложение',null,1,720), 'disabled_pages'=>self::d('array',[],'Видимость'),
+            'dislocation_stale_hours'=>self::d('int',8,'Приложение',null,1,720),
             'maintenance_enabled'=>self::d('bool',false,'Технические работы',label:'Режим технических работ'),
             'maintenance_start'=>self::d('datetime','','Технические работы',label:'Начало',help:'Оставьте пустым, чтобы включить сразу.'),
             'maintenance_end'=>self::d('datetime','','Технические работы',label:'Окончание',help:'Оставьте пустым для бессрочного режима.'),
@@ -65,7 +65,6 @@ final class ConfigSchema
     {
         $candidate=array_replace(self::defaults(),$current);
         foreach(self::definitions() as $key=>$definition){
-            if($key==='disabled_pages') continue;
             if(!array_key_exists($key,$input)) continue;
             if($definition['type']==='secret' && (string)($input[$key]??'')==='') continue;
             $candidate[$key]=$input[$key];

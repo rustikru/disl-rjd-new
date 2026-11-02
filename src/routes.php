@@ -163,14 +163,14 @@ return function (App $app, array $config): void {
         $group->map(['GET', 'POST'], '/admin/sessions', function ($req, $res) use ($config, $getDb) {
             return (new \App\Controllers\SessionsController($config, $getDb()))->page($req, $res);
         });
-        $group->map(['GET', 'POST'], '/admin/settings', function ($req, $res) use ($config) {
-            return (new \App\Controllers\SettingsController($config))->page($req, $res);
+        $group->map(['GET', 'POST'], '/admin/settings', function ($req, $res) use ($config, $getDb) {
+            return (new \App\Controllers\SettingsController($config, $getDb()))->page($req, $res);
         });
-        $group->map(['GET', 'POST'], '/admin/page-visibility', function ($req, $res) use ($config) {
-            return (new \App\Controllers\SettingsController($config))->page($req, $res, true);
+        $group->map(['GET', 'POST'], '/admin/page-visibility', function ($req, $res) use ($config, $getDb) {
+            return (new \App\Controllers\SettingsController($config, $getDb()))->page($req, $res, true);
         });
-        $group->map(['GET', 'POST'], '/admin/maintenance', function ($req, $res) use ($config) {
-            return (new \App\Controllers\SettingsController($config))->maintenancePage($req, $res);
+        $group->map(['GET', 'POST'], '/admin/maintenance', function ($req, $res) use ($config, $getDb) {
+            return (new \App\Controllers\SettingsController($config, $getDb()))->maintenancePage($req, $res);
         });
         $group->get('/admin', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->index($req, $res);

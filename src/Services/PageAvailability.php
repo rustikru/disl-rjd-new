@@ -5,7 +5,7 @@ namespace App\Services;
 
 use Psr\Http\Message\ServerRequestInterface;
 
-/** Временно скрывает и блокирует разделы, перечисленные в конфигурации. */
+/** Скрывает и блокирует глобально отключённые разделы. */
 final class PageAvailability
 {
     private array $disabledPages;

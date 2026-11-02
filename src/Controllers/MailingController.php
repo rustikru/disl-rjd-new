@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Database\DbInterface;
+use App\Logging\ErrorLogger;
 use App\Reports\ReportConfig;
 use App\Services\Organizations;
 use App\Services\AuditLog;
@@ -77,7 +78,8 @@ final class MailingController
                 $editingMailing = $mailingFormDraft;
             }
         } catch (\Throwable $error) {
-            $flashErr = 'Хранилище рассылок ещё не подготовлено. Выполните db/20261026_report_mailings.sql';
+            $errorId = $this->logError($error, 'settingsPage', [], $request);
+            $flashErr = 'Не удалось загрузить рассылки. Код ошибки: ' . $errorId;
         }
         $showMailingSettings = $editingMailing !== null || (string) ($query['view'] ?? '') === 'settings';
 
@@ -117,9 +119,10 @@ final class MailingController
             );
             return $this->adminRedirect($response, 'ok', $runMessage);
         } catch (\Throwable $error) {
+            $errorId = $this->logError($error, 'adminRun', ['mailing_id' => (int) $mailing['id']], $request);
             $mailingService->recordRun((int) $mailing['id'], 'error', null, $error->getMessage());
             $mailingService->finishRun($runId, 'error', null, $error->getMessage());
-            return $this->adminRedirect($response, 'err', 'Ошибка запуска: ' . $this->shortError($error));
+            return $this->adminRedirect($response, 'err', 'Не удалось запустить рассылку. Код ошибки: ' . $errorId);
         }
     }
 
@@ -146,7 +149,11 @@ final class MailingController
                 $changed ? ($active ? 'Рассылка включена' : 'Рассылка отключена') : 'Рассылка не найдена'
             );
         } catch (\Throwable $error) {
-            return $this->adminRedirect($response, 'err', 'Не удалось изменить рассылку: ' . $this->shortError($error));
+            $errorId = $this->logError($error, 'adminSetActive', [
+                'mailing_id' => (int) ($form['id'] ?? 0),
+                'is_active' => $active,
+            ], $request);
+            return $this->adminRedirect($response, 'err', 'Не удалось изменить рассылку. Код ошибки: ' . $errorId);
         }
     }
     // Отобразить страницу управления рассылками
@@ -215,7 +222,8 @@ final class MailingController
         } catch (\InvalidArgumentException $error) {
             return $this->redirectToForm($response, $form, $error->getMessage());
         } catch (\Throwable $error) {
-            return $this->redirectToForm($response, $form, 'Не удалось сохранить рассылку: ' . $this->shortError($error));
+            $errorId = $this->logError($error, 'save', ['mailing_id' => (int) ($form['id'] ?? 0)], $request);
+            return $this->redirectToForm($response, $form, 'Не удалось сохранить рассылку. Код ошибки: ' . $errorId);
         }
     }
     // Включить или отключить рассылку
@@ -246,7 +254,11 @@ final class MailingController
                 $changed ? ($active ? 'Рассылка включена' : 'Рассылка отключена') : 'Рассылка не найдена'
             );
         } catch (\Throwable $error) {
-            return $this->redirect($response, 'err', 'Не удалось изменить рассылку: ' . $this->shortError($error));
+            $errorId = $this->logError($error, 'setActive', [
+                'mailing_id' => (int) ($form['id'] ?? 0),
+                'is_active' => $active,
+            ], $request);
+            return $this->redirect($response, 'err', 'Не удалось изменить рассылку. Код ошибки: ' . $errorId);
         }
     }
     // Удалить рассылку
@@ -266,7 +278,8 @@ final class MailingController
             }
             return $this->redirect($response, $deleted ? 'ok' : 'err', $deleted ? 'Рассылка удалена' : 'Рассылка не найдена');
         } catch (\Throwable $error) {
-            return $this->redirect($response, 'err', 'Не удалось удалить рассылку: ' . $this->shortError($error));
+            $errorId = $this->logError($error, 'delete', ['mailing_id' => (int) ($form['id'] ?? 0)], $request);
+            return $this->redirect($response, 'err', 'Не удалось удалить рассылку. Код ошибки: ' . $errorId);
         }
     }
     // Запустить рассылку
@@ -316,10 +329,24 @@ final class MailingController
             }
             return $this->redirect($response, 'ok', $successMessage);
         } catch (\Throwable $error) {
+            $errorId = $this->logError($error, 'run', ['mailing_id' => (int) $mailing['id']], $request);
             $mailingService->recordRun((int) $mailing['id'], 'error', null, $error->getMessage());
             $mailingService->finishRun($runId, 'error', null, $error->getMessage());
-            return $this->redirect($response, 'err', 'Ошибка запуска: ' . $this->shortError($error));
+            return $this->redirect($response, 'err', 'Не удалось запустить рассылку. Код ошибки: ' . $errorId);
         }
+    }
+
+    private function logError(
+        \Throwable $error,
+        string $function,
+        array $params,
+        ServerRequestInterface $request
+    ): string {
+        return ErrorLogger::logThrowable($error, [
+            'module' => self::class,
+            'function' => $function,
+            'params' => $params,
+        ], $request);
     }
 
     private function validCsrf(array $form): bool

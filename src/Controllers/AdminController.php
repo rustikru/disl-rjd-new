@@ -163,6 +163,10 @@ class AdminController
             $oracleDescription = 'Контрольный запрос выполнен';
             $oracleState = 'ok';
         } catch (\Throwable $error) {
+            ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'systemPage',
+            ], $request);
             $oracleStatus = 'Недоступна';
             $oracleDescription = 'Не удалось выполнить контрольный запрос';
             $oracleState = 'error';
@@ -266,6 +270,10 @@ class AdminController
                 'SELECT user_id, organization_id FROM xx_rjd_user_organizations'
             );
         } catch (\Throwable $error) {
+            ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'usersPage',
+            ], $request);
             $userOrganizations = [];
         }
         foreach ($userOrganizations as $row) {
@@ -347,6 +355,11 @@ class AdminController
                 ), 'organization_id')
             );
         } catch (\Throwable $error) {
+            ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'userEditPage',
+                'params' => ['user_id' => $userId],
+            ], $request);
             $editedUser['organization_ids'] = [];
         }
 
@@ -556,7 +569,20 @@ class AdminController
             $this->db->commit();
         } catch (\Throwable $error) {
             $this->db->rollback();
-            return $this->redirect($response, $formUrl . '?err=' . urlencode('Не удалось сохранить группу доступа'));
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'saveAccessGroup',
+                'params' => [
+                    'access_group_id' => $groupId,
+                    'name' => $name,
+                    'description' => $description,
+                    'role_ids' => $roleIds,
+                ],
+            ], $request);
+            return $this->redirect(
+                $response,
+                $formUrl . '?err=' . urlencode('Не удалось сохранить группу доступа. Код ошибки: ' . $errorId)
+            );
         }
 
         (new AuditLog($this->db))->write(
@@ -590,7 +616,15 @@ class AdminController
             $this->db->commit();
         } catch (\Throwable $error) {
             $this->db->rollback();
-            return $this->redirect($response, '/admin/access-groups?err=' . urlencode('Не удалось удалить группу доступа'));
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'deleteAccessGroup',
+                'params' => ['access_group_id' => $groupId],
+            ], $request);
+            return $this->redirect(
+                $response,
+                '/admin/access-groups?err=' . urlencode('Не удалось удалить группу доступа. Код ошибки: ' . $errorId)
+            );
         }
         (new AuditLog($this->db))->write('ACCESS_GROUP_DELETE', 'ACCESS_GROUP', $groupId, 'Удалена группа доступа «' . (string) $group['name'] . '»');
         return $this->redirect($response, '/admin/access-groups?ok=' . urlencode('Группа доступа удалена'));
@@ -1129,9 +1163,14 @@ class AdminController
             }
             $this->db->commit();
             (new AuditLog($this->db))->write('USER_ROLES_UPDATE', 'USER', $userId, 'Изменены роли пользователя');
-        } catch (\Throwable $e) {
+        } catch (\Throwable $error) {
             $this->db->rollback();
-            return $this->redirect($response, '/admin/users?err=' . urlencode('Не удалось обновить роли'));
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'saveUserRoles',
+                'params' => ['user_id' => $userId, 'role_ids' => $roleIds],
+            ], $request);
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Не удалось обновить роли. Код ошибки: ' . $errorId));
         }
 
         return $this->redirect($response, '/admin/users?ok=' . urlencode('Роли обновлены'));
@@ -1194,7 +1233,16 @@ class AdminController
             (new AuditLog($this->db))->write('USER_ORGANIZATIONS_UPDATE', 'USER', $userId, 'Изменены организации пользователя');
         } catch (\Throwable $error) {
             $this->db->rollback();
-            return $this->redirect($response, '/admin/users?err=' . urlencode('Не удалось сохранить организации пользователя'));
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'saveUserOrganizations',
+                'params' => [
+                    'user_id' => $userId,
+                    'organization_id' => $organizationId,
+                    'organization_ids' => $extraIds,
+                ],
+            ], $request);
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Не удалось сохранить организации пользователя. Код ошибки: ' . $errorId));
         }
 
         return $this->redirect($response, '/admin/users?ok=' . urlencode('Организации пользователя сохранены'));
@@ -1315,9 +1363,20 @@ class AdminController
             }
 
             $this->db->commit();
-        } catch (\Throwable $e) {
+        } catch (\Throwable $error) {
             $this->db->rollback();
-            return $this->redirect($response, '/admin/users/new?err=' . urlencode('Не удалось создать пользователя'));
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'createUser',
+                'params' => [
+                    'username' => $username,
+                    'display_name' => $displayName,
+                    'email' => $email,
+                    'organization_id' => $organizationId,
+                    'role_ids' => $roleIds,
+                ],
+            ], $request);
+            return $this->redirect($response, '/admin/users/new?err=' . urlencode('Не удалось создать пользователя. Код ошибки: ' . $errorId));
         }
 
         (new AuditLog($this->db))->write('USER_CREATE', 'USER', $newUserId, 'Создан пользователь ' . $username);
@@ -1441,7 +1500,19 @@ class AdminController
             $this->db->commit();
         } catch (\Throwable $error) {
             $this->db->rollback();
-            return $this->redirect($response, $editUrl . '?err=' . urlencode('Не удалось сохранить пользователя'));
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'saveUser',
+                'params' => [
+                    'user_id' => $userId,
+                    'username' => $username,
+                    'display_name' => $displayName,
+                    'email' => $email,
+                    'organization_id' => $organizationId,
+                    'role_ids' => $roleIds,
+                ],
+            ], $request);
+            return $this->redirect($response, $editUrl . '?err=' . urlencode('Не удалось сохранить пользователя. Код ошибки: ' . $errorId));
         }
 
         (new AuditLog($this->db))->write(
@@ -1519,9 +1590,14 @@ class AdminController
             $row = $this->db->fetchOne('SELECT id FROM xx_rjd_roles WHERE code = :code', ['code' => $code]);
             $this->savePages((int) $row['id'], (array) ($body['pages'] ?? []));
             $this->db->commit();
-        } catch (\Throwable $e) {
+        } catch (\Throwable $error) {
             $this->db->rollback();
-            return $this->redirect($response, '/admin/roles/new?err=' . urlencode('Не удалось создать роль'));
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'createRole',
+                'params' => ['code' => $code, 'name' => $name, 'pages' => (array) ($body['pages'] ?? [])],
+            ], $request);
+            return $this->redirect($response, '/admin/roles/new?err=' . urlencode('Не удалось создать роль. Код ошибки: ' . $errorId));
         }
 
         (new AuditLog($this->db))->write('ROLE_CREATE', 'ROLE', (int) $row['id'], 'Создана роль ' . $code . ' — ' . $name);
@@ -1562,9 +1638,14 @@ class AdminController
             $this->db->execute('DELETE FROM xx_rjd_role_pages WHERE role_id = :id', ['id' => $roleId]);
             $this->savePages($roleId, (array) ($body['pages'] ?? []));
             $this->db->commit();
-        } catch (\Throwable $e) {
+        } catch (\Throwable $error) {
             $this->db->rollback();
-            return $this->redirect($response, '/admin/roles/' . $roleId . '/edit?err=' . urlencode('Не удалось сохранить роль'));
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'saveRolePages',
+                'params' => ['role_id' => $roleId, 'name' => $name, 'pages' => (array) ($body['pages'] ?? [])],
+            ], $request);
+            return $this->redirect($response, '/admin/roles/' . $roleId . '/edit?err=' . urlencode('Не удалось сохранить роль. Код ошибки: ' . $errorId));
         }
 
         (new AuditLog($this->db))->write('ROLE_UPDATE', 'ROLE', $roleId, 'Роль изменена: ' . ($name !== '' ? $name : (string) $role['code']));
@@ -1916,6 +1997,10 @@ class AdminController
             );
             return (int) ($row['cnt'] ?? 0) === 3;
         } catch (\Throwable $error) {
+            ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'userDateColumnsAvailable',
+            ]);
             return false;
         }
     }
@@ -1936,6 +2021,10 @@ class AdminController
             );
             return (int) ($row['cnt'] ?? 0) === 0;
         } catch (\Throwable $e) {
+            ErrorLogger::logThrowable($e, [
+                'module' => self::class,
+                'function' => 'canBootstrapAdmin',
+            ]);
             return true;
         }
     }

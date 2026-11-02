@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Logging\ErrorLogger;
 use App\Services\PageAvailability;
+use App\Services\PageVisibility;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -32,14 +34,18 @@ class PageAccessMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
+        $disabledPages = (new PageVisibility(($this->dbResolver)()))->disabledPages();
+        $currentConfig = \App\Services\ConfigSchema::current();
+        $currentConfig['disabled_pages'] = $disabledPages;
+        \App\Services\ConfigSchema::setCurrent($currentConfig);
+        $pageAvailability = new PageAvailability(
+            $disabledPages,
+            $this->basePath
+        );
+
         if (\App\Services\Authorization::isSuper($user)) {
             return $handler->handle($request);
         }
-
-        $pageAvailability = new PageAvailability(
-            (array) ($this->config['disabled_pages'] ?? []),
-            $this->basePath
-        );
         $disabledPage = $pageAvailability->disabledPageForRequest($request);
         if ($disabledPage !== null) {
             return $this->unavailable($request);
@@ -50,6 +56,11 @@ class PageAccessMiddleware implements MiddlewareInterface
             $allowed = $this->allowedPages((int) ($user['id'] ?? 0));
             $_SESSION['user']['allowed_pages'] = $allowed;
         } catch (\Throwable $e) {
+            ErrorLogger::logThrowable($e, [
+                'module' => self::class,
+                'function' => 'process',
+                'params' => ['user_id' => (int) ($user['id'] ?? 0)],
+            ], $request);
             // Таблицы ролей ещё нет — сохраняем прежний режим первичной настройки.
             return $handler->handle($request);
         }
@@ -122,6 +133,10 @@ class PageAccessMiddleware implements MiddlewareInterface
             );
             return (int) ($row['cnt'] ?? 0) === 0;
         } catch (\Throwable $e) {
+            ErrorLogger::logThrowable($e, [
+                'module' => self::class,
+                'function' => 'noAdminYet',
+            ]);
             return true;
         }
     }
