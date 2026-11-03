@@ -209,7 +209,7 @@ class ApiController
     /** Условие отбора по периоду погрузки. */
     private function loadingPeriodCondition(string $period, array &$bindings, string $prefix = 'loading'): string
     {
-        $today = new \DateTimeImmutable('today', new \DateTimeZone('Europe/Moscow'));
+        $today = new \DateTimeImmutable('today');
         switch ($period) {
             case 'loading_today':
                 $from = $today;
@@ -1103,7 +1103,7 @@ class ApiController
             $whereCond .= ' AND dest_station = :dest_station';
             $bindings['dest_station'] = $destStation;
         }
-        $bindings['idle_fact_date'] = (new \DateTimeImmutable('now', new \DateTimeZone('Europe/Moscow')))->format('Y-m-d');
+        $bindings['idle_fact_date'] = (new \DateTimeImmutable('now'))->format('Y-m-d');
         $from = "(SELECT xdr.*,
                          CASE WHEN trip_end_dt IS NOT NULL
                                    AND TRUNC(trip_end_dt) <= TO_DATE(:idle_fact_date, 'YYYY-MM-DD')

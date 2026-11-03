@@ -15,7 +15,14 @@ foreach ($adminNavGroups as &$items) { usort($items, static fn(array $a,array $b
 
 
 ?>
-<aside class="sidebar">
+<script>
+  (function () {
+    var theme = localStorage.getItem('admin-sidebar-theme') || 'light'
+    if (theme === 'dark') theme = 'corporate'
+    document.documentElement.classList.toggle('admin-sidebar-corporate', theme === 'corporate')
+  })()
+</script>
+<aside class="sidebar admin-sidebar">
   <?php foreach ($adminNavGroups as $groupLabel => $adminNavItems): ?>
   <div class="nav-group">
     <span class="nav-group-label"><?= htmlspecialchars($groupLabel) ?></span>
@@ -26,4 +33,33 @@ foreach ($adminNavGroups as &$items) { usort($items, static fn(array $a,array $b
   </div>
   <?php endforeach; ?>
 
+  <div class="admin-sidebar-theme" aria-label="Оформление меню">
+    <span>Оформление</span>
+    <div class="admin-sidebar-theme-options">
+      <button type="button" data-admin-theme="light">Светлое</button>
+      <button type="button" data-admin-theme="corporate">Тёмное</button>
+    </div>
+  </div>
 </aside>
+<script>
+  (function () {
+    var buttons = document.querySelectorAll('[data-admin-theme]')
+
+    function selectTheme(theme) {
+      if (theme === 'dark') theme = 'corporate'
+      document.documentElement.classList.toggle('admin-sidebar-corporate', theme === 'corporate')
+      localStorage.setItem('admin-sidebar-theme', theme)
+      buttons.forEach(function (button) {
+        button.classList.toggle('active', button.dataset.adminTheme === theme)
+      })
+    }
+
+    buttons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        selectTheme(button.dataset.adminTheme)
+      })
+    })
+
+    selectTheme(localStorage.getItem('admin-sidebar-theme') || 'light')
+  })()
+</script>

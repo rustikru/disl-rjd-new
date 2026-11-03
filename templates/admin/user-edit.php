@@ -85,6 +85,20 @@ include __DIR__ . '/../partials/header.php';
               </div>
             </div>
           </section>
+        <?php if (\App\Services\Authorization::isSuper($user) || in_array('data-scopes', $user['allowed_pages'] ?? [], true)): ?>
+          <section class="ui-card">
+            <div class="ui-card-head">Области данных</div>
+            <div class="ui-card-body">
+              <div class="option-list">
+                <?php foreach ($dataScopes as $dataScope): ?>
+                  <label class="option"><input type="checkbox" name="data_scope_ids[]" value="<?= (int) $dataScope['id'] ?>" <?= in_array((int) $dataScope['id'], $selectedScopeIds, true) ? 'checked' : '' ?>><?= htmlspecialchars($dataScope['name']) ?><?= (int) $dataScope['is_active'] ? '' : ' (отключена)' ?></label>
+                <?php endforeach; ?>
+              </div>
+              <p class="ui-help">Можно назначить несколько областей. SUPER имеет полный доступ. Применение ограничений к отчётам подключается отдельно.</p>
+              <?php if (!$dataScopes): ?><p class="ui-help">Нет доступных областей. Создайте их в разделе «Области данных» после установки SQL-объектов.</p><?php endif; ?>
+            </div>
+          </section>
+        <?php endif; ?>
         </div>
         <?php if (!$isNewUser): ?><aside>
           <section class="ui-card">

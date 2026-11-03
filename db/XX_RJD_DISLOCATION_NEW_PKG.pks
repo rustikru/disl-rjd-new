@@ -1,4 +1,5 @@
-CREATE OR REPLACE package xx_rjd_dislocation_new_pkg as
+create or replace package xx_rjd_dislocation_new_pkg as
+   
     /******************************************************************************
     NAME:  xx_etw.xx_rjd_dislocation_new_pkg
     PURPOSE:   Метафракс: Дислокация РЖД (справка из кабинета)
@@ -105,11 +106,11 @@ CREATE OR REPLACE package xx_rjd_dislocation_new_pkg as
    procedure save_idle_control (
       p_id_control      in number,
       p_created_by      in number,
-      p_car_number     in varchar2,
-      p_start_date     in date,
-      p_end_date       in date,
-      p_note           in varchar2,
-      p_is_excluded    in varchar2,
+      p_car_number      in varchar2,
+      p_start_date      in date,
+      p_end_date        in date,
+      p_note            in varchar2,
+      p_is_excluded     in varchar2,
       p_idle_reasons_id in number
    );
 
@@ -118,8 +119,14 @@ CREATE OR REPLACE package xx_rjd_dislocation_new_pkg as
       p_deleted_by in number
    );
 
-   procedure save_idle_reason (p_id in number, p_name in varchar2, p_descr in varchar2);
-   procedure delete_idle_reason (p_id in number);
+   procedure save_idle_reason (
+      p_id    in number,
+      p_name  in varchar2,
+      p_descr in varchar2
+   );
+   procedure delete_idle_reason (
+      p_id in number
+   );
 
    procedure mail_start;
 
@@ -135,5 +142,9 @@ CREATE OR REPLACE package xx_rjd_dislocation_new_pkg as
       p_subject   in varchar2,
       p_text      in clob
    );
+   function data_scope_predicate (
+      p_schema varchar2,
+      p_object varchar2
+   ) return varchar2;
 end xx_rjd_dislocation_new_pkg;
 /

@@ -34,7 +34,6 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
     window.APP_ORGANIZATION_CODE = <?= json_encode($activeOrganizationCode, JSON_UNESCAPED_UNICODE) ?>;
     window.APP_REPORT_DEFINITIONS = <?= json_encode($reportDefinitions ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     window.DISLOCATION_STALE_HOURS = <?= (int) ($dislocationStaleHours ?? 8) ?>;
-    window.APP_TIMEZONE_OFFSET_SECONDS = <?= (new DateTimeImmutable('now'))->getOffset() ?>;
   </script>
 </head>
 

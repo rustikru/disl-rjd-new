@@ -398,8 +398,8 @@ body {
 .nav-group-label {
   display: block;
   font-size: 10px;
-  font-weight: 700;
-  color: var(--text-3);
+  font-weight: 900;
+  color: #1b40a2;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   padding: 0 10px 6px;
@@ -452,6 +452,102 @@ a.nav-item {
 
 .nav-item.active:hover {
   background: #e0d5f5;
+}
+
+/* Оформление доступно только в административном меню. */
+.admin-sidebar {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-sidebar-theme {
+  margin-top: auto;
+  padding: 16px 7px 0;
+  border-top: 1px solid var(--border-lt);
+}
+
+.admin-sidebar-theme > span {
+  display: block;
+  margin: 0 3px 7px;
+  color: var(--text-3);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.admin-sidebar-theme-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+}
+
+.admin-sidebar-theme-options button {
+  min-width: 0;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text-3);
+  background: transparent;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.admin-sidebar-theme-options button:hover,
+.admin-sidebar-theme-options button.active {
+  color: var(--accent);
+  background: var(--surface);
+}
+
+.admin-sidebar-corporate .admin-sidebar {
+  background: #1e2d54;
+  border-right-color: #2b3d69;
+  scrollbar-color: #526693 transparent;
+}
+
+.admin-sidebar-corporate .admin-sidebar .nav-group + .nav-group,
+.admin-sidebar-corporate .admin-sidebar .admin-sidebar-theme {
+  border-color: #334772;
+}
+
+.admin-sidebar-corporate .admin-sidebar .nav-group-label,
+.admin-sidebar-corporate .admin-sidebar .admin-sidebar-theme > span {
+  color: #8998be;
+}
+
+.admin-sidebar-corporate .admin-sidebar .nav-item {
+  color: #d1d9ed;
+}
+
+.admin-sidebar-corporate .admin-sidebar .nav-item:hover {
+  color: #fff;
+  background: #293d6d;
+}
+
+.admin-sidebar-corporate .admin-sidebar .nav-item.active,
+.admin-sidebar-corporate .admin-sidebar .nav-item.active:hover {
+  color: #fff;
+  background: #31477a;
+}
+
+.admin-sidebar-corporate .admin-sidebar .admin-sidebar-theme-options {
+  border-color: #425680;
+  background: #172441;
+}
+
+.admin-sidebar-corporate .admin-sidebar .admin-sidebar-theme-options button {
+  color: #aebbd8;
+}
+
+.admin-sidebar-corporate .admin-sidebar .admin-sidebar-theme-options button:hover,
+.admin-sidebar-corporate .admin-sidebar .admin-sidebar-theme-options button.active {
+  color: #fff;
+  background: #31477a;
 }
 
 .nav-item svg {
@@ -1572,6 +1668,17 @@ button.app-pagination__link {
   color: var(--brand-neg);
   border-color: #f0c9c9;
 }
+.ui-table-link {
+  color: var(--accent);
+  font-weight: 400;
+  text-decoration: none;
+}
+.ui-table-link:hover { text-decoration: underline; }
+.ui-table-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
 .ui-icon-button {
   display: inline-flex;
   align-items: center;
@@ -1670,6 +1777,52 @@ button.app-pagination__link {
 .ui-field textarea:focus {
   border-color: var(--accent);
 }
+.data-scope-form .ui-field input,
+.data-scope-form .ui-field select {
+  box-sizing: border-box;
+  height: 34px;
+  min-height: 34px;
+  width: 100%;
+  min-width: 0;
+}
+.scope-rule {
+  grid-template-columns: minmax(100px, 1fr) minmax(100px, .8fr) minmax(130px, 1.4fr) minmax(130px, 1.4fr) 34px;
+  align-items: end;
+  padding: 12px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-lt);
+}
+.scope-rule-remove { align-self: end; height: 34px; min-height: 34px; padding: 0; }
+.scope-rule .ui-field { position: relative; }
+.scope-search-options {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 20;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 16px #0002;
+}
+.scope-search-options button {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text-1);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.scope-search-options button:hover,
+.scope-search-options button:focus { background: var(--accent-lt); }
+.data-scope-form .ui-card { overflow: visible; }
+@media (max-width: 1000px) { .scope-rule { grid-template-columns: 1fr 1fr; } }
+.scope-delete-button { margin-right: auto; color: var(--brand-neg); }
 .ui-field input[readonly] {
   background: var(--row-head);
   color: var(--text-2);

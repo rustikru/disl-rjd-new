@@ -179,7 +179,7 @@ final class Claims
 
     public function calculate(array $row, array $norms): array
     {
-        $report = new \DateTimeImmutable($row['report_dt'], new \DateTimeZone('Europe/Moscow'));
+        $report = new \DateTimeImmutable($row['report_dt']);
         $arrived = $row['trip_end_dt'] ?: ($row['asoup_arrive_dt'] ?? null);
         $norm = null;
         $fields = [
@@ -231,7 +231,7 @@ final class Claims
             return $result;
         }
         try {
-            $arrival = new \DateTimeImmutable($arrived, new \DateTimeZone('Europe/Moscow'));
+            $arrival = new \DateTimeImmutable($arrived);
         } catch (\Exception $error) {
             return $result;
         }

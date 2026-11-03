@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Варианты оформления админки</title>
+  <style>
+    :root {
+      --accent: #4d288d;
+      --accent-soft: #e2d8f6;
+      --sidebar: #ffffff;
+      --sidebar-text: #696579;
+      --sidebar-active: #e2d8f6;
+      --topbar: #ffffff;
+      --page: #f1f0f5;
+      --panel: #ffffff;
+      --border: #dedce6;
+      --text: #201d2c;
+      --muted: #9995a8;
+      --danger: #b73a4a;
+      --radius: 14px;
+      --shadow: none;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 960px;
+      color: var(--text);
+      background: var(--page);
+      font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input { font: inherit; }
+    button, a { transition: 0.15s ease; }
+
+    .variant-bar {
+      position: sticky;
+      z-index: 20;
+      top: 0;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      min-height: 66px;
+      padding: 10px 24px;
+      color: #fff;
+      background: #191621;
+      box-shadow: 0 3px 14px rgba(20, 16, 30, 0.2);
+    }
+
+    .variant-bar strong { margin-right: 10px; }
+
+    .variant-button {
+      padding: 9px 13px;
+      border: 1px solid #514b5e;
+      border-radius: 9px;
+      color: #e8e5ed;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .variant-button:hover,
+    .variant-button.is-active {
+      border-color: #9d7bdf;
+      color: #fff;
+      background: #4d288d;
+    }
+
+    .admin-layout {
+      display: grid;
+      grid-template-columns: 270px minmax(0, 1fr);
+      min-height: calc(100vh - 66px);
+    }
+
+    .sidebar {
+      padding: 25px 20px;
+      color: var(--sidebar-text);
+      background: var(--sidebar);
+      border-right: 1px solid var(--border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      color: var(--text);
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border-radius: 12px;
+      color: #fff;
+      background: var(--accent);
+      font-size: 21px;
+      font-weight: 700;
+    }
+
+    .brand small {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+    }
+
+    .admin-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 18px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      color: var(--accent);
+      background: var(--accent-soft);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .nav-title {
+      margin: 20px 12px 8px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .nav { display: grid; gap: 5px; }
+
+    .nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 12px;
+      border-radius: 10px;
+      color: var(--sidebar-text);
+      text-decoration: none;
+    }
+
+    .nav a:hover,
+    .nav a.is-active {
+      color: var(--accent);
+      background: var(--sidebar-active);
+    }
+
+    .main { min-width: 0; }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 82px;
+      padding: 0 34px;
+      background: var(--topbar);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .topbar-title { font-size: 17px; font-weight: 700; }
+    .topbar-subtitle { color: var(--muted); font-size: 13px; }
+
+    .user {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--panel);
+    }
+
+    .user-avatar {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      border-radius: 9px;
+      color: var(--accent);
+      background: var(--accent-soft);
+      font-weight: 800;
+    }
+
+    .content { padding: 34px; }
+
+    .page-head,
+    .panel-head,
+    .search,
+    .actions {
+      display: flex;
+      align-items: center;
+    }
+
+    .page-head {
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    h1 { margin: 0; font-size: 30px; line-height: 1.2; }
+    .page-head p { margin: 6px 0 0; color: var(--muted); }
+
+    .button {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      padding: 0 18px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      background: var(--panel);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .button-primary {
+      border-color: var(--accent);
+      color: #fff;
+      background: var(--accent);
+    }
+
+    .panel {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-head {
+      justify-content: space-between;
+      gap: 24px;
+      min-height: 84px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-head strong { font-size: 19px; }
+    .search { gap: 10px; }
+
+    .search input {
+      width: 310px;
+      height: 44px;
+      padding: 0 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      background: var(--panel);
+      outline: none;
+    }
+
+    .search input:focus { border-color: var(--accent); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 17px 22px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    th {
+      color: var(--muted);
+      background: color-mix(in srgb, var(--page) 55%, var(--panel));
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: color-mix(in srgb, var(--accent-soft) 28%, transparent); }
+    .status { color: #21845b; font-weight: 650; }
+    .actions { justify-content: flex-end; gap: 12px; }
+    .icon-link { color: var(--accent); text-decoration: none; font-size: 19px; }
+
+    .variant-2 {
+      --sidebar: #281747;
+      --sidebar-text: #d7cbea;
+      --sidebar-active: #4a2a7c;
+      --topbar: #ffffff;
+      --page: #f3f1f6;
+    }
+
+    .variant-2 .sidebar .brand,
+    .variant-2 .sidebar .brand small { color: #fff; }
+    .variant-2 .nav-title { color: #a99abb; }
+    .variant-2 .nav a.is-active,
+    .variant-2 .nav a:hover { color: #fff; }
+
+    .variant-3 {
+      --accent: #2e5f75;
+      --accent-soft: #d7e8ee;
+      --sidebar: #eef4f6;
+      --sidebar-text: #465e67;
+      --sidebar-active: #d7e8ee;
+      --topbar: #244b5d;
+      --page: #f3f6f7;
+    }
+
+    .variant-3 .topbar,
+    .variant-3 .topbar .topbar-subtitle { color: #fff; }
+    .variant-3 .topbar { border-bottom-color: #244b5d; }
+
+    .variant-4 {
+      --accent: #512d87;
+      --accent-soft: #eee7f8;
+      --sidebar: #ffffff;
+      --sidebar-text: #656070;
+      --sidebar-active: #eee7f8;
+      --topbar: #ffffff;
+      --page: #f7f6f9;
+      --radius: 7px;
+      --shadow: 0 8px 25px rgba(42, 34, 57, 0.06);
+    }
+
+    .variant-4 .topbar { border-top: 5px solid var(--accent); }
+    .variant-4 .admin-label { border-radius: 5px; }
+
+    .variant-5 {
+      --accent: #5a3a8d;
+      --accent-soft: #e7ddf6;
+      --sidebar: #26232d;
+      --sidebar-text: #d4cedd;
+      --sidebar-active: #443a50;
+      --topbar: #312d39;
+      --page: #ebe9ef;
+      --panel: #ffffff;
+      --border: #d7d3dd;
+      --radius: 16px;
+      --shadow: 0 8px 30px rgba(32, 28, 40, 0.08);
+    }
+
+    .variant-5 .sidebar .brand,
+    .variant-5 .sidebar .brand small,
+    .variant-5 .topbar,
+    .variant-5 .topbar .topbar-subtitle { color: #fff; }
+    .variant-5 .nav-title { color: #91899d; }
+    .variant-5 .nav a.is-active,
+    .variant-5 .nav a:hover { color: #fff; }
+    .variant-5 .topbar { border-bottom-color: #312d39; }
+
+    .variant-6 {
+      --accent: #73552c;
+      --accent-soft: #f2e7d1;
+      --sidebar: #30291f;
+      --sidebar-text: #e4d8c5;
+      --sidebar-active: #51432f;
+      --topbar: #fffdf8;
+      --page: #f5f1e9;
+      --border: #ded5c7;
+      --radius: 12px;
+    }
+
+    .variant-6 .sidebar .brand,
+    .variant-6 .sidebar .brand small { color: #fff8e9; }
+    .variant-6 .nav-title { color: #a99a83; }
+    .variant-6 .nav a.is-active,
+    .variant-6 .nav a:hover { color: #fff; }
+
+    .variant-7 {
+      --accent: #275d50;
+      --accent-soft: #dcece7;
+      --sidebar: #173d36;
+      --sidebar-text: #cce1db;
+      --sidebar-active: #286255;
+      --topbar: #ffffff;
+      --page: #eef4f2;
+      --border: #d3e0dc;
+      --radius: 18px;
+      --shadow: 0 10px 30px rgba(21, 62, 53, 0.08);
+    }
+
+    .variant-7 .sidebar .brand,
+    .variant-7 .sidebar .brand small { color: #effbf7; }
+    .variant-7 .nav-title { color: #88aca3; }
+    .variant-7 .nav a.is-active,
+    .variant-7 .nav a:hover { color: #fff; }
+
+    .variant-8 {
+      --accent: #3755a4;
+      --accent-soft: #e2e8f8;
+      --sidebar: #1e2d54;
+      --sidebar-text: #d1d9ed;
+      --sidebar-active: #31477a;
+      --topbar: #f7f9ff;
+      --page: #edf0f7;
+      --border: #d3d8e6;
+      --radius: 10px;
+    }
+
+    .variant-8 .sidebar .brand,
+    .variant-8 .sidebar .brand small { color: #fff; }
+    .variant-8 .nav-title { color: #8998be; }
+    .variant-8 .nav a.is-active,
+    .variant-8 .nav a:hover { color: #fff; }
+    .variant-8 .panel { border-top: 3px solid var(--accent); }
+
+    .variant-9 {
+      --accent: #773348;
+      --accent-soft: #f2e0e6;
+      --sidebar: #4a1f2c;
+      --sidebar-text: #ead2d9;
+      --sidebar-active: #703146;
+      --topbar: #ffffff;
+      --page: #f6f0f2;
+      --border: #e2d5d9;
+      --radius: 8px;
+      --shadow: 0 7px 22px rgba(74, 31, 44, 0.08);
+    }
+
+    .variant-9 .sidebar .brand,
+    .variant-9 .sidebar .brand small { color: #fff; }
+    .variant-9 .nav-title { color: #bd8e9c; }
+    .variant-9 .nav a.is-active,
+    .variant-9 .nav a:hover { color: #fff; }
+
+    .variant-10 {
+      --accent: #586071;
+      --accent-soft: #e5e7eb;
+      --sidebar: #202329;
+      --sidebar-text: #d6d9df;
+      --sidebar-active: #383d47;
+      --topbar: #292d34;
+      --page: #f0f1f3;
+      --border: #d7d9de;
+      --radius: 4px;
+      --shadow: none;
+    }
+
+    .variant-10 .sidebar .brand,
+    .variant-10 .sidebar .brand small,
+    .variant-10 .topbar,
+    .variant-10 .topbar .topbar-subtitle { color: #fff; }
+    .variant-10 .nav-title { color: #858b96; }
+    .variant-10 .nav a.is-active,
+    .variant-10 .nav a:hover { color: #fff; }
+    .variant-10 .topbar { border-bottom-color: #292d34; }
+    .variant-10 .brand-mark,
+    .variant-10 .button,
+    .variant-10 .user,
+    .variant-10 .search input { border-radius: 4px; }
+  </style>
+</head>
+<body class="variant-1">
+  <div class="variant-bar">
+    <strong>Варианты оформления:</strong>
+    <button class="variant-button is-active" type="button" data-variant="1">1. Лёгкий акцент</button>
+    <button class="variant-button" type="button" data-variant="2">2. Тёмное меню</button>
+    <button class="variant-button" type="button" data-variant="3">3. Синяя шапка</button>
+    <button class="variant-button" type="button" data-variant="4">4. Строгий</button>
+    <button class="variant-button" type="button" data-variant="5">5. Контрастный</button>
+    <button class="variant-button" type="button" data-variant="6">6. Тёплый</button>
+    <button class="variant-button" type="button" data-variant="7">7. Изумрудный</button>
+    <button class="variant-button" type="button" data-variant="8">8. Корпоративный</button>
+    <button class="variant-button" type="button" data-variant="9">9. Бордовый</button>
+    <button class="variant-button" type="button" data-variant="10">10. Графитовый</button>
+  </div>
+
+  <div class="admin-layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">Д</div>
+        <div>
+          <strong>Дислокация</strong>
+          <small>АО Метафракс-Кемикалс</small>
+        </div>
+      </div>
+
+      <div class="admin-label">◆ Администрирование</div>
+
+      <div class="nav-title">Пользователи и доступ</div>
+      <nav class="nav">
+        <a class="is-active" href="#">♙ Пользователи</a>
+        <a href="#">◇ Роли</a>
+        <a href="#">◫ Группы доступа</a>
+      </nav>
+
+      <div class="nav-title">Настройки системы</div>
+      <nav class="nav">
+        <a href="#">⚙ Настройки приложения</a>
+        <a href="#">◉ Видимость страниц</a>
+        <a href="#">≡ Журнал действий</a>
+      </nav>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div>
+          <div class="topbar-title">Панель администрирования</div>
+          <div class="topbar-subtitle">Управление системой и правами доступа</div>
+        </div>
+
+        <div class="user">
+          <div class="user-avatar">SU</div>
+          <div><strong>Super User</strong><br><small>SUPER</small></div>
+        </div>
+      </header>
+
+      <main class="content">
+        <div class="page-head">
+          <div>
+            <h1>Пользователи</h1>
+            <p>Управление учётными записями системы</p>
+          </div>
+          <a class="button button-primary" href="#">+ Пользователь</a>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head">
+            <strong>Пользователи (24)</strong>
+            <form class="search">
+              <input type="search" placeholder="ФИО или логин">
+              <button class="button" type="button">Найти</button>
+            </form>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Пользователь</th>
+                <th>Логин</th>
+                <th>Роль</th>
+                <th>Статус</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Иванов Иван Иванович</td>
+                <td>ivanov</td>
+                <td>Администратор</td>
+                <td class="status">Активен</td>
+                <td><div class="actions"><a class="icon-link" href="#">✎</a></div></td>
+              </tr>
+              <tr>
+                <td>Петров Пётр Сергеевич</td>
+                <td>petrov</td>
+                <td>Пользователь</td>
+                <td class="status">Активен</td>
+                <td><div class="actions"><a class="icon-link" href="#">✎</a></div></td>
+              </tr>
+              <tr>
+                <td>Сидорова Анна Александровна</td>
+                <td>sidorova</td>
+                <td>Диспетчер</td>
+                <td class="status">Активен</td>
+                <td><div class="actions"><a class="icon-link" href="#">✎</a></div></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('.variant-button').forEach(function (button) {
+      button.addEventListener('click', function () {
+        document.body.className = 'variant-' + button.dataset.variant
+        document.querySelectorAll('.variant-button').forEach(function (item) {
+          item.classList.toggle('is-active', item === button)
+        })
+      })
+    })
+  </script>
+</body>
+</html>

@@ -6,6 +6,7 @@ namespace App\Controllers;
 use App\Database\DbInterface;
 use App\Logging\ErrorLogger;
 use App\Services\AuditLog;
+use DateTimeImmutable;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -104,7 +105,6 @@ class AdminController
         $root = dirname(__DIR__, 2);
         $phpVersion = PHP_VERSION;
         $os = php_uname('s') . ' ' . php_uname('r');
-        $timezone = (string) ($this->config['app_timezone'] ?? date_default_timezone_get());
         $environment = (string) ($this->config['app_env'] ?? 'unknown');
         $checkedAt = date('d.m.Y H:i:s');
 
@@ -330,6 +330,9 @@ class AdminController
             return $this->forbidden($response);
         }
         $isNewUser = false;
+        $scopeService = new \App\Services\DataScopes($this->db);
+        $dataScopes = $scopeService->options();
+        $selectedScopeIds = $scopeService->userIds($userId);
 
         $roles = $this->db->fetchAll("SELECT id, code, name FROM xx_rjd_roles WHERE code <> 'SUPER' ORDER BY id");
         $organizations = $this->db->fetchAll(
@@ -394,6 +397,8 @@ class AdminController
             'last_login_at' => null,
         ];
         $isNewUser = true;
+        $dataScopes = (new \App\Services\DataScopes($this->db))->options();
+        $selectedScopeIds = [];
         $roles = $this->db->fetchAll("SELECT id, code, name FROM xx_rjd_roles WHERE code <> 'SUPER' ORDER BY id");
         $organizations = $this->db->fetchAll(
             'SELECT id, code, name, short_name, is_active FROM xx_rjd_organizations ORDER BY is_active DESC, name'
@@ -1354,6 +1359,9 @@ class AdminController
                 ['username' => $username]
             );
             $newUserId = (int) ($newUser['id'] ?? 0);
+            if ($this->isSuper() || in_array('data-scopes', $_SESSION['user']['allowed_pages'] ?? [], true)) {
+                (new \App\Services\DataScopes($this->db))->saveUser($newUserId, (array) ($body['data_scope_ids'] ?? []));
+            }
             if (!empty($roleIds)) {
                 foreach ($roleIds as $roleId) {
                     $this->db->execute(
@@ -1457,6 +1465,9 @@ class AdminController
         $keepSuperRole = $this->userHasSuperRole($userId);
         $this->db->beginTransaction();
         try {
+            if ($this->isSuper() || in_array('data-scopes', $_SESSION['user']['allowed_pages'] ?? [], true)) {
+                (new \App\Services\DataScopes($this->db))->saveUser($userId, (array) ($body['data_scope_ids'] ?? []));
+            }
             if ($password !== '') {
                 $bindings['hash'] = password_hash($password, PASSWORD_BCRYPT);
                 $this->db->execute(
@@ -1768,6 +1779,22 @@ class AdminController
         $search = mb_strtolower(trim((string) ($query['q'] ?? '')));
         if ($search !== '')
             $rows = array_values(array_filter($rows, static fn(array $row): bool => str_contains(mb_strtolower(implode(' ', $row)), $search)));
+        $dateFrom = trim((string) ($query['date_from'] ?? ''));
+        $dateTo = trim((string) ($query['date_to'] ?? ''));
+        $validDate = static function (string $date): string {
+            $dateValue = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+            return $dateValue && $dateValue->format('Y-m-d') === $date ? $date : '';
+        };
+        $dateFrom = $validDate($dateFrom);
+        $dateTo = $validDate($dateTo);
+        if ($dateFrom !== '' || $dateTo !== '') {
+            $rows = array_values(array_filter($rows, static function (array $row) use ($dateFrom, $dateTo): bool {
+                if ($dateTo !== '' && (string) $row['start_date'] > $dateTo) {
+                    return false;
+                }
+                return $dateFrom === '' || empty($row['end_date']) || (string) $row['end_date'] >= $dateFrom;
+            }));
+        }
         $perPage = 25;
         $totalRows = count($rows);
         $totalPages = max(1, (int) ceil($totalRows / $perPage));
@@ -1823,7 +1850,7 @@ class AdminController
         return $this->idleControlFormPage($request, $response, [
             'id_control' => 0,
             'car_number' => '',
-            'start_date' => (new \DateTimeImmutable('today', new \DateTimeZone('Europe/Moscow')))->format('Y-m-d'),
+            'start_date' => (new \DateTimeImmutable('today'))->format('Y-m-d'),
             'end_date' => '',
             'idle_reasons_id' => 0,
             'is_excluded' => 'N',

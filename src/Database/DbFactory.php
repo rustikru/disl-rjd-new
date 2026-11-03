@@ -7,6 +7,10 @@ class DbFactory
 {
     public static function create(array $config): DbInterface
     {
-        return new OracleDb($config);
+        $db = new OracleDb($config);
+        $db->execute('BEGIN DBMS_APPLICATION_INFO.SET_CLIENT_INFO(:user_id); END;', [
+            'user_id' => (string) (int) ($_SESSION['user']['id'] ?? 0),
+        ]);
+        return $db;
     }
 }

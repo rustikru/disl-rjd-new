@@ -12,12 +12,6 @@ if (!is_array($rawConfig)) {
     throw new RuntimeException('Файл rjd_config.php должен возвращать массив');
 }
 $config = \App\Services\ConfigSchema::normalize($rawConfig);
-$appTimezone = $config['app_timezone'];
-try {
-    date_default_timezone_set($appTimezone);
-} catch (\Throwable $error) {
-    throw new RuntimeException('Некорректная часовая зона app_timezone: ' . $appTimezone, 0, $error);
-}
 
 \App\Services\ConfigSchema::setCurrent($config);
 return $config;

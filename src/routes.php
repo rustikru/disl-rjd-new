@@ -163,6 +163,18 @@ return function (App $app, array $config): void {
         });
 
         // Администрирование (пользователи и роли)
+        $group->map(['GET', 'POST'], '/admin/data-scopes', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\DataScopesController($getDb(), $config))->page($req, $res);
+        });
+        $group->get('/admin/data-scopes/new', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\DataScopesController($getDb(), $config))->page($req, $res);
+        });
+        $group->get('/admin/data-scopes/{id:[0-9]+}/edit', function ($req, $res, $args) use ($getDb, $config) {
+            return (new \App\Controllers\DataScopesController($getDb(), $config))->page($req, $res, $args);
+        });
+        $group->post('/admin/data-scopes/delete', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\DataScopesController($getDb(), $config))->page($req, $res);
+        });
         $group->map(['GET', 'POST'], '/admin/sessions', function ($req, $res) use ($config, $getDb) {
             return (new \App\Controllers\SessionsController($config, $getDb()))->page($req, $res);
         });

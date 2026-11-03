@@ -1,4 +1,5 @@
 CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
+   
     /******************************************************************************
         NAME:  xx_etw.xx_rjd_dislocation_new_pkg
         PURPOSE:   Дислокация РЖД (справка из кабинета)
@@ -1317,5 +1318,41 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
        ); */
       raise_application_error(-20020, 'Отправка почты через Oracle пока не подключена');
    end mail_send;
+
+   -- Формирует общий фильтр SELECT при подготовке запроса Oracle VPD.
+   function data_scope_predicate(p_schema varchar2, p_object varchar2) return varchar2 is
+      l_user number;
+      l_super number;
+      l_rules varchar2(12000);
+      l_match varchar2(2000);
+   begin
+      l_user := to_number(sys_context('USERENV', 'CLIENT_INFO'));
+      if l_user is null or l_user <= 0 then return '1=0'; end if;
+      select count(*) into l_super from xx_rjd_user_roles ur
+        join xx_rjd_roles r on r.id = ur.role_id
+        join xx_rjd_users u on u.id = ur.user_id
+       where ur.user_id = l_user and r.code = 'SUPER' and u.is_active = 1;
+      if l_super > 0 then return '1=1'; end if;
+      -- Переименование исключает совпадение с колонками внешнего запроса.
+      l_rules := 'select r.organization_id rule_org, r.cargo_code rule_cargo,
+                        r.station_code rule_station, r.effect rule_effect
+                   from xx_rjd_user_data_scopes us
+                   join xx_rjd_data_scopes s on s.id = us.scope_id
+                   join xx_rjd_data_scope_rules r on r.scope_id = s.id
+                   join xx_rjd_users u on u.id = us.user_id
+                  where us.user_id = ' || to_char(l_user, 'FM99999999999999999999') || '
+                    and u.is_active = 1 and s.is_active = 1
+                    and (s.start_date is null or s.start_date < trunc(sysdate) + 1)
+                    and (s.end_date is null or s.end_date >= trunc(sysdate))';
+      l_match := q'[rule_org = organization_id
+                   and (rule_cargo is null or rule_cargo =
+                        rtrim(regexp_substr(cargo_name, '[0-9]+\)$'), ')'))
+                   and (rule_station is null or rule_station =
+                        rtrim(regexp_substr(dest_station, '[0-9]+\)$'), ')'))]';
+      return 'exists (select 1 from (' || l_rules || ') allowed_rules
+                       where rule_effect = ''ALLOW'' and ' || l_match || ')
+              and not exists (select 1 from (' || l_rules || ') denied_rules
+                       where rule_effect = ''DENY'' and ' || l_match || ')';
+   end data_scope_predicate;
 end xx_rjd_dislocation_new_pkg;
 /

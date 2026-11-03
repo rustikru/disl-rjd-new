@@ -144,15 +144,13 @@ function showDislocationDate(value) {
   )
   if (!match) return
 
-  var reportTime =
-    Date.UTC(
-      Number(match[3]),
-      Number(match[2]) - 1,
-      Number(match[1]),
-      Number(match[4]),
-      Number(match[5]),
-    ) -
-    Number(window.APP_TIMEZONE_OFFSET_SECONDS || 0) * 1000
+  var reportTime = new Date(
+    Number(match[3]),
+    Number(match[2]) - 1,
+    Number(match[1]),
+    Number(match[4]),
+    Number(match[5]),
+  ).getTime()
   var staleHours = Math.max(1, Number(window.DISLOCATION_STALE_HOURS) || 8)
   if (Date.now() - reportTime <= staleHours * 60 * 60 * 1000) return
 

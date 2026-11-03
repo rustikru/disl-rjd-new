@@ -3,10 +3,14 @@ require_once __DIR__ . '/../partials/ui.php';
 $displayDate = static fn($date) => $date ? (new DateTimeImmutable((string) $date))->format('d.m.Y') : '';
 $fromRow = $totalRows ? (($page - 1) * $perPage + 1) : 0;
 $toRow = min($totalRows, $page * $perPage);
-$pageUrl = static function (int $targetPage) use ($basePath, $search): string {
+$pageUrl = static function (int $targetPage) use ($basePath, $search, $dateFrom, $dateTo): string {
     $params = ['page' => $targetPage];
     if ($search !== '')
         $params['q'] = $search;
+    if ($dateFrom !== '')
+        $params['date_from'] = $dateFrom;
+    if ($dateTo !== '')
+        $params['date_to'] = $dateTo;
     return $basePath . '/directories/idle-control?' . http_build_query($params); };
 ?>
 <!doctype html>
@@ -27,6 +31,28 @@ $pageUrl = static function (int $targetPage) use ($basePath, $search): string {
         .idle-control-actions form {
             margin: 0
         }
+
+        .idle-control-date-search {
+            width: 145px
+        }
+
+        .idle-control-date-filter {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: var(--text-3);
+            font-size: 11px
+        }
+
+        .idle-control-search {
+            flex-wrap: wrap;
+            justify-content: flex-end
+        }
+
+        .idle-control-search .ui-search-input {
+            box-sizing: border-box;
+            height: 34px
+        }
     </style>
 </head>
 
@@ -46,8 +72,14 @@ $pageUrl = static function (int $targetPage) use ($basePath, $search): string {
             </div><?php uiNotices($flashOk, $flashErr); ?>
             <section class="ui-panel">
                 <div class="ui-panel-head"><span class="ui-panel-title">Записи (<?= (int) $totalRows ?>)</span>
-                    <form class="ui-search" method="get"><input class="ui-search-input" type="search" name="q"
-                            value="<?= htmlspecialchars($search) ?>" placeholder="Вагон, причина или примечание"><button
+                    <form class="ui-search idle-control-search" method="get"><input class="ui-search-input" type="search" name="q"
+                            value="<?= htmlspecialchars($search) ?>" placeholder="Вагон, причина или примечание"><label
+                            class="idle-control-date-filter"><span>С</span><input
+                                class="ui-search-input idle-control-date-search" type="date" name="date_from"
+                                value="<?= htmlspecialchars($dateFrom) ?>"></label><label
+                            class="idle-control-date-filter"><span>По</span><input
+                                class="ui-search-input idle-control-date-search" type="date" name="date_to"
+                                value="<?= htmlspecialchars($dateTo) ?>"></label><button
                             class="btn btn-ghost">Найти</button></form>
                 </div>
                 <?php if (!$rows): ?>

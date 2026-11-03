@@ -11,7 +11,7 @@ final class ConfigSchema
         return [
             'app_env'=>self::d('enum','development','Приложение',['development','production']),
             'app_debug'=>self::d('bool',false,'Приложение'), 'app_name'=>self::d('string','Дислокация РЖД','Приложение'),
-            'app_timezone'=>self::d('timezone','Asia/Yekaterinburg','Приложение'), 'base_path'=>self::d('string','','Приложение'),
+            'base_path'=>self::d('string','','Приложение'),
             'dislocation_stale_hours'=>self::d('int',8,'Приложение',null,1,720),
             'maintenance_enabled'=>self::d('bool',false,'Технические работы',label:'Режим технических работ'),
             'maintenance_start'=>self::d('datetime','','Технические работы',label:'Начало',help:'Оставьте пустым, чтобы включить сразу.'),
@@ -81,7 +81,6 @@ final class ConfigSchema
         else $value=trim((string)$value);
         if($d['choices']!==null && !in_array($value,$d['choices'],true)) throw new \InvalidArgumentException("Недопустимое значение настройки $key");
         if($d['min']!==null && $value<$d['min'] || $d['max']!==null && $value>$d['max']) throw new \InvalidArgumentException("Настройка $key вне допустимого диапазона");
-        if($type==='timezone' && !in_array($value,\DateTimeZone::listIdentifiers(),true)) throw new \InvalidArgumentException('Некорректная часовая зона.');
         if($type==='datetime' && $value!=='') {
             $date=\DateTimeImmutable::createFromFormat('!Y-m-d\TH:i',$value);
             $errors=\DateTimeImmutable::getLastErrors();

@@ -22,6 +22,21 @@ final class MailingRun
 
     public function run(array $mailing): array
     {
+        $this->db->execute('BEGIN DBMS_APPLICATION_INFO.SET_CLIENT_INFO(:user_id); END;', [
+            'user_id' => (string) (int) ($mailing['user_id'] ?? 0),
+        ]);
+        try {
+            return $this->runReports($mailing);
+        } finally {
+            $this->db->execute('BEGIN DBMS_APPLICATION_INFO.SET_CLIENT_INFO(:user_id); END;', [
+                'user_id' => (string) (int) ($_SESSION['user']['id'] ?? 0),
+            ]);
+            (new Organizations($this->db))->sync();
+        }
+    }
+
+    private function runReports(array $mailing): array
+    {
         $memoryLimit = trim((string) ($this->config['report_mail_memory_limit'] ?? ''));
         if ($memoryLimit !== '') {
             ini_set('memory_limit', $memoryLimit);

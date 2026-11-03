@@ -145,7 +145,7 @@
     <section id="config" class="searchable"><h2>12. Конфигурация</h2>
       <p><a href="../src/Config.php">src/Config.php</a> загружает локальные значения из <a href="../rjd_config.php">rjd_config.php</a> и применяет единую схему <a href="../src/Services/ConfigSchema.php">ConfigSchema.php</a>. В схеме находятся типы, defaults, диапазоны, enum и разделы формы настроек. Файл значений находится в <code>.gitignore</code>.</p>
       <div class="table-wrap"><table><thead><tr><th>Параметры</th><th>Назначение</th><th>Production</th></tr></thead><tbody>
-        <tr><td><code>app_env</code>, <code>app_debug</code>, <code>app_name</code>, <code>app_timezone</code>, <code>base_path</code></td><td>Режим, диагностика, заголовок, локальное время PHP, подпуть URL</td><td><code>production</code>, debug=false, корректный IANA timezone</td></tr>
+        <tr><td><code>app_env</code>, <code>app_debug</code>, <code>app_name</code>, <code>base_path</code></td><td>Режим, диагностика, заголовок, подпуть URL</td><td><code>production</code>, debug=false</td></tr>
         <tr><td><code>db_host/port/name/user/pass</code></td><td>Oracle Easy Connect <code>//host:port/service</code></td><td>Секреты вне Git, минимальные права пользователя</td></tr>
         <tr><td><code>ad_enabled/host/domain/base_dn/debug</code></td><td>LDAP/AD вход</td><td>LDAPS/защищённая сеть; debug=false</td></tr>
         <tr><td><code>kerberos_enabled/mode/server_key/local_username/strip_realm/auto_create_user</code></td><td>SSO; local mock или principal от web server</td><td>mode=server, доверять server variable только от настроенного reverse proxy/Apache</td></tr>
