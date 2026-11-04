@@ -11,7 +11,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 class ExcelExport
 {
     /**
-     * Универсальный экспорт детализированных таблиц 
+     * Экспорт детализированной таблицы.
      */
     public static function download(
         Response $response,
@@ -24,7 +24,7 @@ class ExcelExport
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Детализация');
 
-        // Шапка
+        // Заголовки колонок.
         $colIdx = 1;
         foreach ($cols as $c) {
             $colLetter = Coordinate::stringFromColumnIndex($colIdx);
@@ -32,7 +32,7 @@ class ExcelExport
             $colIdx++;
         }
 
-        // Данные
+        // Строки таблицы.
         $rowIdx = 2;
         foreach ($rows as $row) {
             $colIdx = 1;
@@ -62,7 +62,7 @@ class ExcelExport
     }
 
     /**
-     * 2. Экспорт матричных таблиц (двухуровневые шахматки дашборда)
+     * Экспорт матричной таблицы с группировкой по дорогам и станциям.
      */
     public static function downloadMatrix(
         Response $response,
@@ -120,7 +120,7 @@ class ExcelExport
         $matrixColumnCount = max(1, $currentColIdx - 1);
         ExcelStyle::applyMatrixHeader($sheet, $matrixColumnCount);
 
-        // Наполнение данными (Дороги + вложенные Станции)
+        // Строки дорог и вложенных станций.
         $rowIdx = 3;
         $groupKeys = array_values(array_filter(array_map(
             static fn($group) => is_array($group) ? ($group['key'] ?? null) : null,
@@ -210,7 +210,7 @@ class ExcelExport
     }
 
     /**
-     * Выводит Excel-файл в поток 
+     * Выводит Excel-файл в поток.
      */
     private static function outputStream(Response $response, Spreadsheet $spreadsheet, string $filename): Response
     {

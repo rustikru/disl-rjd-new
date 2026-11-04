@@ -880,6 +880,7 @@ function loadSummary(cfg) {
 function loadDetail(cfg) {
   var $sub = $('#' + cfg.detSubId)
   var $table = $('#' + cfg.detTableId)
+  $table.attr('data-layout-report', cfg.ctx)
   // showInline: false — поле скрыто из inline-детализации (но видно на странице detail.php)
   var cols = DETAIL_CONTEXTS[cfg.ctx]
     ? DETAIL_CONTEXTS[cfg.ctx].cols.filter(function (c) {
@@ -1048,6 +1049,7 @@ function showTable($container, rows, colDefs) {
     return c
   })
   var id = $container.attr('id')
+  var layoutReport = $container.attr('data-layout-report') || ''
   if ($container[0]._vtCleanup) $container[0]._vtCleanup()
   $container.addClass('vt-host')
   var ROW_H = 28 // высота строки, используется для расчёта виртуального скролла
@@ -1117,6 +1119,35 @@ function showTable($container, rows, colDefs) {
   })
   document.getElementById('ivh-' + id).innerHTML = hHtml
   document.getElementById('ivf-' + id).innerHTML = fHtml
+
+  var head = document.getElementById('ivh-' + id)
+  head.querySelectorAll('.vt-th').forEach(function (cell, index) {
+    cell.dataset.key = colDefs[index].key
+  })
+  if (typeof Sortable !== 'undefined' && !head._sortable) {
+    head._sortable = Sortable.create(head, {
+      animation: 150,
+      draggable: '.vt-th:not(.col-pinned)',
+      filter: '.col-pinned',
+      ghostClass: 'vt-th--ghost',
+      onStart: function () { head.classList.add('vt-head--dragging') },
+      onEnd: function () {
+        head.classList.remove('vt-head--dragging')
+        var keys = Array.prototype.map.call(head.querySelectorAll('.vt-th'), function (cell) { return cell.dataset.key })
+        var byKey = {}
+        colDefs.forEach(function (column) { byKey[column.key] = column })
+        var reordered = keys.map(function (key) { return byKey[key] }).filter(Boolean)
+        if (layoutReport) {
+          $.ajax({
+            url: BASE + '/api/table-layout/' + encodeURIComponent(layoutReport),
+            method: 'POST',
+            data: { csrf_token: window.APP_CSRF || '', columns: JSON.stringify(keys) },
+          })
+        }
+        setTimeout(function () { showTable($container, allData, reordered) }, 0)
+      },
+    })
+  }
 
   function cellHtml(c, row) {
     var v = row[c.key]
@@ -1245,6 +1276,7 @@ function showTable($container, rows, colDefs) {
 
   render(true)
   $container[0]._vtCleanup = function () {
+    if (head._sortable) head._sortable.destroy()
     window.removeEventListener('resize', fitVpHeight)
     window.removeEventListener('scroll', fitVpHeight)
   }

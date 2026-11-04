@@ -179,7 +179,7 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
          p_direction := '';
    end calculate_change;
 
-    -- Условие для каждой карточки
+    -- Возвращает условие отбора для KPI.
    function get_kpi_where (
       p_kpi_id in number
    ) return varchar2 is
@@ -269,7 +269,7 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
          return 0;
    end fnc_check_kpi;
 
-    -- Собираем данные для каждой карточки (текущие данные и тренд)
+    -- Формирует подпись KPI по текущей и предыдущей справке.
    function set_kpi_label (
       p_kpi_id in number,
       p_date   in date default null

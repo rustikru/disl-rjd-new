@@ -253,7 +253,7 @@ final class ReportConfig
 
     private static function mailingHandlers(): array
     {
-        // Метод уже существующего API, который формирует строки отчёта для рассылки.
+        // Обработчики формирования строк отчёта для рассылки.
         return [
             'dislocation' => 'dislDetail',
             'approach' => 'approachDetail',
@@ -268,7 +268,6 @@ final class ReportConfig
             'source-departure' => 'sourceDeparture',
         ];
     }
-    //
     private static function apiHandlers(): array
     {
         return [
@@ -284,10 +283,9 @@ final class ReportConfig
             'downtime-control' => ['detail' => 'downtimeControlDetail'],
         ];
     }
-    // Определяет, в каком разделе меню находится отчёт и его порядок внутри раздела.
+    // Раздел меню и порядок отчёта.
     private static function navigationSettings(): array
     {
-        // определяется раздел меню и порядок отчётов внутри него.
         return [
             'dislocation' => ['group' => 'movement', 'order' => 10],
             'approach' => ['group' => 'movement', 'order' => 20],
@@ -301,7 +299,7 @@ final class ReportConfig
             'downtime-control' => ['group' => 'registry', 'order' => 10],
         ];
     }
-    // Настройки, специфичные для страницы отчёта. Используются в JS.
+    // Настройки страницы отчёта, передаваемые в клиентскую часть.
     private static function pageSettings(): array
     {
         return [
@@ -566,7 +564,7 @@ final class ReportConfig
     {
         return [['key' => 'main', 'name' => 'Основная информация'], ['key' => 'data-wagon', 'name' => 'Данные о вагоне'], ['key' => 'disl-wagon', 'name' => 'Дислокация вагона'], ['key' => 'techn-state-wagon', 'name' => 'Техн. состояние']];
     }
-    // Настройки для детальной таблицы отчёта. Используются в JS.
+    // Настройки детальной таблицы, передаваемые в клиентскую часть.
     private static function detailSettings(): array
     {
         $standardColumns = self::uniqueColumns(array_merge(self::baseColumns(), self::lesseeColumns()));

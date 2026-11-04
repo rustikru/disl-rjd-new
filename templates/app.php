@@ -28,6 +28,7 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
   <script>
     window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
+    window.APP_CSRF = '<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES) ?>';
     window.APP_ALLOWED_PAGES = <?= json_encode($allowedPages ?? [], JSON_UNESCAPED_UNICODE) ?>;
     window.APP_DISABLED_PAGES = <?= json_encode($disabledPages ?? [], JSON_UNESCAPED_UNICODE) ?>;
     window.APP_NAV_CONFIG = <?= json_encode($navConfig ?? [], JSON_UNESCAPED_UNICODE) ?>;
@@ -448,6 +449,7 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
     src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/detail-contexts.js') ?>"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/csv-export.js"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/excel-export.js"></script>
+  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/sortable.min.js"></script>
   <script
     src="<?= htmlspecialchars($basePath) ?>/assets/js/app.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/app.js') ?>"></script>
 </body>

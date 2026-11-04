@@ -76,6 +76,22 @@ final class MailingRun
             }
 
             $columns = $reportDefinition['detail_columns'] ?? [];
+            if (($mailingItem['layout_mode'] ?? 'D') === 'U') {
+                $layout = (new TableLayoutService($this->db))->get((int) ($mailing['user_id'] ?? 0), $reportCode);
+                $columnByKey = [];
+                foreach ($columns as $column) {
+                    $columnByKey[(string) $column['key']] = $column;
+                }
+                $orderedColumns = [];
+                foreach ($layout['columns'] as $layoutColumn) {
+                    $key = (string) ($layoutColumn['key'] ?? '');
+                    if (isset($columnByKey[$key])) {
+                        $orderedColumns[] = $columnByKey[$key];
+                        unset($columnByKey[$key]);
+                    }
+                }
+                $columns = array_merge($orderedColumns, array_values($columnByKey));
+            }
             $queryParameters = (array) ($mailingItem['filters'] ?? []);
             $queryParameters['fields'] = implode(',', array_column($columns, 'key'));
             if (!empty($reportDefinition['detail_sort'])) {

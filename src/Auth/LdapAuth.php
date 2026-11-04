@@ -42,7 +42,7 @@ class LdapAuth
             return null;
         }
 
-        // Получаем атрибуты пользователя
+        // Читаем атрибуты пользователя из ответа AD.
         $search = @ldap_search(
             $connection,
             $this->config['ad_base_dn'],

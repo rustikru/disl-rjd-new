@@ -10,6 +10,8 @@ use App\Services\Organizations;
 use App\Services\ReportService;
 use App\Services\WagonCargoState;
 use App\Services\WagonMovement;
+use App\Services\TableLayoutService;
+use App\Logging\ErrorLogger;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -1392,7 +1394,7 @@ class ApiController
         $subKeys = array_slice($rowDims, 1);
         $nColLevels = count($colAliases);
 
-        // Собираем все уникальные значения по каждому уровню колонок
+        // Уникальные значения для каждого уровня колонок.
         $colValues = array_fill(0, $nColLevels, []);
         $colIndex = array_fill(0, $nColLevels, []);
         foreach ($rows as $r) {
@@ -1497,6 +1499,60 @@ class ApiController
         $roads = $rawData['roads'] ?? [];
 
         return \App\ExcelExport::downloadMatrix($response, $colGroups, $roads, $filename, $groupCols, $cols);
+    }
+
+    /** GET /api/table-layout/{reportCode} */
+    public function tableLayout(ServerRequestInterface $request, ResponseInterface $response, string $reportCode): ResponseInterface
+    {
+        try {
+            $userId = (int) ($_SESSION['user']['id'] ?? 0);
+            return $this->json($response, (new TableLayoutService($this->db))->get($userId, $reportCode));
+        } catch (\InvalidArgumentException $error) {
+            return $this->json($response->withStatus(422), ['error' => $error->getMessage()]);
+        } catch (\Throwable $error) {
+            ErrorLogger::logThrowable($error, ['operation' => 'table_layout_read', 'report_code' => $reportCode]);
+            return $this->json($response->withStatus(500), ['error' => 'Не удалось загрузить настройки таблицы']);
+        }
+    }
+
+    /** POST /api/table-layout/{reportCode} */
+    public function saveTableLayout(ServerRequestInterface $request, ResponseInterface $response, string $reportCode): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+        $csrf = (string) ($body['csrf_token'] ?? '');
+        if ($csrf === '' || !hash_equals((string) ($_SESSION['csrf_token'] ?? ''), $csrf)) {
+            return $response->withStatus(403);
+        }
+        try {
+            $keys = json_decode((string) ($body['columns'] ?? '[]'), true, 512, JSON_THROW_ON_ERROR);
+            if (!is_array($keys)) {
+                throw new \InvalidArgumentException('Некорректный порядок колонок');
+            }
+            $userId = (int) ($_SESSION['user']['id'] ?? 0);
+            return $this->json($response, (new TableLayoutService($this->db))->save($userId, $reportCode, $keys));
+        } catch (\InvalidArgumentException | \JsonException $error) {
+            return $this->json($response->withStatus(422), ['error' => $error->getMessage()]);
+        } catch (\Throwable $error) {
+            ErrorLogger::logThrowable($error, ['operation' => 'table_layout_save', 'report_code' => $reportCode]);
+            return $this->json($response->withStatus(500), ['error' => 'Не удалось сохранить настройки таблицы']);
+        }
+    }
+
+    /** POST /api/table-layout/{reportCode}/reset */
+    public function resetTableLayout(ServerRequestInterface $request, ResponseInterface $response, string $reportCode): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+        $csrf = (string) ($body['csrf_token'] ?? '');
+        if ($csrf === '' || !hash_equals((string) ($_SESSION['csrf_token'] ?? ''), $csrf)) {
+            return $response->withStatus(403);
+        }
+        try {
+            (new TableLayoutService($this->db))->reset((int) ($_SESSION['user']['id'] ?? 0), $reportCode);
+            return $this->json($response, ['status' => 'ok']);
+        } catch (\Throwable $error) {
+            ErrorLogger::logThrowable($error, ['operation' => 'table_layout_reset', 'report_code' => $reportCode]);
+            return $this->json($response->withStatus(500), ['error' => 'Не удалось сбросить настройки таблицы']);
+        }
     }
 
     private function json(ResponseInterface $response, $data): ResponseInterface

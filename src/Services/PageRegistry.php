@@ -64,18 +64,33 @@ final class PageRegistry
         'profile' => ['label' => 'Мой профиль', 'routes' => ['/profile'], 'visibility_group' => 'Пользователь', 'user_menu' => ['order' => 10, 'url' => '/profile', 'label' => 'Мой профиль']],
         'user-report-mailings' => ['label' => 'Мои рассылки', 'routes' => ['/profile/report-mailings'], 'visibility_group' => 'Пользователь', 'legacy_permission' => 'report-mailings', 'legacy_visibility' => ['report-mailings'], 'user_menu' => ['order' => 20, 'url' => '/profile/report-mailings', 'label' => 'Мои рассылки']],
         'admin' => ['label' => 'Администрирование', 'routes' => ['/admin'], 'user_menu' => ['order' => 30, 'url' => '/admin', 'label' => 'Администрирование'], 'visibility_group' => 'Администрирование', 'admin_only' => true, 'derived' => true],
-        'users' => ['label' => 'Пользователи', 'routes' => ['/admin/users'], 'visibility_group' => 'Администрирование', 'admin_only' => true, 'admin_navigation' => ['group' => 'Пользователи и доступ', 'order' => 10, 'url' => '/admin/users']],
-        'roles' => ['label' => 'Роли', 'routes' => ['/admin/roles'], 'visibility_group' => 'Администрирование', 'admin_only' => true, 'admin_navigation' => ['group' => 'Пользователи и доступ', 'order' => 20, 'url' => '/admin/roles']],
-        'data-scopes' => ['label' => 'Области данных', 'routes' => ['/admin/data-scopes'], 'visibility_group' => 'Администрирование', 'admin_only' => true, 'admin_navigation' => ['group' => 'Пользователи и доступ', 'order' => 40, 'url' => '/admin/data-scopes']],
-        'access-groups' => ['label' => 'Группы доступа', 'routes' => ['/admin/access-groups'], 'visibility_group' => 'Администрирование', 'admin_only' => true, 'admin_navigation' => ['group' => 'Пользователи и доступ', 'order' => 30, 'url' => '/admin/access-groups']],
-        'organizations' => ['label' => 'Организации', 'routes' => ['/admin/directories/organizations'], 'visibility_group' => 'Администрирование', 'admin_only' => true, 'admin_navigation' => ['group' => 'Справочники', 'order' => 10, 'url' => '/admin/directories/organizations']],
-        'settings' => ['label' => 'Настройки приложения', 'routes' => ['/admin/settings'], 'visibility_group' => 'Администрирование', 'super_only' => true, 'admin_navigation' => ['group' => 'Настройки системы', 'order' => 10, 'url' => '/admin/settings']],
-        'page-visibility' => ['label' => 'Видимость страниц', 'routes' => ['/admin/page-visibility'], 'visibility_group' => 'Администрирование', 'super_only' => true, 'admin_navigation' => ['group' => 'Настройки системы', 'order' => 20, 'url' => '/admin/page-visibility', 'active_key' => 'visibility']],
-        'maintenance' => ['label' => 'Технические работы', 'routes' => ['/admin/maintenance'], 'visibility_group' => 'Администрирование', 'super_only' => true, 'admin_navigation' => ['group' => 'Настройки системы', 'order' => 30, 'url' => '/admin/maintenance']],
-        'admin-report-mailings' => ['label' => 'Управление рассылками', 'routes' => ['/admin/report-mailings'], 'visibility_group' => 'Администрирование', 'legacy_visibility' => ['report-mailings'], 'super_only' => true, 'admin_navigation' => ['group' => 'Рассылки', 'order' => 10, 'url' => '/admin/report-mailings']],
-        'sessions' => ['label' => 'Активные сессии', 'routes' => ['/admin/sessions'], 'visibility_group' => 'Администрирование', 'super_only' => true, 'admin_navigation' => ['group' => 'Контроль и обслуживание', 'order' => 10, 'url' => '/admin/sessions']],
-        'audit' => ['label' => 'Журнал действий', 'routes' => ['/admin/audit'], 'visibility_group' => 'Администрирование', 'super_only' => true, 'admin_navigation' => ['group' => 'Контроль и обслуживание', 'order' => 20, 'url' => '/admin/audit']],
-        'system' => ['label' => 'О системе', 'routes' => ['/admin/system'], 'visibility_group' => 'Администрирование', 'super_only' => true, 'admin_navigation' => ['group' => 'Контроль и обслуживание', 'order' => 30, 'url' => '/admin/system']],
+        'users' => ['label' => 'Пользователи', 'routes' => ['/admin/users'], 'visibility_group' => 'Администрирование', 'admin_only' => true],
+        'roles' => ['label' => 'Роли', 'routes' => ['/admin/roles'], 'visibility_group' => 'Администрирование', 'admin_only' => true],
+        'data-scopes' => ['label' => 'Области данных', 'routes' => ['/admin/data-scopes'], 'visibility_group' => 'Администрирование', 'admin_only' => true],
+        'access-groups' => ['label' => 'Группы доступа', 'routes' => ['/admin/access-groups'], 'visibility_group' => 'Администрирование', 'admin_only' => true],
+        'organizations' => ['label' => 'Организации', 'routes' => ['/admin/directories/organizations'], 'visibility_group' => 'Администрирование', 'admin_only' => true],
+        'settings' => ['label' => 'Настройки приложения', 'routes' => ['/admin/settings'], 'visibility_group' => 'Администрирование', 'super_only' => true],
+        'page-visibility' => ['label' => 'Видимость страниц', 'routes' => ['/admin/page-visibility'], 'visibility_group' => 'Администрирование', 'super_only' => true],
+        'maintenance' => ['label' => 'Технические работы', 'routes' => ['/admin/maintenance'], 'visibility_group' => 'Администрирование', 'super_only' => true],
+        'admin-report-mailings' => ['label' => 'Управление рассылками', 'routes' => ['/admin/report-mailings'], 'visibility_group' => 'Администрирование', 'legacy_visibility' => ['report-mailings'], 'super_only' => true],
+        'sessions' => ['label' => 'Активные сессии', 'routes' => ['/admin/sessions'], 'visibility_group' => 'Администрирование', 'super_only' => true],
+        'audit' => ['label' => 'Журнал действий', 'routes' => ['/admin/audit'], 'visibility_group' => 'Администрирование', 'super_only' => true],
+        'system' => ['label' => 'О системе', 'routes' => ['/admin/system'], 'visibility_group' => 'Администрирование', 'super_only' => true],
+    ];
+
+    private const ADMIN_NAVIGATION = [
+        'users' => ['group' => 'Пользователи и доступ', 'order' => 10, 'url' => '/admin/users'],
+        'roles' => ['group' => 'Пользователи и доступ', 'order' => 20, 'url' => '/admin/roles'],
+        'access-groups' => ['group' => 'Пользователи и доступ', 'order' => 30, 'url' => '/admin/access-groups'],
+        'data-scopes' => ['group' => 'Пользователи и доступ', 'order' => 40, 'url' => '/admin/data-scopes'],
+        'organizations' => ['group' => 'Справочники', 'order' => 10, 'url' => '/admin/directories/organizations'],
+        'settings' => ['group' => 'Настройки системы', 'order' => 10, 'url' => '/admin/settings'],
+        'page-visibility' => ['group' => 'Настройки системы', 'order' => 20, 'url' => '/admin/page-visibility', 'active_key' => 'visibility'],
+        'maintenance' => ['group' => 'Настройки системы', 'order' => 30, 'url' => '/admin/maintenance'],
+        'admin-report-mailings' => ['group' => 'Рассылки', 'order' => 10, 'url' => '/admin/report-mailings'],
+        'sessions' => ['group' => 'Контроль и обслуживание', 'order' => 10, 'url' => '/admin/sessions'],
+        'audit' => ['group' => 'Контроль и обслуживание', 'order' => 20, 'url' => '/admin/audit'],
+        'system' => ['group' => 'Контроль и обслуживание', 'order' => 30, 'url' => '/admin/system'],
     ];
 
     private const GROUPS = [
@@ -90,6 +105,10 @@ final class PageRegistry
     public static function all(): array
     {
         $pages = self::CORE;
+        foreach (self::ADMIN_NAVIGATION as $code => $navigation) {
+            if (isset($pages[$code]))
+                $pages[$code]['admin_navigation'] = $navigation;
+        }
         foreach (ReportConfig::all() as $code => $report) {
             if (empty($report['navigation']))
                 continue;

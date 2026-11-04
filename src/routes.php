@@ -448,6 +448,16 @@ return function (App $app, array $config): void {
                 return (new \App\Controllers\ApiController($getDb()))->exportMatrixTable($req, $res);
             });
 
+            $api->get('/table-layout/{reportCode:[a-z0-9-]+}', function ($req, $res, $args) use ($getDb) {
+                return (new \App\Controllers\ApiController($getDb()))->tableLayout($req, $res, (string) $args['reportCode']);
+            });
+            $api->post('/table-layout/{reportCode:[a-z0-9-]+}', function ($req, $res, $args) use ($getDb) {
+                return (new \App\Controllers\ApiController($getDb()))->saveTableLayout($req, $res, (string) $args['reportCode']);
+            });
+            $api->post('/table-layout/{reportCode:[a-z0-9-]+}/reset', function ($req, $res, $args) use ($getDb) {
+                return (new \App\Controllers\ApiController($getDb()))->resetTableLayout($req, $res, (string) $args['reportCode']);
+            });
+
         });
 
     })

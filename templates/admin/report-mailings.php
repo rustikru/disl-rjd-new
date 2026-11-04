@@ -10,8 +10,10 @@ $showMailingSettings = $showMailingSettings ?? false;
 $scheduleLabels = ['daily' => 'Каждый день', 'weekly' => 'Еженедельно', 'monthly' => 'Ежемесячно'];
 $weekDayLabels = [1 => 'Пн', 2 => 'Вт', 3 => 'Ср', 4 => 'Чт', 5 => 'Пт', 6 => 'Сб', 7 => 'Вс'];
 $editingReportFilters = [];
+$editingReportLayoutModes = [];
 foreach ($editingMailing['items'] ?? [] as $editingMailingItem) {
   $editingReportFilters[(string) $editingMailingItem['report_code']] = $editingMailingItem['filters'] ?? [];
+  $editingReportLayoutModes[(string) $editingMailingItem['report_code']] = ($editingMailingItem['layout_mode'] ?? 'D') === 'U' ? 'U' : 'D';
 }
 $editingWeekDays = array_filter(explode(',', (string) ($editingMailing['week_days'] ?? '')));
 ?>
@@ -54,6 +56,8 @@ $editingWeekDays = array_filter(explode(',', (string) ($editingMailing['week_day
     .selected-report { min-width:0; border:1px solid var(--border); border-radius:8px; overflow:visible; }
     .selected-report-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:5px 9px; background:var(--surface-2, #f7f7f9); }
     .selected-report-name { font-size:12px; font-weight:700; }
+    .mailing-layout-mode { display:inline-flex; align-items:center; gap:5px; margin-left:auto; color:var(--text-3); font-size:10.5px; font-weight:400; white-space:nowrap; cursor:pointer; }
+    .mailing-layout-mode input { width:13px; height:13px; margin:0; accent-color:var(--accent); }
     .selected-report-remove { border:0; background:none; color:var(--brand-neg); cursor:pointer; font-size:11px; }
     .selected-report-filters { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:6px 8px; padding:7px 9px; }
     .selected-report-filters .mailing-field input:not([type="checkbox"]), .selected-report-filters .mailing-field select { height:30px; padding:4px 7px; font-size:11.5px; }
@@ -293,6 +297,7 @@ $editingWeekDays = array_filter(explode(',', (string) ($editingMailing['week_day
 <script>
   var MAILING_REPORTS = <?= json_encode($mailingReports, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
   var MAILING_EDIT_FILTERS = <?= json_encode($editingReportFilters, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+  var MAILING_EDIT_LAYOUT_MODES = <?= json_encode($editingReportLayoutModes, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
   var MAILING_BASE_PATH = <?= json_encode($basePath, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
   var mailingFilterOptions = {}
   var mailingFilterRequests = {}
@@ -429,10 +434,6 @@ $editingWeekDays = array_filter(explode(',', (string) ($editingMailing['week_day
       selected.type = 'hidden'
       selected.name = 'reports[' + reportCode + '][selected]'
       selected.value = '1'
-      if (!reportDefinition.filters.length) {
-        container.append(selected)
-        return
-      }
       var report = document.createElement('div')
       report.className = 'selected-report'
       var head = document.createElement('div')
@@ -440,6 +441,14 @@ $editingWeekDays = array_filter(explode(',', (string) ($editingMailing['week_day
       var name = document.createElement('span')
       name.className = 'selected-report-name'
       name.textContent = reportDefinition.name
+      var layoutLabel = document.createElement('label')
+      layoutLabel.className = 'mailing-layout-mode'
+      var layoutInput = document.createElement('input')
+      layoutInput.type = 'checkbox'
+      layoutInput.name = 'reports[' + reportCode + '][layout_mode]'
+      layoutInput.value = 'U'
+      layoutInput.checked = MAILING_EDIT_LAYOUT_MODES[reportCode] === 'U'
+      layoutLabel.append(layoutInput, document.createTextNode('Мой порядок колонок'))
       var remove = document.createElement('button')
       remove.type = 'button'
       remove.className = 'selected-report-remove'
@@ -449,7 +458,7 @@ $editingWeekDays = array_filter(explode(',', (string) ($editingMailing['week_day
         document.querySelector('[data-report-code="' + reportCode + '"]').checked = false
         showSelectedReports()
       })
-      head.append(name, remove)
+      head.append(name, layoutLabel, remove)
       var filters = document.createElement('div')
       filters.className = 'selected-report-filters'
       reportDefinition.filters.forEach(function (filterDefinition) { filters.append(buildMailingFilter(reportCode, filterDefinition)) })

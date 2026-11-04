@@ -445,7 +445,7 @@ $canOpenDetail = \App\Services\Authorization::isSuper($user)
             'lease_station': { el: document.getElementById('lease-station-filter'), key: 'lease_home_station', label: 'Все станции приписки', source: LEASESTATIONS }
         };
 
-        // Текущие выбранные значения
+        // Значения активных фильтров.
         var activeFilters = {
             cargo: '',
             lessee: '',
@@ -455,7 +455,7 @@ $canOpenDetail = \App\Services\Authorization::isSuper($user)
         var map = L.map('map', { center: [57.5, 60.0], zoom: 4, zoomControl: true, attributionControl: false });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-        // Функция фильтрации вагонов по всем активным параметрам
+        // Фильтрация вагонов по активным параметрам.
         function getFilteredWagons(station) {
             return station.wagons.filter(function (w) {
                 if (activeFilters.cargo && w.cargo !== activeFilters.cargo) return false;
@@ -469,7 +469,7 @@ $canOpenDetail = \App\Services\Authorization::isSuper($user)
             });
         }
 
-        // Динамический пересчет доступных опций в селектах (Взаимосвязь)
+        // Доступные значения селектов с учётом остальных фильтров.
         function updateSelectOptions() {
             Object.keys(FILTER_CONFIG).forEach(function (currentKey) {
                 var config = FILTER_CONFIG[currentKey];
@@ -478,7 +478,7 @@ $canOpenDetail = \App\Services\Authorization::isSuper($user)
 
                 var availableValues = new Set();
 
-                // Проверяем, какие значения доступны, если применить ВСЕ фильтры КРОМЕ текущего
+                // Для списка учитываются все фильтры, кроме текущего.
                 STATIONS.forEach(function (station) {
                     station.wagons.forEach(function (w) {
                         if (activeFilter === 'loaded' && !w.ld) return;
@@ -670,7 +670,7 @@ $canOpenDetail = \App\Services\Authorization::isSuper($user)
             buildMarkers();
         }
 
-        // Слушатели событий
+        // Обработчики событий.
         document.getElementById('station-search').addEventListener('input', function () {
             renderSidebar();
             buildMarkers();
@@ -707,7 +707,7 @@ $canOpenDetail = \App\Services\Authorization::isSuper($user)
             });
         });
 
-        // Полный запуск цепочки фильтров при старте
+        // Первичное применение фильтров.
         renderStationsWithoutCoordinates();
         updateAll();
     </script>

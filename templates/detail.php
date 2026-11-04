@@ -16,6 +16,7 @@ $basePath = $basePath ?? '';
   <script>
     window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
     window.APP_CAN_OPEN_WAGON = <?= \App\Services\Authorization::isSuper($user) || in_array('wagon-card', (array) ($user['allowed_pages'] ?? []), true) ? 'true' : 'false' ?>;
+    window.APP_CSRF = '<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES) ?>';
     window.APP_REPORT_DEFINITIONS = <?= json_encode($reportDefinitions ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
   </script>
   <style>
@@ -81,6 +82,7 @@ $basePath = $basePath ?? '';
           <span class="table-sub" id="detailSub"></span>
         </div>
         <div class="table-acts">
+          <button class="btn btn-ghost btn-sm" id="btnResetLayout" type="button" hidden>Сбросить порядок</button>
           <button class="btn btn-ghost btn-sm" id="btnDetailCSV">Выгрузить в Excel</button>
         </div>
       </div>
@@ -95,12 +97,13 @@ $basePath = $basePath ?? '';
     src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/detail-contexts.js') ?>"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/csv-export.js"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/excel-export.js"></script>
+  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/sortable.min.js"></script>
   <script>
     'use strict';
 
     var BASE = window.APP_BASE || '';
 
-    // Закрытие вкладки детализации.
+    // Закрывает вкладку детализации.
     document.getElementById('backBtn').addEventListener('click', function (event) {
       event.preventDefault();
       window.close();
@@ -116,12 +119,52 @@ $basePath = $basePath ?? '';
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    /* Данные для CSV — обновляются при каждом showTable */
+    /* Данные CSV обновляются при каждом showTable. */
     var _vtAllData = [], _vtFiltered = [], _vtCols = [], _vtAllCols = [];
+    var _vtLayout = null, _vtReportCode = '';
+
+    function orderColumns(cols, layout) {
+      if (!layout || !Array.isArray(layout.columns)) return cols.slice();
+      var byKey = {};
+      cols.forEach(function (column) { byKey[column.key] = column; });
+      var ordered = [];
+      layout.columns.forEach(function (item) {
+        if (byKey[item.key]) {
+          ordered.push(byKey[item.key]);
+          delete byKey[item.key];
+        }
+      });
+      return ordered.concat(Object.keys(byKey).map(function (key) { return byKey[key]; }));
+    }
+
+    function loadTableLayout(reportCode) {
+      return $.getJSON(BASE + '/api/table-layout/' + encodeURIComponent(reportCode))
+        .done(function (layout) {
+          _vtLayout = layout;
+          _vtAllCols = orderColumns(_vtAllCols, layout);
+          $('#btnResetLayout').prop('hidden', false);
+        })
+        .fail(function () { _vtLayout = null; });
+    }
+
+    function saveTableLayout(reportCode, cols) {
+      $.ajax({
+        url: BASE + '/api/table-layout/' + encodeURIComponent(reportCode),
+        method: 'POST',
+        data: {
+          csrf_token: window.APP_CSRF || '',
+          columns: JSON.stringify(cols.map(function (column) { return column.key; })),
+        },
+      }).done(function (layout) {
+        _vtLayout = layout;
+        _vtAllCols = orderColumns(_vtAllCols, layout);
+      });
+    }
 
     $(function () {
       var params = new URLSearchParams(window.location.search);
       var ctx = params.get('ctx') || '';
+      _vtReportCode = ctx;
       var road = params.get('road') || '';
       var station = params.get('station') || '';
       var wagType = params.get('wagon_type') || '';
@@ -177,7 +220,7 @@ $basePath = $basePath ?? '';
 
       // Вкладки drill-down (только если DETAIL_TABS определён и контекст их поддерживает)
       var allCols = ctxDef.cols
-      _vtAllCols = allCols
+      _vtAllCols = allCols.slice()
       var hasTabs = typeof DETAIL_TABS !== 'undefined' && DETAIL_TABS.length > 0
       // visTabs — только вкладки, у которых есть хотя бы одно поле
       var visTabs = hasTabs ? DETAIL_TABS.filter(function (t) {
@@ -205,18 +248,19 @@ $basePath = $basePath ?? '';
           btn.addEventListener('click', function () {
             activeTab = this.getAttribute('data-tab')
             renderTabs()
-            showTable(_vtAllData, getTabCols(activeTab))
+            showTable(_vtAllData, orderColumns(getTabCols(activeTab), _vtLayout))
           })
         })
       }
 
       $('#detailSub').text('Загрузка...');
 
+      loadTableLayout(ctx).always(function () {
       $.getJSON(ctxDef.endpoint + (apiParams.toString() ? '?' + apiParams.toString() : ''))
         .done(function (data) {
           var rows = data.rows || [];
           $('#detailSub').text('Строк: ' + rows.length.toLocaleString('ru-RU'));
-          showTable(rows, getTabCols(activeTab));
+          showTable(rows, orderColumns(getTabCols(activeTab), _vtLayout));
           renderTabs();
         })
         .fail(function (jqXHR) {
@@ -228,6 +272,19 @@ $basePath = $basePath ?? '';
           $('#detailTable').html('<div style="text-align:center;padding:40px;color:#9DA5B0">' + esc(msg) + '</div>');
           $('#detailSub').text(msg);
         });
+      });
+
+      $('#btnResetLayout').on('click', function () {
+        $.ajax({
+          url: BASE + '/api/table-layout/' + encodeURIComponent(ctx) + '/reset',
+          method: 'POST',
+          data: { csrf_token: window.APP_CSRF || '' },
+        }).always(function () {
+          _vtLayout = null;
+          _vtAllCols = allCols.slice();
+          showTable(_vtAllData, getTabCols(activeTab));
+        });
+      });
     });
 
     function oracleMaskFmt(v, mask) {
@@ -301,11 +358,35 @@ $basePath = $basePath ?? '';
 
       var hHtml = '', fHtml = '';
       cols.forEach(function (c) {
-        hHtml += '<div class="vt-th' + (c.pinned ? ' col-pinned' : '') + (c.meta ? ' col-meta' : '') + '">' + esc(c.label) + '</div>';
+        hHtml += '<div class="vt-th' + (c.pinned ? ' col-pinned' : '') + (c.meta ? ' col-meta' : '') + '" title="' + (c.pinned ? 'Закреплённая колонка' : 'Перетащите, чтобы переместить колонку') + '">' + esc(c.label) + '</div>';
         fHtml += '<div class="vt-fc' + (c.pinned ? ' col-pinned' : '') + '"><input data-k="' + c.key + '" type="text" placeholder=""></div>';
       });
       document.getElementById('vtHead').innerHTML = hHtml;
       document.getElementById('vtFilter').innerHTML = fHtml;
+
+      var head = document.getElementById('vtHead');
+      head.querySelectorAll('.vt-th').forEach(function (cell, index) {
+        cell.dataset.key = cols[index].key;
+      });
+      if (typeof Sortable !== 'undefined') {
+        head._sortable = Sortable.create(head, {
+          animation: 150,
+          draggable: '.vt-th:not(.col-pinned)',
+          filter: '.col-pinned',
+          forceFallback: false,
+          ghostClass: 'vt-th--ghost',
+          onStart: function () { head.classList.add('vt-head--dragging'); },
+          onEnd: function () {
+            head.classList.remove('vt-head--dragging');
+            var keys = Array.prototype.map.call(head.querySelectorAll('.vt-th'), function (cell) { return cell.dataset.key; });
+            var byKey = {};
+            cols.forEach(function (column) { byKey[column.key] = column; });
+            var reordered = keys.map(function (key) { return byKey[key]; }).filter(Boolean);
+            saveTableLayout(_vtReportCode, reordered);
+            setTimeout(function () { showTable(_vtAllData, reordered); }, 0);
+          },
+        });
+      }
 
       function cellHtml(c, row) {
         var v = row[c.key];
@@ -393,13 +474,15 @@ $basePath = $basePath ?? '';
 
       render(true);
       host._vtCleanup = function () {
+        if (head._sortable) head._sortable.destroy();
+        head.classList.remove('vt-head--dragging');
         window.removeEventListener('resize', fitVpHeight);
         window.removeEventListener('scroll', fitVpHeight);
       };
     }
 
     function saveCSV(filename) {
-      // Используем все колонки (все вкладки), а не только активную
+      // Экспортируются колонки всех вкладок.
       var csvCols = _vtAllCols.length ? _vtAllCols : _vtCols;
       saveCSVFromData(csvCols, _vtFiltered, filename);
     }

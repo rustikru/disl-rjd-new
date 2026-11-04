@@ -37,7 +37,6 @@ $returnUrl = (string) ($_SERVER['REQUEST_URI'] ?? ($basePath . '/'));
           class="organization-select-form">
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
           <input type="hidden" name="return_url" value="<?= htmlspecialchars($returnUrl) ?>">
-          <label for="headerOrganization" class="organization-select-label">Организация</label>
           <select id="headerOrganization" name="organization_id" class="organization-select"
             onchange="this.form.submit()">
             <?php foreach ($headerOrganizations as $headerOrganization): ?>

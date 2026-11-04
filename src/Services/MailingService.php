@@ -187,7 +187,11 @@ final class MailingService
                     $filters[$filterDefinition['key']] = $filterValue;
                 }
             }
-            $mailingItems[] = ['report_code' => $reportCode, 'filters' => $filters];
+            $mailingItems[] = [
+                'report_code' => $reportCode,
+                'filters' => $filters,
+                'layout_mode' => (($reportForm['layout_mode'] ?? 'D') === 'U') ? 'U' : 'D',
+            ];
         }
         if (!$mailingItems) {
             throw new \InvalidArgumentException('Добавьте отчёт в рассылку');
@@ -247,13 +251,14 @@ final class MailingService
             foreach ($mailingItems as $position => $mailingItem) {
                 $this->db->execute(
                     'INSERT INTO xx_rjd_user_mailing_reports
-                        (mailing_id, report_code, position, filters_json)
-                     VALUES (:mailing_id, :report_code, :position, :filters_json)',
+                        (mailing_id, report_code, position, filters_json, layout_mode)
+                     VALUES (:mailing_id, :report_code, :position, :filters_json, :layout_mode)',
                     [
                         'mailing_id' => $mailingId,
                         'report_code' => $mailingItem['report_code'],
                         'position' => $position,
                         'filters_json' => json_encode($mailingItem['filters'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                        'layout_mode' => $mailingItem['layout_mode'],
                     ]
                 );
             }
@@ -411,7 +416,7 @@ final class MailingService
     private function mailingItems(int $mailingId): array
     {
         $items = $this->db->fetchAll(
-            'SELECT id, report_code, position, filters_json
+            'SELECT id, report_code, position, filters_json, layout_mode
                FROM xx_rjd_user_mailing_reports
               WHERE mailing_id = :mailing_id
               ORDER BY position, id',
@@ -419,6 +424,7 @@ final class MailingService
         );
         foreach ($items as &$item) {
             $item['filters'] = json_decode((string) ($item['filters_json'] ?? '{}'), true) ?: [];
+            $item['layout_mode'] = ($item['layout_mode'] ?? 'D') === 'U' ? 'U' : 'D';
             unset($item['filters_json']);
         }
         unset($item);
