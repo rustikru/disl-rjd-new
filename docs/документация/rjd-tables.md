@@ -34,7 +34,7 @@ Oracle не хранится в проекте, поэтому для объек
 
 | Объект | Назначение | Состояние DDL |
 | --- | --- | --- |
-| `XX_RJD_REPORTS` | Реестр отчётов для редактора конфигурации | Описан в `docs/report-config-db-editor.md`, baseline вне репозитория |
+| `XX_RJD_REPORTS` | Реестр отчётов для редактора конфигурации | Описан в `docs/доработки/report-config-db-editor.md`, baseline вне репозитория |
 | `XX_RJD_REPORT_COLUMNS` | Колонки отчётов | То же |
 | `XX_RJD_REPORT_FILTERS` | Фильтры отчётов | То же |
 | `XX_RJD_SOURCE_COLUMNS` | Исходные колонки справки | То же |
