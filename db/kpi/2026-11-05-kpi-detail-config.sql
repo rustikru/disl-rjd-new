@@ -1,0 +1,56 @@
+-- Настройки режима промежуточной детализации KPI.
+-- GROUP_FIELD хранит только код поля из разрешённого списка ReportConfig.
+
+BEGIN
+    EXECUTE IMMEDIATE '
+        CREATE TABLE XX_ETW.XX_RJD_KPI_DETAIL_CFG (
+            KPI_ID NUMBER NOT NULL,
+            DETAIL_TYPE VARCHAR2(20) DEFAULT ''TABLE'' NOT NULL,
+            DETAIL_PROFILE VARCHAR2(50),
+            GROUP_FIELD VARCHAR2(128),
+            GROUP_TITLE VARCHAR2(200),
+            COUNT_LABEL VARCHAR2(100),
+            EMPTY_LABEL VARCHAR2(200),
+            IS_ACTIVE CHAR(1) DEFAULT ''Y'' NOT NULL,
+            CREATED_AT DATE DEFAULT SYSDATE NOT NULL,
+            UPDATED_AT DATE,
+            CONSTRAINT XX_RJD_KPI_DETAIL_CFG_PK PRIMARY KEY (KPI_ID),
+            CONSTRAINT XX_RJD_KPI_DETAIL_TYPE_CK
+                CHECK (DETAIL_TYPE IN (''TABLE'', ''GROUPED'', ''SPECIAL'')),
+            CONSTRAINT XX_RJD_KPI_DETAIL_GROUP_CK
+                CHECK (DETAIL_TYPE != ''GROUPED'' OR GROUP_FIELD IS NOT NULL),
+            CONSTRAINT XX_RJD_KPI_DETAIL_ACTIVE_CK
+                CHECK (IS_ACTIVE IN (''Y'', ''N''))
+        )';
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLCODE != -955 THEN RAISE; END IF;
+END;
+/
+
+COMMENT ON TABLE XX_ETW.XX_RJD_KPI_DETAIL_CFG IS
+    'Настройки режима детализации KPI';
+COMMENT ON COLUMN XX_ETW.XX_RJD_KPI_DETAIL_CFG.KPI_ID IS
+    'ID карточки из XX_RJD_KPI_TBL';
+COMMENT ON COLUMN XX_ETW.XX_RJD_KPI_DETAIL_CFG.DETAIL_TYPE IS
+    'TABLE - общая таблица, GROUPED - промежуточная группировка, SPECIAL - специальная детализация';
+COMMENT ON COLUMN XX_ETW.XX_RJD_KPI_DETAIL_CFG.DETAIL_PROFILE IS
+    'Профиль специальной детализации, например abandoned или formed';
+COMMENT ON COLUMN XX_ETW.XX_RJD_KPI_DETAIL_CFG.GROUP_FIELD IS
+    'Код поля группировки из разрешённого списка приложения';
+COMMENT ON COLUMN XX_ETW.XX_RJD_KPI_DETAIL_CFG.GROUP_TITLE IS
+    'Заголовок промежуточной группировки';
+COMMENT ON COLUMN XX_ETW.XX_RJD_KPI_DETAIL_CFG.COUNT_LABEL IS
+    'Подпись количества в группе';
+COMMENT ON COLUMN XX_ETW.XX_RJD_KPI_DETAIL_CFG.EMPTY_LABEL IS
+    'Текст для пустого результата группировки';
+COMMENT ON COLUMN XX_ETW.XX_RJD_KPI_DETAIL_CFG.IS_ACTIVE IS
+    'Признак использования настройки: Y/N';
+
+BEGIN
+    EXECUTE IMMEDIATE 'CREATE INDEX XX_ETW.XX_RJD_KPI_DETAIL_CFG_ACTIVE_IDX ON XX_ETW.XX_RJD_KPI_DETAIL_CFG (IS_ACTIVE, DETAIL_TYPE)';
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLCODE != -955 THEN RAISE; END IF;
+END;
+/

@@ -208,13 +208,13 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
         -- KPI для страницы "Отправление вагонов"
       if l_kpi.type = 'departue_kpi' then
          if l_kpi.code = 'eysk' then
-            return 'UPPER(dest_station) LIKE UPPER(''%Ейск%'')';
+            return 'UPPER(dest_station) LIKE UPPER(''%Ейск%515405%'')';
          elsif l_kpi.code = 'zabaykalsk' then
             return 'UPPER(dest_station) LIKE UPPER(''%Забайкальск%'')';
          elsif l_kpi.code = 'luzskaya' then
             return 'UPPER(dest_station) LIKE UPPER(''%Лужская%'')';
          elsif l_kpi.code = 'abandoned_trains' then
-            return 'type_reference = ''Отправление'' AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
+            return 'type_reference = ''Отправка'' AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
          end if;
         -- KPI для страницы "Дислокация/Дашборд"
       elsif l_kpi.type = 'dashboard_kpi' then
@@ -232,22 +232,22 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
         -- KPI для страницы "Подход вагонов"
       elsif l_kpi.type = 'approach_kpi' then
          if l_kpi.code = 'eysk' then
-            return 'UPPER(depart_station) LIKE UPPER(''%Ейск%'')';
+            return 'UPPER(depart_station) LIKE UPPER(''%Ейск%515405%'')';
          elsif l_kpi.code = 'zabaykalsk' then
             return 'UPPER(depart_station) LIKE UPPER(''%Забайкальск%'')';
          elsif l_kpi.code = 'luzskaya' then
             return 'UPPER(depart_station) LIKE UPPER(''%Лужская%'')';
          elsif l_kpi.code = 'delivery_time' then
-            return 'oper_dt > norm_delivery_dt AND UPPER(oper_station) NOT LIKE UPPER(''%Угле%'') AND type_reference = ''Подход'''
+            return 'type_reference = ''Подход'' AND TRUNC(report_dt) > TRUNC(norm_delivery_dt) AND trip_end_dt IS NULL AND UPPER(oper_station) NOT LIKE UPPER(''%Угле%'')'
             ;
          elsif l_kpi.code = 'abandoned_wagons' then
             return 'type_reference = ''Подход'' AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
          elsif l_kpi.code = 'formed_trains' then
-            return 'type_reference = ''Подход'' AND REGEXP_REPLACE(TRIM(train_index), ''[^0-9]'', '''') LIKE ''%768207'' AND UPPER(NVL(oper_station, '' '')) NOT LIKE ''%УГЛЕУРАЛ%''';
+            return 'type_reference = ''Подход'' AND (REGEXP_SUBSTR(TRIM(train_index), ''^[0-9]+'') LIKE ''%68207'' OR UPPER(train_index) LIKE ''%УГЛЕУРАЛЬСКАЯ%'' OR UPPER(train_index) LIKE ''%БЕРЕЗНИКИ%'' OR UPPER(train_index) LIKE ''%КИЗЕЛ%'' OR UPPER(train_index) LIKE ''%ЗАЯЧЬЯ ГОРКА%'')';
          end if;
       end if;
 
-      return '1=0';                                       -- неизвестный KPI
+      raise_application_error(-20001, 'Условие для KPI не определено.');
    end get_kpi_where;
 
    function fnc_check_kpi (
@@ -288,7 +288,7 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
          return '';
       end if;
       if l_kpi_code = 'formed_trains' then
-         l_count_expr := 'COUNT(DISTINCT TRIM(train_index))';
+         l_count_expr := 'COUNT(DISTINCT TRIM(train_no))';
       elsif l_kpi_code = 'abandoned_trains' then
          l_count_expr := 'COUNT(DISTINCT NVL(TRIM(train_index), NVL(TRIM(train_no), TRIM(TO_CHAR(wagon_no)))) || '':'' || TRIM(oper_station))';
       end if;
@@ -330,6 +330,9 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
       return to_char(l_value);
    exception
       when others then
+         if sqlcode = -20001 then
+            raise;
+         end if;
          return '';
    end set_kpi_label;
 
