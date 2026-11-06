@@ -215,6 +215,10 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
             return 'UPPER(dest_station) LIKE UPPER(''%Лужская%'')';
          elsif l_kpi.code = 'abandoned_trains' then
             return 'type_reference = ''Отправка'' AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
+         elsif l_kpi.code = 'departed-today' then
+            return 'type_reference = ''Отправка'' AND asoup_depart_dt IS NOT NULL AND REGEXP_LIKE(UPPER(TRIM(depart_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRUNC(asoup_depart_dt) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
+         elsif l_kpi.code = 'departed-yesterday' then
+            return 'type_reference = ''Отправка'' AND asoup_depart_dt IS NOT NULL AND REGEXP_LIKE(UPPER(TRIM(depart_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRUNC(asoup_depart_dt) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1';
          end if;
         -- KPI для страницы "Дислокация/Дашборд"
       elsif l_kpi.type = 'dashboard_kpi' then
@@ -244,6 +248,10 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
             return 'type_reference = ''Подход'' AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
          elsif l_kpi.code = 'formed_trains' then
             return 'type_reference = ''Подход'' AND (REGEXP_SUBSTR(TRIM(train_index), ''^[0-9]+'') LIKE ''%68207'' OR UPPER(train_index) LIKE ''%УГЛЕУРАЛЬСКАЯ%'' OR UPPER(train_index) LIKE ''%БЕРЕЗНИКИ%'' OR UPPER(train_index) LIKE ''%КИЗЕЛ%'' OR UPPER(train_index) LIKE ''%ЗАЯЧЬЯ ГОРКА%'')';
+         elsif l_kpi.code = 'arrived-today' then
+            return 'type_reference = ''Подход'' AND NVL(asoup_arrive_dt, trip_end_dt) IS NOT NULL AND REGEXP_LIKE(UPPER(TRIM(dest_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRUNC(NVL(asoup_arrive_dt, trip_end_dt)) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
+         elsif l_kpi.code = 'arrived-yesterday' then
+            return 'type_reference = ''Подход'' AND NVL(asoup_arrive_dt, trip_end_dt) IS NOT NULL AND REGEXP_LIKE(UPPER(TRIM(dest_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRUNC(NVL(asoup_arrive_dt, trip_end_dt)) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1';
          end if;
       end if;
 
