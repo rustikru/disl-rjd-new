@@ -122,6 +122,7 @@ $basePath = $basePath ?? '';
     /* Данные CSV обновляются при каждом showTable. */
     var _vtAllData = [], _vtFiltered = [], _vtCols = [], _vtAllCols = [], _vtInline = {};
     var _vtLayout = null, _vtReportCode = '';
+    var _vtSortState = { key: null, dir: null };
 
     function orderColumns(cols, layout) {
       if (!layout || !Array.isArray(layout.columns)) return cols.slice();
@@ -389,6 +390,7 @@ $basePath = $basePath ?? '';
             return;
           }
           var rows = data.rows || [];
+          _vtSortState = { key: null, dir: null };
           $('#detailSub').text('Строк: ' + rows.length.toLocaleString('ru-RU'));
           showTable(rows, orderColumns(getTabCols(activeTab), _vtLayout));
           renderTabs();
@@ -446,10 +448,10 @@ $basePath = $basePath ?? '';
         return c;
       });
       _vtAllData = rows || [];
-      _vtFiltered = _vtAllData.slice();
       _vtCols = cols;
-      _vtInline.detailTable = { all: _vtAllData, filtered: _vtFiltered, cols: cols };
       var filterState = {};
+      _vtFiltered = sortRows(_vtAllData, cols);
+      _vtInline.detailTable = { all: _vtAllData, filtered: _vtFiltered, cols: cols };
 
       function filterDisplayValue(column, row) {
         var value = row[column.key];
@@ -509,16 +511,15 @@ $basePath = $basePath ?? '';
 
       var hHtml = '', fHtml = '';
       cols.forEach(function (c) {
-        hHtml += '<div class="vt-th' + (c.pinned ? ' col-pinned' : '') + (c.meta ? ' col-meta' : '') + '" title="' + (c.pinned ? 'Закреплённая колонка' : 'Перетащите, чтобы переместить колонку') + '">' + esc(c.label) + '<span class="vt-resize-handle" data-key="' + esc(c.key) + '" title="Изменить ширину столбца"></span></div>';
-        fHtml += '<div class="vt-fc' + (c.pinned ? ' col-pinned' : '') + '"><button type="button" class="vt-filter-button" data-k="' + c.key + '" title="Фильтр по столбцу">Все ▾</button></div>';
+        var canSort = /^[a-zA-Z0-9_]+$/.test(c.key || '');
+        var sortIcon = _vtSortState.key === c.key ? (_vtSortState.dir === 'asc' ? '↑' : '↓') : '';
+        hHtml += '<div class="vt-th' + (c.pinned ? ' col-pinned' : '') + (c.meta ? ' col-meta' : '') + (canSort ? ' vt-th--sortable' : '') + '" data-key="' + esc(c.key) + '" title="' + (canSort ? 'Нажмите для сортировки' : (c.pinned ? 'Закреплённая колонка' : 'Перетащите, чтобы переместить колонку')) + '"><span class="vt-th-label">' + esc(c.label) + '</span><span class="vt-sort-indicator" aria-hidden="true">' + sortIcon + '</span><span class="vt-resize-handle" data-key="' + esc(c.key) + '" title="Изменить ширину столбца"></span></div>';
+        fHtml += '<div class="vt-fc' + (c.pinned ? ' col-pinned' : '') + '"><button type="button" class="vt-filter-button" data-k="' + esc(c.key) + '" title="Фильтр по столбцу">Все ▾</button></div>';
       });
       document.getElementById('vtHead').innerHTML = hHtml;
       document.getElementById('vtFilter').innerHTML = fHtml;
 
       var head = document.getElementById('vtHead');
-      head.querySelectorAll('.vt-th').forEach(function (cell, index) {
-        cell.dataset.key = cols[index].key;
-      });
       var resizeMove = null;
       var resizeEnd = null;
       var resizeSaveTimer = null;
@@ -715,15 +716,80 @@ $basePath = $basePath ?? '';
         updateFilterButtons();
       }
 
+      function sortValue(value, column) {
+        if (value == null || value === '') return null;
+        if (column.type === 'number' || typeof value === 'number') {
+          var number = Number(String(value).replace(/\s/g, '').replace(',', '.'));
+          return Number.isFinite(number) ? number : String(value).toLocaleLowerCase('ru');
+        }
+        if (column.type === 'date' || column.formatData) {
+          var text = String(value);
+          var match = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+          if (!match) match = text.match(/^(\d{2})\.(\d{2})\.(\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+          if (match) {
+            var parts = match.length && match[1].length === 4
+              ? [match[1], match[2], match[3], match[4] || '00', match[5] || '00', match[6] || '00']
+              : [match[3], match[2], match[1], match[4] || '00', match[5] || '00', match[6] || '00'];
+            return Number(parts.join(''));
+          }
+          var timestamp = Date.parse(text);
+          return Number.isNaN(timestamp) ? text.toLocaleLowerCase('ru') : timestamp;
+        }
+        return String(value).toLocaleLowerCase('ru');
+      }
+
+      function sortRows(rows, columns) {
+        if (!_vtSortState.key || !_vtSortState.dir) return rows.slice();
+        var column = columns.find(function (item) {
+          return item.key === _vtSortState.key && /^[a-zA-Z0-9_]+$/.test(item.key || '');
+        });
+        if (!column) return rows.slice();
+        return rows.map(function (row, index) {
+          return { row: row, index: index, value: sortValue(row[column.key], column) };
+        }).sort(function (a, b) {
+          if (a.value === null && b.value === null) return a.index - b.index;
+          if (a.value === null) return 1;
+          if (b.value === null) return -1;
+          var result;
+          if (typeof a.value === 'number' && typeof b.value === 'number') result = a.value - b.value;
+          else result = String(a.value).localeCompare(String(b.value), 'ru', { numeric: true, sensitivity: 'base' });
+          return result === 0 ? a.index - b.index : (_vtSortState.dir === 'desc' ? -result : result);
+        }).map(function (item) { return item.row; });
+      }
+
+      function updateSortIndicators() {
+        head.querySelectorAll('.vt-th').forEach(function (cell) {
+          var isActive = cell.dataset.key === _vtSortState.key;
+          var indicator = cell.querySelector('.vt-sort-indicator');
+          cell.classList.toggle('is-sorted', isActive);
+          if (indicator) indicator.textContent = isActive ? (_vtSortState.dir === 'asc' ? '↑' : '↓') : '';
+        });
+      }
+
+      head.addEventListener('click', function (event) {
+        if (event.target.closest('.vt-resize-handle')) return;
+        var cell = event.target.closest('.vt-th--sortable');
+        if (!cell) return;
+        var key = cell.dataset.key;
+        if (_vtSortState.key !== key) _vtSortState = { key: key, dir: 'asc' };
+        else if (_vtSortState.dir === 'asc') _vtSortState.dir = 'desc';
+        else _vtSortState = { key: null, dir: null };
+        updateSortIndicators();
+        applyColumnFilters();
+        vp.scrollTop = 0;
+        render(true);
+      });
+
       function applyColumnFilters(changedKey) {
         if (changedKey) normalizeColumnFilters(changedKey);
         var activeKeys = Object.keys(filterState);
-        _vtFiltered = activeKeys.length ? _vtAllData.filter(function (row) {
+        var filteredRows = activeKeys.length ? _vtAllData.filter(function (row) {
           return activeKeys.every(function (key) {
             var column = cols.find(function (item) { return item.key === key; });
             return column && filterState[key].has(filterDisplayValue(column, row));
           });
         }) : _vtAllData.slice();
+        _vtFiltered = sortRows(filteredRows, cols);
         _vtInline.detailTable.filtered = _vtFiltered;
         lastFirst = lastLast = -1;
         render(true);

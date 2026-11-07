@@ -1748,8 +1748,35 @@ tr.lv-station td {
   border-right: 1px solid #e2dbf0;
 }
 
+.vt-th--sortable {
+  cursor: pointer;
+}
+
+.vt-th--sortable:hover,
+.vt-th--sortable.is-sorted {
+  background: var(--accent-lt);
+}
+
+.vt-th-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vt-sort-indicator {
+  flex: 0 0 10px;
+  margin-left: 4px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
 .vt-th:not(.col-pinned) {
   cursor: grab;
+}
+
+.vt-th--sortable:not(.col-pinned) {
+  cursor: pointer;
 }
 
 .vt-th:not(.col-pinned):active,
