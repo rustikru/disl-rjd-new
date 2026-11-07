@@ -280,15 +280,20 @@ final class PageRegistry
     {
         $expanded = array_values(array_unique(array_map('strval', $pages)));
         $definitions = self::all();
-        foreach ($definitions as $code => $definition) {
-            $legacyPermission = $definition['legacy_permission'] ?? null;
-            if ($legacyPermission !== null && in_array($legacyPermission, $expanded, true))
-                $expanded[] = $code;
-        }
-        foreach ($expanded as $code)
-            foreach ((array) ($definitions[$code]['implies'] ?? []) as $implied)
-                $expanded[] = $implied;
-        return array_values(array_unique($expanded));
+        do {
+            $count = count($expanded);
+            foreach ($definitions as $code => $definition) {
+                $legacyPermission = $definition['legacy_permission'] ?? null;
+                if ($legacyPermission !== null && in_array($legacyPermission, $expanded, true))
+                    $expanded[] = $code;
+            }
+            foreach ($expanded as $code)
+                foreach ((array) ($definitions[$code]['implies'] ?? []) as $implied)
+                    $expanded[] = $implied;
+            $expanded = array_values(array_unique($expanded));
+        } while (count($expanded) > $count);
+
+        return $expanded;
     }
 
     /** Оставляет только те права, которые применимы к системной роли пользователя. */
