@@ -12,6 +12,12 @@ final class PageRegistry
         '/api/technical-state/detail' => ['wagon-card'],
     ];
 
+    private const KPI_SOURCE_PAGES = [
+        'dashboard_kpi' => 'dashboard',
+        'approach_kpi' => 'approach',
+        'departue_kpi' => 'departure',
+    ];
+
     private const CORE = [
         'dashboard' => ['label' => 'Дашборд', 'routes' => ['/api/dashboard', '/api/kpi', '/kpi/create', '/kpi/edit'], 'visibility_group' => 'Сайт — основные разделы'],
         'wagon-card' => ['label' => 'Карточка вагона', 'routes' => ['/wagon', '/api/wagon/movement'], 'visibility_group' => 'Сайт — основные разделы'],
@@ -183,10 +189,70 @@ final class PageRegistry
         return $matches[0]['code'] ?? null;
     }
 
+    /** Возвращает страницу, на которой размещена системная карточка KPI. */
+    public static function kpiSourcePage(string $type): ?string
+    {
+        return self::KPI_SOURCE_PAGES[trim($type)] ?? null;
+    }
+
+    public static function isKpiSourcePage(string $page): bool
+    {
+        return in_array(trim($page), array_values(self::KPI_SOURCE_PAGES), true);
+    }
+
+    /** Оставляет в меню только разрешённые и включённые страницы. */
+    public static function filterNavigation(
+        array $groups,
+        array $allowedPages,
+        array $user,
+        PageAvailability $availability
+    ): array {
+        foreach ($groups as &$group) {
+            $group['items'] = array_values(array_filter(
+                (array) ($group['items'] ?? []),
+                static fn(array $item): bool => self::canShowInMenu(
+                    (string) ($item['page'] ?? $item['id'] ?? ''),
+                    $allowedPages,
+                    $user,
+                    $availability
+                )
+            ));
+        }
+        unset($group);
+
+        return array_values(array_filter(
+            $groups,
+            static fn(array $group): bool => ($group['items'] ?? []) !== []
+        ));
+    }
+
+    /** Проверяет право и видимость пункта меню. */
+    public static function canShowInMenu(
+        string $code,
+        array $allowedPages,
+        array $user,
+        PageAvailability $availability
+    ): bool {
+        if (Authorization::isSuper($user)) {
+            $allowedPages = array_keys(self::labels());
+        } else {
+            $allowedPages = self::forUser($allowedPages, $user);
+        }
+        if (!in_array($code, $allowedPages, true)) {
+            return false;
+        }
+        return Authorization::isSuper($user) || !$availability->isDisabled($code);
+    }
+
     /** Любое из этих прав разрешает запрос к общему API. */
     public static function accessPages(string $path, array $query = []): array
     {
         $path = '/' . ltrim($path, '/');
+        if (in_array($path, ['/detail', '/api/dislocation/detail'], true) && array_key_exists('kpi_id', $query)) {
+            $sourcePage = trim((string) ($query['source_page'] ?? ''));
+            return self::isKpiSourcePage($sourcePage) ? [$sourcePage] : [];
+        }
+
         $pages = [];
         $isDetail = false;
 

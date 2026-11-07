@@ -37,8 +37,13 @@ class DashboardController
             (string) ($this->config['base_path'] ?? '')
         );
         $dislocationStaleHours = (int) $this->config['dislocation_stale_hours'];
+        $navConfig = \App\Services\PageRegistry::filterNavigation(
+            $navConfig,
+            $allowedPages,
+            $user,
+            $pageAvailability
+        );
         if (!\App\Services\Authorization::isSuper($user)) {
-            $navConfig = $pageAvailability->filterNavigation($navConfig);
             $reportDefinitions = $pageAvailability->filterReports($reportDefinitions);
         }
 

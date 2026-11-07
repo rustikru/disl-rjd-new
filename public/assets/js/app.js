@@ -619,6 +619,26 @@ function kpiCards(data) {
     (data.sections && data.sections[0] && data.sections[0].values) || []
 
   return valuesArray.map(function (item) {
+    var detail =
+      item.is_error === 'Y'
+        ? null
+        : item.detail ||
+          (item.id ? { ctx: 'dislocation', params: { kpi_id: item.id } } : null)
+    var sourcePages = {
+      dashboard_kpi: 'dashboard',
+      approach_kpi: 'approach',
+      departue_kpi: 'departure',
+    }
+
+    // Контекст страницы задаём по фактическому типу KPI из ответа API.
+    if (detail && detail.ctx === 'dislocation' && sourcePages[item.type]) {
+      detail = Object.assign({}, detail, {
+        params: Object.assign({}, detail.params || {}, {
+          source_page: sourcePages[item.type],
+        }),
+      })
+    }
+
     return {
       id: item.id,
       type: item.type,
@@ -630,11 +650,7 @@ function kpiCards(data) {
       config: item.config || null,
       variant: 'pill',
       trend: makeTrend(item.change, item.trend),
-      detail:
-        item.is_error === 'Y'
-          ? null
-          : item.detail ||
-            (item.id ? { ctx: 'dislocation', params: { kpi_id: item.id } } : null),
+      detail: detail,
     }
   })
 }
@@ -2460,8 +2476,15 @@ function navNewTab(url) {
 }
 
 // Служебные колонки не передаём в параметры детализации.
+function canOpenDetailFor(extra) {
+  var sourcePage = extra && extra.source_page
+  return sourcePage
+    ? ALLOWED_PAGES.indexOf(sourcePage) !== -1
+    : CAN_OPEN_DETAIL
+}
+
 function openDetail(ctx, road, station, col, groupBy, subs, extra) {
-  if (!CAN_OPEN_DETAIL) return
+  if (!canOpenDetailFor(extra)) return
   var p = new URLSearchParams()
   p.set('ctx', ctx)
   if (groupBy) p.set('group_by', groupBy)
@@ -2541,7 +2564,6 @@ $(document).on('click', '.cell-link', function (e) {
 // Клик по KPI-карточке с детализацией
 $(document).on('click', '.kpi-card--link', function (event) {
   if ($(event.target).closest('.kpi-user-delete').length) return
-  if (!CAN_OPEN_DETAIL) return
   var raw = $(this).attr('data-detail')
   if (!raw) return
   var d
@@ -2555,6 +2577,7 @@ $(document).on('click', '.kpi-card--link', function (event) {
     return
   }
   var extra = d.params || {}
+  if (!canOpenDetailFor(extra)) return
   var tabCfg = d.ctx && WAGON_TABS[d.ctx]
   if (tabCfg && tabCfg.getParams) Object.assign(extra, tabCfg.getParams())
   openDetail(

@@ -51,31 +51,6 @@ final class PageAvailability
         );
     }
 
-    /** Убирает отключённые пункты и опустевшие группы из бокового меню. */
-    public function filterNavigation(array $groups): array
-    {
-        foreach ($groups as &$group) {
-            $group['items'] = array_values(array_filter(
-                (array) ($group['items'] ?? []),
-                function (array $item): bool {
-                    $keys = [
-                        (string) ($item['id'] ?? ''),
-                        (string) ($item['page'] ?? ''),
-                        (string) ($item['url'] ?? ''),
-                    ];
-                    $keys = array_merge($keys, PageRegistry::availabilityKeys((string)($item['page']??'')));
-                    return !$this->anyDisabled($keys);
-                }
-            ));
-        }
-        unset($group);
-
-        return array_values(array_filter(
-            $groups,
-            static fn(array $group): bool => ($group['items'] ?? []) !== []
-        ));
-    }
-
     /** Возвращает код отключённой страницы для текущего запроса. */
     public function disabledPageForRequest(ServerRequestInterface $request): ?string
     {
@@ -99,7 +74,16 @@ final class PageAvailability
             }
         }
 
-        $keys = PageRegistry::availabilityKeysForPath($path, $request->getQueryParams());
+        $query = $request->getQueryParams();
+        if (in_array($path, ['/detail', '/api/dislocation/detail'], true) && array_key_exists('kpi_id', $query)) {
+            $sourcePage = trim((string) ($query['source_page'] ?? ''));
+            if (!PageRegistry::isKpiSourcePage($sourcePage)) {
+                return null;
+            }
+            return $this->isDisabled($sourcePage) ? $sourcePage : null;
+        }
+
+        $keys = PageRegistry::availabilityKeysForPath($path, $query);
         foreach ($keys as $key) {
             if ($this->isDisabled($key)) {
                 return $key;
