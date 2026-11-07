@@ -1,0 +1,15 @@
+flowchart TD
+    Browser[Браузер] --> Entry[public/index.php]
+    Entry --> Routes[src/routes.php]
+    Routes --> Session[SessionMiddleware]
+    Session --> Auth[AuthMiddleware]
+    Auth --> Org[OrganizationMiddleware]
+    Org --> Access[PageAccessMiddleware]
+    Access --> Controller[Контроллер]
+    Controller --> Config[ReportConfig / PageRegistry]
+    Controller --> DB[DbInterface]
+    DB --> Oracle[(Oracle)]
+    Oracle --> DB
+    DB --> Controller
+    Controller --> Response[HTML или JSON]
+    Response --> Browser

@@ -1,0 +1,13 @@
+flowchart TD
+    UI[templates/app.php + app.js] --> API[GET /api/kpi/summary]
+    API --> K[ApiController::kpiSummary]
+    K --> Org[Organizations::filter]
+    K --> View[(XX_RJD_KPI_TBL_V)]
+    K --> Pkg[XX_RJD_DISLOCATION_NEW_PKG]
+    View --> Pkg
+    Pkg --> Result[Значение / динамика]
+    Result --> JSON[JSON sections.values]
+    JSON --> Cards[KPI-карточки]
+    Cards -->|клик| Detail[Контекст детализации]
+    Detail --> DetailAPI[API детализации]
+    DetailAPI --> Table[templates/detail.php / JS]
