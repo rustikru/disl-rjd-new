@@ -26,8 +26,7 @@ $app->addBodyParsingMiddleware();
 
 (require __DIR__ . '/../src/routes.php')($app, $config);
 
-// Обработчик ошибок добавляется последним, чтобы перехватывать исключения
-// из всех middleware, включая подключение к БД при проверке сессии.
+// Обработчик ошибок 
 $errorMiddleware = $app->addErrorMiddleware($isDev, true, $isDev);
 
 $errorMiddleware->setDefaultErrorHandler(

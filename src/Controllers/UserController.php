@@ -57,10 +57,17 @@ final class UserController
     public function changePassword(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $body = (array) $request->getParsedBody();
-        if (!$this->validCsrf((string) ($body['csrf_token'] ?? ''))) return $response->withStatus(403);
+        if (!$this->validCsrf((string) ($body['csrf_token'] ?? '')))
+            return $response->withStatus(403);
         $password = (string) ($body['password'] ?? '');
-        if (mb_strlen($password) < 8) { $_SESSION['profile_error'] = 'Пароль должен содержать не менее 8 символов'; return $this->redirect($response, '/profile'); }
-        if (!hash_equals($password, (string) ($body['password_confirmation'] ?? ''))) { $_SESSION['profile_error'] = 'Пароли не совпадают'; return $this->redirect($response, '/profile'); }
+        if (mb_strlen($password) < 8) {
+            $_SESSION['profile_error'] = 'Пароль должен содержать не менее 8 символов';
+            return $this->redirect($response, '/profile');
+        }
+        if (!hash_equals($password, (string) ($body['password_confirmation'] ?? ''))) {
+            $_SESSION['profile_error'] = 'Пароли не совпадают';
+            return $this->redirect($response, '/profile');
+        }
         try {
             $this->db->execute('UPDATE xx_rjd_users SET password_hash = :password_hash WHERE id = :id AND is_active = 1', ['password_hash' => password_hash($password, PASSWORD_BCRYPT), 'id' => (int) ($_SESSION['user']['id'] ?? 0)]);
             $_SESSION['profile_message'] = 'Пароль изменён';
