@@ -94,7 +94,7 @@ final class ReportConfig
                 [
                     self::filter('wagon_no', '№ вагона', 'text', 'fApproachWagonNo'),
                     self::filter('cargo', 'Груз', 'select', 'fApproachCargo', 'cargo'),
-                    self::filter('depart_station', 'Станция отправления', 'select', 'fDepartStation', 'depart_station', ['page']),
+                    self::filter('depart_station', 'Станция отправления', 'select', 'fDepartStation', 'depart_station', ['page', 'mailing']),
                 ],
                 [
                     self::dimension('oper_road', 'Дорога операции'),
