@@ -178,7 +178,7 @@ function showKpi(data, containerId) {
 
   var cardsHtml = currentBoard.cards(data).map(kpiCard).join('')
 
-  $('#' + targetContainer).html(cardsHtml)
+  $('#' + targetContainer).html(cardsHtml).trigger('kpi:rendered')
 }
 
 // Конфиг вкладок
@@ -340,11 +340,67 @@ function reportFilterValues(reportDefinition) {
   ;(reportDefinition.filters || []).forEach(function (filterDefinition) {
     var $field = $('#' + filterDefinition.field_id)
     if (!$field.length) return
-    var value = String($field.val() || '').trim()
+    var rawValue = $field.val()
+    var value = Array.isArray(rawValue)
+      ? (rawValue.length ? JSON.stringify(rawValue) : '')
+      : String(rawValue || '').trim()
     if (value !== '') values[filterDefinition.key] = value
   })
   return values
 }
+
+function updateMultiSelectLabel($field) {
+  var labels = $field.find('option:selected').map(function () { return this.text }).get()
+  $field.siblings('.filter-multiselect').find('.filter-multiselect-button').text(
+    labels.length ? (labels.length === 1 ? labels[0] : 'Выбрано: ' + labels.length) : '— Все —',
+  )
+}
+
+function refreshMultiSelect($field) {
+  var $widget = $field.siblings('.filter-multiselect')
+  if (!$widget.length) {
+    $widget = $('<div>').addClass('filter-multiselect')
+    var $button = $('<button type="button">').addClass('filter-multiselect-button')
+    var $options = $('<div>').addClass('filter-multiselect-options').prop('hidden', true)
+    $button.on('click', function () {
+      var open = $options.prop('hidden')
+      $('.filter-multiselect-options').prop('hidden', true)
+      $options.prop('hidden', !open)
+      if (open) $options.find('.filter-multiselect-search').trigger('focus')
+    })
+    $widget.append($button, $options)
+    $field.after($widget).hide()
+  }
+  var selected = $field.val() || []
+  var $options = $widget.find('.filter-multiselect-options').empty()
+  var $search = $('<input type="search" placeholder="Поиск...">').addClass('filter-multiselect-search')
+  var $list = $('<div>').addClass('filter-multiselect-list')
+  $search.on('input', function () {
+    var query = this.value.toLocaleLowerCase('ru-RU').trim()
+    $list.children('label').each(function () {
+      this.hidden = query !== '' && this.textContent.toLocaleLowerCase('ru-RU').indexOf(query) < 0
+    })
+  })
+  $options.append($search, $list)
+  $field.find('option').each(function () {
+    if (!this.value) return
+    var option = this
+    var $check = $('<input type="checkbox">').val(option.value).prop('checked', selected.indexOf(option.value) >= 0)
+    $check.on('change', function () {
+      option.selected = this.checked
+      $field.trigger('change')
+      updateMultiSelectLabel($field)
+    })
+    $list.append($('<label>').append($check, $('<span>').text(option.text)))
+  })
+  updateMultiSelectLabel($field)
+}
+
+$(document).on('click', function (event) {
+  if (!$(event.target).closest('.filter-multiselect').length) {
+    $('.filter-multiselect-options').prop('hidden', true)
+  }
+})
 
 function fillReportFilterOptions(reportDefinition, optionLists) {
   ;(reportDefinition.filters || []).forEach(function (filterDefinition) {
@@ -368,13 +424,16 @@ function fillReportFilterOptions(reportDefinition, optionLists) {
         $field.append($('<option>').val(option).text(option))
       }
     })
-    $field.val(selectedValue || '')
+    $field.val(selectedValue || (filterDefinition.multiple ? [] : ''))
+    if (filterDefinition.multiple) refreshMultiSelect($field)
   })
 }
 
 function clearReportFilterValues(reportDefinition) {
   ;(reportDefinition.filters || []).forEach(function (filterDefinition) {
-    $('#' + filterDefinition.field_id).val('')
+    var $field = $('#' + filterDefinition.field_id)
+    $field.val(filterDefinition.multiple ? [] : '')
+    if (filterDefinition.multiple) refreshMultiSelect($field)
   })
 }
 
@@ -400,6 +459,7 @@ function buildReportFilterFields(reportCode, reportDefinition) {
 
   ;(reportDefinition.filters || []).forEach(function (filterDefinition) {
     var $filterItem = $('<div>').addClass('filter-item')
+    if (filterDefinition.multiple) $filterItem.addClass('filter-item--multi')
     $filterItem.attr('data-filter', filterDefinition.key)
     var $label = $('<label>')
       .addClass('filter-label')
@@ -409,6 +469,7 @@ function buildReportFilterFields(reportCode, reportDefinition) {
 
     if (filterDefinition.value_type === 'select') {
       $field = $('<select>').append($('<option>').val('').text('— Все —'))
+      if (filterDefinition.multiple) $field.attr('multiple', 'multiple')
       ;(filterDefinition.choices || []).forEach(function (choice) {
         $field.append($('<option>').val(choice.value).text(choice.label))
       })
@@ -418,8 +479,8 @@ function buildReportFilterFields(reportCode, reportDefinition) {
         filterDefinition.value_type === 'date' ? 'date' : 'text',
       )
       if (filterDefinition.key === 'wagon_no') {
-        $field.attr('placeholder', 'Номер вагона1; Номер вагона2; ...')
-        $filterItem.css('flex-basis', '100%')
+        $field.attr('placeholder', 'Вагон1; Вагон2; …')
+        $filterItem.addClass('filter-item--wagon')
       }
     }
 
@@ -428,6 +489,7 @@ function buildReportFilterFields(reportCode, reportDefinition) {
       .attr('id', filterDefinition.field_id)
       .val(reportInitialFilterValue(filterDefinition.initial_value))
     $filterItem.append($label, $field)
+    if (filterDefinition.multiple) refreshMultiSelect($field)
     if (
       reportCode === 'analysis-period' &&
       ['date_from', 'date_to'].indexOf(filterDefinition.key) >= 0
@@ -558,13 +620,21 @@ function kpiCards(data) {
 
   return valuesArray.map(function (item) {
     return {
+      id: item.id,
+      type: item.type,
       label: item.label,
-      value: item.value,
+      value: item.is_error === 'Y' ? '—' : item.value,
+      sub: item.is_error === 'Y' ? item.value : null,
+      isError: item.is_error === 'Y',
+      isUser: item.is_user === 'Y',
+      config: item.config || null,
       variant: 'pill',
       trend: makeTrend(item.change, item.trend),
       detail:
-        item.detail ||
-        (item.id ? { ctx: 'dislocation', params: { kpi_id: item.id } } : null),
+        item.is_error === 'Y'
+          ? null
+          : item.detail ||
+            (item.id ? { ctx: 'dislocation', params: { kpi_id: item.id } } : null),
     }
   })
 }
@@ -938,7 +1008,38 @@ function loadDetail(cfg) {
       )
   $.getJSON(cfg.detailUrl, listParams)
     .done(function (data) {
-      if (cfg.showList) {
+      if (Array.isArray(data.columns) && data.columns.length) cols = data.columns
+      if (data.group_config && Array.isArray(data.rows)) {
+        var groupCols = data.columns || []
+        var groupHtml = '<table class="ui-table user-kpi-group-table"><thead><tr>' + groupCols.map(function (col) { return '<th>' + esc(col.label) + '</th>' }).join('') + '</tr></thead><tbody>'
+        data.rows.forEach(function (row, index) {
+          groupHtml += '<tr class="user-kpi-group-row" data-group-index="' + index + '">' + groupCols.map(function (col) { return '<td>' + esc(row[col.key] == null ? '' : row[col.key]) + '</td>' }).join('') + '</tr>'
+          groupHtml += '<tr class="user-kpi-group-expanded" data-expanded-index="' + index + '" hidden><td colspan="' + groupCols.length + '"><div class="user-kpi-group-detail">Загрузка...</div></td></tr>'
+        })
+        if (!data.rows.length) groupHtml += '<tr><td colspan="' + Math.max(groupCols.length, 1) + '">' + esc(data.group_config.empty_label || 'Нет данных') + '</td></tr>'
+        groupHtml += '</tbody></table>'
+        $table.html(groupHtml)
+        $table.off('click.userKpiGroup').on('click.userKpiGroup', '.user-kpi-group-row', function () {
+          var index = Number($(this).attr('data-group-index'))
+          var row = data.rows[index]
+          var $expanded = $table.find('[data-expanded-index="' + index + '"]')
+          if (!$expanded.prop('hidden')) { $expanded.prop('hidden', true); return }
+          $expanded.prop('hidden', false)
+          var $detailHost = $expanded.find('.user-kpi-group-detail')
+          if (!$detailHost.attr('id')) $detailHost.attr('id', 'user-kpi-group-' + index + '-' + String(cfg.detTableId || 'detail').replace(/[^a-z0-9_-]/gi, ''))
+          if ($detailHost.data('loaded')) return
+          var groupValue = row.group_value
+          var requestParams = Object.assign({}, listParams, { group_value: groupValue == null ? '' : groupValue, group_value_is_null: groupValue == null ? 'Y' : 'N' })
+          $.getJSON(cfg.detailUrl, requestParams).done(function (detailData) {
+            if (detailData.rows && detailData.rows.length) {
+              showTable($detailHost, detailData.rows, detailData.columns || [])
+            } else {
+              $detailHost.text(data.group_config.empty_label || 'Нет данных')
+            }
+            $detailHost.data('loaded', true)
+          }).fail(function (xhr) { $detailHost.text(ajaxErr(xhr)) })
+        })
+      } else if (cfg.showList) {
         cfg.showList(data, cfg)
       } else {
         showTable($table, data.rows, cols)
@@ -968,6 +1069,7 @@ function loadDetail(cfg) {
 }
 /* Детализация — виртуальная таблица */
 var _vtInline = {}
+var _vtTableLayouts = {}
 /* Матричные данные сводных таблиц (для Excel-экспорта) */
 var _matrixData = {}
 
@@ -1011,7 +1113,7 @@ function vtMeasureCols(colDefs, data) {
   var cv = document.createElement('canvas')
   var ctx = cv.getContext('2d')
   var PAD = 20,
-    MIN = 50,
+    MIN = 70,
     MAX = 320
   ctx.font = 'bold 12px sans-serif'
   var widths = colDefs.map(function (c) {
@@ -1035,6 +1137,26 @@ function vtMeasureCols(colDefs, data) {
   })
   return widths
 }
+function applyInlineTableLayout(columns, layout) {
+  if (!layout || !Array.isArray(layout.columns)) return columns.slice()
+  var byKey = {}
+  columns.forEach(function (column) {
+    delete column.width
+    byKey[column.key] = column
+  })
+  var ordered = []
+  layout.columns.forEach(function (item) {
+    if (!byKey[item.key]) return
+    var width = Number(item.width)
+    if (width >= 70 && width <= 800) byKey[item.key].width = width
+    else delete byKey[item.key].width
+    ordered.push(byKey[item.key])
+    delete byKey[item.key]
+  })
+  Object.keys(byKey).forEach(function (key) { ordered.push(byKey[key]) })
+  return ordered
+}
+
 /* Рендер таблицы с виртуальным скроллом.*/
 function showTable($container, rows, colDefs) {
   colDefs = colDefs.map(function (c) {
@@ -1051,25 +1173,54 @@ function showTable($container, rows, colDefs) {
   var id = $container.attr('id')
   var layoutReport = $container.attr('data-layout-report') || ''
   if ($container[0]._vtCleanup) $container[0]._vtCleanup()
+  if (layoutReport && !Object.prototype.hasOwnProperty.call(_vtTableLayouts, layoutReport)) {
+    _vtTableLayouts[layoutReport] = false
+    var allRowsForLayout = rows || []
+    $.getJSON(BASE + '/api/table-layout/' + encodeURIComponent(layoutReport))
+      .done(function (layout) {
+        _vtTableLayouts[layoutReport] = layout
+        showTable($container, allRowsForLayout, applyInlineTableLayout(colDefs, layout))
+      })
+      .fail(function () {
+        _vtTableLayouts[layoutReport] = { columns: [] }
+        showTable($container, allRowsForLayout, colDefs)
+      })
+    return
+  }
+  if (layoutReport && _vtTableLayouts[layoutReport] && Array.isArray(_vtTableLayouts[layoutReport].columns)) {
+    colDefs = applyInlineTableLayout(colDefs, _vtTableLayouts[layoutReport])
+  }
   $container.addClass('vt-host')
   var ROW_H = 28 // высота строки, используется для расчёта виртуального скролла
   var BUFFER = 8 // кол-во строк в буфере до и после видимой области, для предотвращения мерцания при скролле
   var allData = rows || []
+  var filterState = {}
+
+  function filterDisplayValue(column, row) {
+    var value = row[column.key]
+    if (column.fmt) value = column.fmt(value)
+    return value == null || value === '' ? '(Пустые)' : String(value)
+  }
 
   _vtInline[id] = { all: allData, filtered: allData.slice(), cols: colDefs }
 
   var measured = vtMeasureCols(colDefs, allData)
-  var baseW = measured.reduce(function (s, w) {
-    return s + w
-  }, 0)
   var availW = $container[0].offsetWidth || window.innerWidth - 260
-  var scale = availW > baseW ? availW / baseW : 1
-  var template = measured
-    .map(function (w) {
-      return Math.floor(w * scale) + 'px'
-    })
-    .join(' ')
-  var totalW = availW > baseW ? availW : baseW
+  var savedTotal = 0, defaultTotal = 0
+  colDefs.forEach(function (column, index) {
+    var savedWidth = Number(column.width)
+    if (savedWidth >= 70 && savedWidth <= 800) savedTotal += savedWidth
+    else defaultTotal += measured[index]
+  })
+  var defaultScale = defaultTotal > 0 && availW - savedTotal > defaultTotal
+    ? (availW - savedTotal) / defaultTotal : 1
+  var widths = measured.map(function (width, index) {
+    var savedWidth = Number(colDefs[index].width)
+    if (savedWidth >= 70 && savedWidth <= 800) return savedWidth
+    return Math.max(70, Math.min(800, Math.floor(width * defaultScale)))
+  })
+  var template = widths.map(function (width) { return width + 'px' }).join(' ')
+  var totalW = widths.reduce(function (sum, width) { return sum + width }, 0)
 
   $container.html(
     '<div class="vt-viewport" id="ivp-' +
@@ -1109,26 +1260,126 @@ function showTable($container, rows, colDefs) {
       (c.meta ? ' col-meta' : '') +
       '">' +
       esc(c.label) +
-      '</div>'
+      '<span class="vt-resize-handle" data-key="' + esc(c.key) + '" title="Изменить ширину столбца"></span></div>'
     fHtml +=
       '<div class="vt-fc' +
       (c.pinned ? ' col-pinned' : '') +
-      '"><input data-k="' +
+      '"><button type="button" class="vt-filter-button" data-k="' +
       c.key +
-      '" type="text" placeholder=""></div>'
+      '" title="Фильтр по столбцу">Все ▾</button></div>'
   })
   document.getElementById('ivh-' + id).innerHTML = hHtml
   document.getElementById('ivf-' + id).innerHTML = fHtml
 
   var head = document.getElementById('ivh-' + id)
+  var sortState = { key: '', dir: 0 }
+  head.addEventListener('click', function (event) {
+    var cell = event.target.closest('.vt-th')
+    if (!cell || event.target.closest('.sortable-ghost, .vt-resize-handle')) return
+    var key = cell.dataset.key
+    if (!key) return
+    sortState.dir = sortState.key === key ? (sortState.dir + 1) % 3 : 1
+    sortState.key = sortState.dir === 0 ? '' : key
+    head.querySelectorAll('.vt-th').forEach(function (item) {
+      item.classList.remove('vt-th--sort-asc', 'vt-th--sort-desc')
+    })
+    if (sortState.dir) {
+      cell.classList.add(sortState.dir === 1 ? 'vt-th--sort-asc' : 'vt-th--sort-desc')
+    }
+    applyTableState()
+  })
   head.querySelectorAll('.vt-th').forEach(function (cell, index) {
     cell.dataset.key = colDefs[index].key
   })
+  var resizeMove = null
+  var resizeEnd = null
+  var resizeSaveTimer = null
+  head.addEventListener('mousedown', function (event) {
+    var handle = event.target.closest('.vt-resize-handle')
+    if (!handle || event.button !== 0) return
+    var key = handle.getAttribute('data-key')
+    var index = colDefs.findIndex(function (column) { return column.key === key })
+    if (index < 0) return
+    event.preventDefault()
+    event.stopPropagation()
+    var startX = event.clientX
+    var startWidth = widths[index]
+    head.classList.add('vt-head--resizing')
+    resizeMove = function (moveEvent) {
+      widths[index] = Math.max(70, Math.min(800, Math.round(startWidth + moveEvent.clientX - startX)))
+      template = widths.map(function (width) { return width + 'px' }).join(' ')
+      totalW = widths.reduce(function (sum, width) { return sum + width }, 0)
+      $container.find('.vt-head, .vt-filter, .vt-row').css({ gridTemplateColumns: template, width: totalW + 'px' })
+      $container.find('.vt-content').css('width', totalW + 'px')
+    }
+    resizeEnd = function () {
+      document.removeEventListener('mousemove', resizeMove)
+      document.removeEventListener('mouseup', resizeEnd)
+      head.classList.remove('vt-head--resizing')
+      resizeMove = resizeEnd = null
+      if (!layoutReport) return
+      colDefs[index].width = widths[index]
+      var widthData = {}
+      colDefs.forEach(function (column, columnIndex) { widthData[column.key] = widths[columnIndex] })
+      var cachedLayout = _vtTableLayouts[layoutReport] || { columns: [] }
+      var cachedByKey = {}
+      ;(cachedLayout.columns || []).forEach(function (item) { cachedByKey[item.key] = item })
+      Object.keys(widthData).forEach(function (columnKey) {
+        cachedByKey[columnKey] = Object.assign({}, cachedByKey[columnKey] || {}, { key: columnKey, width: widthData[columnKey] })
+      })
+      _vtTableLayouts[layoutReport] = { columns: Object.keys(cachedByKey).map(function (columnKey) { return cachedByKey[columnKey] }) }
+      if (resizeSaveTimer) clearTimeout(resizeSaveTimer)
+      resizeSaveTimer = setTimeout(function () {
+        resizeSaveTimer = null
+        $.ajax({
+          url: BASE + '/api/table-layout/' + encodeURIComponent(layoutReport),
+          method: 'POST',
+          data: { csrf_token: window.APP_CSRF || '', widths: JSON.stringify(widthData) },
+        }).done(function (layout) {
+          _vtTableLayouts[layoutReport] = layout
+        })
+      }, 250)
+    }
+    document.addEventListener('mousemove', resizeMove)
+    document.addEventListener('mouseup', resizeEnd)
+  })
+
+  head.addEventListener('dblclick', function (event) {
+    var handle = event.target.closest('.vt-resize-handle')
+    if (!handle) return
+    event.preventDefault()
+    event.stopPropagation()
+    var key = handle.getAttribute('data-key')
+    var index = colDefs.findIndex(function (column) { return column.key === key })
+    if (index < 0) return
+    widths[index] = measured[index]
+    colDefs[index].width = measured[index]
+    template = widths.map(function (width) { return width + 'px' }).join(' ')
+    totalW = widths.reduce(function (sum, width) { return sum + width }, 0)
+    $container.find('.vt-head, .vt-filter, .vt-row').css({ gridTemplateColumns: template, width: totalW + 'px' })
+    $container.find('.vt-content').css('width', totalW + 'px')
+    if (layoutReport) {
+      if (resizeSaveTimer) {
+        clearTimeout(resizeSaveTimer)
+        resizeSaveTimer = null
+      }
+      var resetWidth = {}; resetWidth[key] = null
+      var cachedLayout = _vtTableLayouts[layoutReport] || { columns: [] }
+      ;(cachedLayout.columns || []).forEach(function (item) { if (item.key === key) item.width = null })
+      $.ajax({
+        url: BASE + '/api/table-layout/' + encodeURIComponent(layoutReport),
+        method: 'POST',
+        data: { csrf_token: window.APP_CSRF || '', widths: JSON.stringify(resetWidth) },
+      }).done(function (layout) { _vtTableLayouts[layoutReport] = layout })
+    }
+  })
+
   if (typeof Sortable !== 'undefined' && !head._sortable) {
     head._sortable = Sortable.create(head, {
       animation: 150,
       draggable: '.vt-th:not(.col-pinned)',
-      filter: '.col-pinned',
+      filter: '.col-pinned, .vt-resize-handle',
+      preventOnFilter: false,
       ghostClass: 'vt-th--ghost',
       onStart: function () { head.classList.add('vt-head--dragging') },
       onEnd: function () {
@@ -1138,11 +1389,17 @@ function showTable($container, rows, colDefs) {
         colDefs.forEach(function (column) { byKey[column.key] = column })
         var reordered = keys.map(function (key) { return byKey[key] }).filter(Boolean)
         if (layoutReport) {
+          var oldLayout = _vtTableLayouts[layoutReport] || { columns: [] }
+          var oldByKey = {}
+          ;(oldLayout.columns || []).forEach(function (item) { oldByKey[item.key] = item })
+          _vtTableLayouts[layoutReport] = {
+            columns: keys.map(function (key) { return Object.assign({}, oldByKey[key] || {}, { key: key }) }),
+          }
           $.ajax({
             url: BASE + '/api/table-layout/' + encodeURIComponent(layoutReport),
             method: 'POST',
             data: { csrf_token: window.APP_CSRF || '', columns: JSON.stringify(keys) },
-          })
+          }).done(function (layout) { _vtTableLayouts[layoutReport] = layout })
         }
         setTimeout(function () { showTable($container, allData, reordered) }, 0)
       },
@@ -1187,6 +1444,90 @@ function showTable($container, rows, colDefs) {
   var lastFirst = -1,
     lastLast = -1
 
+  function updateFilteredCount() {
+    var $subEl = $container.closest('.table-section').find('.table-sub')
+    if ($subEl.length) {
+      $subEl.text('Строк: ' + _vtInline[id].filtered.length.toLocaleString('ru-RU'))
+    }
+  }
+
+  function getFilterValues(key, state) {
+    var column = colDefs.find(function (item) { return item.key === key })
+    if (!column) return []
+    state = state || filterState
+    return Array.from(new Set(allData.filter(function (row) {
+      return Object.keys(state).every(function (activeKey) {
+        if (activeKey === key) return true
+        var activeColumn = colDefs.find(function (item) { return item.key === activeKey })
+        return activeColumn && state[activeKey].has(filterDisplayValue(activeColumn, row))
+      })
+    }).map(function (row) {
+      return filterDisplayValue(column, row)
+    }))).sort(function (a, b) {
+      return a.localeCompare(b, 'ru', { numeric: true, sensitivity: 'base' })
+    })
+  }
+
+  function updateFilterButtons() {
+    $container.find('.vt-filter-button').each(function () {
+      var key = this.getAttribute('data-k')
+      var selected = filterState[key]
+      this.classList.toggle('is-active', !!selected)
+      this.textContent = selected ? selected.size + ' выбрано ▾' : 'Все ▾'
+    })
+  }
+
+  function normalizeColumnFilters(changedKey) {
+    var changed = true
+    while (changed) {
+      changed = false
+      var snapshot = {}
+      Object.keys(filterState).forEach(function (key) { snapshot[key] = new Set(filterState[key]) })
+      var nextState = {}
+      Object.keys(snapshot).forEach(function (key) {
+        if (key === changedKey) {
+          nextState[key] = snapshot[key]
+          return
+        }
+        var available = new Set(getFilterValues(key, snapshot))
+        var selected = new Set(Array.from(snapshot[key]).filter(function (value) { return available.has(value) }))
+        if (selected.size || snapshot[key].size === 0) nextState[key] = selected
+        if (selected.size !== snapshot[key].size) changed = true
+      })
+      if (Object.keys(nextState).length !== Object.keys(filterState).length) changed = true
+      filterState = nextState
+    }
+    updateFilterButtons()
+  }
+
+  function applyTableState(changedKey) {
+    if (changedKey) normalizeColumnFilters(changedKey)
+    var data = _vtInline[id]
+    var activeKeys = Object.keys(filterState)
+    data.filtered = activeKeys.length
+      ? data.all.filter(function (row) {
+          return activeKeys.every(function (key) {
+            var column = colDefs.find(function (item) { return item.key === key })
+            return column && filterState[key].has(filterDisplayValue(column, row))
+          })
+        })
+      : data.all.slice()
+    if (sortState.key) {
+      data.filtered.sort(function (a, b) {
+        var av = a[sortState.key] == null ? '' : a[sortState.key]
+        var bv = b[sortState.key] == null ? '' : b[sortState.key]
+        var an = Number(av), bn = Number(bv)
+        var result = !isNaN(an) && !isNaN(bn)
+          ? an - bn
+          : String(av).localeCompare(String(bv), 'ru', { numeric: true, sensitivity: 'base' })
+        return sortState.dir === 1 ? result : -result
+      })
+    }
+    lastFirst = lastLast = -1
+    render(true)
+    updateFilteredCount()
+  }
+
   function render(force) {
     var data = _vtInline[id]
     var total = data.filtered.length
@@ -1218,37 +1559,96 @@ function showTable($container, rows, colDefs) {
       html += '</div>'
     }
     rowsEl.style.paddingTop = first * ROW_H + 'px'
-    rowsEl.style.paddingBottom = (total - last) * ROW_H + 'px'
+    rowsEl.style.paddingBottom = Math.max(0, (total - last) * ROW_H) + 'px'
     rowsEl.innerHTML = html
   }
 
-  document.getElementById('ivf-' + id).addEventListener('input', function () {
-    var inputs = this.querySelectorAll('input')
-    var terms = []
-    for (var i = 0; i < inputs.length; i++) {
-      var v = inputs[i].value.trim().toLowerCase()
-      if (v) terms.push({ k: inputs[i].getAttribute('data-k'), v: v })
-    }
-    var data = _vtInline[id]
-    data.filtered = !terms.length
-      ? data.all.slice()
-      : data.all.filter(function (row) {
-          for (var t = 0; t < terms.length; t++) {
-            if (
-              String(row[terms[t].k] == null ? '' : row[terms[t].k])
-                .toLowerCase()
-                .indexOf(terms[t].v) === -1
-            )
-              return false
-          }
-          return true
+  var filterPopup = null
+
+  function closeFilterPopup() {
+    if (filterPopup) filterPopup.remove()
+    filterPopup = null
+  }
+
+  function openColumnFilter(button) {
+    closeFilterPopup()
+    var key = button.getAttribute('data-k')
+    var column = colDefs.find(function (item) { return item.key === key })
+    if (!column) return
+    var values = getFilterValues(key)
+    var draft = filterState[key]
+      ? new Set(Array.from(filterState[key]).filter(function (value) { return values.indexOf(value) !== -1; }))
+      : new Set(values)
+    var popup = document.createElement('div')
+    popup.className = 'vt-column-filter'
+    popup.innerHTML = '<input class="vt-column-filter-search" type="search" placeholder="Поиск...">'
+      + '<div class="vt-column-filter-tools"><button type="button" data-action="all">Выбрать все</button><button type="button" data-action="none">Снять все</button></div>'
+      + '<div class="vt-column-filter-list"></div>'
+      + '<div class="vt-column-filter-actions"><button type="button" class="btn btn-ghost btn-sm" data-action="cancel">Отмена</button><button type="button" class="btn btn-primary btn-sm" data-action="apply">Применить</button></div>'
+    document.body.appendChild(popup)
+    filterPopup = popup
+    var search = popup.querySelector('.vt-column-filter-search')
+    var list = popup.querySelector('.vt-column-filter-list')
+
+    function renderOptions() {
+      var query = search.value.toLocaleLowerCase('ru-RU').trim()
+      list.innerHTML = ''
+      values.forEach(function (value, index) {
+        if (query && value.toLocaleLowerCase('ru-RU').indexOf(query) < 0) return
+        var label = document.createElement('label')
+        var check = document.createElement('input')
+        var text = document.createElement('span')
+        check.type = 'checkbox'
+        check.checked = draft.has(value)
+        check.dataset.index = String(index)
+        check.addEventListener('change', function () {
+          if (check.checked) draft.add(value)
+          else draft.delete(value)
         })
-    lastFirst = lastLast = -1
-    render(true)
-    var $subEl = $container.closest('.table-section').find('.table-sub')
-    if ($subEl.length)
-      $subEl.text('Строк: ' + data.filtered.length.toLocaleString('ru-RU'))
+        text.textContent = value
+        label.append(check, text)
+        list.appendChild(label)
+      })
+    }
+
+    popup.addEventListener('click', function (event) {
+      var action = event.target.getAttribute('data-action')
+      if (action === 'all') {
+        values.forEach(function (value) { draft.add(value) })
+        renderOptions()
+      } else if (action === 'none') {
+        draft.clear()
+        renderOptions()
+      } else if (action === 'cancel') {
+        closeFilterPopup()
+      } else if (action === 'apply') {
+        if (draft.size === values.length) delete filterState[key]
+        else filterState[key] = new Set(draft)
+        button.classList.toggle('is-active', !!filterState[key])
+        button.textContent = filterState[key] ? draft.size + ' выбрано ▾' : 'Все ▾'
+        closeFilterPopup()
+        applyTableState(key)
+      }
+    })
+    search.addEventListener('input', renderOptions)
+    renderOptions()
+    var rect = button.getBoundingClientRect()
+    popup.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - popup.offsetWidth - 8)) + 'px'
+    popup.style.top = Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - popup.offsetHeight - 8)) + 'px'
+    search.focus()
+  }
+
+  document.getElementById('ivf-' + id).addEventListener('click', function (event) {
+    var button = event.target.closest('.vt-filter-button')
+    if (button) openColumnFilter(button)
   })
+
+  function filterDocumentClick(event) {
+    if (filterPopup && !filterPopup.contains(event.target) && !event.target.closest('.vt-filter-button')) {
+      closeFilterPopup()
+    }
+  }
+  document.addEventListener('click', filterDocumentClick)
 
   var ticking = false
   vp.addEventListener('scroll', function () {
@@ -1276,7 +1676,11 @@ function showTable($container, rows, colDefs) {
 
   render(true)
   $container[0]._vtCleanup = function () {
+    if (resizeMove) document.removeEventListener('mousemove', resizeMove)
+    if (resizeEnd) document.removeEventListener('mouseup', resizeEnd)
     if (head._sortable) head._sortable.destroy()
+    closeFilterPopup()
+    document.removeEventListener('click', filterDocumentClick)
     window.removeEventListener('resize', fitVpHeight)
     window.removeEventListener('scroll', fitVpHeight)
   }
@@ -1767,21 +2171,7 @@ function drawSummary(
   ]
 
   if (!hasSubtotals) {
-    if (grandSum && ctx) {
-      totalH.push(
-        '<td class="col-total-col cell-link" data-ctx="' +
-          esc(ctx) +
-          '" data-road="" data-station="" data-col="">' +
-          grandSum.toLocaleString('ru-RU') +
-          '</td>',
-      )
-    } else {
-      totalH.push(
-        '<td class="col-total-col">' +
-          grandSum.toLocaleString('ru-RU') +
-          '</td>',
-      )
-    }
+    totalH.push(totalLink(grandSum, ctx, '', '', null))
   }
 
   displayCells.forEach(function (dc, di) {
@@ -1883,7 +2273,9 @@ function kpiCard(item) {
   var cls =
     'kpi-card' +
     (item.accent ? ' accent' : '') +
-    (hasDetail ? ' kpi-card--link' : '')
+    (item.isError ? ' kpi-card--error' : '') +
+    (hasDetail ? ' kpi-card--link' : '') +
+    (item.isUser ? ' kpi-card--user' : '')
   var detAttr = hasDetail
     ? " data-detail='" +
       JSON.stringify(item.detail).replace(/'/g, '&#39;') +
@@ -1905,6 +2297,7 @@ function kpiCard(item) {
           : dir === 'down'
             ? ' kpi-badge--down'
             : '')
+            
       badgeHtml = '<span class="' + bc + '">' + arrow + esc(t.pct) + '</span>'
     }
     return (
@@ -1913,6 +2306,7 @@ function kpiCard(item) {
       '"' +
       detAttr +
       '>' +
+      '<div class="kpi-card-main">' +
       '<div class="kpi-label">' +
       esc(item.label) +
       '</div>' +
@@ -1922,6 +2316,8 @@ function kpiCard(item) {
       badgeHtml +
       '</div>' +
       (item.sub ? '<div class="kpi-delta">' + esc(item.sub) + '</div>' : '') +
+      '</div>' +
+      (item.isUser ? '<div class="kpi-user-actions"><button type="button" class="kpi-user-edit" data-kpi-id="' + Number(item.id) + '" data-kpi-type="' + esc(item.type || '') + '" data-kpi-config="' + esc(JSON.stringify(item.config || {})) + '" data-kpi-label="' + esc(item.label) + '" aria-label="Редактировать KPI" title="Редактировать"><svg class="kpi-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5V20h3.5L18 9.5 14.5 6 4 16.5zM20.7 6.8a1 1 0 0 0 0-1.4l-2.1-2.1a1 1 0 0 0-1.4 0l-1.7 1.7 3.5 3.5 1.7-1.7z"/></svg></button><button type="button" class="kpi-user-delete" data-kpi-id="' + Number(item.id) + '" aria-label="Удалить KPI" title="Удалить"><svg class="kpi-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l1 2h4v2H3V5h4l1-2zm-2 6h12l-1 12H7L6 9zm3 2v8h2v-8H9zm4 0v8h2v-8h-2z"/></svg></button></div>' : '') +
       '</div>'
     )
   }
@@ -1932,6 +2328,7 @@ function kpiCard(item) {
     '"' +
     detAttr +
     '>' +
+    '<div class="kpi-card-main">' +
     '<div class="kpi-value">' +
     valStr +
     '</div>' +
@@ -1939,6 +2336,8 @@ function kpiCard(item) {
     esc(item.label) +
     '</div>' +
     (item.sub ? '<div class="kpi-delta">' + esc(item.sub) + '</div>' : '') +
+    '</div>' +
+    (item.isUser ? '<div class="kpi-user-actions"><button type="button" class="kpi-user-edit" data-kpi-id="' + Number(item.id) + '" data-kpi-type="' + esc(item.type || '') + '" data-kpi-config="' + esc(JSON.stringify(item.config || {})) + '" data-kpi-label="' + esc(item.label) + '" aria-label="Редактировать KPI" title="Редактировать"><svg class="kpi-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5V20h3.5L18 9.5 14.5 6 4 16.5zM20.7 6.8a1 1 0 0 0 0-1.4l-2.1-2.1a1 1 0 0 0-1.4 0l-1.7 1.7 3.5 3.5 1.7-1.7z"/></svg></button><button type="button" class="kpi-user-delete" data-kpi-id="' + Number(item.id) + '" aria-label="Удалить KPI" title="Удалить"><svg class="kpi-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l1 2h4v2H3V5h4l1-2zm-2 6h12l-1 12H7L6 9zm3 2v8h2v-8H9zm4 0v8h2v-8h-2z"/></svg></button></div>' : '') +
     '</div>'
   )
 }
@@ -2140,7 +2539,8 @@ $(document).on('click', '.cell-link', function (e) {
 })
 
 // Клик по KPI-карточке с детализацией
-$(document).on('click', '.kpi-card--link', function () {
+$(document).on('click', '.kpi-card--link', function (event) {
+  if ($(event.target).closest('.kpi-user-delete').length) return
   if (!CAN_OPEN_DETAIL) return
   var raw = $(this).attr('data-detail')
   if (!raw) return

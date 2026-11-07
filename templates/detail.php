@@ -82,7 +82,7 @@ $basePath = $basePath ?? '';
           <span class="table-sub" id="detailSub"></span>
         </div>
         <div class="table-acts">
-          <button class="btn btn-ghost btn-sm" id="btnResetLayout" type="button" hidden>Сбросить порядок</button>
+          <button class="btn btn-ghost btn-sm" id="btnResetLayout" type="button" hidden>Сбросить настройки таблицы</button>
           <button class="btn btn-ghost btn-sm" id="btnDetailCSV">Выгрузить в Excel</button>
         </div>
       </div>
@@ -120,7 +120,7 @@ $basePath = $basePath ?? '';
     }
 
     /* Данные CSV обновляются при каждом showTable. */
-    var _vtAllData = [], _vtFiltered = [], _vtCols = [], _vtAllCols = [];
+    var _vtAllData = [], _vtFiltered = [], _vtCols = [], _vtAllCols = [], _vtInline = {};
     var _vtLayout = null, _vtReportCode = '';
 
     function orderColumns(cols, layout) {
@@ -130,6 +130,8 @@ $basePath = $basePath ?? '';
       var ordered = [];
       layout.columns.forEach(function (item) {
         if (byKey[item.key]) {
+          if (Number(item.width) >= 70 && Number(item.width) <= 800) byKey[item.key].width = Number(item.width);
+          else delete byKey[item.key].width;
           ordered.push(byKey[item.key]);
           delete byKey[item.key];
         }
@@ -161,8 +163,116 @@ $basePath = $basePath ?? '';
       });
     }
 
+    function saveTableColumnWidths(reportCode, widths) {
+      $.ajax({
+        url: BASE + '/api/table-layout/' + encodeURIComponent(reportCode),
+        method: 'POST',
+        data: { csrf_token: window.APP_CSRF || '', widths: JSON.stringify(widths) },
+      }).done(function (layout) {
+        _vtLayout = layout;
+        _vtAllCols = orderColumns(_vtAllCols, layout);
+        $('#btnResetLayout').prop('hidden', false);
+      }).fail(function () {
+        $('#detailSub').text('Не удалось сохранить ширину столбца');
+      });
+    }
+
     $(function () {
       var params = new URLSearchParams(window.location.search);
+
+      function renderGroupedKpi(data, countLinks) {
+        var config = data.group_config || {};
+        var summary = data.summary || { total: 0, loaded: 0, empty: 0 };
+        var rows = data.rows || [];
+        var summaryItems = [
+          { label: 'Всего вагонов', value: summary.total, filter: '' },
+          { label: 'Гружёные', value: summary.loaded, filter: 'гр.' },
+          { label: 'Порожние', value: summary.empty, filter: 'пор.' }
+        ];
+        var html = '<div class="train-groups-layout user-kpi-groups-layout"><aside class="train-summary-panel">';
+        html += '<div class="train-section-heading"><strong>Итоги</strong><span>' + Number(summary.total || 0).toLocaleString('ru-RU') + ' вагонов</span></div><div class="train-summary">';
+        summaryItems.forEach(function (item) {
+          var href = countLinks(null, { label: item.label, key: item.filter ? (item.filter === 'гр.' ? 'loaded' : 'empty_count') : 'total', filters: item.filter ? { cargo_state: item.filter } : {} });
+          html += '<a class="train-summary-card" href="' + esc(href) + '"><span class="train-summary-label">' + esc(item.label) + '</span><strong class="train-summary-value">' + Number(item.value || 0).toLocaleString('ru-RU') + '</strong><span class="train-summary-action">Открыть</span></a>';
+        });
+        html += '</div></aside><section class="train-groups-panel">';
+        html += '<div class="train-section-heading"><strong>' + esc(config.title || 'Группы') + '</strong><span>' + rows.length.toLocaleString('ru-RU') + ' групп</span></div>';
+        html += '<div class="user-kpi-index-list">';
+        rows.forEach(function (row, index) {
+          var value = row.group_value == null || row.group_value === '' ? 'Не указано' : row.group_value;
+          var groupTitle = (config.group_prefix || '') + value;
+          var routeFrom = Number(row.route_depart_station_count || 0) > 1 ? 'Несколько станций' : (row.route_depart_station || '');
+          var routeTo = Number(row.route_dest_station_count || 0) > 1 ? 'Несколько станций' : (row.route_dest_station || '');
+          var route = routeFrom && routeTo ? 'Маршрут: ' + routeFrom + ' → ' + routeTo : '';
+          var sections = config.sections || [{ label: config.count_label || 'вагонов', key: 'total', filters: {} }];
+          html += '<article class="user-kpi-index-card"><div class="user-kpi-index-top">';
+          html += '<button type="button" class="user-kpi-index-info" data-index="' + index + '" aria-expanded="false">';
+          html += '<span class="user-kpi-index-title">' + esc(groupTitle) + '</span><span class="user-kpi-index-route">' + esc(route) + '</span></button>';
+          html += '<div class="user-kpi-system-counts">';
+          sections.forEach(function (section) {
+            var count = Number(row[section.key] || 0);
+            html += '<a class="user-kpi-index-count" href="' + esc(countLinks(row, section)) + '" title="Открыть детализацию"><strong>' + count.toLocaleString('ru-RU') + '</strong><span>' + esc(section.label) + '</span></a>';
+          });
+          html += '</div></div><div class="user-kpi-index-details" data-index="' + index + '" hidden><div class="user-kpi-group-wagon-grid">';
+          (config.fields || []).forEach(function (field) {
+            var multiple = Number(row[field.key + '_count'] || 0) > 1;
+            var fieldValue = multiple ? 'Несколько значений' : row[field.key];
+            html += '<div class="user-kpi-group-wagon-field"><span>' + esc(field.label) + '</span><strong>' + esc(fieldValue == null || fieldValue === '' ? '—' : fieldValue) + '</strong></div>';
+          });
+          html += '</div></div></article>';
+        });
+        if (!rows.length) html += '<div class="user-kpi-detail-empty">' + esc(config.empty_label || 'Нет данных') + '</div>';
+        html += '</div></section></div>';
+        $('#detailTable').html(html);
+        $('#detailTable').off('click.groupedKpi').on('click.groupedKpi', '.user-kpi-index-info', function () {
+          var index = Number($(this).attr('data-index'));
+          var $content = $('#detailTable .user-kpi-index-details[data-index="' + index + '"]');
+          var isOpen = !$content.prop('hidden');
+          $content.prop('hidden', isOpen);
+          $(this).attr('aria-expanded', isOpen ? 'false' : 'true').toggleClass('is-open', !isOpen);
+        });
+      }
+
+      var userKpiId = params.get('kpi_id') || '';
+      if (userKpiId && params.get('kpi_view') === 'GROUPED' && params.get('kpi_table') !== 'Y') {
+        $('#detailTabsBar, #btnResetLayout, #btnDetailCSV').hide();
+        $('#detailTitle').text('Детализация KPI');
+        $('#detailSub').text('Загрузка...');
+
+
+        var userKpiParams = new URLSearchParams();
+        userKpiParams.set('kpi_id', userKpiId);
+        if (params.has('report_dt')) userKpiParams.set('report_dt', params.get('report_dt'));
+        if (params.has('cargo_state')) userKpiParams.set('cargo_state', params.get('cargo_state'));
+        $.getJSON(BASE + '/api/dislocation/detail?' + userKpiParams.toString()).done(function (data) {
+          $('#detailTitle').text(data.label || 'Детализация KPI');
+          $('#detailSub').text('');
+          $('.table-section').addClass('is-train-groups');
+          var queryBase = new URLSearchParams(params);
+          queryBase.delete('kpi_view');
+          queryBase.delete('cargo_state');
+          queryBase.delete('group_value');
+          queryBase.delete('group_value_is_null');
+          queryBase.set('ctx', params.get('kpi_type') === 'approach_kpi' ? 'approach' : 'departure');
+          queryBase.set('_endpoint', '/api/dislocation/detail');
+          queryBase.set('kpi_table', 'Y');
+          renderGroupedKpi(data, function (row, section) {
+            var query = new URLSearchParams(queryBase);
+            Object.keys(section.filters || {}).forEach(function (key) { query.set(key, section.filters[key]); });
+            if (row) {
+              if (row.group_value == null) query.set('group_value_is_null', 'Y');
+              else query.set('group_value', row.group_value);
+            }
+            return BASE + '/detail?' + query.toString();
+          });
+        }).fail(function (xhr) {
+          var message = xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : 'Не удалось загрузить детализацию KPI';
+          $('#detailSub').text('');
+          $('#detailTable').html('<div class="user-kpi-detail-empty">' + esc(message) + '</div>');
+        });
+        return;
+      }
+
       var ctx = params.get('ctx') || '';
       _vtReportCode = ctx;
       var road = params.get('road') || '';
@@ -258,6 +368,26 @@ $basePath = $basePath ?? '';
       loadTableLayout(ctx).always(function () {
       $.getJSON(ctxDef.endpoint + (apiParams.toString() ? '?' + apiParams.toString() : ''))
         .done(function (data) {
+          if (data.group_config) {
+            var config = data.group_config;
+            $('#detailTitle').text(config.title);
+            $('#detailSub').empty().hide();
+            $('.table-section').addClass('is-train-groups');
+            $('#detailTabsBar, #btnDetailCSV, #btnResetLayout').hide();
+            renderGroupedKpi(data, function (row, section) {
+              var query = new URLSearchParams(params);
+              query.delete('train_groups');
+              query.delete('group_by');
+              query.delete('cargo_state');
+              if (row) {
+                query.set('group_by', config.group_field);
+                query.set(config.group_field, row.group_value == null ? '' : row.group_value);
+              }
+              Object.keys(section.filters || {}).forEach(function (key) { query.set(key, section.filters[key]); });
+              return BASE + '/detail?' + query.toString();
+            });
+            return;
+          }
           var rows = data.rows || [];
           $('#detailSub').text('Строк: ' + rows.length.toLocaleString('ru-RU'));
           showTable(rows, orderColumns(getTabCols(activeTab), _vtLayout));
@@ -282,6 +412,8 @@ $basePath = $basePath ?? '';
         }).always(function () {
           _vtLayout = null;
           _vtAllCols = allCols.slice();
+          _vtAllCols.forEach(function (column) { delete column.width; });
+          allCols.forEach(function (column) { delete column.width; });
           showTable(_vtAllData, getTabCols(activeTab));
         });
       });
@@ -316,6 +448,14 @@ $basePath = $basePath ?? '';
       _vtAllData = rows || [];
       _vtFiltered = _vtAllData.slice();
       _vtCols = cols;
+      _vtInline.detailTable = { all: _vtAllData, filtered: _vtFiltered, cols: cols };
+      var filterState = {};
+
+      function filterDisplayValue(column, row) {
+        var value = row[column.key];
+        if (column.fmt) value = column.fmt(value);
+        return value == null || value === '' ? '(Пустые)' : String(value);
+      }
 
       var ROW_H = 28;
       var BUFFER = 8;
@@ -324,7 +464,7 @@ $basePath = $basePath ?? '';
       (function measureCols() {
         var cv = document.createElement('canvas');
         var ctx = cv.getContext('2d');
-        var PAD = 20, MIN = 50, MAX = 320;
+        var PAD = 20, MIN = 70, MAX = 320;
         ctx.font = 'bold 12px sans-serif';
         measured = cols.map(function (c) {
           return Math.max(MIN, Math.min(MAX, Math.ceil(ctx.measureText(c.label).width) + PAD));
@@ -340,10 +480,21 @@ $basePath = $basePath ?? '';
         });
       })();
       var availW = document.getElementById('detailTable').offsetWidth || (window.innerWidth - 40);
-      var baseW = measured.reduce(function (s, w) { return s + w; }, 0);
-      var scale = availW > baseW ? availW / baseW : 1;
-      var template = measured.map(function (w) { return Math.floor(w * scale) + 'px'; }).join(' ');
-      var totalW = availW > baseW ? availW : baseW;
+      var savedTotal = 0, defaultTotal = 0;
+      cols.forEach(function (column, index) {
+        var savedWidth = Number(column.width);
+        if (savedWidth >= 70 && savedWidth <= 800) savedTotal += savedWidth;
+        else defaultTotal += measured[index];
+      });
+      var defaultScale = defaultTotal > 0 && availW - savedTotal > defaultTotal
+        ? (availW - savedTotal) / defaultTotal : 1;
+      var widths = measured.map(function (width, index) {
+        var savedWidth = Number(cols[index].width);
+        if (savedWidth >= 70 && savedWidth <= 800) return savedWidth;
+        return Math.max(70, Math.min(800, Math.floor(width * defaultScale)));
+      });
+      var template = widths.map(function (width) { return width + 'px'; }).join(' ');
+      var totalW = widths.reduce(function (sum, width) { return sum + width; }, 0);
 
       $('#detailTable').html(
         '<div class="vt-viewport" id="vtVp">' +
@@ -358,8 +509,8 @@ $basePath = $basePath ?? '';
 
       var hHtml = '', fHtml = '';
       cols.forEach(function (c) {
-        hHtml += '<div class="vt-th' + (c.pinned ? ' col-pinned' : '') + (c.meta ? ' col-meta' : '') + '" title="' + (c.pinned ? 'Закреплённая колонка' : 'Перетащите, чтобы переместить колонку') + '">' + esc(c.label) + '</div>';
-        fHtml += '<div class="vt-fc' + (c.pinned ? ' col-pinned' : '') + '"><input data-k="' + c.key + '" type="text" placeholder=""></div>';
+        hHtml += '<div class="vt-th' + (c.pinned ? ' col-pinned' : '') + (c.meta ? ' col-meta' : '') + '" title="' + (c.pinned ? 'Закреплённая колонка' : 'Перетащите, чтобы переместить колонку') + '">' + esc(c.label) + '<span class="vt-resize-handle" data-key="' + esc(c.key) + '" title="Изменить ширину столбца"></span></div>';
+        fHtml += '<div class="vt-fc' + (c.pinned ? ' col-pinned' : '') + '"><button type="button" class="vt-filter-button" data-k="' + c.key + '" title="Фильтр по столбцу">Все ▾</button></div>';
       });
       document.getElementById('vtHead').innerHTML = hHtml;
       document.getElementById('vtFilter').innerHTML = fHtml;
@@ -368,11 +519,90 @@ $basePath = $basePath ?? '';
       head.querySelectorAll('.vt-th').forEach(function (cell, index) {
         cell.dataset.key = cols[index].key;
       });
+      var resizeMove = null;
+      var resizeEnd = null;
+      var resizeSaveTimer = null;
+      head.addEventListener('mousedown', function (event) {
+        var handle = event.target.closest('.vt-resize-handle');
+        if (!handle || event.button !== 0) return;
+        var key = handle.getAttribute('data-key');
+        var index = cols.findIndex(function (column) { return column.key === key; });
+        if (index < 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        var startX = event.clientX;
+        var startWidth = widths[index];
+        head.classList.add('vt-head--resizing');
+        resizeMove = function (moveEvent) {
+          var nextWidth = Math.max(70, Math.min(800, Math.round(startWidth + moveEvent.clientX - startX)));
+          widths[index] = nextWidth;
+          template = widths.map(function (width) { return width + 'px'; }).join(' ');
+          totalW = widths.reduce(function (sum, width) { return sum + width; }, 0);
+          document.querySelectorAll('#vtHead, #vtFilter, #vtRows .vt-row').forEach(function (element) {
+            element.style.gridTemplateColumns = template;
+            element.style.width = totalW + 'px';
+          });
+          document.querySelector('#detailTable .vt-content').style.width = totalW + 'px';
+        };
+        resizeEnd = function () {
+          document.removeEventListener('mousemove', resizeMove);
+          document.removeEventListener('mouseup', resizeEnd);
+          head.classList.remove('vt-head--resizing');
+          resizeMove = resizeEnd = null;
+          cols[index].width = widths[index];
+          cols.forEach(function (column, columnIndex) {
+            var allColumn = _vtAllCols.find(function (item) { return item.key === column.key; });
+            if (allColumn) allColumn.width = widths[columnIndex];
+          });
+          var widthData = {};
+          cols.forEach(function (column, columnIndex) { widthData[column.key] = widths[columnIndex]; });
+          if (resizeSaveTimer) clearTimeout(resizeSaveTimer);
+          resizeSaveTimer = setTimeout(function () {
+            resizeSaveTimer = null;
+            saveTableColumnWidths(_vtReportCode, widthData);
+          }, 250);
+        };
+        document.addEventListener('mousemove', resizeMove);
+        document.addEventListener('mouseup', resizeEnd);
+      });
+
+      head.addEventListener('dblclick', function (event) {
+        var handle = event.target.closest('.vt-resize-handle');
+        if (!handle) return;
+        event.preventDefault();
+        event.stopPropagation();
+        var key = handle.getAttribute('data-key');
+        var index = cols.findIndex(function (column) { return column.key === key; });
+        if (index < 0) return;
+        widths[index] = measured[index];
+        cols[index].width = measured[index];
+        template = widths.map(function (width) { return width + 'px'; }).join(' ');
+        totalW = widths.reduce(function (sum, width) { return sum + width; }, 0);
+        document.querySelectorAll('#vtHead, #vtFilter, #vtRows .vt-row').forEach(function (element) {
+          element.style.gridTemplateColumns = template;
+          element.style.width = totalW + 'px';
+        });
+        document.querySelector('#detailTable .vt-content').style.width = totalW + 'px';
+        var allColumn = _vtAllCols.find(function (column) { return column.key === key; });
+        if (allColumn) delete allColumn.width;
+        delete cols[index].width;
+        if (resizeSaveTimer) {
+          clearTimeout(resizeSaveTimer);
+          resizeSaveTimer = null;
+        }
+        var resetWidth = {}; resetWidth[key] = null;
+        if (_vtLayout && Array.isArray(_vtLayout.columns)) {
+          _vtLayout.columns.forEach(function (item) { if (item.key === key) item.width = null; });
+        }
+        saveTableColumnWidths(_vtReportCode, resetWidth);
+      });
+
       if (typeof Sortable !== 'undefined') {
         head._sortable = Sortable.create(head, {
           animation: 150,
           draggable: '.vt-th:not(.col-pinned)',
-          filter: '.col-pinned',
+          filter: '.col-pinned, .vt-resize-handle',
+          preventOnFilter: false,
           forceFallback: false,
           ghostClass: 'vt-th--ghost',
           onStart: function () { head.classList.add('vt-head--dragging'); },
@@ -436,24 +666,155 @@ $basePath = $basePath ?? '';
         rowsEl.innerHTML = html;
       }
 
-      document.getElementById('vtFilter').addEventListener('input', function () {
-        var inputs = this.querySelectorAll('input');
-        var terms = [];
-        for (var i = 0; i < inputs.length; i++) {
-          var v = inputs[i].value.trim().toLowerCase();
-          if (v) terms.push({ k: inputs[i].getAttribute('data-k'), v: v });
-        }
-        _vtFiltered = !terms.length ? _vtAllData.slice() : _vtAllData.filter(function (row) {
-          for (var t = 0; t < terms.length; t++) {
-            if (String(row[terms[t].k] == null ? '' : row[terms[t].k]).toLowerCase().indexOf(terms[t].v) === -1) return false;
-          }
-          return true;
+      function getFilterValues(key, state) {
+        var column = cols.find(function (item) { return item.key === key; });
+        if (!column) return [];
+        state = state || filterState;
+        return Array.from(new Set(_vtAllData.filter(function (row) {
+          return Object.keys(state).every(function (activeKey) {
+            if (activeKey === key) return true;
+            var activeColumn = cols.find(function (item) { return item.key === activeKey; });
+            return activeColumn && state[activeKey].has(filterDisplayValue(activeColumn, row));
+          });
+        }).map(function (row) {
+          return filterDisplayValue(column, row);
+        }))).sort(function (a, b) {
+          return a.localeCompare(b, 'ru', { numeric: true, sensitivity: 'base' });
         });
+      }
+
+      function updateFilterButtons() {
+        document.querySelectorAll('#vtFilter .vt-filter-button').forEach(function (button) {
+          var key = button.getAttribute('data-k');
+          var selected = filterState[key];
+          button.classList.toggle('is-active', !!selected);
+          button.textContent = selected ? selected.size + ' выбрано ▾' : 'Все ▾';
+        });
+      }
+
+      function normalizeColumnFilters(changedKey) {
+        var changed = true;
+        while (changed) {
+          changed = false;
+          var snapshot = {};
+          Object.keys(filterState).forEach(function (key) { snapshot[key] = new Set(filterState[key]); });
+          var nextState = {};
+          Object.keys(snapshot).forEach(function (key) {
+            if (key === changedKey) {
+              nextState[key] = snapshot[key];
+              return;
+            }
+            var available = new Set(getFilterValues(key, snapshot));
+            var selected = new Set(Array.from(snapshot[key]).filter(function (value) { return available.has(value); }));
+            if (selected.size || snapshot[key].size === 0) nextState[key] = selected;
+            if (selected.size !== snapshot[key].size) changed = true;
+          });
+          if (Object.keys(nextState).length !== Object.keys(filterState).length) changed = true;
+          filterState = nextState;
+        }
+        updateFilterButtons();
+      }
+
+      function applyColumnFilters(changedKey) {
+        if (changedKey) normalizeColumnFilters(changedKey);
+        var activeKeys = Object.keys(filterState);
+        _vtFiltered = activeKeys.length ? _vtAllData.filter(function (row) {
+          return activeKeys.every(function (key) {
+            var column = cols.find(function (item) { return item.key === key; });
+            return column && filterState[key].has(filterDisplayValue(column, row));
+          });
+        }) : _vtAllData.slice();
+        _vtInline.detailTable.filtered = _vtFiltered;
         lastFirst = lastLast = -1;
         render(true);
         $('#detailSub').text('Строк: ' + _vtFiltered.length.toLocaleString('ru-RU') +
           (_vtFiltered.length < _vtAllData.length ? ' (отфильтровано из ' + _vtAllData.length.toLocaleString('ru-RU') + ')' : ''));
+      }
+
+      var filterPopup = null;
+      function closeFilterPopup() {
+        if (filterPopup) filterPopup.remove();
+        filterPopup = null;
+      }
+
+      function openColumnFilter(button) {
+        closeFilterPopup();
+        var key = button.getAttribute('data-k');
+        var column = cols.find(function (item) { return item.key === key; });
+        if (!column) return;
+        var values = getFilterValues(key);
+        var draft = filterState[key]
+          ? new Set(Array.from(filterState[key]).filter(function (value) { return values.indexOf(value) !== -1; }))
+          : new Set(values);
+        var popup = document.createElement('div');
+        popup.className = 'vt-column-filter';
+        popup.innerHTML = '<input class="vt-column-filter-search" type="search" placeholder="Поиск...">'
+          + '<div class="vt-column-filter-tools"><button type="button" data-action="all">Выбрать все</button><button type="button" data-action="none">Снять все</button></div>'
+          + '<div class="vt-column-filter-list"></div>'
+          + '<div class="vt-column-filter-actions"><button type="button" class="btn btn-ghost btn-sm" data-action="cancel">Отмена</button><button type="button" class="btn btn-primary btn-sm" data-action="apply">Применить</button></div>';
+        document.body.appendChild(popup);
+        filterPopup = popup;
+        var search = popup.querySelector('.vt-column-filter-search');
+        var list = popup.querySelector('.vt-column-filter-list');
+
+        function renderOptions() {
+          var query = search.value.toLocaleLowerCase('ru-RU').trim();
+          list.innerHTML = '';
+          values.forEach(function (value) {
+            if (query && value.toLocaleLowerCase('ru-RU').indexOf(query) < 0) return;
+            var label = document.createElement('label');
+            var check = document.createElement('input');
+            var text = document.createElement('span');
+            check.type = 'checkbox';
+            check.checked = draft.has(value);
+            check.addEventListener('change', function () {
+              if (check.checked) draft.add(value);
+              else draft.delete(value);
+            });
+            text.textContent = value;
+            label.append(check, text);
+            list.appendChild(label);
+          });
+        }
+
+        popup.addEventListener('click', function (event) {
+          var action = event.target.getAttribute('data-action');
+          if (action === 'all') {
+            values.forEach(function (value) { draft.add(value); });
+            renderOptions();
+          } else if (action === 'none') {
+            draft.clear();
+            renderOptions();
+          } else if (action === 'cancel') {
+            closeFilterPopup();
+          } else if (action === 'apply') {
+            if (draft.size === values.length) delete filterState[key];
+            else filterState[key] = new Set(draft);
+            button.classList.toggle('is-active', !!filterState[key]);
+            button.textContent = filterState[key] ? draft.size + ' выбрано ▾' : 'Все ▾';
+            closeFilterPopup();
+            applyColumnFilters(key);
+          }
+        });
+        search.addEventListener('input', renderOptions);
+        renderOptions();
+        var rect = button.getBoundingClientRect();
+        popup.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - popup.offsetWidth - 8)) + 'px';
+        popup.style.top = Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - popup.offsetHeight - 8)) + 'px';
+        search.focus();
+      }
+
+      document.getElementById('vtFilter').addEventListener('click', function (event) {
+        var button = event.target.closest('.vt-filter-button');
+        if (button) openColumnFilter(button);
       });
+
+      function filterDocumentClick(event) {
+        if (filterPopup && !filterPopup.contains(event.target) && !event.target.closest('.vt-filter-button')) {
+          closeFilterPopup();
+        }
+      }
+      document.addEventListener('click', filterDocumentClick);
 
       var ticking = false;
       vp.addEventListener('scroll', function () {
@@ -474,7 +835,11 @@ $basePath = $basePath ?? '';
 
       render(true);
       host._vtCleanup = function () {
+        if (resizeMove) document.removeEventListener('mousemove', resizeMove);
+        if (resizeEnd) document.removeEventListener('mouseup', resizeEnd);
         if (head._sortable) head._sortable.destroy();
+        closeFilterPopup();
+        document.removeEventListener('click', filterDocumentClick);
         head.classList.remove('vt-head--dragging');
         window.removeEventListener('resize', fitVpHeight);
         window.removeEventListener('scroll', fitVpHeight);

@@ -121,6 +121,8 @@ class MapsController
 
         $stationsMap = [];
         $cargosSet = [];
+        $lesseeSet = [];
+        $leaseStationSet = [];
         foreach ($rows as $r) {
             $code = (string) ($r['esr_code'] ?? $r['dest_station_esr_code'] ?? '');
             if (!$code) {
@@ -177,7 +179,7 @@ class MapsController
         sort($lessees);
         // Станция приписки арендатора
         $leaseStations = array_keys($leaseStationSet);
-        sort($lessees);
+        sort($leaseStations);
         // Станции
         $stationsJson = json_encode(array_values($stationsMap), JSON_UNESCAPED_UNICODE);
         $cargosJson = json_encode($cargos, JSON_UNESCAPED_UNICODE);

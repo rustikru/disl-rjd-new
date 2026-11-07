@@ -335,6 +335,89 @@ $canOpenDetail = \App\Services\Authorization::isSuper($user)
             background: #fff;
         }
 
+        .map-multiselect {
+            position: relative;
+            width: 100%;
+        }
+
+        .map-multiselect-button {
+            box-sizing: border-box;
+            width: 100%;
+            min-height: 36px;
+            padding: 8px 30px 8px 10px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #faf9fc;
+            color: var(--ink);
+            font-family: var(--sans);
+            font-size: 12px;
+            text-align: left;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .map-multiselect-options {
+            position: absolute;
+            z-index: 1000;
+            top: calc(100% + 4px);
+            left: 0;
+            box-sizing: border-box;
+            width: max(100%, 300px);
+            max-width: calc(100vw - 32px);
+            max-height: 280px;
+            overflow: auto;
+            padding: 6px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 10px 24px rgba(29, 23, 41, .16);
+        }
+
+        .map-multiselect-options[hidden],
+        .map-multiselect-options label[hidden] {
+            display: none;
+        }
+
+        .map-multiselect-search {
+            box-sizing: border-box;
+            width: 100%;
+            height: 34px;
+            margin-bottom: 5px;
+            padding: 0 9px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font: inherit;
+            outline: none;
+        }
+
+        .map-multiselect-search:focus {
+            border-color: var(--primary);
+        }
+
+        .map-multiselect-list {
+            display: grid;
+        }
+
+        .map-multiselect-list label {
+            display: flex;
+            align-items: flex-start;
+            gap: 7px;
+            padding: 6px 7px;
+            border-radius: 6px;
+            color: var(--ink);
+            font-size: 12px;
+            font-weight: 400;
+            letter-spacing: 0;
+            text-transform: none;
+            cursor: pointer;
+        }
+
+        .map-multiselect-list label:hover {
+            background: #f5f1fc;
+        }
+
         .btn-reset {
             margin-top: 6px;
             align-self: flex-end;
@@ -389,17 +472,17 @@ $canOpenDetail = \App\Services\Authorization::isSuper($user)
             </div>
             <div class="sidebar-cargo">
                 <label for="cargo-filter">Груз</label>
-                <select id="cargo-filter">
+                <select id="cargo-filter" multiple>
                     <option value="">— Все грузы —</option>
                 </select>
 
                 <label for="lessee-filter">Арендатор</label>
-                <select id="lessee-filter">
+                <select id="lessee-filter" multiple>
                     <option value="">— Все арендаторы —</option>
                 </select>
 
                 <label for="lease-station-filter">Станция приписки арендатора</label>
-                <select id="lease-station-filter">
+                <select id="lease-station-filter" multiple>
                     <option value="">— Все станции приписки —</option>
                 </select>
 
@@ -447,10 +530,79 @@ $canOpenDetail = \App\Services\Authorization::isSuper($user)
 
         // Значения активных фильтров.
         var activeFilters = {
-            cargo: '',
-            lessee: '',
-            lease_station: ''
+            cargo: [],
+            lessee: [],
+            lease_station: []
         };
+
+        function selectedValues(selectEl) {
+            return Array.prototype.slice.call(selectEl.selectedOptions).map(function (option) { return option.value; }).filter(Boolean);
+        }
+
+        function updateMapMultiSelect(selectEl) {
+            var widget = selectEl.nextElementSibling;
+            if (!widget || !widget.classList.contains('map-multiselect')) return;
+            var button = widget.querySelector('.map-multiselect-button');
+            var values = selectedValues(selectEl);
+            var labels = Array.prototype.slice.call(selectEl.selectedOptions).map(function (option) { return option.textContent; });
+            button.textContent = labels.length ? (labels.length === 1 ? labels[0] : 'Выбрано: ' + labels.length) : selectEl.dataset.emptyLabel;
+            var list = widget.querySelector('.map-multiselect-list');
+            var search = widget.querySelector('.map-multiselect-search');
+            var query = search.value.toLocaleLowerCase('ru-RU').trim();
+            list.innerHTML = '';
+            Array.prototype.slice.call(selectEl.options).forEach(function (option) {
+                if (!option.value) return;
+                var label = document.createElement('label');
+                var check = document.createElement('input');
+                var text = document.createElement('span');
+                check.type = 'checkbox';
+                check.value = option.value;
+                check.checked = values.indexOf(option.value) >= 0;
+                text.textContent = option.textContent;
+                label.dataset.search = option.value.toLocaleLowerCase('ru-RU');
+                label.hidden = query !== '' && label.dataset.search.indexOf(query) < 0;
+                check.addEventListener('change', function () {
+                    option.selected = check.checked;
+                    selectEl.dispatchEvent(new Event('change'));
+                    updateMapMultiSelect(selectEl);
+                });
+                label.appendChild(check);
+                label.appendChild(text);
+                list.appendChild(label);
+            });
+        }
+
+        function initMapMultiSelect(config) {
+            var selectEl = config.el;
+            selectEl.dataset.emptyLabel = '— ' + config.label + ' —';
+            selectEl.hidden = true;
+            var widget = document.createElement('div');
+            widget.className = 'map-multiselect';
+            widget.innerHTML = '<button type="button" class="map-multiselect-button"></button>'
+                + '<div class="map-multiselect-options" hidden><input type="search" class="map-multiselect-search" placeholder="Поиск..."><div class="map-multiselect-list"></div></div>';
+            selectEl.after(widget);
+            var options = widget.querySelector('.map-multiselect-options');
+            var search = widget.querySelector('.map-multiselect-search');
+            widget.querySelector('.map-multiselect-button').addEventListener('click', function () {
+                var open = options.hidden;
+                document.querySelectorAll('.map-multiselect-options').forEach(function (element) { element.hidden = true; });
+                options.hidden = !open;
+                if (open) search.focus();
+            });
+            search.addEventListener('input', function () {
+                var query = search.value.toLocaleLowerCase('ru-RU').trim();
+                widget.querySelectorAll('.map-multiselect-list label').forEach(function (label) {
+                    label.hidden = query !== '' && label.dataset.search.indexOf(query) < 0;
+                });
+            });
+            updateMapMultiSelect(selectEl);
+        }
+
+        document.addEventListener('click', function (event) {
+            if (!event.target.closest('.map-multiselect')) {
+                document.querySelectorAll('.map-multiselect-options').forEach(function (element) { element.hidden = true; });
+            }
+        });
 
         var map = L.map('map', { center: [57.5, 60.0], zoom: 4, zoomControl: true, attributionControl: false });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
@@ -458,9 +610,9 @@ $canOpenDetail = \App\Services\Authorization::isSuper($user)
         // Фильтрация вагонов по активным параметрам.
         function getFilteredWagons(station) {
             return station.wagons.filter(function (w) {
-                if (activeFilters.cargo && w.cargo !== activeFilters.cargo) return false;
-                if (activeFilters.lessee && w.lessee !== activeFilters.lessee) return false;
-                if (activeFilters.lease_station && w.lease_home_station !== activeFilters.lease_station) return false;
+                if (activeFilters.cargo.length && activeFilters.cargo.indexOf(w.cargo) < 0) return false;
+                if (activeFilters.lessee.length && activeFilters.lessee.indexOf(w.lessee) < 0) return false;
+                if (activeFilters.lease_station.length && activeFilters.lease_station.indexOf(w.lease_home_station) < 0) return false;
 
                 if (activeFilter === 'loaded') return w.ld;
                 if (activeFilter === 'empty') return !w.ld;
@@ -470,54 +622,74 @@ $canOpenDetail = \App\Services\Authorization::isSuper($user)
         }
 
         // Доступные значения селектов с учётом остальных фильтров.
+        function getAvailableMapFilterValues(currentKey, filters) {
+            var config = FILTER_CONFIG[currentKey];
+            var availableValues = new Set();
+
+            STATIONS.forEach(function (station) {
+                station.wagons.forEach(function (w) {
+                    if (activeFilter === 'loaded' && !w.ld) return;
+                    if (activeFilter === 'empty' && w.ld) return;
+                    if (activeFilter === 'idle' && w.days_no_move <= 5) return;
+
+                    var matchesOthers = Object.keys(FILTER_CONFIG).every(function (key) {
+                        if (key === currentKey || !filters[key].length) return true;
+                        return filters[key].indexOf(w[FILTER_CONFIG[key].key]) >= 0;
+                    });
+                    if (!matchesOthers || !w[config.key]) return;
+
+                    var valStr = String(w[config.key]).trim();
+                    if (!/^[-\s0()]*$/.test(valStr) && valStr !== '') {
+                        availableValues.add(w[config.key]);
+                    }
+                });
+            });
+            return availableValues;
+        }
+
+        // Доступные значения селектов с учётом остальных фильтров.
         function updateSelectOptions() {
+            var filtersSnapshot = {};
+            Object.keys(activeFilters).forEach(function (key) {
+                filtersSnapshot[key] = activeFilters[key].slice();
+            });
+
+            // Удаляем недоступные значения до стабилизации взаимосвязанных фильтров.
+            var changed = true;
+            while (changed) {
+                changed = false;
+                var nextFilters = {};
+                Object.keys(FILTER_CONFIG).forEach(function (currentKey) {
+                    var availableValues = getAvailableMapFilterValues(currentKey, filtersSnapshot);
+                    nextFilters[currentKey] = filtersSnapshot[currentKey].filter(function (value) {
+                        return availableValues.has(value);
+                    });
+                    if (nextFilters[currentKey].length !== filtersSnapshot[currentKey].length) changed = true;
+                });
+                filtersSnapshot = nextFilters;
+            }
+
             Object.keys(FILTER_CONFIG).forEach(function (currentKey) {
                 var config = FILTER_CONFIG[currentKey];
                 var selectEl = config.el;
-                var prevValue = selectEl.value;
+                var availableValues = getAvailableMapFilterValues(currentKey, filtersSnapshot);
 
-                var availableValues = new Set();
-
-                // Для списка учитываются все фильтры, кроме текущего.
-                STATIONS.forEach(function (station) {
-                    station.wagons.forEach(function (w) {
-                        if (activeFilter === 'loaded' && !w.ld) return;
-                        if (activeFilter === 'empty' && w.ld) return;
-                        if (activeFilter === 'idle' && w.days_no_move <= 5) return;
-
-                        var matchesOthers = true;
-                        Object.keys(FILTER_CONFIG).forEach(function (key) {
-                            if (key !== currentKey && activeFilters[key]) {
-                                if (w[FILTER_CONFIG[key].key] !== activeFilters[key]) {
-                                    matchesOthers = false;
-                                }
-                            }
-                        });
-
-                        if (matchesOthers && w[config.key]) {
-                            var valStr = String(w[config.key]).trim();
-
-                            // Применяем ту же регулярку для фильтрации опций в селектах
-                            if (!/^[-\s0()]*$/.test(valStr) && valStr !== '') {
-                                availableValues.add(w[config.key]);
-                            }
-                        }
-                    });
-                });
-
-                // Перестраиваем текущий селект
                 selectEl.innerHTML = '<option value="">— ' + config.label + ' —</option>';
                 config.source.forEach(function (val) {
-                    if (availableValues.has(val)) {
-                        var opt = document.createElement('option');
-                        opt.value = val;
-                        var label = val.replace(/\s*\(\d+\)\s*$/, '').trim();
-                        if (label.length > 42) label = label.slice(0, 40) + '…';
-                        opt.textContent = label;
-                        if (val === prevValue) opt.selected = true;
-                        selectEl.appendChild(opt);
-                    }
+                    if (!availableValues.has(val)) return;
+                    var opt = document.createElement('option');
+                    opt.value = val;
+                    var label = val.replace(/\s*\(\d+\)\s*$/, '').trim();
+                    if (label.length > 42) label = label.slice(0, 40) + '…';
+                    opt.textContent = label;
+                    opt.selected = filtersSnapshot[currentKey].indexOf(val) >= 0;
+                    selectEl.appendChild(opt);
                 });
+                activeFilters[currentKey] = filtersSnapshot[currentKey];
+            });
+
+            Object.keys(FILTER_CONFIG).forEach(function (key) {
+                updateMapMultiSelect(FILTER_CONFIG[key].el);
             });
         }
 
@@ -677,19 +849,23 @@ $canOpenDetail = \App\Services\Authorization::isSuper($user)
         });
 
         Object.keys(FILTER_CONFIG).forEach(function (key) {
+            initMapMultiSelect(FILTER_CONFIG[key]);
             FILTER_CONFIG[key].el.addEventListener('change', function () {
-                activeFilters[key] = this.value;
+                activeFilters[key] = selectedValues(this);
                 updateAll();
             });
         });
 
         document.getElementById('btn-reset').addEventListener('click', function () {
-            Object.keys(activeFilters).forEach(function (key) { activeFilters[key] = ''; });
+            Object.keys(activeFilters).forEach(function (key) { activeFilters[key] = []; });
             activeFilter = 'all';
             activeStation = null;
             document.getElementById('station-search').value = '';
 
-            Object.keys(FILTER_CONFIG).forEach(function (key) { FILTER_CONFIG[key].el.value = ''; });
+            Object.keys(FILTER_CONFIG).forEach(function (key) {
+                Array.prototype.forEach.call(FILTER_CONFIG[key].el.options, function (option) { option.selected = false; });
+                updateMapMultiSelect(FILTER_CONFIG[key].el);
+            });
 
             document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
             var allBtn = document.querySelector('.filter-btn[data-filter="all"]');

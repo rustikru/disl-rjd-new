@@ -41,7 +41,7 @@ Oracle не хранится в проекте, поэтому для объек
 | `XX_RJD_REPORT_CONFIG_VERSIONS` | Версии конфигурации отчётов | То же |
 | `XX_RJD_REPORT_CONFIG_AUDIT` | Журнал изменений конфигурации отчётов | То же |
 | `XX_RJD_TABLE_LAYOUTS` | Пользовательская настройка таблицы для отчёта | `db/2026-11-04-table-layouts.sql` |
-| `XX_RJD_TABLE_LAYOUT_COLUMNS` | Позиция, закрепление и видимость колонок в настройке | `db/2026-11-04-table-layouts.sql` |
+| `XX_RJD_TABLE_LAYOUT_COLUMNS` | Позиция, закрепление, видимость и индивидуальная ширина колонок в настройке | `db/2026-11-04-table-layouts.sql`, `db/2026-11-07-table-column-width.sql` |
 
 Порядок колонок в `XX_RJD_TABLE_LAYOUT_COLUMNS` хранится по стабильному ключу,
 а не по подписи. Исходный состав и стандартный порядок остаются в

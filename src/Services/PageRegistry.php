@@ -13,7 +13,7 @@ final class PageRegistry
     ];
 
     private const CORE = [
-        'dashboard' => ['label' => 'Дашборд', 'routes' => ['/api/dashboard', '/api/kpi'], 'visibility_group' => 'Сайт — основные разделы'],
+        'dashboard' => ['label' => 'Дашборд', 'routes' => ['/api/dashboard', '/api/kpi', '/kpi/create', '/kpi/edit'], 'visibility_group' => 'Сайт — основные разделы'],
         'wagon-card' => ['label' => 'Карточка вагона', 'routes' => ['/wagon', '/api/wagon/movement'], 'visibility_group' => 'Сайт — основные разделы'],
         'wagon-detail' => ['label' => 'Детализация по вагону', 'routes' => ['/detail'], 'visibility_group' => 'Сайт — основные разделы'],
         'maps' => ['label' => 'Карта', 'routes' => ['/maps'], 'visibility_group' => 'Сайт — основные разделы', 'navigation' => ['group' => 'analytics', 'order' => 90, 'url' => '/maps', 'target' => '_blank']],
@@ -76,6 +76,7 @@ final class PageRegistry
         'sessions' => ['label' => 'Активные сессии', 'routes' => ['/admin/sessions'], 'visibility_group' => 'Администрирование', 'super_only' => true],
         'audit' => ['label' => 'Журнал действий', 'routes' => ['/admin/audit'], 'visibility_group' => 'Администрирование', 'super_only' => true],
         'system' => ['label' => 'О системе', 'routes' => ['/admin/system'], 'visibility_group' => 'Администрирование', 'super_only' => true],
+        'kpi' => ['label' => 'Управление KPI', 'routes' => ['/admin/kpi'], 'visibility_group' => 'Администрирование', 'super_only' => true],
     ];
 
     private const ADMIN_NAVIGATION = [
@@ -91,6 +92,7 @@ final class PageRegistry
         'sessions' => ['group' => 'Контроль и обслуживание', 'order' => 10, 'url' => '/admin/sessions'],
         'audit' => ['group' => 'Контроль и обслуживание', 'order' => 20, 'url' => '/admin/audit'],
         'system' => ['group' => 'Контроль и обслуживание', 'order' => 30, 'url' => '/admin/system'],
+        'kpi' => ['group' => 'Настройки системы', 'order' => 40, 'url' => '/admin/kpi'],
     ];
 
     private const GROUPS = [

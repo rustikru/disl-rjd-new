@@ -5,6 +5,8 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Reports\ReportConfig;
+use App\Reports\KpiCondition;
+use App\Reports\KpiGroupingTemplates;
 use App\Services\Claims;
 use App\Services\Organizations;
 use App\Services\ReportService;
@@ -19,6 +21,7 @@ class ApiController
 {
     private const WAG_TYPE_EXPR = "xx_etw.xx_rjd_dislocation_new_pkg.fnc_mapping_wag_type(wagon_type_code)";
     private const WAG_STATE = WagonCargoState::SQL_EXPRESSION;
+    // Исключение вагонов из отчета по простоям (по данным справочника xx_disl_idle_control_v)
     private const EXCLUDED_WAGONS_COND = "
         AND NOT EXISTS (
             SELECT 1
@@ -125,50 +128,141 @@ class ApiController
             $bindings['kpi_type'] = $kpiType;
         }
 
-        // Если основной запрос недоступен, пробуем следующий.
-        $queries = [
-            "SELECT /*+ CARDINALITY(t 1) */ kpi.id, kpi.type, kpi.label AS x_label,
-                    t.x_value, t.trend_pct, t.trend_dir
-             FROM XX_RJD_KPI_TBL_V kpi,
-                  TABLE(xx_rjd_dislocation_new_pkg.get_kpi_row(kpi.id)) t
-             WHERE $whereCond
-            order by kpi.ORDER_BY",
-
-            "SELECT kpi.id, kpi.type, kpi.label AS x_label,
-                    xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id)         AS x_value,
-                    xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_pct(kpi.id) AS trend_pct,
-                    xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_dir(kpi.id) AS trend_dir
-             FROM XX_RJD_KPI_TBL_V kpi
-             WHERE $whereCond
-            order by kpi.ORDER_BY",
-
-            "SELECT kpi.id, kpi.type, kpi.label AS x_label,
-                    xx_rjd_dislocation_new_pkg.set_kpi_label(kpi.id) AS x_value,
-                    NULL AS trend_pct,
-                    NULL AS trend_dir
-             FROM XX_RJD_KPI_TBL_V kpi
-             WHERE $whereCond
-            order by kpi.ORDER_BY",
-        ];
-        $rows = null;
-        foreach ($queries as $sql) {
+        $cards = $this->db->fetchAll(
+            "SELECT id, code, type, label AS x_label
+               FROM XX_ETW.XX_RJD_KPI_TBL
+              WHERE is_system = 'Y' AND is_active = 'Y' AND $whereCond
+              ORDER BY order_by, id",
+            $bindings
+        );
+        $rows = [];
+        foreach ($cards as $card) {
+            $id = (int) $card['id'];
             try {
-                $rows = $this->db->fetchAll($sql, $bindings);
-                break;
-            } catch (\Throwable $e) {
-                continue;
+                $result = $this->db->fetchOne(
+                    "SELECT xx_rjd_dislocation_new_pkg.set_kpi_label(:label_id) AS x_value,
+                            xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_pct(:trend_pct_id) AS trend_pct,
+                            xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_dir(:trend_dir_id) AS trend_dir
+                       FROM dual",
+                    ['label_id' => $id, 'trend_pct_id' => $id, 'trend_dir_id' => $id]
+                );
+                $rows[] = array_merge($card, $result ?: []);
+            } catch (\Throwable $error) {
+                if (strpos($error->getMessage(), 'ORA-20001') !== false) {
+                    $rows[] = array_merge($card, [
+                        'x_value' => 'Условие для KPI не определено.',
+                        'trend_pct' => null,
+                        'trend_dir' => null,
+                        'is_error' => 'Y',
+                    ]);
+                    continue;
+                }
+                $code = ErrorLogger::logThrowable($error, [
+                    'operation' => 'load_system_kpi',
+                    'kpi_id' => $id,
+                ]);
+                $rows[] = array_merge($card, [
+                    'x_value' => 'Ошибка расчёта KPI (' . $code . ')',
+                    'trend_pct' => null,
+                    'trend_dir' => null,
+                    'is_error' => 'Y',
+                ]);
             }
         }
-        $rows ??= [];
+
+        if (in_array($kpiType, ['approach_kpi', 'departue_kpi'], true)) {
+            try {
+                $userId = (int) ($_SESSION['user']['id'] ?? 0);
+                $userCards = $this->db->fetchAll(
+                    "SELECT id, code, type, label FROM XX_ETW.XX_RJD_KPI_TBL
+                      WHERE is_system = 'N' AND is_active = 'Y' AND owner_id = :owner_id AND type = :type
+                      ORDER BY order_by, id",
+                    ['owner_id' => $userId, 'type' => $kpiType]
+                );
+                $source = $this->dislFrom([]);
+                foreach ($userCards as $card) {
+                    $config = $this->db->fetchOne(
+                        "SELECT DBMS_LOB.SUBSTR(where_config, 3500, 1) AS where_config FROM XX_ETW.XX_RJD_KPI_TBL WHERE id = :id AND owner_id = :owner_id AND is_system = 'N' AND is_active = 'Y'",
+                        ['id' => (int) $card['id'], 'owner_id' => $userId]
+                    );
+                    $condition = KpiCondition::compile($kpiType, (string) ($config['where_config'] ?? ''));
+                    $count = 0;
+                    if ($source['from'] !== '') {
+                        $countRow = $this->db->fetchOne(
+                            "SELECT COUNT(*) AS total FROM {$source['from']} xdr WHERE 1=1 AND type_reference = :kpi_type_reference AND {$condition['sql']}",
+                            array_merge($source['bindings'], $condition['params'], [
+                                'kpi_type_reference' => $kpiType === 'approach_kpi' ? 'Подход' : 'Отправка',
+                            ])
+                        );
+                        $count = (int) ($countRow['total'] ?? 0);
+                    }
+                    $rows[] = [
+                        'id' => $card['id'], 'code' => $card['code'], 'type' => $card['type'],
+                        'x_label' => $card['label'], 'x_value' => $count,
+                        'trend_pct' => null, 'trend_dir' => null, 'is_user' => 'Y',
+                        'config' => json_decode((string) ($config['where_config'] ?? ''), true),
+                    ];
+                }
+            } catch (\Throwable $error) {
+                $code = ErrorLogger::logThrowable($error, ['operation' => 'load_user_kpi_summary', 'user_id' => (int) ($_SESSION['user']['id'] ?? 0)]);
+                return $this->json($response->withStatus(500), ['error' => 'Не удалось загрузить пользовательские KPI', 'code' => $code]);
+            }
+        }
+
+        $detailConfigs = [];
+        $configRows = $this->db->fetchAll(
+            "SELECT kpi_id, detail_type, detail_profile, group_title, count_label, empty_label
+               FROM XX_ETW.XX_RJD_KPI_DETAIL_CFG
+              WHERE is_active = 'Y'"
+        );
+        foreach ($configRows as $configRow) {
+            $detailConfigs[(int) $configRow['kpi_id']] = $configRow;
+        }
 
         $values = [];
         foreach ($rows as $r) {
+            $code = (string) ($r['code'] ?? '');
+            $kpiId = (int) ($r['id'] ?? 0);
+            $detailConfig = $detailConfigs[$kpiId] ?? null;
+            $detail = ReportConfig::kpiDetail($code);
+
+            if ($detailConfig) {
+                $detailType = strtoupper((string) ($detailConfig['detail_type'] ?? 'TABLE'));
+                if ($detailType === 'SPECIAL') {
+                    $detail = ReportConfig::trainGroups(
+                        strtolower(trim((string) ($detailConfig['detail_profile'] ?? ''))),
+                        trim((string) ($detailConfig['group_title'] ?? '')) ?: (string) ($r['x_label'] ?? ''),
+                        trim((string) ($detailConfig['empty_label'] ?? '')) ?: 'Поездов нет'
+                    );
+                    if ($detail) {
+                        $detail['count_label'] = trim((string) ($detailConfig['count_label'] ?? '')) ?: $detail['count_label'];
+                    }
+                } else {
+                    $detail = null;
+                }
+            }
+
+            $detailParams = ['kpi_id' => $r['id']];
+            if (($r['is_user'] ?? 'N') === 'Y') {
+                $userDetail = is_array($r['config']['detail'] ?? null) ? $r['config']['detail'] : [];
+                if (strtoupper((string) ($userDetail['type'] ?? 'TABLE')) === 'GROUPED' && KpiGroupingTemplates::fromDetail($userDetail)) {
+                    $detailParams['kpi_view'] = 'GROUPED';
+                    $detailParams['kpi_type'] = (string) ($r['type'] ?? '');
+                }
+            } else {
+                $detailParams['train_groups'] = $detail['code'] ?? '';
+            }
+
             $values[] = [
                 'id' => $r['id'] ?? '',
+                'type' => $r['type'] ?? $kpiType,
                 'value' => $r['x_value'] ?? '0',
-                'label' => $r['x_label'] ?? '',
+                'label' => $detail && !$detailConfig ? $detail['title'] : ($r['x_label'] ?? ''),
+                'detail' => ['ctx' => 'dislocation', 'params' => $detailParams],
                 'trend' => $r['trend_dir'] ?? '',
                 'change' => $r['trend_pct'] ?? '',
+                'is_user' => $r['is_user'] ?? 'N',
+                'config' => $r['config'] ?? null,
             ];
         }
 
@@ -177,6 +271,110 @@ class ApiController
             'sections' => [['values' => $values]],
         ]);
     }
+    /** GET /api/kpi/user/catalog */
+    public function userKpiCatalog(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $type = trim((string) ($request->getQueryParams()['kpi_type'] ?? ''));
+        if (!in_array($type, ['approach_kpi', 'departue_kpi'], true) || !$this->organizations->isMtf()) {
+            return $this->json($response->withStatus(403), ['error' => 'Недоступно']);
+        }
+        return $this->json($response, ['fields' => KpiCondition::fields($type), 'grouping_templates' => KpiGroupingTemplates::options()]);
+    }
+
+    /** POST /api/kpi/user */
+    public function saveUserKpi(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+        if (!$this->validCsrf((string) ($body['csrf_token'] ?? ''))) {
+            return $this->json($response->withStatus(403), ['error' => 'Ошибка проверки запроса']);
+        }
+        $type = trim((string) ($body['kpi_type'] ?? ''));
+        $label = trim((string) ($body['label'] ?? ''));
+        $userId = (int) ($_SESSION['user']['id'] ?? 0);
+        if (!$this->organizations->isMtf() || $userId < 1 || !in_array($type, ['approach_kpi', 'departue_kpi'], true)) {
+            return $this->json($response->withStatus(403), ['error' => 'Недоступно']);
+        }
+        if ($label === '' || mb_strlen($label) > 150) {
+            return $this->json($response->withStatus(422), ['error' => 'Название должно содержать от 1 до 150 символов']);
+        }
+        $config = $body['config'] ?? null;
+        if (!is_array($config)) {
+            return $this->json($response->withStatus(422), ['error' => 'Не заданы условия KPI']);
+        }
+        $detail = is_array($config['detail'] ?? null) ? $config['detail'] : [];
+        $detailType = strtoupper((string) ($detail['type'] ?? 'TABLE'));
+        if (!in_array($detailType, ['TABLE', 'GROUPED'], true)) {
+            return $this->json($response->withStatus(422), ['error' => 'Выбран недопустимый шаблон детализации']);
+        }
+        if ($detailType === 'GROUPED' && !KpiGroupingTemplates::fromDetail($detail)) {
+            return $this->json($response->withStatus(422), ['error' => 'Выберите один из доступных шаблонов группировки']);
+        }
+        $groupingTemplate = $detailType === 'GROUPED' ? KpiGroupingTemplates::fromDetail($detail) : null;
+        $config['detail'] = $detailType === 'TABLE'
+            ? ['type' => 'TABLE']
+            : ['type' => 'GROUPED', 'template' => $groupingTemplate['code']];
+        $json = json_encode($config, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if (!is_string($json) || strlen($json) > 3500) {
+            return $this->json($response->withStatus(422), ['error' => 'Конфигурация слишком большая']);
+        }
+        try {
+            KpiCondition::compile($type, $json);
+            $id = (int) ($body['id'] ?? 0);
+            if ($id > 0) {
+                $isAdminEdit = !empty($body['admin']) && \App\Services\Authorization::isSuper();
+                $this->db->execute(
+                    "UPDATE XX_ETW.XX_RJD_KPI_TBL SET label = :label, where_config = :where_config
+                      WHERE id = :id AND " . ($isAdminEdit ? "1=1" : "owner_id = :owner_id") . " AND is_system = 'N' AND type = :type",
+                    $isAdminEdit
+                        ? ['label' => $label, 'where_config' => $json, 'id' => $id, 'type' => $type]
+                        : ['label' => $label, 'where_config' => $json, 'id' => $id, 'owner_id' => $userId, 'type' => $type]
+                );
+            } else {
+                $this->db->execute(
+                    "INSERT INTO XX_ETW.XX_RJD_KPI_TBL
+                        (type, code, label, order_by, trend_unit, page_code, owner_id, is_system, where_config)
+                     VALUES (:type, :code, :label, 999, 'шт.', :page_code, :owner_id, 'N', :where_config)",
+                    [
+                        'type' => $type, 'code' => 'user_' . substr(hash('sha256', $userId . microtime(true)), 0, 24),
+                        'label' => $label, 'page_code' => $type === 'approach_kpi' ? 'approach' : 'departure',
+                        'owner_id' => $userId, 'where_config' => $json,
+                    ]
+                );
+            }
+        } catch (\InvalidArgumentException $error) {
+            return $this->json($response->withStatus(422), ['error' => $error->getMessage()]);
+        } catch (\Throwable $error) {
+            $code = ErrorLogger::logThrowable($error, ['operation' => 'save_user_kpi', 'user_id' => $userId]);
+            return $this->json($response->withStatus(500), ['error' => 'Не удалось сохранить KPI', 'code' => $code]);
+        }
+        return $this->json($response, ['success' => true, 'redirect' => !empty($body['admin']) && \App\Services\Authorization::isSuper() ? '/admin/kpi?saved=1' : null]);
+    }
+
+    /** DELETE /api/kpi/user/{id} */
+    public function deleteUserKpi(ServerRequestInterface $request, ResponseInterface $response, int $id): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+        if (!$this->validCsrf((string) ($body['csrf_token'] ?? ''))) {
+            return $this->json($response->withStatus(403), ['error' => 'Ошибка проверки запроса']);
+        }
+        $userId = (int) ($_SESSION['user']['id'] ?? 0);
+        try {
+            $count = $this->db->execute(
+                "DELETE FROM XX_ETW.XX_RJD_KPI_TBL WHERE id = :id AND owner_id = :owner_id AND is_system = 'N'",
+                ['id' => $id, 'owner_id' => $userId]
+            );
+            return $this->json($response, ['success' => $count > 0]);
+        } catch (\Throwable $error) {
+            $code = ErrorLogger::logThrowable($error, ['operation' => 'delete_user_kpi', 'user_id' => $userId, 'kpi_id' => $id]);
+            return $this->json($response->withStatus(500), ['error' => 'Не удалось удалить KPI', 'code' => $code]);
+        }
+    }
+
+    private function validCsrf(string $csrf): bool
+    {
+        return $csrf !== '' && hash_equals((string) ($_SESSION['csrf_token'] ?? ''), $csrf);
+    }
+
     /** Карточки погрузки для GET /api/kpi/summary. */
     private function loadingKpiSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
@@ -184,7 +382,7 @@ class ApiController
         unset($params['loading_period']);
         $source = $this->loadingFrom($params);
         $cards = $this->db->fetchAll(
-            "SELECT id, code, label FROM XX_RJD_KPI_TBL_V WHERE type = 'loading_kpi' ORDER BY order_by, id"
+            "SELECT id, code, label FROM XX_ETW.XX_RJD_KPI_TBL WHERE type = 'loading_kpi' AND is_system = 'Y' AND is_active = 'Y' ORDER BY order_by, id"
         );
         $bindings = $source['bindings'];
         $select = [];
@@ -300,19 +498,272 @@ class ApiController
             return $this->json($response, ['rows' => []]);
         }
 
-        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state']);
         $bindings = $source['bindings'];
-        $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
-
-        // Детализация для карточек KPI по ID карточки
-        $kpiId = trim($params['kpi_id'] ?? '');
+        $whereCond = '';
+        $detail = null;
+        $userDetailConfig = null;
+        $kpiId = trim((string) ($params['kpi_id'] ?? ''));
+        if ($kpiId !== '' && (!ctype_digit($kpiId) || (int) $kpiId < 1)) {
+            return $this->json($response->withStatus(422), ['error' => 'Некорректный идентификатор KPI']);
+        }
         if ($kpiId !== '') {
-            $kpi = $this->db->fetchOne(
-                'SELECT XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.get_kpi_where(:kpi_id) AS kpi_condition FROM dual',
-                ['kpi_id' => (int) $kpiId]
+            $userId = (int) ($_SESSION['user']['id'] ?? 0);
+            $userKpi = $this->db->fetchOne(
+                "SELECT id, type, code, label, DBMS_LOB.SUBSTR(where_config, 3500, 1) AS where_config FROM XX_ETW.XX_RJD_KPI_TBL
+                  WHERE id = :kpi_id AND owner_id = :owner_id AND is_system = 'N' AND is_active = 'Y'",
+                ['kpi_id' => (int) $kpiId, 'owner_id' => $userId]
             );
-            $condition = trim((string) ($kpi['kpi_condition'] ?? '')) ?: '1=0';
-            $whereCond .= ' AND (' . $condition . ')';
+            if ($userKpi) {
+                if (!in_array((string) $userKpi['type'], ['approach_kpi', 'departue_kpi'], true)) {
+                    return $this->json($response->withStatus(404), ['error' => 'Карточка KPI не найдена']);
+                }
+                $kpi = ['code' => $userKpi['code'], 'label' => $userKpi['label']];
+                $userConfig = json_decode((string) ($userKpi['where_config'] ?? ''), true);
+                $userDetailConfig = is_array($userConfig['detail'] ?? null) ? $userConfig['detail'] : null;
+                try {
+                    $userCondition = KpiCondition::compile((string) $userKpi['type'], (string) $userKpi['where_config']);
+                } catch (\InvalidArgumentException $error) {
+                    return $this->json($response->withStatus(422), ['error' => 'Настройки KPI повреждены']);
+                } catch (\Throwable $error) {
+                    $code = ErrorLogger::logThrowable($error, ['operation' => 'load_user_kpi_detail', 'kpi_id' => (int) $kpiId]);
+                    return $this->json($response->withStatus(500), ['error' => 'Не удалось открыть детализацию KPI', 'code' => $code]);
+                }
+            } else {
+                try {
+                    $kpi = $this->db->fetchOne(
+                        "SELECT code, label, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.get_kpi_where(id) AS kpi_condition FROM XX_ETW.XX_RJD_KPI_TBL WHERE id = :kpi_id AND is_system = 'Y' AND is_active = 'Y'",
+                        ['kpi_id' => (int) $kpiId]
+                    );
+                } catch (\Throwable $error) {
+                    if (strpos($error->getMessage(), 'ORA-20001') !== false) {
+                        return $this->json($response->withStatus(422), ['error' => 'Условие для KPI не определено.']);
+                    }
+                    $code = ErrorLogger::logThrowable($error, ['operation' => 'load_system_kpi_detail', 'kpi_id' => (int) $kpiId]);
+                    return $this->json($response->withStatus(500), ['error' => 'Не удалось открыть детализацию KPI', 'code' => $code]);
+                }
+                $userCondition = null;
+            }
+            if (!$kpi) {
+                return $this->json($response->withStatus(404), ['error' => 'Карточка KPI не найдена']);
+            }
+            $detailConfig = null;
+            if ($userCondition === null) {
+                $detailConfig = $this->db->fetchOne(
+                    "SELECT detail_type, detail_profile, group_title, count_label, empty_label
+                       FROM XX_ETW.XX_RJD_KPI_DETAIL_CFG
+                      WHERE kpi_id = :kpi_id AND is_active = 'Y'",
+                    ['kpi_id' => (int) $kpiId]
+                );
+            }
+
+            if ($userCondition !== null) {
+                $detail = null;
+            } elseif ($detailConfig) {
+                if (strtoupper((string) ($detailConfig['detail_type'] ?? '')) === 'SPECIAL') {
+                    $detail = ReportConfig::trainGroups(
+                        strtolower(trim((string) ($detailConfig['detail_profile'] ?? ''))),
+                        trim((string) ($detailConfig['group_title'] ?? '')) ?: (string) ($kpi['label'] ?? ''),
+                        trim((string) ($detailConfig['empty_label'] ?? '')) ?: 'Поездов нет'
+                    );
+                    if ($detail) {
+                        $detail['count_label'] = trim((string) ($detailConfig['count_label'] ?? '')) ?: $detail['count_label'];
+                    }
+                }
+            } else {
+                $detail = ReportConfig::kpiDetail($kpi['code'] ?? '');
+            }
+
+            if ($userCondition !== null) {
+                $whereCond .= ' AND type_reference = :kpi_type_reference AND ' . $userCondition['sql'];
+                $bindings = array_merge($bindings, $userCondition['params'], [
+                    'kpi_type_reference' => $userKpi['type'] === 'approach_kpi' ? 'Подход' : 'Отправка',
+                ]);
+            } else {
+                $condition = trim((string) ($kpi['kpi_condition'] ?? '')) ?: '1=0';
+                $whereCond .= ' AND (' . $condition . ')';
+            }
+        }
+
+        $rowDims = $detail
+            ? $detail['group_by']
+            : $this->parseGroupBy($params['group_by'] ?? '', ['dest_state']);
+        $whereCond .= $this->applyDetailFilters($rowDims, $params, $bindings);
+
+        $trainGroups = in_array(
+            (string) ($params['train_groups'] ?? ''),
+            ['train-groups', 'abandoned-trains', 'formed-trains'],
+            true
+        );
+        if ($detail && $trainGroups && $detail['code'] === 'train-groups') {
+            $groupField = strtoupper($detail['group_field']);
+            $select = [
+                $groupField . ' AS "group_value"',
+                'COUNT(*) AS "total"',
+                "SUM(CASE WHEN " . self::WAG_STATE . " = 'гр.' THEN 1 ELSE 0 END) AS \"loaded\"",
+                "SUM(CASE WHEN " . self::WAG_STATE . " = 'пор.' THEN 1 ELSE 0 END) AS \"empty_count\"",
+            ];
+            foreach ($detail['route_fields'] as $field) {
+                $key = $field['key'];
+                $column = strtoupper($key);
+                $select[] = "MIN($column) AS \"route_{$key}\"";
+                $select[] = "COUNT(DISTINCT $column) AS \"route_{$key}_count\"";
+            }
+            foreach ($detail['fields'] as $field) {
+                $key = $field['key'];
+                $column = strtoupper($key);
+                if (in_array($key, ['oper_dt', 'trip_start_dt'], true)) {
+                    $select[] = "TO_CHAR(MIN($column), 'DD.MM.YYYY HH24:MI') AS \"$key\"";
+                } else {
+                    $select[] = "MIN($column) AS \"$key\"";
+                }
+                $select[] = "COUNT(DISTINCT $column) AS \"{$key}_count\"";
+            }
+            $rows = $this->db->fetchAll(
+                "SELECT " . implode(', ', $select) . "
+                   FROM {$source['from']} xdr
+                  WHERE 1=1 $whereCond
+                  GROUP BY $groupField
+                  ORDER BY $groupField",
+                $bindings
+            );
+
+            $summary = $this->db->fetchOne(
+                "SELECT COUNT(*) AS total,
+                        SUM(CASE WHEN " . self::WAG_STATE . " = 'гр.' THEN 1 ELSE 0 END) AS loaded,
+                        SUM(CASE WHEN " . self::WAG_STATE . " = 'пор.' THEN 1 ELSE 0 END) AS empty_count
+                   FROM {$source['from']} xdr
+                  WHERE 1=1 $whereCond",
+                $bindings
+            ) ?? ['total' => 0, 'loaded' => 0, 'empty' => 0];
+
+            return $this->json($response, [
+                'rows' => $rows,
+                'group_config' => $detail,
+                'summary' => [
+                    'total' => (int) ($summary['total'] ?? 0),
+                    'loaded' => (int) ($summary['loaded'] ?? 0),
+                    'empty' => (int) ($summary['empty_count'] ?? 0),
+                ],
+            ]);
+        }
+
+        if (
+            $userDetailConfig
+            && strtoupper((string) ($userDetailConfig['type'] ?? 'TABLE')) === 'GROUPED'
+            && ($params['kpi_table'] ?? '') !== 'Y'
+        ) {
+            $template = KpiGroupingTemplates::fromDetail($userDetailConfig);
+            if (!$template) {
+                return $this->json($response->withStatus(422), ['error' => 'Шаблон группировки KPI недоступен']);
+            }
+            $groupField = $template['group_field'];
+            $hasGroupValue = array_key_exists('group_value', $params) || ($params['group_value_is_null'] ?? '') === 'Y';
+            $groupValue = $params['group_value'] ?? null;
+            if ($hasGroupValue) {
+                if (($params['group_value_is_null'] ?? '') === 'Y') {
+                    $groupWhere = $whereCond . ' AND ' . strtoupper($groupField) . ' IS NULL';
+                } else {
+                    if (!is_scalar($groupValue) || strlen((string) $groupValue) > 800) {
+                        return $this->json($response->withStatus(422), ['error' => 'Некорректное значение группы']);
+                    }
+                    $bindings['user_group_value'] = $groupValue;
+                    $groupWhere = $whereCond . ' AND ' . strtoupper($groupField) . ' = :user_group_value';
+                }
+                $columns = array_values(array_unique(array_merge(
+                    ['wagon_no', 'wagon_type_code', 'cargo_name', 'cargo_weight_kg', 'wagon_state', 'depart_station', 'dest_station', 'oper_station', 'oper_road', 'operation', 'oper_mnemonic', 'oper_dt', 'train_no', 'train_index', 'trip_start_dt'],
+                    array_column(KpiCondition::fields((string) $userKpi['type']), 'key')
+                )));
+                $detailRows = $this->db->fetchAll(
+                    "SELECT " . implode(', ', array_map(static fn($field) => strtoupper($field) . ' AS \"' . $field . '\"', $columns)) . " FROM {$source['from']} xdr WHERE 1=1 $groupWhere ORDER BY OPER_DT DESC",
+                    $bindings
+                );
+                $detailColumns = [];
+                $sourceColumns = array_column(ReportConfig::sourceColumns(), null, 'key');
+                foreach ($columns as $field) {
+                    if (isset($sourceColumns[$field])) {
+                        $detailColumns[] = ['key' => $field, 'label' => $sourceColumns[$field]['label']];
+                    }
+                }
+                return $this->json($response, [
+                    'rows' => $detailRows,
+                    'columns' => $detailColumns,
+                    'label' => (string) ($kpi['label'] ?? 'Детализация группы'),
+                ]);
+            }
+
+            $select = [
+                strtoupper($groupField) . ' AS "group_value"',
+                'COUNT(*) AS "total"',
+                "SUM(CASE WHEN " . self::WAG_STATE . " = 'гр.' THEN 1 ELSE 0 END) AS \"loaded\"",
+                "SUM(CASE WHEN " . self::WAG_STATE . " = 'пор.' THEN 1 ELSE 0 END) AS \"empty_count\"",
+            ];
+            foreach ($template['route_fields'] as $field) {
+                $key = $field['key'];
+                $column = strtoupper($key);
+                $select[] = "MIN($column) AS \"route_{$key}\"";
+                $select[] = "COUNT(DISTINCT $column) AS \"route_{$key}_count\"";
+            }
+            foreach ($template['fields'] as $field) {
+                $key = $field['key'];
+                $column = strtoupper($key);
+                if (in_array($key, ['oper_dt', 'trip_start_dt'], true)) {
+                    $select[] = "TO_CHAR(MIN($column), 'DD.MM.YYYY HH24:MI') AS \"$key\"";
+                } else {
+                    $select[] = "MIN($column) AS \"$key\"";
+                }
+                $select[] = "COUNT(DISTINCT $column) AS \"{$key}_count\"";
+            }
+            $rows = $this->db->fetchAll(
+                "SELECT " . implode(', ', $select) . " FROM {$source['from']} xdr WHERE 1=1 $whereCond GROUP BY " . strtoupper($groupField) . " ORDER BY " . strtoupper($groupField) . " ASC",
+                $bindings
+            );
+            $summary = $this->db->fetchOne(
+                "SELECT COUNT(*) AS total,
+                        SUM(CASE WHEN " . self::WAG_STATE . " = 'гр.' THEN 1 ELSE 0 END) AS loaded,
+                        SUM(CASE WHEN " . self::WAG_STATE . " = 'пор.' THEN 1 ELSE 0 END) AS empty_count
+                   FROM {$source['from']} xdr
+                  WHERE 1=1 $whereCond",
+                $bindings
+            ) ?? ['total' => 0, 'loaded' => 0, 'empty_count' => 0];
+
+            foreach ($rows as &$row) {
+                $row['loaded'] = (int) ($row['loaded'] ?? 0);
+                $row['empty_count'] = (int) ($row['empty_count'] ?? 0);
+            }
+            unset($row);
+
+            return $this->json($response, [
+                'rows' => $rows,
+                'label' => (string) ($kpi['label'] ?? 'Детализация KPI'),
+                'summary' => [
+                    'total' => (int) ($summary['total'] ?? 0),
+                    'loaded' => (int) ($summary['loaded'] ?? 0),
+                    'empty' => (int) ($summary['empty_count'] ?? 0),
+                ],
+                'group_config' => $template,
+            ]);
+        }
+
+        if (
+            $userDetailConfig
+            && ($params['kpi_table'] ?? '') === 'Y'
+            && (array_key_exists('group_value', $params) || ($params['group_value_is_null'] ?? '') === 'Y')
+        ) {
+            $template = KpiGroupingTemplates::fromDetail($userDetailConfig);
+            if (!$template) {
+                return $this->json($response->withStatus(422), ['error' => 'Шаблон группировки KPI недоступен']);
+            }
+            $groupField = strtoupper($template['group_field']);
+            if (($params['group_value_is_null'] ?? '') === 'Y') {
+                $whereCond .= ' AND ' . $groupField . ' IS NULL';
+            } else {
+                $groupValue = $params['group_value'];
+                if (!is_scalar($groupValue) || strlen((string) $groupValue) > 800) {
+                    return $this->json($response->withStatus(422), ['error' => 'Некорректное значение группы']);
+                }
+                $whereCond .= ' AND ' . $groupField . ' = :user_group_value';
+                $bindings['user_group_value'] = $groupValue;
+            }
         }
 
         $selectCols = $this->selectFields($params['fields'] ?? '');
@@ -322,8 +773,9 @@ class ApiController
             "SELECT $selectCols FROM {$source['from']} xdr WHERE 1=1 $whereCond ORDER BY $orderBy",
             $bindings
         );
-
-        return $this->json($response, ['rows' => $rows]);
+        $result = ['rows' => $rows];
+        if ($userDetailConfig) $result['label'] = (string) ($kpi['label'] ?? 'Детализация KPI');
+        return $this->json($response, $result);
     }
 
     /** GET /api/approach/filters */
@@ -709,10 +1161,7 @@ class ApiController
         $bindings = $source['bindings'];
         $where = '1=1' . $this->wagonNoCond($params, $bindings);
         foreach (['wagon_type' => 'wagon_type_code', 'wagon_state' => 'wagon_state'] as $param => $field) {
-            if (($params[$param] ?? '') !== '') {
-                $where .= " AND $field = :$param";
-                $bindings[$param] = $params[$param];
-            }
+            $where .= $this->multiValueCondition($field, $params[$param] ?? null, $param, $bindings);
         }
         if ($repair === 'overdue') {
             $where .= ' AND TRUNC(next_repair_dt) < TRUNC(report_dt)';
@@ -842,11 +1291,7 @@ class ApiController
         $whereCond .= " AND TRUNC(oper_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
         $bindings['date_to'] = $dateTo;
 
-        $cargo = $params['cargo'] ?? '';
-        if ($cargo !== '') {
-            $whereCond .= " AND cargo_name = :cargo";
-            $bindings['cargo'] = $cargo;
-        }
+        $whereCond .= $this->multiValueCondition('cargo_name', $params['cargo'] ?? null, 'analysis_cargo', $bindings);
 
         $selectCols = $this->selectFields($params['fields'] ?? '');
 
@@ -877,11 +1322,13 @@ class ApiController
         $bindings = $cond['params'];
         $whereCond = $cond['sql'];
 
-        $cargo = $params['cargo'] ?? null;
-        if ($cargo) {
-            $whereCond .= " AND UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е')) = UPPER(REPLACE(:cargo_f, 'Ё', 'Е'))";
-            $bindings['cargo_f'] = $cargo;
-        }
+        $whereCond .= $this->multiValueCondition(
+            "UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е'))",
+            $params['cargo'] ?? null,
+            'cargo_f',
+            $bindings,
+            true
+        );
         $whereCond .= $this->wagonNoCond($params, $bindings);
         $whereCond .= $this->excludedWagonsCondition();
 
@@ -911,16 +1358,8 @@ class ApiController
         }
         $this->organizations->addFilter($whereCond, $bindings);
 
-        $cargo = $params['cargo'] ?? null;
-        if ($cargo) {
-            $whereCond .= " AND UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е')) = UPPER(REPLACE(:cargo_f, 'Ё', 'Е'))";
-            $bindings['cargo_f'] = $cargo;
-        }
-        $prevCargo = $params['prev_cargo'] ?? null;
-        if ($prevCargo) {
-            $whereCond .= " AND UPPER(REPLACE(COALESCE(prev_cargo,''), 'Ё', 'Е')) = UPPER(REPLACE(:prev_cargo_f, 'Ё', 'Е'))";
-            $bindings['prev_cargo_f'] = $prevCargo;
-        }
+        $whereCond .= $this->multiValueCondition("UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е'))", $params['cargo'] ?? null, 'cargo_f', $bindings, true);
+        $whereCond .= $this->multiValueCondition("UPPER(REPLACE(COALESCE(prev_cargo,''), 'Ё', 'Е'))", $params['prev_cargo'] ?? null, 'prev_cargo_f', $bindings, true);
         $whereCond .= $this->wagonNoCond($params, $bindings);
         // Фильтр по реестру исключений временно отключён.
         // $whereCond .= $this->excludedWagonsCondition();
@@ -990,16 +1429,8 @@ class ApiController
         }
         $this->organizations->addFilter($whereCond, $bindings);
 
-        $cargo = $params['cargo'] ?? null;
-        if ($cargo) {
-            $whereCond .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
-            $bindings['cargo_f'] = $cargo;
-        }
-        $destStation = $params['dest_station'] ?? null;
-        if ($destStation) {
-            $whereCond .= ' AND dest_station = :dest_station';
-            $bindings['dest_station'] = $destStation;
-        }
+        $whereCond .= $this->multiValueCondition('UPPER(COALESCE(cargo_name,\'\'))', $params['cargo'] ?? null, 'cargo_f', $bindings, true);
+        $whereCond .= $this->multiValueCondition('dest_station', $params['dest_station'] ?? null, 'dest_station', $bindings);
         $whereCond .= $this->wagonNoCond($params, $bindings);
         $whereCond .= $this->excludedWagonsCondition();
 
@@ -1031,11 +1462,7 @@ class ApiController
         }
 
 
-        $cargo = $params['cargo'] ?? null;
-        if ($cargo) {
-            $whereCond .= " AND UPPER(COALESCE(cargo_name,'')) = UPPER(:cargo_f)";
-            $bindings['cargo_f'] = $cargo;
-        }
+        $whereCond .= $this->multiValueCondition('UPPER(COALESCE(cargo_name,\'\'))', $params['cargo'] ?? null, 'cargo_f', $bindings, true);
         $whereCond .= $this->wagonNoCond($params, $bindings);
         $whereCond .= $this->excludedWagonsCondition();
 
@@ -1164,7 +1591,7 @@ class ApiController
     private function summaryReport(array $source, array $rowDims, array $colDefs, ?string $rowOrder = null): array
     {
         $selectRow = implode(', ', $rowDims);
-        $rowOrder ??= $selectRow;
+        $rowOrder ??= $this->summaryRowOrder($rowDims);
         $selectCols = implode(', ', array_map(fn($c) => $this->applyFormat($c) . " AS {$c['alias']}", $colDefs));
         $groupByCols = implode(', ', array_map(fn($c) => $this->applyFormat($c), $colDefs));
         $colAliases = array_column($colDefs, 'alias');
@@ -1181,6 +1608,20 @@ class ApiController
         return $this->roadTable($rows, $rowDims, $colAliases);
     }
 
+    /** Задаёт приоритет для основных значений назначения в сводной таблице. */
+    private function summaryRowOrder(array $rowDims): string
+    {
+        $parts = [];
+        if (in_array('dest_state', $rowDims, true)) {
+            $parts[] = "CASE WHEN UPPER(TRIM(dest_state)) LIKE '%РОССИЙСК%' THEN 0 ELSE 1 END";
+        }
+        if (in_array('dest_road', $rowDims, true)) {
+            $parts[] = "CASE WHEN UPPER(TRIM(dest_road)) LIKE '%СВЕРДЛОВ%' THEN 0 ELSE 1 END";
+        }
+        $parts[] = implode(', ', $rowDims);
+        return implode(', ', array_filter($parts, static fn(string $part): bool => $part !== ''));
+    }
+
     /**
      * WHERE для детализации: фильтр по строкам сводной + фильтр по колонкам сводной.
      *
@@ -1190,14 +1631,13 @@ class ApiController
      */
     private function applyDetailFilters(array $rowDims, array $params, array &$bindings): string
     {
-        // Фильтр по строкам: для каждого поля из rowDims ищет одноимённый параметр в URL
+        // Фильтр по строкам: пустой JSON-массив от select не является значением строки.
         $whereCond = '';
         foreach ($rowDims as $field) {
-            if (isset($params[$field]) && $params[$field] !== '') {
-                $safe = preg_replace('/[^a-z0-9_]/i', '', $field);
-                $whereCond .= " AND $field = :row_$safe";
-                $bindings["row_$safe"] = $params[$field];
-            }
+            if (!isset($params[$field]))
+                continue;
+            $safe = preg_replace('/[^a-z0-9_]/i', '', $field);
+            $whereCond .= $this->multiValueCondition($field, $params[$field], 'row_' . $safe, $bindings);
         }
 
         // Фильтр по колонкам: берёт выражения из единого реестра colDimRegistry
@@ -1211,6 +1651,44 @@ class ApiController
         }
 
         return $whereCond;
+    }
+
+    /** Добавляет безопасный IN-фильтр для одиночного или множественного значения. */
+    private function multiValueCondition(
+        string $field,
+        mixed $value,
+        string $prefix,
+        array &$bindings,
+        bool $normalize = false
+    ): string {
+        $values = [];
+        if (is_array($value)) {
+            $values = $value;
+        } elseif (is_string($value) && trim($value) !== '') {
+            $decoded = json_decode($value, true);
+            $values = is_array($decoded) ? $decoded : [$value];
+        }
+        $values = array_values(array_unique(array_filter(
+            array_map(static fn($item): string => trim((string) $item), $values),
+            static fn(string $item): bool => $item !== ''
+        )));
+        if ($values === []) {
+            return '';
+        }
+        if (count($values) > 200) {
+            throw new \InvalidArgumentException('Выбрано слишком много значений фильтра');
+        }
+
+        $safePrefix = preg_replace('/[^a-z0-9_]/i', '', $prefix);
+        $placeholders = [];
+        foreach ($values as $index => $item) {
+            $bind = $safePrefix . '_' . $index;
+            $bindings[$bind] = $normalize
+                ? str_replace('Ё', 'Е', mb_strtoupper($item))
+                : $item;
+            $placeholders[] = ':' . $bind;
+        }
+        return ' AND ' . $field . ' IN (' . implode(', ', $placeholders) . ')';
     }
 
     // =========================================================================
@@ -1515,7 +1993,7 @@ class ApiController
         }
     }
 
-    /** POST /api/table-layout/{reportCode} */
+    /** POST /api/table-layout/{reportCode}: columns — порядок, widths — ширины по ключам колонок. */
     public function saveTableLayout(ServerRequestInterface $request, ResponseInterface $response, string $reportCode): ResponseInterface
     {
         $body = (array) $request->getParsedBody();
@@ -1524,12 +2002,30 @@ class ApiController
             return $response->withStatus(403);
         }
         try {
-            $keys = json_decode((string) ($body['columns'] ?? '[]'), true, 512, JSON_THROW_ON_ERROR);
-            if (!is_array($keys)) {
-                throw new \InvalidArgumentException('Некорректный порядок колонок');
+            if (array_key_exists('columns', $body) && array_key_exists('widths', $body)) {
+                throw new \InvalidArgumentException('Порядок и ширину колонок сохраняйте отдельными запросами');
             }
+            $service = new TableLayoutService($this->db);
             $userId = (int) ($_SESSION['user']['id'] ?? 0);
-            return $this->json($response, (new TableLayoutService($this->db))->save($userId, $reportCode, $keys));
+            $layout = null;
+            if (array_key_exists('columns', $body)) {
+                $keys = json_decode((string) $body['columns'], true, 512, JSON_THROW_ON_ERROR);
+                if (!is_array($keys)) {
+                    throw new \InvalidArgumentException('Некорректный порядок колонок');
+                }
+                $layout = $service->save($userId, $reportCode, $keys);
+            }
+            if (array_key_exists('widths', $body)) {
+                $widths = json_decode((string) $body['widths'], true, 512, JSON_THROW_ON_ERROR);
+                if (!is_array($widths)) {
+                    throw new \InvalidArgumentException('Некорректная ширина колонок');
+                }
+                $layout = $service->saveWidths($userId, $reportCode, $widths);
+            }
+            if ($layout === null) {
+                throw new \InvalidArgumentException('Не переданы настройки таблицы');
+            }
+            return $this->json($response, $layout);
         } catch (\InvalidArgumentException | \JsonException $error) {
             return $this->json($response->withStatus(422), ['error' => $error->getMessage()]);
         } catch (\Throwable $error) {

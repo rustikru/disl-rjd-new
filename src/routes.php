@@ -118,6 +118,14 @@ return function (App $app, array $config): void {
             return (new \App\Controllers\DashboardController($config, $getDb()))->index($req, $res);
         });
 
+        // Создание и редактирование пользовательского KPI.
+        $group->get('/kpi/create', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\UserKpiController($getDb(), $config))->form($req, $res);
+        });
+        $group->get('/kpi/edit', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\UserKpiController($getDb(), $config))->form($req, $res);
+        });
+
         // Карточка вагона
         $group->get('/wagon', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\DashboardController($config, $getDb()))->wagon($req, $res);
@@ -228,6 +236,15 @@ return function (App $app, array $config): void {
         });
         $group->get('/admin/system', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->systemPage($req, $res);
+        });
+        $group->get('/admin/kpi', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\KpiAdminController($getDb(), $config))->page($req, $res);
+        });
+        $group->post('/admin/kpi/save', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\KpiAdminController($getDb(), $config))->save($req, $res);
+        });
+        $group->post('/admin/kpi/delete', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\KpiAdminController($getDb(), $config))->deleteUser($req, $res);
         });
         $group->post('/admin/report-mailings/run', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\MailingController($getDb(), $config))->adminRun($req, $res);
@@ -436,6 +453,15 @@ return function (App $app, array $config): void {
             $api->group('/kpi', function ($sub) use ($getDb) {
                 $sub->get('/summary', function ($req, $res) use ($getDb) {
                     return (new \App\Controllers\ApiController($getDb()))->kpiSummary($req, $res);
+                });
+                $sub->get('/user/catalog', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->userKpiCatalog($req, $res);
+                });
+                $sub->post('/user', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->saveUserKpi($req, $res);
+                });
+                $sub->delete('/user/{id:[0-9]+}', function ($req, $res, $args) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->deleteUserKpi($req, $res, (int) $args['id']);
                 });
             });
             // --- Экспорт виртуальной таблицы в Excel ---

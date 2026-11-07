@@ -5,6 +5,59 @@ namespace App\Reports;
 
 final class ReportConfig
 {
+    public static function kpiDetail(string $code): ?array
+    {
+        if ($code === 'formed_trains') {
+            return self::trainGroups('formed', 'Сформированные поезда', 'Сформированных поездов нет');
+        }
+        if (in_array($code, ['abandoned_wagons', 'abandoned_trains'], true)) {
+            return self::trainGroups('abandoned', 'Брошенные поезда', 'Брошенных поездов нет');
+        }
+        return null;
+    }
+
+    public static function trainGroups(string $profile, string $title, string $empty): ?array
+    {
+        $profiles = [
+            'abandoned' => [
+                'template' => 'TRAIN_INDEX',
+                'fields' => ['train_no', 'oper_station', 'oper_road', 'oper_dt'],
+                'sections' => [
+                    ['label' => 'Гружёные', 'key' => 'loaded', 'filters' => ['cargo_state' => 'гр.']],
+                    ['label' => 'Порожние', 'key' => 'empty_count', 'filters' => ['cargo_state' => 'пор.']],
+                ],
+            ],
+            'formed' => [
+                'template' => 'TRAIN_NUMBER',
+                'fields' => ['train_index', 'oper_station', 'oper_road', 'oper_dt', 'operation', 'trip_start_dt'],
+                'sections' => [
+                    ['label' => 'Вагоны', 'key' => 'total', 'filters' => []],
+                ],
+            ],
+        ];
+        if (!isset($profiles[$profile])) {
+            return null;
+        }
+
+        $config = KpiGroupingTemplates::get($profiles[$profile]['template']);
+        if (!$config) {
+            return null;
+        }
+        $config['fields'] = array_values(array_filter(
+            $config['fields'],
+            static fn(array $field): bool => in_array($field['key'], $profiles[$profile]['fields'], true)
+        ));
+        $config['group_by'] = [$config['group_field']];
+
+        return array_merge($config, [
+            'code' => 'train-groups',
+            'profile' => $profile,
+            'title' => $title,
+            'empty_label' => $empty,
+            'sections' => $profiles[$profile]['sections'],
+        ]);
+    }
+
     public static function all(): array
     {
         $reports = [
@@ -209,6 +262,15 @@ final class ReportConfig
         foreach ($reports as $reportCode => &$reportDefinition) {
             $reportDefinition['page'] = $pageSettings[$reportCode] ?? [];
             $reportDefinition['navigation'] = $navigationSettings[$reportCode] ?? null;
+            $multipleFilters = in_array(
+                $reportDefinition['navigation']['group'] ?? '',
+                ['movement', 'analytics'],
+                true
+            );
+            foreach ($reportDefinition['filters'] as &$filter) {
+                $filter['multiple'] = $multipleFilters && $filter['value_type'] === 'select';
+            }
+            unset($filter);
             $reportDefinition['mailing_handler'] = $mailingHandlers[$reportCode] ?? null;
             $reportDefinition['api_handlers'] = $apiHandlers[$reportCode] ?? [];
             if (!isset($detailSettings[$reportCode])) {

@@ -25,7 +25,7 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= htmlspecialchars($appName) ?> — Дислокация</title>
   <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
-  <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
+  <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css?v=<?= (int) @filemtime(__DIR__ . '/../public/assets/css/app.css') ?>">
   <script>
     window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
     window.APP_CSRF = '<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES) ?>';
@@ -452,6 +452,7 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/sortable.min.js"></script>
   <script
     src="<?= htmlspecialchars($basePath) ?>/assets/js/app.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/app.js') ?>"></script>
+  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/user-kpi.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/user-kpi.js') ?>"></script>
 </body>
 
 </html>

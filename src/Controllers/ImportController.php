@@ -315,7 +315,7 @@ class ImportController
                 for ($col = 1; $col <= 126; $col++) {
                     $coord = Coordinate::stringFromColumnIndex($col) . $row;
                     $v = $sheet->getCell($coord)->getValue();
-                    $vals[] = ($v === null) ? null : trim((string) $v);
+                    $vals[] = ($v === null) ? null : $this->normalizeImportedValue((string) $v);
                 }
 
                 if (empty(array_filter($vals, fn($v) => $v !== null && $v !== ''))) {
@@ -355,6 +355,12 @@ class ImportController
             return "{$m[3]}-{$m[2]}-{$m[1]} {$m[4]}:00";
         }
         throw new \RuntimeException("Не удалось разобрать дату справки из ячейки A2: «{$raw}»");
+    }
+
+    /** Исправляет символ, которым в справке иногда записывается кириллическая «З». */
+    private function normalizeImportedValue(string $value): string
+    {
+        return trim(str_replace("▤", 'З', $value));
     }
 
     private function columnFieldNames(): array
