@@ -243,6 +243,16 @@ $basePath = $basePath ?? '';
 
         var userKpiParams = new URLSearchParams();
         userKpiParams.set('kpi_id', userKpiId);
+
+        // API проверяет доступ к исходному разделу, где размещена KPI-карточка.
+        var sourcePages = {
+          dashboard_kpi: 'dashboard',
+          approach_kpi: 'approach',
+          departue_kpi: 'departure'
+        };
+        var sourcePage = params.get('source_page') || sourcePages[params.get('kpi_type')] || '';
+        if (sourcePage) userKpiParams.set('source_page', sourcePage);
+
         if (params.has('report_dt')) userKpiParams.set('report_dt', params.get('report_dt'));
         if (params.has('cargo_state')) userKpiParams.set('cargo_state', params.get('cargo_state'));
         $.getJSON(BASE + '/api/dislocation/detail?' + userKpiParams.toString()).done(function (data) {

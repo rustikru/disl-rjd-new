@@ -785,7 +785,7 @@ class ApiController
         $source = $this->approachFrom(['report_dt' => $params['report_dt'] ?? null]);
 
         if (!$source['reportDt']) {
-            return $this->json($response, ['cargo' => [], 'prev_cargo' => []]);
+            return $this->json($response, ['cargo' => [], 'depart_station' => []]);
         }
 
         $cargo = $this->db->fetchAll(
@@ -794,16 +794,16 @@ class ApiController
              ORDER BY cargo_name",
             $source['bindings']
         );
-        $prevCargo = $this->db->fetchAll(
-            "SELECT DISTINCT prev_cargo FROM {$source['from']}
-             WHERE prev_cargo IS NOT NULL AND nvl(prev_cargo,'*') != '*'
-             ORDER BY prev_cargo",
+        $departStation = $this->db->fetchAll(
+            "SELECT DISTINCT depart_station FROM {$source['from']}
+             WHERE depart_station IS NOT NULL AND nvl(depart_station,'*') != '*'
+             ORDER BY depart_station",
             $source['bindings']
         );
 
         return $this->json($response, [
             'cargo' => array_column($cargo, 'cargo_name'),
-            'prev_cargo' => array_column($prevCargo, 'prev_cargo'),
+            'depart_station' => array_column($departStation, 'depart_station'),
         ]);
     }
 
@@ -1359,7 +1359,7 @@ class ApiController
         $this->organizations->addFilter($whereCond, $bindings);
 
         $whereCond .= $this->multiValueCondition("UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е'))", $params['cargo'] ?? null, 'cargo_f', $bindings, true);
-        $whereCond .= $this->multiValueCondition("UPPER(REPLACE(COALESCE(prev_cargo,''), 'Ё', 'Е'))", $params['prev_cargo'] ?? null, 'prev_cargo_f', $bindings, true);
+        $whereCond .= $this->multiValueCondition("UPPER(REPLACE(COALESCE(depart_station,''), 'Ё', 'Е'))", $params['depart_station'] ?? null, 'depart_station_f', $bindings, true);
         $whereCond .= $this->wagonNoCond($params, $bindings);
         // Фильтр по реестру исключений временно отключён.
         // $whereCond .= $this->excludedWagonsCondition();

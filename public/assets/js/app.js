@@ -340,18 +340,46 @@ function reportFilterValues(reportDefinition) {
   ;(reportDefinition.filters || []).forEach(function (filterDefinition) {
     var $field = $('#' + filterDefinition.field_id)
     if (!$field.length) return
-    var rawValue = $field.val()
-    var value = Array.isArray(rawValue)
-      ? (rawValue.length ? JSON.stringify(rawValue) : '')
-      : String(rawValue || '').trim()
+
+    var value
+    if (filterDefinition.multiple) {
+      var $widget = $field.siblings('.filter-multiselect')
+      var selected = $widget.length
+        ? $widget.find('input[type="checkbox"]:checked').map(function () {
+            return String(this.value || '').trim()
+          }).get()
+        : ($field.val() || [])
+
+      selected = Array.from(new Set(selected.filter(function (item) {
+        return item !== ''
+      })))
+      value = selected.length ? JSON.stringify(selected) : ''
+    } else {
+      value = String($field.val() || '').trim()
+    }
+
     if (value !== '') values[filterDefinition.key] = value
   })
   return values
 }
 
 function updateMultiSelectLabel($field) {
-  var labels = $field.find('option:selected').map(function () { return this.text }).get()
-  $field.siblings('.filter-multiselect').find('.filter-multiselect-button').text(
+  var $widget = $field.siblings('.filter-multiselect')
+  var selected = $widget.find('input[type="checkbox"]:checked').map(function () {
+    return String(this.value || '').trim()
+  }).get()
+  selected = Array.from(new Set(selected.filter(function (value) {
+    return value !== ''
+  })))
+
+  var labels = selected.map(function (value) {
+    var option = $field.find('option').filter(function () {
+      return String(this.value || '').trim() === value
+    }).first()
+    return option.length ? option.text() : value
+  })
+
+  $widget.find('.filter-multiselect-button').text(
     labels.length ? (labels.length === 1 ? labels[0] : 'Выбрано: ' + labels.length) : '— Все —',
   )
 }
@@ -371,10 +399,19 @@ function refreshMultiSelect($field) {
     $widget.append($button, $options)
     $field.after($widget).hide()
   }
-  var selected = $field.val() || []
+
+  var selected = Array.isArray($field.val()) ? $field.val() : []
+  selected = Array.from(new Set(selected.map(function (value) {
+    return String(value || '').trim()
+  }).filter(function (value) {
+    return value !== ''
+  })))
+
   var $options = $widget.find('.filter-multiselect-options').empty()
   var $search = $('<input type="search" placeholder="Поиск...">').addClass('filter-multiselect-search')
   var $list = $('<div>').addClass('filter-multiselect-list')
+  var renderedValues = new Set()
+
   $search.on('input', function () {
     var query = this.value.toLocaleLowerCase('ru-RU').trim()
     $list.children('label').each(function () {
@@ -382,17 +419,34 @@ function refreshMultiSelect($field) {
     })
   })
   $options.append($search, $list)
+
   $field.find('option').each(function () {
-    if (!this.value) return
     var option = this
-    var $check = $('<input type="checkbox">').val(option.value).prop('checked', selected.indexOf(option.value) >= 0)
+    var value = String(option.value || '').trim()
+    // Пустое значение «Все» не является вариантом мультивыбора.
+    if (!value || renderedValues.has(value)) return
+    renderedValues.add(value)
+
+    var $check = $('<input type="checkbox">')
+      .val(value)
+      .prop('checked', selected.indexOf(value) >= 0)
+
     $check.on('change', function () {
-      option.selected = this.checked
+      var checked = new Set($list.find('input[type="checkbox"]:checked').map(function () {
+        return String(this.value || '').trim()
+      }).get())
+
+      $field.find('option').each(function () {
+        var optionValue = String(this.value || '').trim()
+        this.selected = optionValue !== '' && checked.has(optionValue)
+      })
       $field.trigger('change')
       updateMultiSelectLabel($field)
     })
+
     $list.append($('<label>').append($check, $('<span>').text(option.text)))
   })
+
   updateMultiSelectLabel($field)
 }
 
@@ -412,20 +466,50 @@ function fillReportFilterOptions(reportDefinition, optionLists) {
     var options = optionLists[filterDefinition.options_key] || []
     var $field = $('#' + filterDefinition.field_id)
     var selectedValue = $field.val()
-    $field.find('option:not(:first)').remove()
+    var renderedValues = new Set()
+
+    if (filterDefinition.multiple) {
+      $field.empty()
+      selectedValue = Array.isArray(selectedValue) ? selectedValue : []
+    } else {
+      $field.find('option.report-filter-option').remove()
+    }
+
     options.forEach(function (option) {
+      var optionValue
+      var optionLabel
       if (option && typeof option === 'object') {
-        var optionValue =
+        optionValue =
           option.value || option.station_code || option.code || option.id || ''
-        var optionLabel =
+        optionLabel =
           option.label || option.station_name || option.name || optionValue
-        $field.append($('<option>').val(optionValue).text(optionLabel))
       } else {
-        $field.append($('<option>').val(option).text(option))
+        optionValue = option
+        optionLabel = option
       }
+
+      optionValue = String(optionValue || '').trim()
+      if (!optionValue || renderedValues.has(optionValue)) return
+      renderedValues.add(optionValue)
+      $field.append(
+        $('<option>')
+          .addClass('report-filter-option')
+          .val(optionValue)
+          .text(optionLabel),
+      )
     })
-    $field.val(selectedValue || (filterDefinition.multiple ? [] : ''))
-    if (filterDefinition.multiple) refreshMultiSelect($field)
+
+    if (filterDefinition.multiple) {
+      selectedValue = Array.from(new Set(selectedValue.map(function (value) {
+        return String(value || '').trim()
+      }).filter(function (value) {
+        return value !== '' && renderedValues.has(value)
+      })))
+      $field.val(selectedValue)
+      refreshMultiSelect($field)
+    } else {
+      $field.val(selectedValue || '')
+    }
   })
 }
 
@@ -468,8 +552,12 @@ function buildReportFilterFields(reportCode, reportDefinition) {
     var $field
 
     if (filterDefinition.value_type === 'select') {
-      $field = $('<select>').append($('<option>').val('').text('— Все —'))
-      if (filterDefinition.multiple) $field.attr('multiple', 'multiple')
+      $field = $('<select>')
+      if (filterDefinition.multiple) {
+        $field.attr('multiple', 'multiple')
+      } else {
+        $field.append($('<option>').val('').text('— Все —'))
+      }
       ;(filterDefinition.choices || []).forEach(function (choice) {
         $field.append($('<option>').val(choice.value).text(choice.label))
       })
