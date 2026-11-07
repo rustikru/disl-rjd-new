@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+// Местное время приложения.
+date_default_timezone_set('Asia/Yekaterinburg');
+
 $configFile = __DIR__ . '/../rjd_config.php';
 
 if (!file_exists($configFile)) {

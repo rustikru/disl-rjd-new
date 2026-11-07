@@ -84,6 +84,10 @@ $statusNames = ['running' => 'Выполняется', 'success' => 'Успеш�
     <section class="mailing-panel">
       <div class="mailing-panel-head">
         <div class="mailing-panel-title">Рассылки</div>
+        <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/report-mailings/run-due" onsubmit="return confirm('Проверить расписание и запустить рассылки, время которых наступило за последние 5 минут?')">
+          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+          <button class="btn btn-primary" type="submit">▶ Запустить по расписанию</button>
+        </form>
         <nav class="mailing-filter" aria-label="Фильтр рассылок">
           <?php foreach (['all' => 'Все', 'active' => 'Активные', 'disabled' => 'Отключённые'] as $filterCode => $filterName): ?>
             <a class="mailing-filter-link<?= $mailingStatusFilter === $filterCode ? ' is-active' : '' ?>" href="<?= htmlspecialchars($basePath) ?>/admin/report-mailings?status=<?= $filterCode ?>"><?= $filterName ?><span class="mailing-filter-number"><?= (int) ($mailingStatusCounts[$filterCode] ?? 0) ?></span></a>

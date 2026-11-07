@@ -106,6 +106,11 @@ return function (App $app, array $config): void {
         ->add(new \App\Middleware\PageAccessMiddleware($getDb, $config['base_path'] ?? '', $config))
         ->add(new \App\Middleware\AuthMiddleware($config['base_path'] ?? ''));
 
+    // Внешний планировщик авторизуется отдельным токеном, без пользовательской сессии.
+    $app->post('/api/automation/mailings/run', function ($req, $res) use ($getDb, $config) {
+        return (new \App\Controllers\MailingController($getDb(), $config))->apiRunDue($req, $res);
+    });
+
     // маршруты
     $app->group('', function ($group) use ($config, $getDb, $getOrganizations) {
 
@@ -248,6 +253,9 @@ return function (App $app, array $config): void {
         });
         $group->post('/admin/report-mailings/run', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\MailingController($getDb(), $config))->adminRun($req, $res);
+        });
+        $group->post('/admin/report-mailings/run-due', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\MailingController($getDb(), $config))->adminRunDue($req, $res);
         });
         $group->post('/admin/report-mailings/active', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\MailingController($getDb(), $config))->adminSetActive($req, $res);

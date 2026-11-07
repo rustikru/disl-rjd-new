@@ -126,6 +126,56 @@ final class MailingController
         }
     }
 
+    public function adminRunDue(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $form = (array) $request->getParsedBody();
+        if (!\App\Services\Authorization::isSuper() || !$this->validCsrf($form)) {
+            return $this->adminRedirect($response, 'err', 'Недостаточно прав или сессия устарела');
+        }
+
+        try {
+            $result = (new \App\Services\MailingScheduler($this->db, $this->config))->runDue();
+            $message = sprintf(
+                'Проверено: %d. Запущено: %d. Успешно: %d. Ошибок: %d. Пропущено: %d.',
+                $result['found'],
+                $result['started'],
+                $result['success'],
+                $result['errors'],
+                $result['skipped']
+            );
+            try {
+                (new AuditLog($this->db))->write('MAILING_SCHEDULE_RUN', 'MAILING', null, $message);
+            } catch (\Throwable $auditError) {
+                $this->logError($auditError, 'adminRunDueAudit', [], $request);
+            }
+            return $this->adminRedirect($response, $result['errors'] > 0 ? 'err' : 'ok', $message);
+        } catch (\Throwable $error) {
+            $errorId = $this->logError($error, 'adminRunDue', [], $request);
+            return $this->adminRedirect($response, 'err', 'Не удалось выполнить проверку расписания. Код ошибки: ' . $errorId);
+        }
+    }
+
+    public function apiRunDue(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $token = (string) ($this->config['mailing_scheduler_token'] ?? '');
+        $authorization = trim($request->getHeaderLine('Authorization'));
+        $providedToken = preg_match('/^Bearer\s+(.+)$/i', $authorization, $matches) ? trim($matches[1]) : '';
+        if ($token === '' || $providedToken === '' || !hash_equals($token, $providedToken)) {
+            $response->getBody()->write(json_encode(['status' => 'error', 'message' => 'Unauthorized'], JSON_UNESCAPED_UNICODE));
+            return $response->withStatus(401)->withHeader('Content-Type', 'application/json; charset=utf-8');
+        }
+
+        try {
+            $result = (new \App\Services\MailingScheduler($this->db, $this->config))->runDue();
+            $response->getBody()->write(json_encode(['status' => 'ok'] + $result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            return $response->withHeader('Content-Type', 'application/json; charset=utf-8');
+        } catch (\Throwable $error) {
+            $errorId = $this->logError($error, 'apiRunDue', [], $request);
+            $response->getBody()->write(json_encode(['status' => 'error', 'message' => 'Не удалось выполнить планировщик', 'error_id' => $errorId], JSON_UNESCAPED_UNICODE));
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json; charset=utf-8');
+        }
+    }
+
     public function adminSetActive(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $form = (array) $request->getParsedBody();

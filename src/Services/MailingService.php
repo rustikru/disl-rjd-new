@@ -75,33 +75,48 @@ final class MailingService
     }
 
     /**
-     * Возвращает активные рассылки, которые нужно запустить в указанную минуту.
-     * Если выбранного дня нет в месяце, используется последний день месяца.
+     * Возвращает активные рассылки, для которых сегодня наступило время запуска.
+     * Просроченные задания не теряются при редком запуске планировщика.
      */
-    public function dueMailings(DateTimeInterface $dateTime): array
+    public function dueMailings(DateTimeInterface $dateTime, int $windowMinutes = 0): array
     {
+        $dateTime = \DateTimeImmutable::createFromInterface($dateTime);
+        $runDate = $dateTime->format('Y-m-d');
         $mailings = $this->db->fetchAll(
             "SELECT m.*
                FROM xx_rjd_user_mailings m
               WHERE m.is_active = 1
-                AND m.send_time = :send_time
-                AND (m.last_run_at IS NULL
-                     OR TRUNC(m.last_run_at) < TO_DATE(:run_date, 'YYYY-MM-DD'))
+                AND NOT EXISTS (
+                    SELECT 1
+                      FROM xx_rjd_user_mailing_runs r
+                     WHERE r.mailing_id = m.id
+                       AND r.run_mode = 'scheduled'
+                       AND r.started_at >= TO_DATE(:run_date_start, 'YYYY-MM-DD')
+                       AND r.started_at < TO_DATE(:run_date_end, 'YYYY-MM-DD') + 1
+                )
               ORDER BY m.id",
             [
-                'send_time' => $dateTime->format('H:i'),
-                'run_date' => $dateTime->format('Y-m-d'),
+                'run_date_start' => $runDate,
+                'run_date_end' => $runDate,
             ]
         );
 
         $dueMailings = [];
         foreach ($mailings as $mailing) {
-            if (!$this->isDueOnDate($mailing, $dateTime)) {
+            $sendTime = (string) ($mailing['send_time'] ?? '');
+            if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $sendTime)) {
                 continue;
             }
+
+            // Время уже наступило: запускать даже если планировщик опоздал на часы.
+            if ($sendTime > $dateTime->format('H:i') || !$this->isDueOnDate($mailing, $dateTime)) {
+                continue;
+            }
+
             $mailing['items'] = $this->mailingItems((int) $mailing['id']);
             $dueMailings[] = $mailing;
         }
+
         return $dueMailings;
     }
 
@@ -123,6 +138,79 @@ final class MailingService
         $lastDayOfMonth = (int) $dateTime->format('t');
         $runDay = min($selectedDay, $lastDayOfMonth);
         return (int) $dateTime->format('j') === $runDay;
+    }
+
+    /**
+     * Атомарно резервирует плановый запуск на текущую дату.
+     * Возвращает ID строки журнала; 0 означает, что запуск уже зарезервирован
+     * либо расписание было отключено/изменено до резервирования.
+     */
+    public function claimScheduledRun(int $mailingId, DateTimeInterface $dateTime): int
+    {
+        $runDate = $dateTime->format('Y-m-d');
+        $this->db->beginTransaction();
+
+        try {
+            $mailing = $this->db->fetchOne(
+                "SELECT id, schedule_type, send_time, week_days, month_day, recipients
+                   FROM xx_rjd_user_mailings
+                  WHERE id = :id
+                    AND is_active = 1
+                  FOR UPDATE",
+                ['id' => $mailingId]
+            );
+
+            if (
+                !$mailing
+                || (string) ($mailing['send_time'] ?? '') > $dateTime->format('H:i')
+                || !$this->isDueOnDate($mailing, $dateTime)
+            ) {
+                $this->db->rollback();
+                return 0;
+            }
+
+            $existingRun = $this->db->fetchOne(
+                "SELECT id
+                   FROM xx_rjd_user_mailing_runs
+                  WHERE mailing_id = :mailing_id
+                    AND run_mode = 'scheduled'
+                    AND started_at >= TO_DATE(:run_date_start, 'YYYY-MM-DD')
+                    AND started_at < TO_DATE(:run_date_end, 'YYYY-MM-DD') + 1",
+                [
+                    'mailing_id' => $mailingId,
+                    'run_date_start' => $runDate,
+                    'run_date_end' => $runDate,
+                ]
+            );
+
+            if ($existingRun) {
+                $this->db->rollback();
+                return 0;
+            }
+
+            $this->db->execute(
+                "INSERT INTO xx_rjd_user_mailing_runs
+                    (mailing_id, started_at, status, run_mode, recipients)
+                 VALUES
+                    (:mailing_id, TO_DATE(:started_at, 'YYYY-MM-DD HH24:MI:SS'), 'running', 'scheduled', :recipients)",
+                [
+                    'mailing_id' => $mailingId,
+                    'started_at' => $dateTime->format('Y-m-d H:i:s'),
+                    'recipients' => mb_substr((string) ($mailing['recipients'] ?? ''), 0, 2000),
+                ]
+            );
+
+            $identifier = $this->db->fetchOne(
+                'SELECT xx_rjd_user_mailing_run_seq.CURRVAL AS id FROM dual'
+            );
+            $runId = (int) ($identifier['id'] ?? 0);
+            $this->db->commit();
+
+            return $runId;
+        } catch (\Throwable $error) {
+            $this->db->rollback();
+            throw $error;
+        }
     }
 
     public function setActiveByAdmin(int $mailingId, bool $active): bool
