@@ -32,19 +32,17 @@
     })
   }
 
-  function hiddenPage(page) {
-    return page === 'approach' ? 'Подход вагонов' : 'Отправление вагонов'
-  }
-
   function renderHidden(rows) {
     var $list = $('#kpiHiddenList')
     if (!rows.length) {
-      $list.html('<div class="kpi-hidden-empty">Нет скрытых общих KPI.</div>')
+      $list.html('<div class="kpi-hidden-empty">Нет скрытых KPI.</div>')
       return
     }
     $list.html(
       rows.map(function (row) {
-        return '<div class="kpi-hidden-row"><div><strong>' + $('<div>').text(row.label || '').html() + '</strong><span>' + hiddenPage(row.page_code) + '</span></div><button type="button" class="btn btn-ghost btn-sm kpi-hidden-restore" data-kpi-id="' + Number(row.id) + '">Вернуть</button></div>'
+        var page = row.page_code || ({ dashboard_kpi: 'dashboard', approach_kpi: 'approach', departue_kpi: 'departure', loading_kpi: 'loading' }[row.type] || '')
+        var pageLabel = { dashboard: 'Дашборд', approach: 'Подход вагонов', departure: 'Отправление вагонов', loading: 'Погрузка' }[page] || 'KPI'
+        return '<div class="kpi-hidden-row"><div><strong>' + $('<div>').text(row.label || '').html() + '</strong><span>' + pageLabel + (row.is_system === 'Y' ? ' · Системная' : ' · Общая') + '</span></div><button type="button" class="btn btn-ghost btn-sm kpi-hidden-restore" data-kpi-id="' + Number(row.id) + '">Вернуть</button></div>'
       }).join(''),
     )
   }
@@ -104,9 +102,9 @@
       event.preventDefault()
       event.stopPropagation()
       var id = Number($(this).data('kpi-id'))
-      if (!id || !window.confirm('Скрыть эту KPI-карточку?')) return
+      if (!id || !window.confirm('Скрыть KPI-карточку?')) return
       var button = this
-      $.post((window.APP_BASE || '') + '/api/kpi/global/' + id + '/hide', {
+      $.post((window.APP_BASE || '') + '/api/kpi/card/' + id + '/hide', {
         csrf_token: window.APP_CSRF || '',
       })
         .done(function () {
@@ -131,7 +129,7 @@
       var id = Number($(button).data('kpi-id'))
       if (!id) return
       $(button).prop('disabled', true)
-      $.post((window.APP_BASE || '') + '/api/kpi/global/' + id + '/restore', {
+      $.post((window.APP_BASE || '') + '/api/kpi/card/' + id + '/restore', {
         csrf_token: window.APP_CSRF || '',
       })
         .done(function () {

@@ -116,7 +116,7 @@ class ApiController
         }
 
         $params = $request->getQueryParams();
-        $bindings = [];
+        $bindings = ['hidden_user_id' => (int) ($_SESSION['user']['id'] ?? 0)];
         $whereCond = '1=1';
 
         $kpiType = trim($params['kpi_type'] ?? '');
@@ -124,15 +124,19 @@ class ApiController
             return $this->loadingKpiSummary($request, $response);
         }
         if ($kpiType !== '') {
-            $whereCond .= ' AND type = :kpi_type';
+            $whereCond .= ' AND k.type = :kpi_type';
             $bindings['kpi_type'] = $kpiType;
         }
 
         $cards = $this->db->fetchAll(
-            "SELECT id, code, type, label AS x_label
-               FROM XX_ETW.XX_RJD_KPI_TBL
-              WHERE is_system = 'Y' AND is_active = 'Y' AND $whereCond
-              ORDER BY order_by, id",
+            "SELECT k.id, k.code, k.type, k.label AS x_label
+               FROM XX_ETW.XX_RJD_KPI_TBL k
+              WHERE k.is_system = 'Y' AND k.is_active = 'Y' AND $whereCond
+                AND NOT EXISTS (
+                    SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h
+                     WHERE h.user_id = :hidden_user_id AND h.kpi_id = k.id
+                )
+              ORDER BY k.order_by, k.id",
             $bindings
         );
         $rows = [];
@@ -270,6 +274,7 @@ class ApiController
                 'is_user' => $r['is_user'] ?? 'N',
                 'is_global' => $r['is_global'] ?? 'N',
                 'can_edit' => $r['can_edit'] ?? 'N',
+                'can_hide' => (($r['is_global'] ?? 'N') === 'Y' || ($r['is_user'] ?? 'N') !== 'Y') ? 'Y' : 'N',
                 'config' => $r['config'] ?? null,
             ];
         }
@@ -381,29 +386,30 @@ class ApiController
         }
     }
 
-    /** POST /api/kpi/global/{id}/hide */
-    public function hideGlobalKpi(ServerRequestInterface $request, ResponseInterface $response, int $id): ResponseInterface
+    /** POST /api/kpi/card/{id}/hide */
+    public function hideKpi(ServerRequestInterface $request, ResponseInterface $response, int $id): ResponseInterface
     {
-        return $this->setGlobalKpiHidden($request, $response, $id, true);
+        return $this->setKpiHidden($request, $response, $id, true);
     }
 
-    /** POST /api/kpi/global/{id}/restore */
-    public function restoreGlobalKpi(ServerRequestInterface $request, ResponseInterface $response, int $id): ResponseInterface
+    /** POST /api/kpi/card/{id}/restore */
+    public function restoreKpi(ServerRequestInterface $request, ResponseInterface $response, int $id): ResponseInterface
     {
-        return $this->setGlobalKpiHidden($request, $response, $id, false);
+        return $this->setKpiHidden($request, $response, $id, false);
     }
 
     /** GET /api/kpi/hidden */
-    public function hiddenGlobalKpi(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    public function hiddenKpi(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $userId = (int) ($_SESSION['user']['id'] ?? 0);
         try {
             $rows = $this->db->fetchAll(
-                "SELECT k.id, k.label, k.page_code
+                "SELECT k.id, k.label, k.page_code, k.type, k.is_system
                    FROM XX_ETW.XX_RJD_KPI_HIDDEN h
                    JOIN XX_ETW.XX_RJD_KPI_TBL k ON k.id = h.kpi_id
                   WHERE h.user_id = :user_id
-                    AND k.is_system = 'N' AND k.visibility = 'GLOBAL' AND k.is_active = 'Y'
+                    AND k.is_active = 'Y'
+                    AND (k.is_system = 'Y' OR k.visibility = 'GLOBAL')
                   ORDER BY k.page_code, k.order_by, k.id",
                 ['user_id' => $userId]
             );
@@ -412,9 +418,11 @@ class ApiController
                     (array) ($_SESSION['user']['allowed_pages'] ?? []),
                     (array) ($_SESSION['user'] ?? [])
                 );
-                $rows = array_values(array_filter($rows, static fn(array $row): bool =>
-                    in_array((string) ($row['page_code'] ?? ''), $allowedPages, true)
-                ));
+                $rows = array_values(array_filter($rows, static function (array $row) use ($allowedPages): bool {
+                    $page = trim((string) ($row['page_code'] ?? ''));
+                    if ($page === '') $page = (string) (\App\Services\PageRegistry::kpiSourcePage((string) ($row['type'] ?? '')) ?? '');
+                    return in_array($page, $allowedPages, true);
+                }));
             }
             return $this->json($response, ['rows' => $rows]);
         } catch (\Throwable $error) {
@@ -423,7 +431,7 @@ class ApiController
         }
     }
 
-    private function setGlobalKpiHidden(ServerRequestInterface $request, ResponseInterface $response, int $id, bool $hidden): ResponseInterface
+    private function setKpiHidden(ServerRequestInterface $request, ResponseInterface $response, int $id, bool $hidden): ResponseInterface
     {
         $body = (array) $request->getParsedBody();
         if (!$this->validCsrf((string) ($body['csrf_token'] ?? ''))) {
@@ -433,16 +441,19 @@ class ApiController
         if ($userId < 1) return $this->json($response->withStatus(403), ['error' => 'Недоступно']);
         try {
             $kpi = $this->db->fetchOne(
-                "SELECT id, page_code FROM XX_ETW.XX_RJD_KPI_TBL
-                  WHERE id = :id AND is_system = 'N' AND visibility = 'GLOBAL' AND is_active = 'Y'",
+                "SELECT id, type, page_code FROM XX_ETW.XX_RJD_KPI_TBL
+                  WHERE id = :id AND is_active = 'Y'
+                    AND (is_system = 'Y' OR visibility = 'GLOBAL')",
                 ['id' => $id]
             );
-            if (!$kpi) return $this->json($response->withStatus(404), ['error' => 'Общая KPI-карточка не найдена']);
+            if (!$kpi) return $this->json($response->withStatus(404), ['error' => 'KPI-карточка не найдена']);
             $allowedPages = \App\Services\PageRegistry::forUser(
                 (array) ($_SESSION['user']['allowed_pages'] ?? []),
                 (array) ($_SESSION['user'] ?? [])
             );
-            if (!\App\Services\Authorization::isSuper() && !in_array((string) $kpi['page_code'], $allowedPages, true)) {
+            $page = trim((string) ($kpi['page_code'] ?? ''));
+            if ($page === '') $page = (string) (\App\Services\PageRegistry::kpiSourcePage((string) ($kpi['type'] ?? '')) ?? '');
+            if (!\App\Services\Authorization::isSuper() && !in_array($page, $allowedPages, true)) {
                 return $this->json($response->withStatus(403), ['error' => 'Недоступно']);
             }
             if ($hidden) {
@@ -461,7 +472,7 @@ class ApiController
             return $this->json($response, ['success' => true]);
         } catch (\Throwable $error) {
             $code = ErrorLogger::logThrowable($error, [
-                'operation' => $hidden ? 'hide_global_kpi' : 'restore_global_kpi',
+                'operation' => $hidden ? 'hide_kpi' : 'restore_kpi',
                 'user_id' => $userId,
                 'kpi_id' => $id,
             ], $request);
@@ -481,7 +492,14 @@ class ApiController
         unset($params['loading_period']);
         $source = $this->loadingFrom($params);
         $cards = $this->db->fetchAll(
-            "SELECT id, code, label FROM XX_ETW.XX_RJD_KPI_TBL WHERE type = 'loading_kpi' AND is_system = 'Y' AND is_active = 'Y' ORDER BY order_by, id"
+            "SELECT k.id, k.code, k.label FROM XX_ETW.XX_RJD_KPI_TBL k
+              WHERE k.type = 'loading_kpi' AND k.is_system = 'Y' AND k.is_active = 'Y'
+                AND NOT EXISTS (
+                    SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h
+                     WHERE h.user_id = :hidden_user_id AND h.kpi_id = k.id
+                )
+              ORDER BY k.order_by, k.id",
+            ['hidden_user_id' => (int) ($_SESSION['user']['id'] ?? 0)]
         );
         $bindings = $source['bindings'];
         $select = [];
@@ -498,6 +516,7 @@ class ApiController
                 'id' => $card['id'],
                 'label' => $card['label'],
                 'value' => (int) ($counts['kpi_' . $i] ?? 0),
+                'can_hide' => 'Y',
                 'detail' => ['ctx' => 'loading', 'params' => ['loading_period' => $card['code']]],
             ];
         }
@@ -635,8 +654,14 @@ class ApiController
             } else {
                 try {
                     $kpi = $this->db->fetchOne(
-                        "SELECT code, label, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.get_kpi_where(id) AS kpi_condition FROM XX_ETW.XX_RJD_KPI_TBL WHERE id = :kpi_id AND is_system = 'Y' AND is_active = 'Y'",
-                        ['kpi_id' => (int) $kpiId]
+                        "SELECT k.code, k.label, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.get_kpi_where(k.id) AS kpi_condition
+                           FROM XX_ETW.XX_RJD_KPI_TBL k
+                          WHERE k.id = :kpi_id AND k.is_system = 'Y' AND k.is_active = 'Y'
+                            AND NOT EXISTS (
+                                SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h
+                                 WHERE h.user_id = :hidden_user_id AND h.kpi_id = k.id
+                            )",
+                        ['kpi_id' => (int) $kpiId, 'hidden_user_id' => $userId]
                     );
                 } catch (\Throwable $error) {
                     if (strpos($error->getMessage(), 'ORA-20001') !== false) {

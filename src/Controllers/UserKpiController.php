@@ -72,11 +72,12 @@ final class UserKpiController
         $userId = (int) ($_SESSION['user']['id'] ?? 0);
         try {
             $rows = $this->db->fetchAll(
-                "SELECT k.id, k.label, k.page_code
+                "SELECT k.id, k.label, k.page_code, k.type, k.is_system
                    FROM XX_ETW.XX_RJD_KPI_HIDDEN h
                    JOIN XX_ETW.XX_RJD_KPI_TBL k ON k.id = h.kpi_id
                   WHERE h.user_id = :user_id
-                    AND k.is_system = 'N' AND k.visibility = 'GLOBAL' AND k.is_active = 'Y'
+                    AND k.is_active = 'Y'
+                    AND (k.is_system = 'Y' OR k.visibility = 'GLOBAL')
                   ORDER BY k.page_code, k.order_by, k.id",
                 ['user_id' => $userId]
             );
@@ -85,9 +86,11 @@ final class UserKpiController
                     (array) ($_SESSION['user']['allowed_pages'] ?? []),
                     (array) ($_SESSION['user'] ?? [])
                 );
-                $rows = array_values(array_filter($rows, static fn(array $row): bool =>
-                    in_array((string) ($row['page_code'] ?? ''), $allowedPages, true)
-                ));
+                $rows = array_values(array_filter($rows, static function (array $row) use ($allowedPages): bool {
+                    $page = trim((string) ($row['page_code'] ?? ''));
+                    if ($page === '') $page = (string) (PageRegistry::kpiSourcePage((string) ($row['type'] ?? '')) ?? '');
+                    return in_array($page, $allowedPages, true);
+                }));
             }
         } catch (\Throwable $error) {
             $code = ErrorLogger::logThrowable($error, ['operation' => 'load_hidden_kpi', 'user_id' => $userId], $request);

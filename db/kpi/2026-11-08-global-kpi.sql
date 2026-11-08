@@ -30,8 +30,8 @@ CREATE INDEX XX_ETW.XX_RJD_KPI_HIDDEN_KPI_IDX
     ON XX_ETW.XX_RJD_KPI_HIDDEN (KPI_ID);
 
 COMMENT ON TABLE XX_ETW.XX_RJD_KPI_HIDDEN IS
-    'Персонально скрытые общие KPI-карточки';
+    'Персонально скрытые системные и общие KPI-карточки';
 COMMENT ON COLUMN XX_ETW.XX_RJD_KPI_HIDDEN.USER_ID IS
     'Пользователь, скрывший общую KPI-карточку';
 COMMENT ON COLUMN XX_ETW.XX_RJD_KPI_HIDDEN.KPI_ID IS
-    'Скрытая общая KPI-карточка';
+    'Скрытая системная или общая KPI-карточка';

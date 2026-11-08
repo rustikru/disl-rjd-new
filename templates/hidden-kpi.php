@@ -23,15 +23,16 @@ include __DIR__ . '/partials/header.php';
     </div>
     <?php if (!empty($flashErr)): ?><div class="ui-notice ui-notice--error"><?= htmlspecialchars($flashErr) ?></div><?php endif; ?>
     <section class="ui-panel">
-      <div class="ui-panel-head"><span class="ui-panel-title">Скрытые общие карточки</span></div>
+      <div class="ui-panel-head"><span class="ui-panel-title">Скрытые карточки</span></div>
       <?php if ($rows): ?>
         <div class="ui-table-wrap"><table class="ui-table"><thead><tr><th>Название</th><th>Страница</th><th></th></tr></thead><tbody>
         <?php foreach ($rows as $row): ?>
-          <tr><td><?= htmlspecialchars((string) $row['label']) ?></td><td><?= ($row['page_code'] ?? '') === 'approach' ? 'Подход вагонов' : 'Отправление вагонов' ?></td><td><button class="btn btn-ghost btn-sm kpi-restore" type="button" data-kpi-id="<?= (int) $row['id'] ?>">Вернуть</button></td></tr>
+          <?php $page = (string) ($row['page_code'] ?? ''); if ($page === '') $page = (string) (\App\Services\PageRegistry::kpiSourcePage((string) ($row['type'] ?? '')) ?? ''); $pageLabel = ['dashboard' => 'Дашборд', 'approach' => 'Подход вагонов', 'departure' => 'Отправление вагонов', 'loading' => 'Погрузка'][$page] ?? 'KPI'; ?>
+          <tr><td><?= htmlspecialchars((string) $row['label']) ?></td><td><?= htmlspecialchars($pageLabel) ?> · <?= ($row['is_system'] ?? 'N') === 'Y' ? 'Системная' : 'Общая' ?></td><td><button class="btn btn-ghost btn-sm kpi-restore" type="button" data-kpi-id="<?= (int) $row['id'] ?>">Вернуть</button></td></tr>
         <?php endforeach; ?>
         </tbody></table></div>
       <?php else: ?>
-        <div class="ui-card-body">У вас нет скрытых общих KPI.</div>
+        <div class="ui-card-body">У вас нет скрытых KPI.</div>
       <?php endif; ?>
     </section>
   </main>
@@ -44,7 +45,7 @@ window.APP_CSRF = <?= json_encode($csrf, JSON_UNESCAPED_UNICODE) ?>;
 <script>
 $(document).on('click', '.kpi-restore', function () {
   var button = this;
-  $.post(window.APP_BASE + '/api/kpi/global/' + Number($(button).data('kpi-id')) + '/restore', {csrf_token: window.APP_CSRF})
+  $.post(window.APP_BASE + '/api/kpi/card/' + Number($(button).data('kpi-id')) + '/restore', {csrf_token: window.APP_CSRF})
     .done(function () { window.location.reload(); })
     .fail(function (xhr) { window.alert((xhr.responseJSON && xhr.responseJSON.error) || 'Не удалось вернуть KPI'); });
 });

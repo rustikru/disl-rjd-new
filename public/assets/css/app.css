@@ -590,7 +590,7 @@ a.nav-item {
 .kpi-grid {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 10px;
   margin-bottom: 14px;
 }
@@ -604,19 +604,21 @@ a.nav-item {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 9px;
-  padding: 9px 12px;
-  width: fit-content;
-  max-width: 220px;
-  min-width: 130px;
-  flex: 0 1 auto;
-  align-self: flex-start;
+  padding: 7px 9px;
+  width: 108px;
+  min-width: 108px;
+  max-width: 108px;
+  height: 86px;
+  min-height: 86px;
+  flex: 0 0 108px;
+  align-self: stretch;
   gap: 4px;
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow);
   overflow: hidden;
   position: relative;
-  text-align: center;
+  text-align: left;
 }
 
 .kpi-card::before {
@@ -656,8 +658,13 @@ a.nav-item {
   color: var(--text-2);
   line-height: 1.35;
   min-height: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
   max-width: 100%;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 .kpi-delta {
@@ -2843,32 +2850,47 @@ button.app-pagination__link {
   outline-offset: 2px;
 }
 
-/* Пользовательская карточка: содержимое слева, действия справа. */
+/* Одинаковый компактный формат для карточек с действиями. */
 .kpi-card.kpi-card--user {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: 12px;
-  width: fit-content;
-  min-width: 150px;
-  max-width: 220px;
-  flex: 0 1 auto;
+  display: block;
+  width: 108px;
+  min-width: 108px;
+  max-width: 108px;
+  height: 86px;
+  min-height: 86px;
+  flex: 0 0 108px;
 }
 .kpi-card.kpi-card--user .kpi-card-main {
-  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
   min-width: 0;
   max-width: 100%;
 }
 .kpi-card.kpi-card--user .kpi-label {
+  font-size: 10.5px;
+  line-height: 1.25;
   max-width: 100%;
   padding-right: 0;
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
+  -webkit-line-clamp: 3;
+}
+.kpi-card.kpi-card--user .kpi-value-row {
+  justify-content: flex-start;
+  padding-right: 29px;
+  flex-wrap: nowrap;
+}
+.kpi-card.kpi-card--user:has(.kpi-user-edit) .kpi-value-row {
+  padding-right: 58px;
 }
 .kpi-card.kpi-card--user .kpi-user-actions {
-  grid-column: 2;
-  grid-row: 1;
-  position: static;
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
   display: flex;
   flex-direction: row;
   align-items: center;
