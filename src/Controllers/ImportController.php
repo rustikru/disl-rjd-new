@@ -372,14 +372,18 @@ class ImportController
      * Определяет тип справки по первой непустой dest_station (кол. 12 = столбец L).
      * 'УГЛЕУРАЛЬСКАЯ (768207)' → 'Подход', всё остальное → 'Отправка'.
      */
-    private function detectFileType(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $highestRow): string
-    {
+    private function detectFileType(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        int $highestRow
+    ): string {
         for ($row = 5; $row <= min(35, $highestRow); $row++) {
             $val = trim((string) ($sheet->getCell('L' . $row)->getValue() ?? ''));
+
             if ($val !== '') {
-                return ($val === 'УГЛЕУРАЛЬСКАЯ (768207)') ? 'Подход' : 'Отправка';
+                return str_contains($val, '768207') ? 'Подход' : 'Отправка';
             }
         }
+
         return 'Отправка';
     }
 
