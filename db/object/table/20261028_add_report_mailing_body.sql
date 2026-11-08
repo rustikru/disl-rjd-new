@@ -1,0 +1,16 @@
+DECLARE
+    l_column_count NUMBER;
+BEGIN
+    SELECT COUNT(*)
+      INTO l_column_count
+      FROM ALL_TAB_COLUMNS
+     WHERE OWNER = 'XX_ETW'
+       AND TABLE_NAME = 'XX_RJD_USER_MAILINGS'
+       AND COLUMN_NAME = 'MESSAGE_BODY';
+
+    IF l_column_count = 0 THEN
+        EXECUTE IMMEDIATE
+            'ALTER TABLE XX_ETW.XX_RJD_USER_MAILINGS ADD MESSAGE_BODY VARCHAR2(4000 CHAR)';
+    END IF;
+END;
+/
