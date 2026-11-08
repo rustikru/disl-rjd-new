@@ -112,6 +112,7 @@
       admin: form.admin ? '1' : '',
       kpi_type: form.type,
       label: $('#userKpiLabel').val().trim(),
+      visibility: form.canSetGlobal ? $('#userKpiVisibility').val() : 'PRIVATE',
       config: {
         operator: $('#userKpiJoin').val(),
         conditions: collectConditions(),

@@ -6,13 +6,14 @@
     { id: 'departureMetrics', type: 'departue_kpi' },
   ]
 
-  function openForm(type, id) {
+  function openForm(type, id, admin) {
     var url =
       (window.APP_BASE || '') +
       (id ? '/kpi/edit' : '/kpi/create') +
       '?kpi_type=' +
       encodeURIComponent(type)
     if (id) url += '&id=' + encodeURIComponent(id)
+    if (admin) url += '&admin=1'
     window.location.href = url
   }
 
@@ -29,6 +30,34 @@
     $grid.on('kpi:rendered', function () {
       if (!$grid.find('.user-kpi-create').length) $grid.append($button)
     })
+  }
+
+  function hiddenPage(page) {
+    return page === 'approach' ? 'Подход вагонов' : 'Отправление вагонов'
+  }
+
+  function renderHidden(rows) {
+    var $list = $('#kpiHiddenList')
+    if (!rows.length) {
+      $list.html('<div class="kpi-hidden-empty">Нет скрытых общих KPI.</div>')
+      return
+    }
+    $list.html(
+      rows.map(function (row) {
+        return '<div class="kpi-hidden-row"><div><strong>' + $('<div>').text(row.label || '').html() + '</strong><span>' + hiddenPage(row.page_code) + '</span></div><button type="button" class="btn btn-ghost btn-sm kpi-hidden-restore" data-kpi-id="' + Number(row.id) + '">Вернуть</button></div>'
+      }).join(''),
+    )
+  }
+
+  function loadHidden() {
+    $('#kpiHiddenList').text('Загрузка…')
+    $.getJSON((window.APP_BASE || '') + '/api/kpi/hidden')
+      .done(function (result) {
+        renderHidden(result.rows || [])
+      })
+      .fail(function (xhr) {
+        $('#kpiHiddenList').html('<div class="kpi-hidden-error">' + $('<div>').text((xhr.responseJSON && xhr.responseJSON.error) || 'Не удалось загрузить скрытые KPI').html() + '</div>')
+      })
   }
 
   $(function () {
@@ -48,7 +77,7 @@
         return item.id === $grid.attr('id')
       })
       var type = $button.attr('data-kpi-type') || (board ? board.type : '')
-      openForm(type, Number($button.data('kpi-id')))
+      openForm(type, Number($button.data('kpi-id')), $button.data('kpi-admin') === 1)
     })
     $(document).on('click', '.kpi-user-delete', function (event) {
       event.preventDefault()
@@ -69,6 +98,50 @@
             (xhr.responseJSON && xhr.responseJSON.error) ||
               'Не удалось удалить KPI',
           )
+        })
+    })
+    $(document).on('click', '.kpi-global-hide', function (event) {
+      event.preventDefault()
+      event.stopPropagation()
+      var id = Number($(this).data('kpi-id'))
+      if (!id || !window.confirm('Скрыть эту KPI-карточку?')) return
+      var button = this
+      $.post((window.APP_BASE || '') + '/api/kpi/global/' + id + '/hide', {
+        csrf_token: window.APP_CSRF || '',
+      })
+        .done(function () {
+          $(button).closest('.kpi-card').remove()
+        })
+        .fail(function (xhr) {
+          window.alert((xhr.responseJSON && xhr.responseJSON.error) || 'Не удалось скрыть KPI')
+        })
+    })
+    $(document).on('click', '.kpi-hidden-open', function (event) {
+      var dialog = document.getElementById('kpiHiddenDialog')
+      if (!dialog || typeof dialog.showModal !== 'function') return
+      event.preventDefault()
+      loadHidden()
+      dialog.showModal()
+    })
+    $(document).on('click', '.kpi-hidden-close', function () {
+      document.getElementById('kpiHiddenDialog').close()
+    })
+    $(document).on('click', '.kpi-hidden-restore', function () {
+      var button = this
+      var id = Number($(button).data('kpi-id'))
+      if (!id) return
+      $(button).prop('disabled', true)
+      $.post((window.APP_BASE || '') + '/api/kpi/global/' + id + '/restore', {
+        csrf_token: window.APP_CSRF || '',
+      })
+        .done(function () {
+          $(button).closest('.kpi-hidden-row').remove()
+          if (!$('#kpiHiddenList .kpi-hidden-row').length) renderHidden([])
+          if (typeof window.loadKPI === 'function') window.loadKPI()
+        })
+        .fail(function (xhr) {
+          window.alert((xhr.responseJSON && xhr.responseJSON.error) || 'Не удалось вернуть KPI')
+          $(button).prop('disabled', false)
         })
     })
   })

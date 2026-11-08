@@ -176,6 +176,12 @@ if (!$conditions)
               <option value="AND" <?= ($config['operator'] ?? 'AND') === 'AND' ? 'selected' : '' ?>>И (AND)</option>
               <option value="OR" <?= ($config['operator'] ?? '') === 'OR' ? 'selected' : '' ?>>ИЛИ (OR)</option>
             </select></div>
+          <?php if (!empty($canSetGlobal)): ?>
+            <div class="ui-field"><label for="userKpiVisibility">Область видимости</label><select id="userKpiVisibility">
+                <option value="PRIVATE" <?= ($edited['visibility'] ?? 'PRIVATE') === 'PRIVATE' ? 'selected' : '' ?>>Личная</option>
+                <option value="GLOBAL" <?= ($edited['visibility'] ?? '') === 'GLOBAL' ? 'selected' : '' ?>>Общая (для всех пользователей)</option>
+              </select></div>
+          <?php endif; ?>
         </div>
       </section>
       <section class="ui-card user-kpi-section">
@@ -233,7 +239,7 @@ if (!$conditions)
   <script>
     window.APP_BASE = <?= json_encode($basePath, JSON_UNESCAPED_UNICODE) ?>;
     window.APP_CSRF = <?= json_encode($csrf, JSON_UNESCAPED_UNICODE) ?>;
-    window.USER_KPI_FORM = <?= json_encode(['type' => $type, 'id' => (int) ($edited['id'] ?? 0), 'admin' => !empty($adminEdit), 'fields' => $fields], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
+    window.USER_KPI_FORM = <?= json_encode(['type' => $type, 'id' => (int) ($edited['id'] ?? 0), 'admin' => !empty($adminEdit), 'canSetGlobal' => !empty($canSetGlobal), 'fields' => $fields], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
     window.USER_KPI_CONFIG = <?= json_encode($config, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
   </script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jquery/jquery-3.7.1.min.js"></script>

@@ -130,6 +130,9 @@ return function (App $app, array $config): void {
         $group->get('/kpi/edit', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\UserKpiController($getDb(), $config))->form($req, $res);
         });
+        $group->get('/kpi/hidden', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\UserKpiController($getDb(), $config))->hidden($req, $res);
+        });
 
         // Карточка вагона
         $group->get('/wagon', function ($req, $res) use ($getDb, $config) {
@@ -470,6 +473,15 @@ return function (App $app, array $config): void {
                 });
                 $sub->delete('/user/{id:[0-9]+}', function ($req, $res, $args) use ($getDb) {
                     return (new \App\Controllers\ApiController($getDb()))->deleteUserKpi($req, $res, (int) $args['id']);
+                });
+                $sub->post('/global/{id:[0-9]+}/hide', function ($req, $res, $args) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->hideGlobalKpi($req, $res, (int) $args['id']);
+                });
+                $sub->post('/global/{id:[0-9]+}/restore', function ($req, $res, $args) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->restoreGlobalKpi($req, $res, (int) $args['id']);
+                });
+                $sub->get('/hidden', function ($req, $res) use ($getDb) {
+                    return (new \App\Controllers\ApiController($getDb()))->hiddenGlobalKpi($req, $res);
                 });
             });
             // --- Экспорт виртуальной таблицы в Excel ---

@@ -22,7 +22,7 @@ final class KpiAdminController
         try {
             $rows = $this->db->fetchAll(
                 "SELECT k.id, k.type, k.code, k.label, k.order_by, k.trend_period, k.trend_unit,
-                        k.page_code, k.owner_id, k.is_system, k.is_active, DBMS_LOB.SUBSTR(k.where_config, 3500, 1) AS where_config,
+                        k.page_code, k.owner_id, k.is_system, k.visibility, k.is_active, DBMS_LOB.SUBSTR(k.where_config, 3500, 1) AS where_config,
                         NVL(u.display_name, u.username) AS owner_name
                    FROM XX_ETW.XX_RJD_KPI_TBL k
                    LEFT JOIN xx_rjd_users u ON u.id = k.owner_id

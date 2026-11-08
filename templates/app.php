@@ -105,8 +105,10 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
 
       <!-- Подход -->
       <div id="panel-approach" class="tab-panel">
-
-        <div class="kpi-grid" id="approachMetrics" style="margin-bottom:16px"></div>
+        <div class="kpi-board-wrap">
+          <div class="kpi-settings-link"><a class="kpi-hidden-open" href="<?= htmlspecialchars($basePath) ?>/kpi/hidden" aria-label="Скрытые KPI" title="Скрытые KPI"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18-1.4 1.4-3.1-3.1A11.7 11.7 0 0 1 12 20C5 20 1 12 1 12a20 20 0 0 1 4.2-5.4L1.6 3 3 3zm4.3 5.7A6.8 6.8 0 0 0 3.3 12c1.2 1.8 4.2 6 8.7 6 1 0 2-.2 2.8-.5l-2-2A4 4 0 0 1 8.5 11l-1.2-1.3zM12 4c7 0 11 8 11 8a19 19 0 0 1-3.1 4.4L18.5 15a15.8 15.8 0 0 0 2.2-3c-1.2-1.8-4.2-6-8.7-6-.7 0-1.4.1-2 .2L8.4 4.6C9.5 4.2 10.7 4 12 4zm0 4a4 4 0 0 1 4 4v.3l-4.3-4.3h.3z"/></svg></a></div>
+          <div class="kpi-grid" id="approachMetrics" style="margin-bottom:16px"></div>
+        </div>
 
         <!-- Внутренние вкладки -->
         <div class="inner-tabs">
@@ -159,7 +161,10 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
 
       <!-- Отправление вагонов -->
       <div id="panel-departure" class="tab-panel">
-        <div class="kpi-grid" id="departureMetrics" style="margin-bottom:16px"></div>
+        <div class="kpi-board-wrap">
+          <div class="kpi-settings-link"><a class="kpi-hidden-open" href="<?= htmlspecialchars($basePath) ?>/kpi/hidden" aria-label="Скрытые KPI" title="Скрытые KPI"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18-1.4 1.4-3.1-3.1A11.7 11.7 0 0 1 12 20C5 20 1 12 1 12a20 20 0 0 1 4.2-5.4L1.6 3 3 3zm4.3 5.7A6.8 6.8 0 0 0 3.3 12c1.2 1.8 4.2 6 8.7 6 1 0 2-.2 2.8-.5l-2-2A4 4 0 0 1 8.5 11l-1.2-1.3zM12 4c7 0 11 8 11 8a19 19 0 0 1-3.1 4.4L18.5 15a15.8 15.8 0 0 0 2.2-3c-1.2-1.8-4.2-6-8.7-6-.7 0-1.4.1-2 .2L8.4 4.6C9.5 4.2 10.7 4 12 4zm0 4a4 4 0 0 1 4 4v.3l-4.3-4.3h.3z"/></svg></a></div>
+          <div class="kpi-grid" id="departureMetrics" style="margin-bottom:16px"></div>
+        </div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="departure-summary">Сводная</button>
           <button class="inner-tab" data-inner="departure-detail">Подробная</button>
@@ -202,6 +207,11 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
           </section>
         </div>
       </div>
+
+      <dialog class="kpi-hidden-dialog" id="kpiHiddenDialog" aria-labelledby="kpiHiddenTitle">
+        <div class="kpi-hidden-head"><h2 id="kpiHiddenTitle">Скрытые KPI</h2><button type="button" class="kpi-hidden-close" aria-label="Закрыть">×</button></div>
+        <div class="kpi-hidden-list" id="kpiHiddenList">Загрузка…</div>
+      </dialog>
 
       <!-- Погрузка -->
       <div id="panel-loading" class="tab-panel">

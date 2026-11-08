@@ -19,7 +19,7 @@ final class PageRegistry
     ];
 
     private const CORE = [
-        'dashboard' => ['label' => 'Дашборд', 'routes' => ['/api/dashboard', '/api/kpi', '/kpi/create', '/kpi/edit'], 'visibility_group' => 'Сайт — основные разделы'],
+        'dashboard' => ['label' => 'Дашборд', 'routes' => ['/api/dashboard', '/api/kpi', '/kpi/create', '/kpi/edit', '/kpi/hidden'], 'visibility_group' => 'Сайт — основные разделы'],
         'wagon-card' => ['label' => 'Карточка вагона', 'routes' => ['/wagon', '/api/wagon/movement'], 'visibility_group' => 'Сайт — основные разделы'],
         'wagon-detail' => ['label' => 'Детализация по вагону', 'routes' => ['/detail'], 'visibility_group' => 'Сайт — основные разделы'],
         'maps' => ['label' => 'Карта', 'routes' => ['/maps'], 'visibility_group' => 'Сайт — основные разделы', 'navigation' => ['group' => 'analytics', 'order' => 90, 'url' => '/maps', 'target' => '_blank']],

@@ -174,18 +174,21 @@ class ApiController
             try {
                 $userId = (int) ($_SESSION['user']['id'] ?? 0);
                 $userCards = $this->db->fetchAll(
-                    "SELECT id, code, type, label FROM XX_ETW.XX_RJD_KPI_TBL
-                      WHERE is_system = 'N' AND is_active = 'Y' AND owner_id = :owner_id AND type = :type
+                    "SELECT k.id, k.code, k.type, k.label, k.owner_id, k.visibility,
+                            DBMS_LOB.SUBSTR(k.where_config, 3500, 1) AS where_config
+                       FROM XX_ETW.XX_RJD_KPI_TBL k
+                      WHERE k.is_system = 'N' AND k.is_active = 'Y' AND k.type = :type
+                        AND (k.owner_id = :owner_id AND k.visibility = 'PRIVATE'
+                             OR k.visibility = 'GLOBAL' AND NOT EXISTS (
+                                 SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h
+                                  WHERE h.user_id = :hidden_user_id AND h.kpi_id = k.id
+                             ))
                       ORDER BY order_by, id",
-                    ['owner_id' => $userId, 'type' => $kpiType]
+                    ['owner_id' => $userId, 'hidden_user_id' => $userId, 'type' => $kpiType]
                 );
                 $source = $this->dislFrom([]);
                 foreach ($userCards as $card) {
-                    $config = $this->db->fetchOne(
-                        "SELECT DBMS_LOB.SUBSTR(where_config, 3500, 1) AS where_config FROM XX_ETW.XX_RJD_KPI_TBL WHERE id = :id AND owner_id = :owner_id AND is_system = 'N' AND is_active = 'Y'",
-                        ['id' => (int) $card['id'], 'owner_id' => $userId]
-                    );
-                    $condition = KpiCondition::compile($kpiType, (string) ($config['where_config'] ?? ''));
+                    $condition = KpiCondition::compile($kpiType, (string) ($card['where_config'] ?? ''));
                     $count = 0;
                     if ($source['from'] !== '') {
                         $countRow = $this->db->fetchOne(
@@ -200,7 +203,10 @@ class ApiController
                         'id' => $card['id'], 'code' => $card['code'], 'type' => $card['type'],
                         'x_label' => $card['label'], 'x_value' => $count,
                         'trend_pct' => null, 'trend_dir' => null, 'is_user' => 'Y',
-                        'config' => json_decode((string) ($config['where_config'] ?? ''), true),
+                        'is_global' => $card['visibility'] === 'GLOBAL' ? 'Y' : 'N',
+                        'can_edit' => (($card['visibility'] === 'PRIVATE' && (int) $card['owner_id'] === $userId)
+                            || ($card['visibility'] === 'GLOBAL' && \App\Services\Authorization::isSuper())) ? 'Y' : 'N',
+                        'config' => json_decode((string) ($card['where_config'] ?? ''), true),
                     ];
                 }
             } catch (\Throwable $error) {
@@ -262,6 +268,8 @@ class ApiController
                 'trend' => $r['trend_dir'] ?? '',
                 'change' => $r['trend_pct'] ?? '',
                 'is_user' => $r['is_user'] ?? 'N',
+                'is_global' => $r['is_global'] ?? 'N',
+                'can_edit' => $r['can_edit'] ?? 'N',
                 'config' => $r['config'] ?? null,
             ];
         }
@@ -291,6 +299,10 @@ class ApiController
         $type = trim((string) ($body['kpi_type'] ?? ''));
         $label = trim((string) ($body['label'] ?? ''));
         $userId = (int) ($_SESSION['user']['id'] ?? 0);
+        $isSuper = \App\Services\Authorization::isSuper();
+        $visibility = $isSuper && strtoupper(trim((string) ($body['visibility'] ?? 'PRIVATE'))) === 'GLOBAL'
+            ? 'GLOBAL'
+            : 'PRIVATE';
         if (!$this->organizations->isMtf() || $userId < 1 || !in_array($type, ['approach_kpi', 'departue_kpi'], true)) {
             return $this->json($response->withStatus(403), ['error' => 'Недоступно']);
         }
@@ -321,23 +333,22 @@ class ApiController
             KpiCondition::compile($type, $json);
             $id = (int) ($body['id'] ?? 0);
             if ($id > 0) {
-                $isAdminEdit = !empty($body['admin']) && \App\Services\Authorization::isSuper();
                 $this->db->execute(
-                    "UPDATE XX_ETW.XX_RJD_KPI_TBL SET label = :label, where_config = :where_config
-                      WHERE id = :id AND " . ($isAdminEdit ? "1=1" : "owner_id = :owner_id") . " AND is_system = 'N' AND type = :type",
-                    $isAdminEdit
-                        ? ['label' => $label, 'where_config' => $json, 'id' => $id, 'type' => $type]
-                        : ['label' => $label, 'where_config' => $json, 'id' => $id, 'owner_id' => $userId, 'type' => $type]
+                    "UPDATE XX_ETW.XX_RJD_KPI_TBL SET label = :label, where_config = :where_config, visibility = :visibility
+                      WHERE id = :id AND " . ($isSuper ? "1=1" : "owner_id = :owner_id AND visibility = 'PRIVATE'") . " AND is_system = 'N' AND type = :type",
+                    $isSuper
+                        ? ['label' => $label, 'where_config' => $json, 'visibility' => $visibility, 'id' => $id, 'type' => $type]
+                        : ['label' => $label, 'where_config' => $json, 'visibility' => 'PRIVATE', 'id' => $id, 'owner_id' => $userId, 'type' => $type]
                 );
             } else {
                 $this->db->execute(
                     "INSERT INTO XX_ETW.XX_RJD_KPI_TBL
-                        (type, code, label, order_by, trend_unit, page_code, owner_id, is_system, where_config)
-                     VALUES (:type, :code, :label, 999, 'шт.', :page_code, :owner_id, 'N', :where_config)",
+                        (type, code, label, order_by, trend_unit, page_code, owner_id, is_system, visibility, where_config)
+                     VALUES (:type, :code, :label, 999, 'шт.', :page_code, :owner_id, 'N', :visibility, :where_config)",
                     [
                         'type' => $type, 'code' => 'user_' . substr(hash('sha256', $userId . microtime(true)), 0, 24),
                         'label' => $label, 'page_code' => $type === 'approach_kpi' ? 'approach' : 'departure',
-                        'owner_id' => $userId, 'where_config' => $json,
+                        'owner_id' => $userId, 'visibility' => $visibility, 'where_config' => $json,
                     ]
                 );
             }
@@ -360,13 +371,101 @@ class ApiController
         $userId = (int) ($_SESSION['user']['id'] ?? 0);
         try {
             $count = $this->db->execute(
-                "DELETE FROM XX_ETW.XX_RJD_KPI_TBL WHERE id = :id AND owner_id = :owner_id AND is_system = 'N'",
+                "DELETE FROM XX_ETW.XX_RJD_KPI_TBL WHERE id = :id AND owner_id = :owner_id AND is_system = 'N' AND visibility = 'PRIVATE'",
                 ['id' => $id, 'owner_id' => $userId]
             );
             return $this->json($response, ['success' => $count > 0]);
         } catch (\Throwable $error) {
             $code = ErrorLogger::logThrowable($error, ['operation' => 'delete_user_kpi', 'user_id' => $userId, 'kpi_id' => $id]);
             return $this->json($response->withStatus(500), ['error' => 'Не удалось удалить KPI', 'code' => $code]);
+        }
+    }
+
+    /** POST /api/kpi/global/{id}/hide */
+    public function hideGlobalKpi(ServerRequestInterface $request, ResponseInterface $response, int $id): ResponseInterface
+    {
+        return $this->setGlobalKpiHidden($request, $response, $id, true);
+    }
+
+    /** POST /api/kpi/global/{id}/restore */
+    public function restoreGlobalKpi(ServerRequestInterface $request, ResponseInterface $response, int $id): ResponseInterface
+    {
+        return $this->setGlobalKpiHidden($request, $response, $id, false);
+    }
+
+    /** GET /api/kpi/hidden */
+    public function hiddenGlobalKpi(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $userId = (int) ($_SESSION['user']['id'] ?? 0);
+        try {
+            $rows = $this->db->fetchAll(
+                "SELECT k.id, k.label, k.page_code
+                   FROM XX_ETW.XX_RJD_KPI_HIDDEN h
+                   JOIN XX_ETW.XX_RJD_KPI_TBL k ON k.id = h.kpi_id
+                  WHERE h.user_id = :user_id
+                    AND k.is_system = 'N' AND k.visibility = 'GLOBAL' AND k.is_active = 'Y'
+                  ORDER BY k.page_code, k.order_by, k.id",
+                ['user_id' => $userId]
+            );
+            if (!\App\Services\Authorization::isSuper()) {
+                $allowedPages = \App\Services\PageRegistry::forUser(
+                    (array) ($_SESSION['user']['allowed_pages'] ?? []),
+                    (array) ($_SESSION['user'] ?? [])
+                );
+                $rows = array_values(array_filter($rows, static fn(array $row): bool =>
+                    in_array((string) ($row['page_code'] ?? ''), $allowedPages, true)
+                ));
+            }
+            return $this->json($response, ['rows' => $rows]);
+        } catch (\Throwable $error) {
+            $code = ErrorLogger::logThrowable($error, ['operation' => 'load_hidden_kpi_api', 'user_id' => $userId], $request);
+            return $this->json($response->withStatus(500), ['error' => 'Не удалось загрузить скрытые KPI', 'code' => $code]);
+        }
+    }
+
+    private function setGlobalKpiHidden(ServerRequestInterface $request, ResponseInterface $response, int $id, bool $hidden): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+        if (!$this->validCsrf((string) ($body['csrf_token'] ?? ''))) {
+            return $this->json($response->withStatus(403), ['error' => 'Ошибка проверки запроса']);
+        }
+        $userId = (int) ($_SESSION['user']['id'] ?? 0);
+        if ($userId < 1) return $this->json($response->withStatus(403), ['error' => 'Недоступно']);
+        try {
+            $kpi = $this->db->fetchOne(
+                "SELECT id, page_code FROM XX_ETW.XX_RJD_KPI_TBL
+                  WHERE id = :id AND is_system = 'N' AND visibility = 'GLOBAL' AND is_active = 'Y'",
+                ['id' => $id]
+            );
+            if (!$kpi) return $this->json($response->withStatus(404), ['error' => 'Общая KPI-карточка не найдена']);
+            $allowedPages = \App\Services\PageRegistry::forUser(
+                (array) ($_SESSION['user']['allowed_pages'] ?? []),
+                (array) ($_SESSION['user'] ?? [])
+            );
+            if (!\App\Services\Authorization::isSuper() && !in_array((string) $kpi['page_code'], $allowedPages, true)) {
+                return $this->json($response->withStatus(403), ['error' => 'Недоступно']);
+            }
+            if ($hidden) {
+                $this->db->execute(
+                    "INSERT INTO XX_ETW.XX_RJD_KPI_HIDDEN (user_id, kpi_id, created_at)
+                     SELECT :user_id, :kpi_id, SYSDATE FROM dual
+                      WHERE NOT EXISTS (SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN WHERE user_id = :check_user_id AND kpi_id = :check_kpi_id)",
+                    ['user_id' => $userId, 'kpi_id' => $id, 'check_user_id' => $userId, 'check_kpi_id' => $id]
+                );
+            } else {
+                $this->db->execute(
+                    "DELETE FROM XX_ETW.XX_RJD_KPI_HIDDEN WHERE user_id = :user_id AND kpi_id = :kpi_id",
+                    ['user_id' => $userId, 'kpi_id' => $id]
+                );
+            }
+            return $this->json($response, ['success' => true]);
+        } catch (\Throwable $error) {
+            $code = ErrorLogger::logThrowable($error, [
+                'operation' => $hidden ? 'hide_global_kpi' : 'restore_global_kpi',
+                'user_id' => $userId,
+                'kpi_id' => $id,
+            ], $request);
+            return $this->json($response->withStatus(500), ['error' => 'Не удалось изменить видимость KPI', 'code' => $code]);
         }
     }
 
@@ -509,9 +608,14 @@ class ApiController
         if ($kpiId !== '') {
             $userId = (int) ($_SESSION['user']['id'] ?? 0);
             $userKpi = $this->db->fetchOne(
-                "SELECT id, type, code, label, DBMS_LOB.SUBSTR(where_config, 3500, 1) AS where_config FROM XX_ETW.XX_RJD_KPI_TBL
-                  WHERE id = :kpi_id AND owner_id = :owner_id AND is_system = 'N' AND is_active = 'Y'",
-                ['kpi_id' => (int) $kpiId, 'owner_id' => $userId]
+                "SELECT k.id, k.type, k.code, k.label, DBMS_LOB.SUBSTR(k.where_config, 3500, 1) AS where_config FROM XX_ETW.XX_RJD_KPI_TBL k
+                  WHERE k.id = :kpi_id AND k.is_system = 'N' AND k.is_active = 'Y'
+                    AND (k.owner_id = :owner_id AND k.visibility = 'PRIVATE'
+                         OR k.visibility = 'GLOBAL' AND NOT EXISTS (
+                             SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h
+                              WHERE h.user_id = :hidden_user_id AND h.kpi_id = k.id
+                         ))",
+                ['kpi_id' => (int) $kpiId, 'owner_id' => $userId, 'hidden_user_id' => $userId]
             );
             if ($userKpi) {
                 if (!in_array((string) $userKpi['type'], ['approach_kpi', 'departue_kpi'], true)) {
