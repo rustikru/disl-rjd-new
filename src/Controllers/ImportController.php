@@ -258,7 +258,11 @@ class ImportController
                 $result = $this->importLocalFile($tmpPath);
             } catch (\Throwable $e) {
                 @unlink($tmpPath);
-                $errors[] = '«' . $name . '»: ' . $e->getMessage();
+                $code = ErrorLogger::logThrowable($e, [
+                    'operation' => 'import_reference',
+                    'file_name' => $name,
+                ], $request);
+                $errors[] = '«' . $name . '»: не удалось загрузить справку. Код ошибки: ' . $code;
                 continue;
             }
 
@@ -266,6 +270,16 @@ class ImportController
 
             if ($result['skipped']) {
                 $warns[] = '«' . $name . '»: справка «' . $result['type'] . '» на ' . $result['report_dt'] . ' уже загружена';
+            } elseif (!$result['current_updated']) {
+                $successes[] = '«' . $name . '»: архив дополнен данными на ' . $result['report_dt']
+                    . '; в текущей таблице оставлена более поздняя справка на ' . $result['latest_report_dt'];
+                (new AuditLog($this->db))->write(
+                    'IMPORT_UPLOAD',
+                    'REFERENCE',
+                    (string) $result['type'],
+                    'Архив дополнен из файла «' . $name . '» на ' . $result['report_dt']
+                        . '; текущая справка ' . $result['latest_report_dt']
+                );
             } else {
                 $successes[] = '«' . $name . '»: загружено ' . $result['rows'] . ' строк ('
                     . $result['type'] . ', ' . $result['report_dt'] . ')';
@@ -318,7 +332,15 @@ class ImportController
             $result = $this->importLocalFile($tmpPath);
         } catch (\Throwable $e) {
             @unlink($tmpPath);
-            return $this->jsonResponse($response, 500, ['status' => 'error', 'message' => $e->getMessage()]);
+            $code = ErrorLogger::logThrowable($e, [
+                'operation' => 'import_reference_api',
+                'file_name' => $name,
+            ], $request);
+            return $this->jsonResponse($response, 500, [
+                'status' => 'error',
+                'message' => 'Не удалось загрузить справку',
+                'code' => $code,
+            ]);
         }
 
         @unlink($tmpPath);
@@ -336,15 +358,22 @@ class ImportController
             'IMPORT_UPLOAD',
             'REFERENCE',
             (string) $result['type'],
-            'Загружен файл «' . $name . '»: ' . $result['rows'] . ' строк, дата ' . $result['report_dt']
+            $result['current_updated']
+                ? 'Загружен файл «' . $name . '»: ' . $result['rows'] . ' строк, дата ' . $result['report_dt']
+                : 'Архив дополнен из файла «' . $name . '» на ' . $result['report_dt']
+                    . '; текущая справка ' . $result['latest_report_dt']
         );
 
         return $this->jsonResponse($response, 200, [
             'status' => 'ok',
-            'message' => 'Загружено ' . $result['rows'] . ' строк',
+            'message' => $result['current_updated']
+                ? 'Загружено ' . $result['rows'] . ' строк'
+                : 'Архив дополнен; в текущей таблице оставлена справка на ' . $result['latest_report_dt'],
             'rows' => $result['rows'],
             'report_dt' => $result['report_dt'],
             'type' => $result['type'],
+            'current_updated' => $result['current_updated'],
+            'latest_report_dt' => $result['latest_report_dt'],
         ]);
     }
 
@@ -404,22 +433,50 @@ class ImportController
             . ' VALUES (:p_organization_id, :p_report_dt, :p_type_reference, ' . implode(', ', $placeholders) . ')';
 
         $reportDate = substr($reportDt, 0, 10); // 'YYYY-MM-DD'
+        $latestRow = $this->db->fetchOne(
+            "SELECT TO_CHAR(MAX(report_dt), 'YYYY-MM-DD HH24:MI:SS') AS report_dt
+               FROM xx_dislocation_rjd
+              WHERE TRUNC(report_dt) = TO_DATE(:p_report_date, 'YYYY-MM-DD')
+                AND type_reference = :p_file_type
+                AND organization_id = :p_organization_id",
+            [
+                'p_report_date' => $reportDate,
+                'p_file_type' => $fileType,
+                'p_organization_id' => $organizationId,
+            ]
+        );
+        $latestReportDt = trim((string) ($latestRow['report_dt'] ?? ''));
+        $isOlder = $latestReportDt !== '' && strcmp($reportDt, $latestReportDt) < 0;
         $inserted = 0;
 
         $this->db->beginTransaction();
         try {
             // Замена справки атомарна: при ошибке вставки удаление также откатится.
-            $this->db->execute(
-                "DELETE FROM xx_dislocation_rjd
-                  WHERE TRUNC(report_dt) = TO_DATE(:p_report_date, 'YYYY-MM-DD')
-                    AND type_reference   = :p_file_type
-                    AND organization_id  = :p_organization_id",
-                [
-                    'p_report_date' => $reportDate,
-                    'p_file_type' => $fileType,
-                    'p_organization_id' => $organizationId,
-                ]
-            );
+            if ($isOlder) {
+                $this->db->execute(
+                    "DELETE FROM xx_dislocation_rjd
+                      WHERE report_dt = TO_DATE(:p_report_dt, 'YYYY-MM-DD HH24:MI:SS')
+                        AND type_reference = :p_file_type
+                        AND organization_id = :p_organization_id",
+                    [
+                        'p_report_dt' => $reportDt,
+                        'p_file_type' => $fileType,
+                        'p_organization_id' => $organizationId,
+                    ]
+                );
+            } else {
+                $this->db->execute(
+                    "DELETE FROM xx_dislocation_rjd
+                      WHERE TRUNC(report_dt) = TO_DATE(:p_report_date, 'YYYY-MM-DD')
+                        AND type_reference = :p_file_type
+                        AND organization_id = :p_organization_id",
+                    [
+                        'p_report_date' => $reportDate,
+                        'p_file_type' => $fileType,
+                        'p_organization_id' => $organizationId,
+                    ]
+                );
+            }
 
             for ($row = 5; $row <= $highestRow; $row++) {
                 $vals = [];
@@ -447,6 +504,27 @@ class ImportController
                 $this->db->execute($insertSql, $params);
                 $inserted++;
             }
+
+            $this->db->execute(
+                "BEGIN XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.ARCHIVE_RJD_MOVEMENT(
+                    TO_DATE(:p_report_dt, 'YYYY-MM-DD HH24:MI:SS'), :p_type_reference
+                ); END;",
+                ['p_report_dt' => $reportDt, 'p_type_reference' => $fileType]
+            );
+
+            if ($isOlder) {
+                $this->db->execute(
+                    "DELETE FROM xx_dislocation_rjd
+                      WHERE report_dt = TO_DATE(:p_report_dt, 'YYYY-MM-DD HH24:MI:SS')
+                        AND type_reference = :p_file_type
+                        AND organization_id = :p_organization_id",
+                    [
+                        'p_report_dt' => $reportDt,
+                        'p_file_type' => $fileType,
+                        'p_organization_id' => $organizationId,
+                    ]
+                );
+            }
             $this->db->commit();
         } catch (\Throwable $e) {
             $this->db->rollback();
@@ -456,7 +534,14 @@ class ImportController
             unset($spreadsheet);
         }
 
-        return ['skipped' => false, 'report_dt' => $rawDt, 'type' => $fileType, 'rows' => $inserted];
+        return [
+            'skipped' => false,
+            'report_dt' => $rawDt,
+            'type' => $fileType,
+            'rows' => $inserted,
+            'current_updated' => !$isOlder,
+            'latest_report_dt' => $latestReportDt,
+        ];
     }
 
     private function parseReportDate(string $raw): string

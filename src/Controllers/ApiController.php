@@ -129,7 +129,7 @@ class ApiController
         }
 
         $cards = $this->db->fetchAll(
-            "SELECT k.id, k.code, k.type, k.label AS x_label
+            "SELECT k.id, k.code, k.type, k.label AS x_label, k.trend_period
                FROM XX_ETW.XX_RJD_KPI_TBL k
               WHERE k.is_system = 'Y' AND k.is_active = 'Y' AND $whereCond
                 AND NOT EXISTS (
@@ -143,13 +143,22 @@ class ApiController
         foreach ($cards as $card) {
             $id = (int) $card['id'];
             try {
-                $result = $this->db->fetchOne(
-                    "SELECT xx_rjd_dislocation_new_pkg.set_kpi_label(:label_id) AS x_value,
-                            xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_pct(:trend_pct_id) AS trend_pct,
-                            xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_dir(:trend_dir_id) AS trend_dir
-                       FROM dual",
-                    ['label_id' => $id, 'trend_pct_id' => $id, 'trend_dir_id' => $id]
-                );
+                if (trim((string) ($card['trend_period'] ?? '')) === '') {
+                    $result = $this->db->fetchOne(
+                        "SELECT xx_rjd_dislocation_new_pkg.set_kpi_label(:label_id) AS x_value
+                           FROM dual",
+                        ['label_id' => $id]
+                    );
+                    $result = array_merge($result ?: [], ['trend_pct' => null, 'trend_dir' => null]);
+                } else {
+                    $result = $this->db->fetchOne(
+                        "SELECT xx_rjd_dislocation_new_pkg.set_kpi_label(:label_id) AS x_value,
+                                xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_pct(:trend_pct_id) AS trend_pct,
+                                xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_dir(:trend_dir_id) AS trend_dir
+                           FROM dual",
+                        ['label_id' => $id, 'trend_pct_id' => $id, 'trend_dir_id' => $id]
+                    );
+                }
                 $rows[] = array_merge($card, $result ?: []);
             } catch (\Throwable $error) {
                 if (strpos($error->getMessage(), 'ORA-20001') !== false) {

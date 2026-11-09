@@ -103,7 +103,11 @@ final class UserKpiController
         if (!is_array($config)) {
             return $this->json($response->withStatus(422), ['error' => 'Не заданы условия KPI']);
         }
-        $config['operator'] = 'AND';
+        $operator = strtoupper(trim((string) ($config['operator'] ?? '')));
+        if (!in_array($operator, ['AND', 'OR'], true)) {
+            return $this->json($response->withStatus(422), ['error' => 'Выберите способ объединения условий']);
+        }
+        $config['operator'] = $operator;
         $detail = is_array($config['detail'] ?? null) ? $config['detail'] : [];
         $detailType = strtoupper((string) ($detail['type'] ?? 'TABLE'));
         if (!in_array($detailType, ['TABLE', 'GROUPED'], true)) {

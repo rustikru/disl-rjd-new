@@ -50,6 +50,11 @@ create or replace package xx_rjd_dislocation_new_pkg as
       p_kpi_id in number
    ) return varchar2;
 
+   procedure archive_rjd_movement (
+      p_report_dt      in date,
+      p_type_reference in varchar2
+   );
+
    procedure parse_rjd_excel (
       p_data in clob
    );

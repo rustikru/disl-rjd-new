@@ -501,26 +501,107 @@ as
         return;
     end get_kpi_row;
 
+    procedure archive_rjd_movement (p_report_dt        in date,
+                                    p_type_reference   in varchar2)
+    is
+        l_organization_id   number := get_organization_id ();
+        l_row               xx_rjd_dislocation_archive%rowtype;
+        l_exists            number;
+    begin
+        if p_report_dt is null or TRIM (p_type_reference) is null
+        then
+            raise_application_error (-20031,
+                                     'Не заданы параметры архива движения');
+        end if;
+
+        if TRIM (p_type_reference) != 'Отправка'
+        then
+            return;
+        end if;
+
+        -- Параллельные загрузки не должны создавать одинаковые состояния.
+        lock table xx_rjd_dislocation_archive in share row exclusive mode;
+
+        for c
+            in (select d.id
+                  from xx_dislocation_rjd d
+                 where     d.organization_id = l_organization_id
+                       and d.report_dt = p_report_dt
+                       and d.type_reference = TRIM (p_type_reference)
+                       and TRIM (d.wagon_no) is not null
+                 order by d.id)
+        loop
+            select *
+              into l_row
+              from xx_dislocation_rjd
+             where id = c.id;
+
+            select COUNT (*)
+              into l_exists
+              from xx_rjd_dislocation_archive a
+             where     a.organization_id = l_organization_id
+                   and a.type_reference = l_row.type_reference
+                   and a.wagon_no = l_row.wagon_no
+                   and DECODE (TRIM (a.waybill_no),
+                               TRIM (l_row.waybill_no), 1, 0) = 1
+                   and DECODE (TRIM (a.operation),
+                               TRIM (l_row.operation), 1, 0) = 1
+                   and DECODE (TRIM (a.oper_mnemonic),
+                               TRIM (l_row.oper_mnemonic), 1, 0) = 1
+                   and DECODE (a.oper_dt, l_row.oper_dt, 1, 0) = 1
+                   and DECODE (TRIM (a.oper_station),
+                               TRIM (l_row.oper_station), 1, 0) = 1
+                   and DECODE (TRIM (a.train_no),
+                               TRIM (l_row.train_no), 1, 0) = 1
+                   and DECODE (TRIM (a.train_index),
+                               TRIM (l_row.train_index), 1, 0) = 1;
+
+            if l_exists = 0
+            then
+                l_row.id := xx_rjd_disl_archive_seq.NEXTVAL;
+                insert into xx_rjd_dislocation_archive values l_row;
+            end if;
+        end loop;
+    end archive_rjd_movement;
+
     procedure parse_rjd_excel (p_data in clob)
     is
+        l_latest_report_dt   date;
     begin
         for c
-            in (           select distinct
-                                  TRUNC (TO_DATE (r.report_dt, 'YYYY-MM-DD HH24:MI:SS'))
-                                      as report_dt,
-                                  r.type_reference
-                             from XMLTABLE (
-                                      '/rjd/rjd_row'
-                                      passing xmltype (p_data)
-                                      columns report_dt         varchar2 (30) path '@report_dt',
-                                              type_reference    varchar2 (50) path '@type_reference')
-                                  r)
+            in (select distinct
+                       TO_DATE (r.report_dt, 'YYYY-MM-DD HH24:MI:SS') as report_dt,
+                       TRIM (r.type_reference) as type_reference
+                  from XMLTABLE (
+                           '/rjd/rjd_row'
+                           passing xmltype (p_data)
+                           columns report_dt      varchar2 (30) path '@report_dt',
+                                   type_reference varchar2 (50) path '@type_reference')
+                       r
+                 where TRIM (r.type_reference) is not null)
         loop
-            delete xx_dislocation_rjd
-             where     report_dt >= c.report_dt
-                   and report_dt < c.report_dt + 1
+            select MAX (report_dt)
+              into l_latest_report_dt
+              from xx_dislocation_rjd
+             where     report_dt >= TRUNC (c.report_dt)
+                   and report_dt < TRUNC (c.report_dt) + 1
                    and type_reference = c.type_reference
                    and organization_id = get_organization_id ();
+
+            if l_latest_report_dt is null or c.report_dt >= l_latest_report_dt
+            then
+                delete xx_dislocation_rjd
+                 where     report_dt >= TRUNC (c.report_dt)
+                       and report_dt < TRUNC (c.report_dt) + 1
+                       and type_reference = c.type_reference
+                       and organization_id = get_organization_id ();
+            else
+                -- Старая справка нужна только для пополнения архива.
+                delete xx_dislocation_rjd
+                 where     report_dt = c.report_dt
+                       and type_reference = c.type_reference
+                       and organization_id = get_organization_id ();
+            end if;
         end loop;
 
         insert into xx_dislocation_rjd (organization_id,
@@ -913,6 +994,49 @@ as
                                                  days_no_oper             varchar2 (4000) path '@days_no_oper',
                                                  days_no_move             varchar2 (4000) path '@days_no_move')
                                      r;
+
+        for c
+            in (select distinct
+                       TO_DATE (r.report_dt, 'YYYY-MM-DD HH24:MI:SS') as report_dt,
+                       TRIM (r.type_reference) as type_reference
+                  from XMLTABLE (
+                           '/rjd/rjd_row'
+                           passing xmltype (p_data)
+                           columns report_dt      varchar2 (30) path '@report_dt',
+                                   type_reference varchar2 (50) path '@type_reference')
+                       r)
+        loop
+            archive_rjd_movement (c.report_dt, c.type_reference);
+        end loop;
+
+        for c
+            in (select distinct
+                       TO_DATE (r.report_dt, 'YYYY-MM-DD HH24:MI:SS') as report_dt,
+                       TRIM (r.type_reference) as type_reference
+                  from XMLTABLE (
+                           '/rjd/rjd_row'
+                           passing xmltype (p_data)
+                           columns report_dt      varchar2 (30) path '@report_dt',
+                                   type_reference varchar2 (50) path '@type_reference')
+                       r
+                 where TRIM (r.type_reference) is not null)
+        loop
+            select MAX (report_dt)
+              into l_latest_report_dt
+              from xx_dislocation_rjd
+             where     report_dt >= TRUNC (c.report_dt)
+                   and report_dt < TRUNC (c.report_dt) + 1
+                   and type_reference = c.type_reference
+                   and organization_id = get_organization_id ();
+
+            if c.report_dt < l_latest_report_dt
+            then
+                delete xx_dislocation_rjd
+                 where     report_dt = c.report_dt
+                       and type_reference = c.type_reference
+                       and organization_id = get_organization_id ();
+            end if;
+        end loop;
 
         commit;
     end parse_rjd_excel;

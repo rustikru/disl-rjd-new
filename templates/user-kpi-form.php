@@ -197,6 +197,11 @@ if (!$conditions)
       <section class="ui-card user-kpi-section">
         <div class="ui-card-head">Условия отбора</div>
         <div class="ui-card-body">
+          <div class="ui-field"><label for="userKpiConditionOperator">И/ИЛИ</label><select
+              id="userKpiConditionOperator">
+              <option value="AND" <?= strtoupper((string) ($config['operator'] ?? 'AND')) !== 'OR' ? 'selected' : '' ?>>И</option>
+              <option value="OR" <?= strtoupper((string) ($config['operator'] ?? 'AND')) === 'OR' ? 'selected' : '' ?>>ИЛИ</option>
+            </select></div>
           <div id="userKpiConditions">
             <?php foreach ($conditions as $condition): ?>
               <div class="user-kpi-condition-row">

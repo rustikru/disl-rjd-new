@@ -30,9 +30,6 @@ final class WagonMovement
         $params = $filter['params'] + ['wagon_no' => $number, 'depart_station' => $trip['depart_station'], 'dest_station' => $trip['dest_station']];
         $where = $filter['sql'] . " AND TRIM(wagon_no) = :wagon_no AND oper_dt IS NOT NULL
                   AND TRIM(depart_station) = TRIM(:depart_station) AND TRIM(dest_station) = TRIM(:dest_station)";
-        if (empty($trip['depart_station']) || empty($trip['dest_station'])) {
-            return ['rows' => [], 'message' => 'Недостаточно данных о станциях текущего рейса.'];
-        }
         if (!empty($trip['trip_start_dt'])) {
             $params['trip_start'] = $trip['trip_start_dt'];
             $where .= " AND oper_dt >= TO_DATE(:trip_start, 'YYYY-MM-DD HH24:MI:SS')
@@ -49,8 +46,27 @@ final class WagonMovement
         $fields = implode(', ', WagonConfig::historyFields());
         $sourceFields = implode(', ', array_unique(array_merge(
             WagonConfig::historyFields(),
-            ['oper_mnemonic']
+            ['oper_mnemonic', 'oper_station_esr_code', 'report_dt', 'id']
         )));
+        $sources = [];
+        if (!empty($trip['depart_station']) && !empty($trip['dest_station'])) {
+            $sources[] = "SELECT $sourceFields FROM xx_dislocation_rjd WHERE $where";
+        }
+        if (!empty($trip['trip_start_dt'])
+            && !empty($trip['waybill_no'])
+            && trim($trip['waybill_no']) !== '0'
+        ) {
+            $archiveFilter = $this->organizations->filter('a');
+            $archiveWhere = $archiveFilter['sql']
+                . ' AND TRIM(a.wagon_no) = :wagon_no'
+                . ' AND TRIM(a.waybill_no) = :waybill'
+                . ' AND a.oper_dt IS NOT NULL'
+                . " AND TRUNC(a.oper_dt) >= TRUNC(TO_DATE(:trip_start, 'YYYY-MM-DD HH24:MI:SS'))";
+            $sources[] = "SELECT $sourceFields FROM xx_rjd_dislocation_archive a WHERE $archiveWhere";
+        }
+        if (!$sources) {
+            return ['rows' => [], 'trip' => $trip, 'message' => 'Недостаточно данных для определения операций текущего рейса.'];
+        }
         $rows = $this->db->fetchAll(
             "SELECT $fields
                FROM (SELECT $sourceFields,
@@ -59,10 +75,10 @@ final class WagonMovement
                                              LTRIM(TRIM(oper_station_esr_code), '0'), UPPER(TRIM(oper_station))
                                 ORDER BY report_dt DESC, id DESC
                             ) AS operation_row
-                       FROM xx_dislocation_rjd WHERE $where)
+                       FROM (" . implode(' UNION ALL ', $sources) . "))
               WHERE operation_row = 1 ORDER BY oper_dt, oper_station, operation",
             $params
         );
-        return ['rows' => $rows, 'trip' => $trip, 'message' => $rows ? '' : 'В сохранённых справках нет операций текущего рейса.'];
+        return ['rows' => $rows, 'trip' => $trip, 'message' => $rows ? '' : 'В сохранённых справках и архиве нет операций текущего рейса.'];
     }
 }

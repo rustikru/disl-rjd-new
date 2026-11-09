@@ -114,7 +114,7 @@
       label: $('#userKpiLabel').val().trim(),
       visibility: form.canSetGlobal ? $('#userKpiVisibility').val() : 'PRIVATE',
       config: {
-        operator: 'AND',
+        operator: $('#userKpiConditionOperator').val(),
         conditions: collectConditions(),
         detail: detail,
       },
