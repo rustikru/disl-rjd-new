@@ -213,6 +213,14 @@ $basePath = $basePath ?? '';
     }
     .report-download:hover { background:#f4edfc; border-color:var(--accent); }
     .report-download svg { width:14px; height:14px; fill:currentColor; }
+    .report-download .spin { display:none; }
+    .report-download.is-loading svg { display:none; }
+    .report-download.is-loading .spin { display:inline-block; }
+    .report-actions.is-downloading .report-download {
+      opacity:.55; cursor:not-allowed; pointer-events:none;
+    }
+    .report-actions.is-downloading .report-download.is-loading { opacity:1; }
+    .download-status { color:var(--accent); }
 
     .import-reports .data-table th,
     .import-reports .data-table td {
@@ -413,6 +421,7 @@ $basePath = $basePath ?? '';
           <div class="table-info">
             <span class="table-title">Загруженные справки</span>
             <span class="table-sub" id="reportsSub"></span>
+            <span class="table-sub download-status" id="downloadStatus" role="status" aria-live="polite"></span>
           </div>
         </div>
         <div class="table-scroll">
@@ -438,6 +447,7 @@ $basePath = $basePath ?? '';
           var tbody = document.getElementById('reportsTbody');
           var sentinel = document.getElementById('reportsSentinel');
           var sub = document.getElementById('reportsSub');
+          var downloadStatus = document.getElementById('downloadStatus');
           var canDelete = <?= !empty($canDelete) ? 'true' : 'false' ?>;
           var csrf = <?= json_encode($csrf ?? '', JSON_UNESCAPED_UNICODE) ?>;
           var base = <?= json_encode($basePath, JSON_UNESCAPED_UNICODE) ?>;
@@ -450,7 +460,7 @@ $basePath = $basePath ?? '';
               html += '<tr class="row-data"><td>' + (i + 1) + '</td>'
                 + '<td>' + esc(String((r.type_reference || '') + ' [' + (r.report_date || '') + ']')) + '</td>'
                 + '<td>' + esc(String(r.cnt || 0)) + '</td>';
-              html += '<td><div class="report-actions"><a class="report-download" href="' + attr(base + '/import/download?report_dt=' + encodeURIComponent(r.report_key || '') + '&type_reference=' + encodeURIComponent(r.type_reference || '')) + '" title="Скачать справку" aria-label="Скачать справку"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v10l3.5-3.5 1.4 1.4-5.9 5.9-5.9-5.9 1.4-1.4L11 13V3zM5 19h14v2H5v-2z"/></svg></a>';
+              html += '<td><div class="report-actions"><a class="report-download" href="' + attr(base + '/import/download?report_dt=' + encodeURIComponent(r.report_key || '') + '&type_reference=' + encodeURIComponent(r.type_reference || '')) + '" title="Скачать справку" aria-label="Скачать справку"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v10l3.5-3.5 1.4 1.4-5.9 5.9-5.9-5.9 1.4-1.4L11 13V3zM5 19h14v2H5v-2z"/></svg><span class="spin" aria-hidden="true"></span></a>';
               if (canDelete) {
                 html += '<form class="report-delete-form" method="post" action="' + attr(base + '/import/delete') + '" onsubmit="return confirm(\'Удалить выбранную справку и все её строки?\')">'
                   + '<input type="hidden" name="csrf_token" value="' + attr(csrf) + '">'
@@ -472,6 +482,66 @@ $basePath = $basePath ?? '';
           function attr(s) {
             return esc(String(s)).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
           }
+
+          function downloadFilename(response) {
+            var disposition = response.headers.get('Content-Disposition') || '';
+            var encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+            if (encoded) {
+              try { return decodeURIComponent(encoded[1]); } catch (e) { }
+            }
+            var plain = disposition.match(/filename="([^"]+)"/i);
+            return plain ? plain[1] : 'Справка_РЖД.xlsx';
+          }
+
+          tbody.addEventListener('click', function (event) {
+            var link = event.target.closest('.report-download');
+            if (!link) return;
+            event.preventDefault();
+            if (tbody.querySelector('.report-download.is-loading')) return;
+
+            var actions = tbody.querySelectorAll('.report-actions');
+            actions.forEach(function (item) { item.classList.add('is-downloading'); });
+            link.classList.add('is-loading');
+            link.setAttribute('aria-disabled', 'true');
+            link.setAttribute('title', 'Справка формируется');
+            downloadStatus.textContent = 'Формируется справка…';
+            var redirected = false;
+
+            fetch(link.href, { credentials: 'same-origin' })
+              .then(function (response) {
+                if (response.redirected) {
+                  redirected = true;
+                  window.location.assign(response.url);
+                  return null;
+                }
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.blob().then(function (blob) {
+                  return { blob: blob, filename: downloadFilename(response) };
+                });
+              })
+              .then(function (file) {
+                if (!file) return;
+                var url = URL.createObjectURL(file.blob);
+                var download = document.createElement('a');
+                download.href = url;
+                download.download = file.filename;
+                document.body.appendChild(download);
+                download.click();
+                download.remove();
+                setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+                downloadStatus.textContent = 'Справка сформирована и скачана.';
+              })
+              .catch(function () {
+                downloadStatus.textContent = 'Не удалось сформировать справку. Повторите попытку.';
+              })
+              .finally(function () {
+                if (redirected) return;
+                actions.forEach(function (item) { item.classList.remove('is-downloading'); });
+                link.classList.remove('is-loading');
+                link.removeAttribute('aria-disabled');
+                link.setAttribute('title', 'Скачать справку');
+              });
+          });
 
           var observer = new IntersectionObserver(function (entries) {
             if (entries[0].isIntersecting) loadMore();

@@ -103,9 +103,16 @@ $basePath = $basePath ?? '';
 
     var BASE = window.APP_BASE || '';
 
-    // Закрывает вкладку детализации.
+    // Вложенная детализация возвращается к предыдущей; первая закрывает вкладку.
     document.getElementById('backBtn').addEventListener('click', function (event) {
       event.preventDefault();
+      try {
+        var previous = new URL(document.referrer);
+        if (previous.origin === window.location.origin && previous.pathname === window.location.pathname) {
+          window.history.back();
+          return;
+        }
+      } catch (error) { }
       window.close();
       setTimeout(function () {
         if (!window.closed) window.location.replace(BASE + '/');
