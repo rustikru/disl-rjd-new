@@ -213,6 +213,11 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
         <div class="kpi-hidden-list" id="kpiHiddenList">Загрузка…</div>
       </dialog>
 
+      <dialog class="kpi-form-dialog" id="kpiFormDialog" aria-label="Создание KPI">
+        <button type="button" class="kpi-form-close" aria-label="Закрыть">×</button>
+        <iframe id="kpiFormFrame" title="Создание KPI"></iframe>
+      </dialog>
+
       <!-- Погрузка -->
       <div id="panel-loading" class="tab-panel">
         <div class="kpi-grid" id="loadingMetrics" style="margin-bottom:16px"></div>

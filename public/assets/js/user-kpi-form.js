@@ -114,7 +114,7 @@
       label: $('#userKpiLabel').val().trim(),
       visibility: form.canSetGlobal ? $('#userKpiVisibility').val() : 'PRIVATE',
       config: {
-        operator: $('#userKpiJoin').val(),
+        operator: 'AND',
         conditions: collectConditions(),
         detail: detail,
       },
@@ -128,6 +128,10 @@
       data: payload,
     })
       .done(function (result) {
+        if (form.modal && window.parent !== window) {
+          window.parent.postMessage({ type: 'kpi:saved' }, window.location.origin)
+          return
+        }
         window.location.href =
           (window.APP_BASE || '') + (result.redirect || '/')
       })
@@ -161,5 +165,12 @@
         addCondition()
     })
     $('#userKpiSave').on('click', save)
+    $('#userKpiCancel').on('click', function () {
+      if (form.modal && window.parent !== window) {
+        window.parent.postMessage({ type: 'kpi:cancel' }, window.location.origin)
+        return
+      }
+      window.location.href = (window.APP_BASE || '') + '/'
+    })
   })
 })(jQuery)

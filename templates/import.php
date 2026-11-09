@@ -168,6 +168,14 @@ $basePath = $basePath ?? '';
       font-size: 13px;
       color: #5c6370;
     }
+    .report-delete-form { display:flex; justify-content:flex-end; }
+    .report-delete {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:30px; height:30px; padding:0; border:1px solid var(--border);
+      border-radius:7px; background:var(--surface); color:var(--brand-neg); cursor:pointer;
+    }
+    .report-delete:hover { background:#fce8e8; border-color:var(--brand-neg); }
+    .report-delete svg { width:14px; height:14px; fill:currentColor; }
   </style>
 </head>
 
@@ -181,6 +189,9 @@ $basePath = $basePath ?? '';
 ?>
 
   <div class="import-wrap">
+    <?php if (!empty($_GET['error'])): ?><div class="alert alert-error"><?= nl2br(htmlspecialchars((string) $_GET['error'])) ?></div><?php endif; ?>
+    <?php if (!empty($_GET['warn'])): ?><div class="alert alert-warn"><?= nl2br(htmlspecialchars((string) $_GET['warn'])) ?></div><?php endif; ?>
+    <?php if (!empty($_GET['success'])): ?><div class="alert alert-ok"><?= nl2br(htmlspecialchars((string) $_GET['success'])) ?></div><?php endif; ?>
 
     <section class="table-section" style="margin-bottom:28px">
       <div class="table-toolbar">
@@ -346,6 +357,7 @@ $basePath = $basePath ?? '';
                 <th style="width:40px">#</th>
                 <th>Дата справки</th>
                 <th>Кол-во вагонов</th>
+                <?php if (!empty($canDelete)): ?><th style="width:48px"></th><?php endif; ?>
               </tr>
             </thead>
             <tbody id="reportsTbody"></tbody>
@@ -361,6 +373,9 @@ $basePath = $basePath ?? '';
           var tbody = document.getElementById('reportsTbody');
           var sentinel = document.getElementById('reportsSentinel');
           var sub = document.getElementById('reportsSub');
+          var canDelete = <?= !empty($canDelete) ? 'true' : 'false' ?>;
+          var csrf = <?= json_encode($csrf ?? '', JSON_UNESCAPED_UNICODE) ?>;
+          var base = <?= json_encode($basePath, JSON_UNESCAPED_UNICODE) ?>;
 
           function loadMore() {
             var next = Math.min(loaded + PAGE, data.length);
@@ -369,7 +384,15 @@ $basePath = $basePath ?? '';
               var r = data[i];
               html += '<tr class="row-data"><td>' + (i + 1) + '</td>'
                 + '<td>' + esc(String((r.type_reference || '') + ' [' + (r.report_date || '') + ']')) + '</td>'
-                + '<td>' + esc(String(r.cnt || 0)) + '</td></tr>';
+                + '<td>' + esc(String(r.cnt || 0)) + '</td>';
+              if (canDelete) {
+                html += '<td><form class="report-delete-form" method="post" action="' + attr(base + '/import/delete') + '" onsubmit="return confirm(\'Удалить выбранную справку и все её строки?\')">'
+                  + '<input type="hidden" name="csrf_token" value="' + attr(csrf) + '">'
+                  + '<input type="hidden" name="report_dt" value="' + attr(r.report_key || '') + '">'
+                  + '<input type="hidden" name="type_reference" value="' + attr(r.type_reference || '') + '">'
+                  + '<button class="report-delete" type="submit" title="Удалить справку" aria-label="Удалить справку"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l1 2h4v2H3V5h4l1-2zm-2 6h12l-1 12H7L6 9zm3 2v8h2v-8H9zm4 0v8h2v-8h-2z"/></svg></button></form></td>';
+              }
+              html += '</tr>';
             }
             tbody.insertAdjacentHTML('beforeend', html);
             loaded = next;
@@ -379,6 +402,9 @@ $basePath = $basePath ?? '';
 
           function esc(s) {
             return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          }
+          function attr(s) {
+            return esc(String(s)).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
           }
 
           var observer = new IntersectionObserver(function (entries) {

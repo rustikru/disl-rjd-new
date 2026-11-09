@@ -172,6 +172,9 @@ return function (App $app, array $config): void {
         $group->post('/import', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\ImportController($getDb(), $config))->handleUpload($req, $res);
         });
+        $group->post('/import/delete', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\ImportController($getDb(), $config))->deleteReference($req, $res);
+        });
 
         // карта
         $group->get('/maps', function ($req, $res) use ($getDb, $config) {
@@ -246,13 +249,13 @@ return function (App $app, array $config): void {
             return (new \App\Controllers\AdminController($getDb(), $config))->systemPage($req, $res);
         });
         $group->get('/admin/kpi', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\KpiAdminController($getDb(), $config))->page($req, $res);
+            return (new \App\Controllers\KpiController($getDb(), $config))->page($req, $res);
         });
         $group->post('/admin/kpi/save', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\KpiAdminController($getDb(), $config))->save($req, $res);
+            return (new \App\Controllers\KpiController($getDb(), $config))->save($req, $res);
         });
         $group->post('/admin/kpi/delete', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\KpiAdminController($getDb(), $config))->deleteUser($req, $res);
+            return (new \App\Controllers\KpiController($getDb(), $config))->deleteUser($req, $res);
         });
         $group->post('/admin/report-mailings/run', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\MailingController($getDb(), $config))->adminRun($req, $res);
@@ -466,22 +469,22 @@ return function (App $app, array $config): void {
                     return (new \App\Controllers\ApiController($getDb()))->kpiSummary($req, $res);
                 });
                 $sub->get('/user/catalog', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->userKpiCatalog($req, $res);
+                    return (new \App\Controllers\UserKpiController($getDb()))->catalog($req, $res);
                 });
                 $sub->post('/user', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->saveUserKpi($req, $res);
+                    return (new \App\Controllers\UserKpiController($getDb()))->save($req, $res);
                 });
                 $sub->delete('/user/{id:[0-9]+}', function ($req, $res, $args) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->deleteUserKpi($req, $res, (int) $args['id']);
+                    return (new \App\Controllers\UserKpiController($getDb()))->delete($req, $res, (int) $args['id']);
                 });
                 $sub->post('/card/{id:[0-9]+}/hide', function ($req, $res, $args) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->hideKpi($req, $res, (int) $args['id']);
+                    return (new \App\Controllers\UserKpiController($getDb()))->hide($req, $res, (int) $args['id']);
                 });
                 $sub->post('/card/{id:[0-9]+}/restore', function ($req, $res, $args) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->restoreKpi($req, $res, (int) $args['id']);
+                    return (new \App\Controllers\UserKpiController($getDb()))->restore($req, $res, (int) $args['id']);
                 });
                 $sub->get('/hidden', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->hiddenKpi($req, $res);
+                    return (new \App\Controllers\UserKpiController($getDb()))->hiddenList($req, $res);
                 });
             });
             // --- Экспорт виртуальной таблицы в Excel ---

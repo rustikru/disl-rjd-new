@@ -94,8 +94,7 @@ include __DIR__ . '/../partials/header.php';
                   <label class="option"><input type="checkbox" name="data_scope_ids[]" value="<?= (int) $dataScope['id'] ?>" <?= in_array((int) $dataScope['id'], $selectedScopeIds, true) ? 'checked' : '' ?>><?= htmlspecialchars($dataScope['name']) ?><?= (int) $dataScope['is_active'] ? '' : ' (отключена)' ?></label>
                 <?php endforeach; ?>
               </div>
-              <p class="ui-help">Можно назначить несколько областей. SUPER имеет полный доступ. Применение ограничений к отчётам подключается отдельно.</p>
-              <?php if (!$dataScopes): ?><p class="ui-help">Нет доступных областей. Создайте их в разделе «Области данных» после установки SQL-объектов.</p><?php endif; ?>
+              
             </div>
           </section>
         <?php endif; ?>

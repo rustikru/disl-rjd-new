@@ -8,6 +8,11 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
         ---------  ----------  ---------------  ------------------------------------
         1.0        15.06.2026  BekmansurovRR    1. Created this package.
      ******************************************************************************/
+   function get_organization_id return number is
+   begin
+      return to_number(sys_context('USERENV', 'CLIENT_IDENTIFIER'));
+   end get_organization_id;
+
    function fnc_mapping_wag_type (
       p_wag_name in varchar2
    ) return varchar2 is
@@ -190,7 +195,7 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
          select code
            into l_org_code
            from xx_rjd_organizations
-          where id = to_number(sys_context('USERENV', 'CLIENT_IDENTIFIER'));
+          where id = get_organization_id();
       exception
          when no_data_found then
             return '1=0';
@@ -216,9 +221,11 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
          elsif l_kpi.code = 'abandoned_trains' then
             return 'type_reference = ''Отправка'' AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
          elsif l_kpi.code = 'departed-today' then
-            return 'type_reference = ''Отправка'' AND asoup_depart_dt IS NOT NULL AND REGEXP_LIKE(UPPER(TRIM(depart_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRUNC(asoup_depart_dt) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
+            return 'type_reference = ''Отправка'' AND asoup_depart_dt IS NOT NULL AND UPPER(TRIM(depart_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(asoup_depart_dt) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
          elsif l_kpi.code = 'departed-yesterday' then
-            return 'type_reference = ''Отправка'' AND asoup_depart_dt IS NOT NULL AND REGEXP_LIKE(UPPER(TRIM(depart_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRUNC(asoup_depart_dt) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1';
+            return 'type_reference = ''Отправка'' AND asoup_depart_dt IS NOT NULL AND UPPER(TRIM(depart_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(asoup_depart_dt) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1';
+         elsif l_kpi.code = 'loaded-wagons' then
+            return 'type_reference = ''Отправка'' AND UPPER(TRIM(depart_station)) LIKE ''%УГЛ%768207%'' AND dist_remain_km > 0 AND NVL(cargo_weight_kg, 0) > CASE WHEN UPPER(NVL(wagon_type_code, '' '')) LIKE ''%ПЛАТФОРМ%'' THEN 12000 ELSE 0 END';
          end if;
         -- KPI для страницы "Дислокация/Дашборд"
       elsif l_kpi.type = 'dashboard_kpi' then
@@ -227,11 +234,11 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
          elsif l_kpi.code = 'wag_others' then
             return 'xx_etw.xx_rjd_dislocation_new_pkg.fnc_mapping_wag_type(wagon_type_code) != ''ЦС''';
          elsif l_kpi.code = 'loaded_transit' then
-            return 'dest_station NOT LIKE ''%УГЛ%'' AND dest_station != oper_station AND cargo_weight_kg > 0';
+            return 'UPPER(TRIM(dest_station)) NOT LIKE ''%УГЛ%768207%'' AND dest_station != oper_station AND cargo_weight_kg > 0';
          elsif l_kpi.code = 'comming_to_ugl' then
-            return 'UPPER(dest_station) LIKE ''%УГЛ%'' AND oper_station != dest_station';
+            return 'UPPER(TRIM(dest_station)) LIKE ''%УГЛ%768207%'' AND oper_station != dest_station';
          elsif l_kpi.code = 'arrived_today_ugl' then
-            return 'UPPER(dest_station) LIKE ''%УГЛ%'' AND oper_station = dest_station AND TRUNC(oper_dt) = TRUNC(SYSDATE)';
+            return 'UPPER(TRIM(dest_station)) LIKE ''%УГЛ%768207%'' AND oper_station = dest_station AND TRUNC(oper_dt) = TRUNC(SYSDATE)';
          end if;
         -- KPI для страницы "Подход вагонов"
       elsif l_kpi.type = 'approach_kpi' then
@@ -249,9 +256,9 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
          elsif l_kpi.code = 'formed_trains' then
             return 'type_reference = ''Подход'' AND (REGEXP_SUBSTR(TRIM(train_index), ''^[0-9]+'') LIKE ''%68207'' OR UPPER(train_index) LIKE ''%УГЛЕУРАЛЬСКАЯ%'' OR UPPER(train_index) LIKE ''%БЕРЕЗНИКИ%'' OR UPPER(train_index) LIKE ''%КИЗЕЛ%'' OR UPPER(train_index) LIKE ''%ЗАЯЧЬЯ ГОРКА%'')';
          elsif l_kpi.code = 'arrived-today' then
-            return 'type_reference = ''Подход'' AND NVL(asoup_arrive_dt, trip_end_dt) IS NOT NULL AND REGEXP_LIKE(UPPER(TRIM(dest_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRUNC(NVL(asoup_arrive_dt, trip_end_dt)) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
+            return 'type_reference = ''Подход'' AND NVL(asoup_arrive_dt, trip_end_dt) IS NOT NULL AND UPPER(TRIM(dest_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(NVL(asoup_arrive_dt, trip_end_dt)) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
          elsif l_kpi.code = 'arrived-yesterday' then
-            return 'type_reference = ''Подход'' AND NVL(asoup_arrive_dt, trip_end_dt) IS NOT NULL AND REGEXP_LIKE(UPPER(TRIM(dest_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRUNC(NVL(asoup_arrive_dt, trip_end_dt)) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1';
+            return 'type_reference = ''Подход'' AND NVL(asoup_arrive_dt, trip_end_dt) IS NOT NULL AND UPPER(TRIM(dest_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(NVL(asoup_arrive_dt, trip_end_dt)) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1';
          end if;
       end if;
 
@@ -267,7 +274,7 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
       execute immediate
          'SELECT 1 FROM xx_dislocation_rjd'
          || ' WHERE id = :id'
-         || ' AND organization_id = TO_NUMBER(SYS_CONTEXT(''USERENV'', ''CLIENT_IDENTIFIER''))'
+         || ' AND organization_id = XX_RJD_DISLOCATION_NEW_PKG.GET_ORGANIZATION_ID()'
          || ' AND ' || get_kpi_where(p_kpi_id)
         into l_dummy
          using p_disl_rjd_id;
@@ -304,11 +311,11 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
       if p_date is null then
             -- Текущие данные (последний report_dt по каждому type_reference)
          l_sql := 'SELECT ' || l_count_expr || ' FROM xx_dislocation_rjd'
-                  || ' WHERE organization_id = TO_NUMBER(SYS_CONTEXT(''USERENV'', ''CLIENT_IDENTIFIER''))'
+                  || ' WHERE organization_id = XX_RJD_DISLOCATION_NEW_PKG.GET_ORGANIZATION_ID()'
                   || ' AND (report_dt, type_reference) IN ('
                   || '   SELECT MAX(report_dt), type_reference'
                   || '   FROM xx_dislocation_rjd'
-                  || '   WHERE organization_id = TO_NUMBER(SYS_CONTEXT(''USERENV'', ''CLIENT_IDENTIFIER''))'
+                  || '   WHERE organization_id = XX_RJD_DISLOCATION_NEW_PKG.GET_ORGANIZATION_ID()'
                   || '   GROUP BY type_reference'
                   || ' ) AND '
                   || l_kpi_where;
@@ -319,11 +326,11 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
             
             -- Последняя максимальная справка за вчера
          l_sql := 'SELECT ' || l_count_expr || ' FROM xx_dislocation_rjd'
-                  || ' WHERE organization_id = TO_NUMBER(SYS_CONTEXT(''USERENV'', ''CLIENT_IDENTIFIER''))'
+                  || ' WHERE organization_id = XX_RJD_DISLOCATION_NEW_PKG.GET_ORGANIZATION_ID()'
                   || ' AND (report_dt, type_reference) IN ('
                   || '   SELECT MAX(report_dt), type_reference'
                   || '     FROM xx_dislocation_rjd'
-                  || '    WHERE organization_id = TO_NUMBER(SYS_CONTEXT(''USERENV'', ''CLIENT_IDENTIFIER''))'
+                  || '    WHERE organization_id = XX_RJD_DISLOCATION_NEW_PKG.GET_ORGANIZATION_ID()'
                   || '      AND report_dt >= TRUNC(:d1)'
                   || '      AND report_dt <  TRUNC(:d2) + 1'
                   || '    GROUP BY type_reference'
@@ -483,7 +490,7 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
           where report_dt >= c.report_dt
             and report_dt < c.report_dt + 1
             and type_reference = c.type_reference
-            and organization_id = to_number(sys_context('USERENV', 'CLIENT_IDENTIFIER'));
+            and organization_id = get_organization_id();
       end loop;
 
       insert into xx_dislocation_rjd (
@@ -617,7 +624,7 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
          days_no_oper,
          days_no_move
       )
-         select to_number(sys_context('USERENV', 'CLIENT_IDENTIFIER')),
+         select get_organization_id(),
                 to_date(r.report_dt,
         'YYYY-MM-DD HH24:MI:SS'),
                 r.type_reference,
@@ -899,6 +906,21 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
       commit;
    end parse_rjd_excel;
 
+   procedure delete_reference (
+      p_report_dt      in date,
+      p_type_reference in varchar2
+   ) is
+   begin
+      if p_report_dt is null or trim(p_type_reference) is null then
+         raise_application_error(-20030, 'Не заданы параметры удаляемой справки');
+      end if;
+
+      delete from xx_dislocation_rjd
+       where organization_id = get_organization_id()
+         and report_dt = p_report_dt
+         and type_reference = trim(p_type_reference);
+   end delete_reference;
+
    procedure get_rjd_excel_file (
       p_directory in varchar2,
       p_file_name out varchar2,
@@ -1083,7 +1105,7 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
          on rs.esr_code = xdr.oper_station_esr_code
           where xdr.oper_station_esr_code is not null
             and xdr.organization_id =
-                to_number(sys_context('USERENV', 'CLIENT_IDENTIFIER'))
+                get_organization_id()
             and xdr.type_reference in ( 'Подход',
                                         'Отправка' )
             and xdr.report_dt = (

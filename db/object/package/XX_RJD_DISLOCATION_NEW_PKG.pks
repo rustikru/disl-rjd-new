@@ -12,6 +12,8 @@ create or replace package xx_rjd_dislocation_new_pkg as
       p_wag_name in varchar2
    ) return varchar2;
 
+   function get_organization_id return number;
+
    function fnc_get_downtime_wagon (
       p_downtime in number,
       p_type     in varchar2 default 'name'
@@ -50,6 +52,11 @@ create or replace package xx_rjd_dislocation_new_pkg as
 
    procedure parse_rjd_excel (
       p_data in clob
+   );
+
+   procedure delete_reference (
+      p_report_dt      in date,
+      p_type_reference in varchar2
    );
 
    procedure get_rjd_excel_file (

@@ -14,7 +14,23 @@
       encodeURIComponent(type)
     if (id) url += '&id=' + encodeURIComponent(id)
     if (admin) url += '&admin=1'
+    if (!id) {
+      var dialog = document.getElementById('kpiFormDialog')
+      var frame = document.getElementById('kpiFormFrame')
+      if (dialog && frame && typeof dialog.showModal === 'function') {
+        frame.src = url + '&modal=1'
+        dialog.showModal()
+        return
+      }
+    }
     window.location.href = url
+  }
+
+  function closeCreateForm() {
+    var dialog = document.getElementById('kpiFormDialog')
+    var frame = document.getElementById('kpiFormFrame')
+    if (dialog && dialog.open) dialog.close()
+    if (frame) frame.removeAttribute('src')
   }
 
   function initBoard(board) {
@@ -141,6 +157,20 @@
           window.alert((xhr.responseJSON && xhr.responseJSON.error) || 'Не удалось вернуть KPI')
           $(button).prop('disabled', false)
         })
+    })
+    $(document).on('click', '.kpi-form-close', closeCreateForm)
+    $('#kpiFormDialog').on('click', function (event) {
+      if (event.target === this) closeCreateForm()
+    })
+    $('#kpiFormDialog').on('cancel', function () {
+      var frame = document.getElementById('kpiFormFrame')
+      if (frame) frame.removeAttribute('src')
+    })
+    window.addEventListener('message', function (event) {
+      if (event.origin !== window.location.origin || !event.data) return
+      if (event.data.type !== 'kpi:saved' && event.data.type !== 'kpi:cancel') return
+      closeCreateForm()
+      if (event.data.type === 'kpi:saved' && typeof window.loadKPI === 'function') window.loadKPI()
     })
   })
 })(jQuery)

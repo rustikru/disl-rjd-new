@@ -3,10 +3,11 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Logging\ErrorLogger;
 use App\Services\AuditLog;
-
 use App\Database\DbInterface;
 use App\Reports\ReportConfig;
+use App\Services\Authorization;
 use App\Services\Organizations;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -87,7 +88,9 @@ class ImportController
     {
         $filter = $this->organizations->filter();
         $reports = $this->db->fetchAll(
-            "SELECT to_char((report_dt),'DD.MM.YYYY HH24:MI:SS') AS report_date, type_reference, COUNT(*) AS cnt
+            "SELECT to_char((report_dt),'DD.MM.YYYY HH24:MI:SS') AS report_date,
+                    to_char((report_dt),'YYYY-MM-DD HH24:MI:SS') AS report_key,
+                    type_reference, COUNT(*) AS cnt
              FROM xx_dislocation_rjd
              WHERE {$filter['sql']}
              GROUP BY to_char((report_dt),'DD.MM.YYYY HH24:MI:SS'), (report_dt), type_reference
@@ -98,6 +101,8 @@ class ImportController
         $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
         $user     = $_SESSION['user'] ?? [];
+        $csrf = $_SESSION['csrf_token'] ?? '';
+        $canDelete = Authorization::isAdmin($user);
         $uploadLimit = ini_get('upload_max_filesize') ?: 'не задан';
         $postLimit   = ini_get('post_max_size') ?: 'не задан';
 
@@ -107,6 +112,53 @@ class ImportController
 
         $response->getBody()->write($html);
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    /** POST /import/delete */
+    public function deleteReference(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+        if (!Authorization::isAdmin()) return $response->withStatus(403);
+        if (empty($body['csrf_token']) || !hash_equals((string) ($_SESSION['csrf_token'] ?? ''), (string) $body['csrf_token'])) {
+            return $response->withStatus(403);
+        }
+        $reportDt = trim((string) ($body['report_dt'] ?? ''));
+        $type = trim((string) ($body['type_reference'] ?? ''));
+        $organizationId = $this->organizations->id();
+        if ($organizationId === null || !preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $reportDt)
+            || $type === '' || mb_strlen($type) > 50) {
+            return $this->redirect($response, '/import?error=' . rawurlencode('Некорректные параметры справки'));
+        }
+        try {
+            $row = $this->db->fetchOne(
+                "SELECT COUNT(*) AS cnt FROM xx_dislocation_rjd
+                  WHERE organization_id = :organization_id
+                    AND report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')
+                    AND type_reference = :type_reference",
+                ['organization_id' => $organizationId, 'report_dt' => $reportDt, 'type_reference' => $type]
+            );
+            $count = (int) ($row['cnt'] ?? 0);
+            if ($count < 1) return $this->redirect($response, '/import?warn=' . rawurlencode('Справка уже удалена'));
+            $this->db->execute(
+                "BEGIN XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.DELETE_REFERENCE(
+                    TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS'), :type_reference
+                ); END;",
+                ['report_dt' => $reportDt, 'type_reference' => $type]
+            );
+            (new AuditLog($this->db))->write(
+                'IMPORT_DELETE', 'REFERENCE', $type,
+                'Удалена справка: ' . $count . ' строк, дата ' . $reportDt
+            );
+        } catch (\Throwable $error) {
+            $code = ErrorLogger::logThrowable($error, [
+                'operation' => 'delete_import_reference',
+                'organization_id' => $organizationId,
+                'report_dt' => $reportDt,
+                'type_reference' => $type,
+            ], $request);
+            return $this->redirect($response, '/import?error=' . rawurlencode('Не удалось удалить справку. Код ошибки: ' . $code));
+        }
+        return $this->redirect($response, '/import?success=' . rawurlencode('Справка удалена'));
     }
 
     /** POST /import */

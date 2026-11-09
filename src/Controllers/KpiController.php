@@ -10,7 +10,7 @@ use App\Services\Authorization;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
-final class KpiAdminController
+final class KpiController
 {
     public function __construct(private DbInterface $db, private array $config = [])
     {

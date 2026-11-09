@@ -154,17 +154,21 @@ if (!$conditions)
   </style>
 </head>
 
-<body>
+<body class="<?= !empty($modalForm) ? 'user-kpi-modal-page' : '' ?>">
+  <?php if (empty($modalForm)): ?>
   <?php
   $headerSub = '<div class="brand-sub">' . htmlspecialchars($typeLabel) . '</div>';
   $headerLeft = '<a href="' . htmlspecialchars($basePath) . '/" class="btn-nav-back" title="На главную">←</a>';
   $headerRight = '';
   include __DIR__ . '/partials/header.php';
   ?>
+  <?php endif; ?>
   <div class="app-body">
     <main class="main-content ui-form-page user-kpi-form">
       <div class="ui-page-head ui-page-head--form">
+        <?php if (empty($modalForm)): ?>
         <a class="ui-back-link" href="<?= htmlspecialchars($basePath) ?>/">← К карточкам KPI</a>
+        <?php endif; ?>
         <h1><?= $edited ? 'Редактирование KPI' : 'Создание KPI' ?></h1>
       </div>
       <section class="ui-card user-kpi-section">
@@ -172,10 +176,6 @@ if (!$conditions)
         <div class="ui-card-body">
           <div class="ui-field"><label for="userKpiLabel">Название KPI</label><input id="userKpiLabel" maxlength="150"
               value="<?= htmlspecialchars((string) ($edited['label'] ?? '')) ?>" required></div>
-          <div class="ui-field"><label for="userKpiJoin">Объединять условия</label><select id="userKpiJoin">
-              <option value="AND" <?= ($config['operator'] ?? 'AND') === 'AND' ? 'selected' : '' ?>>И (AND)</option>
-              <option value="OR" <?= ($config['operator'] ?? '') === 'OR' ? 'selected' : '' ?>>ИЛИ (OR)</option>
-            </select></div>
           <?php if (!empty($canSetGlobal)): ?>
             <div class="ui-field"><label for="userKpiVisibility">Область видимости</label><select id="userKpiVisibility">
                 <option value="PRIVATE" <?= ($edited['visibility'] ?? 'PRIVATE') === 'PRIVATE' ? 'selected' : '' ?>>Личная</option>
@@ -232,14 +232,14 @@ if (!$conditions)
         </div>
       </section>
       <p id="userKpiError" class="user-kpi-error" role="alert"></p>
-      <div class="ui-form-actions"><a class="btn btn-ghost" href="<?= htmlspecialchars($basePath) ?>/">Отмена</a><button
+      <div class="ui-form-actions"><button type="button" class="btn btn-ghost" id="userKpiCancel">Отмена</button><button
           type="button" class="btn btn-primary" id="userKpiSave">Сохранить KPI</button></div>
     </main>
   </div>
   <script>
     window.APP_BASE = <?= json_encode($basePath, JSON_UNESCAPED_UNICODE) ?>;
     window.APP_CSRF = <?= json_encode($csrf, JSON_UNESCAPED_UNICODE) ?>;
-    window.USER_KPI_FORM = <?= json_encode(['type' => $type, 'id' => (int) ($edited['id'] ?? 0), 'admin' => !empty($adminEdit), 'canSetGlobal' => !empty($canSetGlobal), 'fields' => $fields], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
+    window.USER_KPI_FORM = <?= json_encode(['type' => $type, 'id' => (int) ($edited['id'] ?? 0), 'admin' => !empty($adminEdit), 'modal' => !empty($modalForm), 'canSetGlobal' => !empty($canSetGlobal), 'fields' => $fields], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
     window.USER_KPI_CONFIG = <?= json_encode($config, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
   </script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/jquery/jquery-3.7.1.min.js"></script>
