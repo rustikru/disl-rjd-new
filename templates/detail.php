@@ -214,13 +214,39 @@ $basePath = $basePath ?? '';
             var count = Number(row[section.key] || 0);
             html += '<a class="user-kpi-index-count" href="' + esc(countLinks(row, section)) + '" title="Открыть детализацию"><strong>' + count.toLocaleString('ru-RU') + '</strong><span>' + esc(section.label) + '</span></a>';
           });
-          html += '</div></div><div class="user-kpi-index-details" data-index="' + index + '" hidden><div class="user-kpi-group-wagon-grid">';
-          (config.fields || []).forEach(function (field) {
-            var multiple = Number(row[field.key + '_count'] || 0) > 1;
-            var fieldValue = multiple ? 'Несколько значений' : row[field.key];
-            html += '<div class="user-kpi-group-wagon-field"><span>' + esc(field.label) + '</span><strong>' + esc(fieldValue == null || fieldValue === '' ? '—' : fieldValue) + '</strong></div>';
-          });
-          html += '</div></div></article>';
+          html += '</div></div><div class="user-kpi-index-details" data-index="' + index + '" hidden>';
+          var indexGroups = Array.isArray(row.train_index_groups) ? row.train_index_groups : [];
+          if (indexGroups.length > 1) {
+            html += '<div class="user-kpi-train-indexes"><span class="user-kpi-train-indexes-label">Группы по индексу поезда</span><div class="user-kpi-train-index-list">';
+            indexGroups.forEach(function (group, groupIndex) {
+              var indexValue = group.value == null || group.value === '' ? 'Не указан' : group.value;
+              html += '<section class="user-kpi-train-index"><button type="button" class="user-kpi-train-index-toggle is-open" data-card-index="' + index + '" data-group-index="' + groupIndex + '" aria-expanded="true"><strong>' + esc(indexValue) + '</strong><span>' + Number(group.total || 0).toLocaleString('ru-RU') + ' ваг.</span></button>';
+              html += '<div class="user-kpi-train-index-details" data-card-index="' + index + '" data-group-index="' + groupIndex + '"><div class="user-kpi-group-wagon-grid">';
+              (config.fields || []).forEach(function (field) {
+                if (field.key === 'train_index') return;
+                var multiple = Number(group[field.key + '_count'] || 0) > 1;
+                var fieldValue = multiple ? 'Несколько значений' : group[field.key];
+                html += '<div class="user-kpi-group-wagon-field"><span>' + esc(field.label) + '</span><strong>' + esc(fieldValue == null || fieldValue === '' ? '—' : fieldValue) + '</strong></div>';
+              });
+              html += '</div></div></section>';
+            });
+            html += '</div></div>';
+          } else {
+            var detailRow = indexGroups.length === 1 ? indexGroups[0] : row;
+            html += '<div class="user-kpi-group-wagon-grid">';
+            (config.fields || []).forEach(function (field) {
+              var fieldValue;
+              if (field.key === 'train_index' && indexGroups.length === 1) {
+                fieldValue = detailRow.value;
+              } else {
+                var multiple = Number(detailRow[field.key + '_count'] || 0) > 1;
+                fieldValue = multiple ? 'Несколько значений' : detailRow[field.key];
+              }
+              html += '<div class="user-kpi-group-wagon-field"><span>' + esc(field.label) + '</span><strong>' + esc(fieldValue == null || fieldValue === '' ? '—' : fieldValue) + '</strong></div>';
+            });
+            html += '</div>';
+          }
+          html += '</div></article>';
         });
         if (!rows.length) html += '<div class="user-kpi-detail-empty">' + esc(config.empty_label || 'Нет данных') + '</div>';
         html += '</div></section></div>';
@@ -228,6 +254,14 @@ $basePath = $basePath ?? '';
         $('#detailTable').off('click.groupedKpi').on('click.groupedKpi', '.user-kpi-index-info', function () {
           var index = Number($(this).attr('data-index'));
           var $content = $('#detailTable .user-kpi-index-details[data-index="' + index + '"]');
+          var isOpen = !$content.prop('hidden');
+          $content.prop('hidden', isOpen);
+          $(this).attr('aria-expanded', isOpen ? 'false' : 'true').toggleClass('is-open', !isOpen);
+        });
+        $('#detailTable').on('click.groupedKpi', '.user-kpi-train-index-toggle', function () {
+          var cardIndex = Number($(this).attr('data-card-index'));
+          var groupIndex = Number($(this).attr('data-group-index'));
+          var $content = $('#detailTable .user-kpi-train-index-details[data-card-index="' + cardIndex + '"][data-group-index="' + groupIndex + '"]');
           var isOpen = !$content.prop('hidden');
           $content.prop('hidden', isOpen);
           $(this).attr('aria-expanded', isOpen ? 'false' : 'true').toggleClass('is-open', !isOpen);

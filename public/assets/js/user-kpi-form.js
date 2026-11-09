@@ -146,6 +146,36 @@
       })
   }
 
+  function removeKpi() {
+    if (
+      !form.id ||
+      !window.confirm('Удалить эту KPI-карточку без возможности восстановления?')
+    )
+      return
+    $('#userKpiError').text('')
+    $('#userKpiDelete, #userKpiSave').prop('disabled', true)
+    $.ajax({
+      url: (window.APP_BASE || '') + '/api/kpi/user/' + Number(form.id),
+      method: 'DELETE',
+      dataType: 'json',
+      data: { csrf_token: window.APP_CSRF || '' },
+    })
+      .done(function () {
+        if (form.modal && window.parent !== window) {
+          window.parent.postMessage({ type: 'kpi:deleted' }, window.location.origin)
+          return
+        }
+        window.location.href = (window.APP_BASE || '') + '/'
+      })
+      .fail(function (xhr) {
+        $('#userKpiError').text(
+          (xhr.responseJSON && xhr.responseJSON.error) ||
+            'Не удалось удалить KPI',
+        )
+        $('#userKpiDelete, #userKpiSave').prop('disabled', false)
+      })
+  }
+
   $(function () {
     $('#userKpiConditions .user-kpi-condition-row').each(function (index) {
       updateCondition($(this))
@@ -165,6 +195,7 @@
         addCondition()
     })
     $('#userKpiSave').on('click', save)
+    $('#userKpiDelete').on('click', removeKpi)
     $('#userKpiCancel').on('click', function () {
       if (form.modal && window.parent !== window) {
         window.parent.postMessage({ type: 'kpi:cancel' }, window.location.origin)

@@ -23,7 +23,7 @@ final class PageRegistry
         'wagon-card' => ['label' => 'Карточка вагона', 'routes' => ['/wagon', '/api/wagon/movement'], 'visibility_group' => 'Сайт — основные разделы'],
         'wagon-detail' => ['label' => 'Детализация по вагону', 'routes' => ['/detail'], 'visibility_group' => 'Сайт — основные разделы'],
         'maps' => ['label' => 'Карта', 'routes' => ['/maps'], 'visibility_group' => 'Сайт — основные разделы', 'navigation' => ['group' => 'analytics', 'order' => 90, 'url' => '/maps', 'target' => '_blank']],
-        'import' => ['label' => 'Загрузка справок', 'routes' => ['/import', '/api/import', '/bin/downloads_mail_rjd.php'], 'visibility_group' => 'Сайт — основные разделы', 'navigation' => ['group' => 'import', 'order' => 10, 'url' => '/import', 'label' => 'Загрузка справки РЖД']],
+        'import' => ['label' => 'Загрузка справок', 'routes' => ['/import', '/import/download', '/api/import', '/bin/downloads_mail_rjd.php'], 'visibility_group' => 'Сайт — основные разделы', 'navigation' => ['group' => 'import', 'order' => 10, 'url' => '/import', 'label' => 'Загрузка справки РЖД']],
         'directories' => [
             'label' => 'Справочники',
             'routes' => ['/directories'],
@@ -158,6 +158,9 @@ final class PageRegistry
     public static function availabilityKeysForPath(string $path, array $query = []): array
     {
         $path = '/' . ltrim($path, '/');
+        if ($path === '/api/dislocation/detail' && ($query['source_page'] ?? '') === 'maps') {
+            return self::availabilityKeys('maps');
+        }
         $keys = [];
         foreach (self::all() as $code => $definition) {
             foreach ((array) ($definition['routes'] ?? []) as $prefix) {

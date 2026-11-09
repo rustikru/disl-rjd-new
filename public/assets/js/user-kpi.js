@@ -14,14 +14,12 @@
       encodeURIComponent(type)
     if (id) url += '&id=' + encodeURIComponent(id)
     if (admin) url += '&admin=1'
-    if (!id) {
-      var dialog = document.getElementById('kpiFormDialog')
-      var frame = document.getElementById('kpiFormFrame')
-      if (dialog && frame && typeof dialog.showModal === 'function') {
-        frame.src = url + '&modal=1'
-        dialog.showModal()
-        return
-      }
+    var dialog = document.getElementById('kpiFormDialog')
+    var frame = document.getElementById('kpiFormFrame')
+    if (dialog && frame && typeof dialog.showModal === 'function') {
+      frame.src = url + '&modal=1'
+      dialog.showModal()
+      return
     }
     window.location.href = url
   }
@@ -58,7 +56,8 @@
       rows.map(function (row) {
         var page = row.page_code || ({ dashboard_kpi: 'dashboard', approach_kpi: 'approach', departue_kpi: 'departure', loading_kpi: 'loading' }[row.type] || '')
         var pageLabel = { dashboard: 'Дашборд', approach: 'Подход вагонов', departure: 'Отправление вагонов', loading: 'Погрузка' }[page] || 'KPI'
-        return '<div class="kpi-hidden-row"><div><strong>' + $('<div>').text(row.label || '').html() + '</strong><span>' + pageLabel + (row.is_system === 'Y' ? ' · Системная' : ' · Общая') + '</span></div><button type="button" class="btn btn-ghost btn-sm kpi-hidden-restore" data-kpi-id="' + Number(row.id) + '">Вернуть</button></div>'
+        var scope = row.is_system === 'Y' ? 'Системная' : row.visibility === 'PRIVATE' ? 'Личная' : 'Общая'
+        return '<div class="kpi-hidden-row"><div><strong>' + $('<div>').text(row.label || '').html() + '</strong><span>' + pageLabel + ' · ' + scope + '</span></div><button type="button" class="btn btn-ghost btn-sm kpi-hidden-restore" data-kpi-id="' + Number(row.id) + '">Вернуть</button></div>'
       }).join(''),
     )
   }
@@ -92,27 +91,6 @@
       })
       var type = $button.attr('data-kpi-type') || (board ? board.type : '')
       openForm(type, Number($button.data('kpi-id')), $button.data('kpi-admin') === 1)
-    })
-    $(document).on('click', '.kpi-user-delete', function (event) {
-      event.preventDefault()
-      event.stopPropagation()
-      var id = Number($(this).data('kpi-id'))
-      if (!id || !window.confirm('Удалить эту KPI-карточку?')) return
-      var button = this
-      $.ajax({
-        url: (window.APP_BASE || '') + '/api/kpi/user/' + id,
-        method: 'DELETE',
-        data: { csrf_token: window.APP_CSRF || '' },
-      })
-        .done(function () {
-          $(button).closest('.kpi-card').remove()
-        })
-        .fail(function (xhr) {
-          window.alert(
-            (xhr.responseJSON && xhr.responseJSON.error) ||
-              'Не удалось удалить KPI',
-          )
-        })
     })
     $(document).on('click', '.kpi-global-hide', function (event) {
       event.preventDefault()
@@ -168,9 +146,9 @@
     })
     window.addEventListener('message', function (event) {
       if (event.origin !== window.location.origin || !event.data) return
-      if (event.data.type !== 'kpi:saved' && event.data.type !== 'kpi:cancel') return
+      if (!['kpi:saved', 'kpi:deleted', 'kpi:cancel'].includes(event.data.type)) return
       closeCreateForm()
-      if (event.data.type === 'kpi:saved' && typeof window.loadKPI === 'function') window.loadKPI()
+      if (event.data.type !== 'kpi:cancel' && typeof window.loadKPI === 'function') window.loadKPI()
     })
   })
 })(jQuery)

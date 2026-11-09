@@ -5,6 +5,7 @@ namespace App\Services;
 
 use App\Controllers\ApiController;
 use App\Database\DbInterface;
+use App\ExcelExport;
 use App\Excel\ExcelStyle;
 use App\Reports\ReportConfig;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -196,24 +197,23 @@ final class MailingRun
         ?string $reportDate = null
     ): void
     {
+        if ($excelStyle === 'rjd-reference') {
+            ExcelExport::saveReference(
+                $filePath,
+                $columns,
+                $rows,
+                $reportName,
+                (string) $reportDate
+            );
+            return;
+        }
+
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheetTitle = str_replace(['\\', '/', '?', '*', '[', ']', ':'], '', $reportName);
         $sheet->setTitle(mb_substr($sheetTitle !== '' ? $sheetTitle : 'Отчёт', 0, 31));
-        $isReference = $excelStyle === 'rjd-reference';
-        $headerRow = $isReference ? 2 : 1;
+        $headerRow = 1;
         $dataRow = $headerRow + 1;
-
-        if ($isReference) {
-            $sheet->setCellValue('A1', $reportDate !== null && $reportDate !== '' ? 'Справка РЖД на ' : 'Справка РЖД');
-            if ($reportDate !== null && $reportDate !== '') {
-                $sheet->setCellValue('B1', $reportDate);
-            }
-            if ($reportDate !== null && $reportDate !== '' && count($columns) > 1) {
-                $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($columns));
-                $sheet->mergeCells('B1:' . $lastColumn . '1');
-            }
-        }
 
         foreach ($columns as $columnIndex => $column) {
             $sheet->setCellValue([$columnIndex + 1, $headerRow], $column['label'] ?? $column['key']);
@@ -230,11 +230,7 @@ final class MailingRun
             }
         }
 
-        if ($isReference) {
-            ExcelStyle::applyReferenceTable($sheet, count($columns));
-        } else {
-            ExcelStyle::applyDetailTable($sheet, count($columns));
-        }
+        ExcelStyle::applyDetailTable($sheet, count($columns));
         $writer = new Xlsx($spreadsheet);
         $writer->setPreCalculateFormulas(false);
         $writer->save($filePath);

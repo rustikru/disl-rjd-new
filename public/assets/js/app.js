@@ -2391,14 +2391,22 @@ function kpiCard(item) {
     : ''
   var valStr =
     typeof val === 'number' ? val.toLocaleString('ru-RU') : esc(String(val))
+  var valueLength = String(val).replace(/\s/g, '').length
+  var valueClass =
+    'kpi-value' +
+    (valueLength > 5
+      ? ' kpi-value--very-long'
+      : valueLength > 3
+        ? ' kpi-value--long'
+        : '')
   var actionHtml = ''
   if (item.canHide) {
     actionHtml =
       '<div class="kpi-user-actions">' +
-      (item.isGlobal && item.canEdit ? '<button type="button" class="kpi-user-edit" data-kpi-id="' + Number(item.id) + '" data-kpi-type="' + esc(item.type || '') + '" data-kpi-admin="1" aria-label="Редактировать KPI" title="Редактировать"><svg class="kpi-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5V20h3.5L18 9.5 14.5 6 4 16.5zM20.7 6.8a1 1 0 0 0 0-1.4l-2.1-2.1a1 1 0 0 0-1.4 0l-1.7 1.7 3.5 3.5 1.7-1.7z"/></svg></button>' : '') +
+      (item.canEdit ? '<button type="button" class="kpi-user-edit" data-kpi-id="' + Number(item.id) + '" data-kpi-type="' + esc(item.type || '') + '" data-kpi-admin="' + (item.isGlobal ? '1' : '0') + '" aria-label="Редактировать KPI" title="Редактировать"><svg class="kpi-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5V20h3.5L18 9.5 14.5 6 4 16.5zM20.7 6.8a1 1 0 0 0 0-1.4l-2.1-2.1a1 1 0 0 0-1.4 0l-1.7 1.7 3.5 3.5 1.7-1.7z"/></svg></button>' : '') +
       '<button type="button" class="kpi-global-hide" data-kpi-id="' + Number(item.id) + '" aria-label="Скрыть KPI" title="Скрыть"><svg class="kpi-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18-1.4 1.4-3.1-3.1A11.7 11.7 0 0 1 12 20C5 20 1 12 1 12a20 20 0 0 1 4.2-5.4L1.6 3 3 3zm4.3 5.7A6.8 6.8 0 0 0 3.3 12c1.2 1.8 4.2 6 8.7 6 1 0 2-.2 2.8-.5l-2-2A4 4 0 0 1 8.5 11l-1.2-1.3zM12 4c7 0 11 8 11 8a19 19 0 0 1-3.1 4.4L18.5 15a15.8 15.8 0 0 0 2.2-3c-1.2-1.8-4.2-6-8.7-6-.7 0-1.4.1-2 .2L8.4 4.6C9.5 4.2 10.7 4 12 4zm0 4a4 4 0 0 1 4 4v.3l-4.3-4.3h.3z"/></svg></button></div>'
   } else if (item.canEdit) {
-    actionHtml = '<div class="kpi-user-actions"><button type="button" class="kpi-user-edit" data-kpi-id="' + Number(item.id) + '" data-kpi-type="' + esc(item.type || '') + '" aria-label="Редактировать KPI" title="Редактировать"><svg class="kpi-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5V20h3.5L18 9.5 14.5 6 4 16.5zM20.7 6.8a1 1 0 0 0 0-1.4l-2.1-2.1a1 1 0 0 0-1.4 0l-1.7 1.7 3.5 3.5 1.7-1.7z"/></svg></button><button type="button" class="kpi-user-delete" data-kpi-id="' + Number(item.id) + '" aria-label="Удалить KPI" title="Удалить"><svg class="kpi-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l1 2h4v2H3V5h4l1-2zm-2 6h12l-1 12H7L6 9zm3 2v8h2v-8H9zm4 0v8h2v-8h-2z"/></svg></button></div>'
+    actionHtml = '<div class="kpi-user-actions"><button type="button" class="kpi-user-edit" data-kpi-id="' + Number(item.id) + '" data-kpi-type="' + esc(item.type || '') + '" aria-label="Редактировать KPI" title="Редактировать"><svg class="kpi-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5V20h3.5L18 9.5 14.5 6 4 16.5zM20.7 6.8a1 1 0 0 0 0-1.4l-2.1-2.1a1 1 0 0 0-1.4 0l-1.7 1.7 3.5 3.5 1.7-1.7z"/></svg></button><button type="button" class="kpi-global-hide" data-kpi-id="' + Number(item.id) + '" aria-label="Скрыть KPI" title="Скрыть"><svg class="kpi-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18-1.4 1.4-3.1-3.1A11.7 11.7 0 0 1 12 20C5 20 1 12 1 12a20 20 0 0 1 4.2-5.4L1.6 3 3 3zm4.3 5.7A6.8 6.8 0 0 0 3.3 12c1.2 1.8 4.2 6 8.7 6 1 0 2-.2 2.8-.5l-2-2A4 4 0 0 1 8.5 11l-1.2-1.3zM12 4c7 0 11 8 11 8a19 19 0 0 1-3.1 4.4L18.5 15a15.8 15.8 0 0 0 2.2-3c-1.2-1.8-4.2-6-8.7-6-.7 0-1.4.1-2 .2L8.4 4.6C9.5 4.2 10.7 4 12 4zm0 4a4 4 0 0 1 4 4v.3l-4.3-4.3h.3z"/></svg></button></div>'
   }
 
   if (item.variant === 'pill' || item.trend) {
@@ -2427,7 +2435,7 @@ function kpiCard(item) {
       '<div class="kpi-label">' +
       esc(item.label) +
       '</div>' +
-      '<div class="kpi-value-row"><span class="kpi-value">' +
+      '<div class="kpi-value-row"><span class="' + valueClass + '">' +
       valStr +
       '</span>' +
       badgeHtml +

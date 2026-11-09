@@ -262,13 +262,8 @@ final class ReportConfig
         foreach ($reports as $reportCode => &$reportDefinition) {
             $reportDefinition['page'] = $pageSettings[$reportCode] ?? [];
             $reportDefinition['navigation'] = $navigationSettings[$reportCode] ?? null;
-            $multipleFilters = in_array(
-                $reportDefinition['navigation']['group'] ?? '',
-                ['movement', 'analytics'],
-                true
-            );
             foreach ($reportDefinition['filters'] as &$filter) {
-                $filter['multiple'] = $multipleFilters && $filter['value_type'] === 'select';
+                $filter['multiple'] = $filter['value_type'] === 'select';
             }
             unset($filter);
             $reportDefinition['mailing_handler'] = $mailingHandlers[$reportCode] ?? null;

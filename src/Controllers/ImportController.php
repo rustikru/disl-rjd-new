@@ -114,6 +114,65 @@ class ImportController
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 
+    /** GET /import/download */
+    public function downloadReference(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $memoryLimit = trim((string) ($this->config['report_mail_memory_limit'] ?? ''));
+        if ($memoryLimit !== '') {
+            ini_set('memory_limit', $memoryLimit);
+        }
+
+        $params = $request->getQueryParams();
+        $reportDt = trim((string) ($params['report_dt'] ?? ''));
+        $type = trim((string) ($params['type_reference'] ?? ''));
+        $organizationId = $this->organizations->id();
+        if ($organizationId === null
+            || !preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $reportDt)
+            || !in_array($type, ['Подход', 'Отправка'], true)) {
+            return $this->redirect($response, '/import?error=' . rawurlencode('Некорректные параметры справки'));
+        }
+
+        try {
+            $columns = ReportConfig::sourceColumns();
+            $select = implode(', ', array_map(
+                static fn(array $column): string => strtoupper((string) $column['key']) . ' AS "' . $column['key'] . '"',
+                $columns
+            ));
+            $rows = $this->db->fetchAll(
+                "SELECT $select
+                   FROM xx_dislocation_rjd
+                  WHERE organization_id = :organization_id
+                    AND report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')
+                    AND type_reference = :type_reference
+                  ORDER BY wagon_no",
+                ['organization_id' => $organizationId, 'report_dt' => $reportDt, 'type_reference' => $type]
+            );
+            if (!$rows) {
+                return $this->redirect($response, '/import?warn=' . rawurlencode('Справка не найдена'));
+            }
+            $date = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $reportDt);
+            $dateLabel = $date ? $date->format('d.m.Y H:i:s') : $reportDt;
+            $fileDate = $date ? $date->format('Y-m-d_H-i-s') : date('Y-m-d_H-i-s');
+
+            return \App\ExcelExport::downloadReference(
+                $response,
+                $columns,
+                $rows,
+                'Справка РЖД - ' . $type,
+                $dateLabel,
+                'Справка_РЖД_' . $type . '_' . $fileDate
+            );
+        } catch (\Throwable $error) {
+            $code = ErrorLogger::logThrowable($error, [
+                'operation' => 'download_import_reference',
+                'organization_id' => $organizationId,
+                'report_dt' => $reportDt,
+                'type_reference' => $type,
+            ], $request);
+            return $this->redirect($response, '/import?error=' . rawurlencode('Не удалось сформировать справку. Код ошибки: ' . $code));
+        }
+    }
+
     /** POST /import/delete */
     public function deleteReference(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {

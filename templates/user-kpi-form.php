@@ -123,9 +123,19 @@ if (!$conditions)
 
     .user-kpi-form .ui-form-actions {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
       gap: 9px;
       padding-top: 4px
+    }
+
+    .user-kpi-main-actions {
+      display: flex;
+      gap: 9px;
+      margin-left: auto
+    }
+
+    .user-kpi-delete {
+      color: var(--brand-neg)
     }
 
     @media(max-width:700px) {
@@ -232,8 +242,11 @@ if (!$conditions)
         </div>
       </section>
       <p id="userKpiError" class="user-kpi-error" role="alert"></p>
-      <div class="ui-form-actions"><button type="button" class="btn btn-ghost" id="userKpiCancel">Отмена</button><button
-          type="button" class="btn btn-primary" id="userKpiSave">Сохранить KPI</button></div>
+      <div class="ui-form-actions">
+        <?php if ($edited): ?><button type="button" class="btn btn-ghost user-kpi-delete" id="userKpiDelete">Удалить KPI</button><?php endif; ?>
+        <div class="user-kpi-main-actions"><button type="button" class="btn btn-ghost" id="userKpiCancel">Отмена</button><button
+            type="button" class="btn btn-primary" id="userKpiSave">Сохранить KPI</button></div>
+      </div>
     </main>
   </div>
   <script>

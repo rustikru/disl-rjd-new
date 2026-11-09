@@ -54,11 +54,11 @@ CREATE OR REPLACE package body xx_rjd_dislocation_new_pkg as
       l_order_by number := 0;
       l_downtime number;
    begin
-      l_downtime := nvl(
-         p_downtime,
-         0
-      );
-      if l_downtime between 0 and 4 then
+      l_downtime := p_downtime;
+      if l_downtime is null then
+         l_name := 'Недостаточно данных о начале простоя';
+         l_order_by := 70;
+      elsif l_downtime between 0 and 4 then
          l_name := l_name || ' до 5 сут.';
          l_order_by := 10;
       elsif l_downtime between 5 and 6 then

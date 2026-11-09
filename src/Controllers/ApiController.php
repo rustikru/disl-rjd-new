@@ -182,11 +182,11 @@ class ApiController
                             DBMS_LOB.SUBSTR(k.where_config, 3500, 1) AS where_config
                        FROM XX_ETW.XX_RJD_KPI_TBL k
                       WHERE k.is_system = 'N' AND k.is_active = 'Y' AND k.type = :type
-                        AND (k.owner_id = :owner_id AND k.visibility = 'PRIVATE'
-                             OR k.visibility = 'GLOBAL' AND NOT EXISTS (
-                                 SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h
-                                  WHERE h.user_id = :hidden_user_id AND h.kpi_id = k.id
-                             ))
+                        AND (k.owner_id = :owner_id AND k.visibility = 'PRIVATE' OR k.visibility = 'GLOBAL')
+                        AND NOT EXISTS (
+                            SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h
+                             WHERE h.user_id = :hidden_user_id AND h.kpi_id = k.id
+                        )
                       ORDER BY order_by, id",
                     ['owner_id' => $userId, 'hidden_user_id' => $userId, 'type' => $kpiType]
                 );
@@ -274,7 +274,7 @@ class ApiController
                 'is_user' => $r['is_user'] ?? 'N',
                 'is_global' => $r['is_global'] ?? 'N',
                 'can_edit' => $r['can_edit'] ?? 'N',
-                'can_hide' => (($r['is_global'] ?? 'N') === 'Y' || ($r['is_user'] ?? 'N') !== 'Y') ? 'Y' : 'N',
+                'can_hide' => 'Y',
                 'config' => $r['config'] ?? null,
             ];
         }
@@ -428,11 +428,11 @@ class ApiController
             $userKpi = $this->db->fetchOne(
                 "SELECT k.id, k.type, k.code, k.label, DBMS_LOB.SUBSTR(k.where_config, 3500, 1) AS where_config FROM XX_ETW.XX_RJD_KPI_TBL k
                   WHERE k.id = :kpi_id AND k.is_system = 'N' AND k.is_active = 'Y'
-                    AND (k.owner_id = :owner_id AND k.visibility = 'PRIVATE'
-                         OR k.visibility = 'GLOBAL' AND NOT EXISTS (
-                             SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h
-                              WHERE h.user_id = :hidden_user_id AND h.kpi_id = k.id
-                         ))",
+                    AND (k.owner_id = :owner_id AND k.visibility = 'PRIVATE' OR k.visibility = 'GLOBAL')
+                    AND NOT EXISTS (
+                        SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h
+                         WHERE h.user_id = :hidden_user_id AND h.kpi_id = k.id
+                    )",
                 ['kpi_id' => (int) $kpiId, 'owner_id' => $userId, 'hidden_user_id' => $userId]
             );
             if ($userKpi) {
@@ -544,7 +544,9 @@ class ApiController
                 } else {
                     $select[] = "MIN($column) AS \"$key\"";
                 }
-                $select[] = "COUNT(DISTINCT $column) AS \"{$key}_count\"";
+                if (!in_array($key, ['oper_dt', 'trip_start_dt'], true)) {
+                    $select[] = "COUNT(DISTINCT $column) AS \"{$key}_count\"";
+                }
             }
             $rows = $this->db->fetchAll(
                 "SELECT " . implode(', ', $select) . "
@@ -554,6 +556,7 @@ class ApiController
                   ORDER BY $groupField",
                 $bindings
             );
+            $rows = $this->addTrainIndexGroups($rows, $detail, $groupField, $source['from'], $whereCond, $bindings);
 
             $summary = $this->db->fetchOne(
                 "SELECT COUNT(*) AS total,
@@ -639,12 +642,15 @@ class ApiController
                 } else {
                     $select[] = "MIN($column) AS \"$key\"";
                 }
-                $select[] = "COUNT(DISTINCT $column) AS \"{$key}_count\"";
+                if (!in_array($key, ['oper_dt', 'trip_start_dt'], true)) {
+                    $select[] = "COUNT(DISTINCT $column) AS \"{$key}_count\"";
+                }
             }
             $rows = $this->db->fetchAll(
                 "SELECT " . implode(', ', $select) . " FROM {$source['from']} xdr WHERE 1=1 $whereCond GROUP BY " . strtoupper($groupField) . " ORDER BY " . strtoupper($groupField) . " ASC",
                 $bindings
             );
+            $rows = $this->addTrainIndexGroups($rows, $template, strtoupper($groupField), $source['from'], $whereCond, $bindings);
             $summary = $this->db->fetchOne(
                 "SELECT COUNT(*) AS total,
                         SUM(CASE WHEN " . self::WAG_STATE . " = 'гр.' THEN 1 ELSE 0 END) AS loaded,
@@ -704,6 +710,63 @@ class ApiController
         $result = ['rows' => $rows];
         if ($userDetailConfig) $result['label'] = (string) ($kpi['label'] ?? 'Детализация KPI');
         return $this->json($response, $result);
+    }
+
+    private function addTrainIndexGroups(
+        array $rows,
+        array $config,
+        string $groupField,
+        string $from,
+        string $where,
+        array $bindings
+    ): array {
+        if ($groupField !== 'TRAIN_NO' || !$rows) {
+            return $rows;
+        }
+
+        $select = [
+            'TRAIN_NO AS "group_value"',
+            'TRAIN_INDEX AS "value"',
+            'COUNT(*) AS "total"',
+        ];
+        foreach ($config['fields'] as $field) {
+            $key = $field['key'];
+            if ($key === 'train_index') {
+                continue;
+            }
+            $column = strtoupper($key);
+            if (in_array($key, ['oper_dt', 'trip_start_dt'], true)) {
+                $select[] = "TO_CHAR(MIN($column), 'DD.MM.YYYY HH24:MI') AS \"$key\"";
+            } else {
+                $select[] = "MIN($column) AS \"$key\"";
+            }
+            if (!in_array($key, ['oper_dt', 'trip_start_dt'], true)) {
+                $select[] = "COUNT(DISTINCT $column) AS \"{$key}_count\"";
+            }
+        }
+
+        $indexRows = $this->db->fetchAll(
+            "SELECT " . implode(', ', $select) . "
+               FROM $from xdr
+              WHERE 1=1 $where
+              GROUP BY TRAIN_NO, TRAIN_INDEX
+              ORDER BY TRAIN_NO, TRAIN_INDEX",
+            $bindings
+        );
+        $groups = [];
+        foreach ($indexRows as $indexRow) {
+            $key = $indexRow['group_value'] === null ? "\0" : (string) $indexRow['group_value'];
+            unset($indexRow['group_value']);
+            $indexRow['total'] = (int) ($indexRow['total'] ?? 0);
+            $groups[$key][] = $indexRow;
+        }
+        foreach ($rows as &$row) {
+            $key = $row['group_value'] === null ? "\0" : (string) $row['group_value'];
+            $row['train_index_groups'] = $groups[$key] ?? [];
+        }
+        unset($row);
+
+        return $rows;
     }
 
     /** GET /api/approach/filters */
@@ -1455,11 +1518,12 @@ class ApiController
         $whereCond .= " AND TRIM(wagon_no) NOT LIKE '0%'"
             . " AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), '[[:space:]]+', ' ')), ' ')
                    NOT LIKE '%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%'";
-        $destStation = trim($params['dest_station'] ?? '');
-        if ($destStation !== '') {
-            $whereCond .= ' AND dest_station = :dest_station';
-            $bindings['dest_station'] = $destStation;
-        }
+        $whereCond .= $this->multiValueCondition(
+            'dest_station',
+            $params['dest_station'] ?? null,
+            'downtime_dest_station',
+            $bindings
+        );
         $bindings['idle_fact_date'] = (new \DateTimeImmutable('now'))->format('Y-m-d');
         $from = "(SELECT xdr.*,
                          CASE WHEN trip_end_dt IS NOT NULL
@@ -1478,24 +1542,12 @@ class ApiController
             $bindings['max_days'] = (int) $params['max_days'];
         }
         $from = "(SELECT idle_data.*,
-                         CASE
-                             WHEN station_idle_days IS NULL THEN 'Недостаточно данных о начале простоя'
-                             WHEN station_idle_days < 5 THEN 'простой до 5 сут.'
-                             WHEN station_idle_days < 7 THEN 'простой от 5 до 7 сут.'
-                             WHEN station_idle_days < 10 THEN 'простой от 7 до 10 сут.'
-                             WHEN station_idle_days < 20 THEN 'простой от 10 до 20 сут.'
-                             WHEN station_idle_days < 30 THEN 'простой от 20 до 30 сут.'
-                             ELSE 'простой от 30 и более'
-                         END AS idle_time_name,
-                         CASE
-                             WHEN station_idle_days IS NULL THEN 7
-                             WHEN station_idle_days < 5 THEN 1
-                             WHEN station_idle_days < 7 THEN 2
-                             WHEN station_idle_days < 10 THEN 3
-                             WHEN station_idle_days < 20 THEN 4
-                             WHEN station_idle_days < 30 THEN 5
-                             ELSE 6
-                         END AS idle_time_order_by,
+                         XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_GET_DOWNTIME_WAGON(
+                             station_idle_days, 'name'
+                         ) AS idle_time_name,
+                         TO_NUMBER(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_GET_DOWNTIME_WAGON(
+                             station_idle_days, 'order_by'
+                         )) AS idle_time_order_by,
                          " . self::WAG_TYPE_EXPR . " AS m_wagon_type_code,
                          " . self::WAG_STATE . " AS m_wag_state,
                          'Кол-во' AS fixed_col_label

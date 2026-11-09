@@ -162,10 +162,13 @@ final class UserKpiController
             return $this->json($response->withStatus(403), ['error' => 'Ошибка проверки запроса']);
         }
         $userId = (int) ($_SESSION['user']['id'] ?? 0);
+        $isSuper = Authorization::isSuper();
         try {
             $count = $this->db->execute(
-                "DELETE FROM XX_ETW.XX_RJD_KPI_TBL WHERE id = :id AND owner_id = :owner_id AND is_system = 'N' AND visibility = 'PRIVATE'",
-                ['id' => $id, 'owner_id' => $userId]
+                "DELETE FROM XX_ETW.XX_RJD_KPI_TBL WHERE id = :id AND "
+                    . ($isSuper ? "1=1" : "owner_id = :owner_id AND visibility = 'PRIVATE'")
+                    . " AND is_system = 'N'",
+                $isSuper ? ['id' => $id] : ['id' => $id, 'owner_id' => $userId]
             );
             return $this->json($response, ['success' => $count > 0]);
         } catch (\Throwable $error) {
@@ -228,8 +231,8 @@ final class UserKpiController
             $kpi = $this->db->fetchOne(
                 "SELECT id, type, page_code FROM XX_ETW.XX_RJD_KPI_TBL
                   WHERE id = :id AND is_active = 'Y'
-                    AND (is_system = 'Y' OR visibility = 'GLOBAL')",
-                ['id' => $id]
+                    AND (is_system = 'Y' OR visibility = 'GLOBAL' OR owner_id = :owner_id)",
+                ['id' => $id, 'owner_id' => $userId]
             );
             if (!$kpi) return $this->json($response->withStatus(404), ['error' => 'KPI-карточка не найдена']);
             $allowedPages = PageRegistry::forUser(
@@ -268,14 +271,14 @@ final class UserKpiController
     private function hiddenRows(int $userId): array
     {
         $rows = $this->db->fetchAll(
-            "SELECT k.id, k.label, k.page_code, k.type, k.is_system
+            "SELECT k.id, k.label, k.page_code, k.type, k.is_system, k.visibility
                FROM XX_ETW.XX_RJD_KPI_HIDDEN h
                JOIN XX_ETW.XX_RJD_KPI_TBL k ON k.id = h.kpi_id
               WHERE h.user_id = :user_id
                 AND k.is_active = 'Y'
-                AND (k.is_system = 'Y' OR k.visibility = 'GLOBAL')
+                AND (k.is_system = 'Y' OR k.visibility = 'GLOBAL' OR k.owner_id = :owner_id)
               ORDER BY k.page_code, k.order_by, k.id",
-            ['user_id' => $userId]
+            ['user_id' => $userId, 'owner_id' => $userId]
         );
         if (Authorization::isSuper()) return $rows;
 

@@ -16,9 +16,39 @@ $basePath = $basePath ?? '';
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
   <style>
     .import-wrap {
-      max-width: 760px;
-      margin: 36px auto;
-      padding: 0 20px;
+      max-width: 720px;
+      margin: 20px auto;
+      padding: 0 16px 24px;
+    }
+
+    .import-wrap .table-section {
+      margin-bottom: 16px;
+    }
+
+    .import-wrap .table-toolbar {
+      min-height: 48px;
+      padding: 10px 18px;
+    }
+
+    .import-upload-body {
+      padding: 14px 18px 16px;
+    }
+
+    .import-upload-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .import-file-field {
+      min-width: 0;
+    }
+
+    .import-upload-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
     .alert {
@@ -55,9 +85,9 @@ $basePath = $basePath ?? '';
 
     input[type=file] {
       display: block;
-      margin-top: 6px;
+      margin-top: 4px;
       width: 100%;
-      font-size: 14px;
+      font-size: 13px;
     }
 
     .btn-loading {
@@ -68,7 +98,7 @@ $basePath = $basePath ?? '';
 
     /* Список файлов */
     .file-list {
-      margin: 14px 0 0;
+      margin: 10px 0 0;
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -164,7 +194,6 @@ $basePath = $basePath ?? '';
     }
 
     .upload-summary {
-      margin-top: 14px;
       font-size: 13px;
       color: #5c6370;
     }
@@ -176,6 +205,41 @@ $basePath = $basePath ?? '';
     }
     .report-delete:hover { background:#fce8e8; border-color:var(--brand-neg); }
     .report-delete svg { width:14px; height:14px; fill:currentColor; }
+    .report-actions { display:flex; justify-content:flex-end; gap:5px; }
+    .report-download {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:30px; height:30px; padding:0; border:1px solid var(--border);
+      border-radius:7px; background:var(--surface); color:var(--accent); text-decoration:none;
+    }
+    .report-download:hover { background:#f4edfc; border-color:var(--accent); }
+    .report-download svg { width:14px; height:14px; fill:currentColor; }
+
+    .import-reports .data-table th,
+    .import-reports .data-table td {
+      height: 38px;
+      padding-top: 6px;
+      padding-bottom: 6px;
+    }
+
+    .import-report-number { width: 40px; }
+    .import-report-action { width: 82px; }
+    .reports-sentinel { height: 1px; }
+    .import-reports .data-table td:nth-child(2) { text-align: left; }
+    .import-reports .data-table td:nth-child(3) { text-align: right; }
+
+    @media (max-width: 620px) {
+      .import-wrap {
+        margin-top: 12px;
+        padding-inline: 10px;
+      }
+      .import-upload-row {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+      }
+      .import-upload-actions .btn {
+        width: 100%;
+      }
+    }
   </style>
 </head>
 
@@ -193,28 +257,29 @@ $basePath = $basePath ?? '';
     <?php if (!empty($_GET['warn'])): ?><div class="alert alert-warn"><?= nl2br(htmlspecialchars((string) $_GET['warn'])) ?></div><?php endif; ?>
     <?php if (!empty($_GET['success'])): ?><div class="alert alert-ok"><?= nl2br(htmlspecialchars((string) $_GET['success'])) ?></div><?php endif; ?>
 
-    <section class="table-section" style="margin-bottom:28px">
+    <section class="table-section">
       <div class="table-toolbar">
         <div class="table-info">
           <span class="table-title">Загрузка справки РЖД (.xlsx)</span>
         </div>
       </div>
-      <div style="padding:20px 24px">
-        <div style="margin-bottom:18px">
-          <label class="filter-label" for="xlsx_file">Файлы справок</label>
-          <input type="file" id="xlsx_file" accept=".xlsx" multiple>
-          <div class="upload-hint">
-            Поддерживаются файлы .xlsx. Лимиты PHP: файл до <?= htmlspecialchars($uploadLimit ?? 'не задан') ?>,
-            запрос до <?= htmlspecialchars($postLimit ?? 'не задан') ?>.
+      <div class="import-upload-body">
+        <div class="import-upload-row">
+          <div class="import-file-field">
+            <label class="filter-label" for="xlsx_file">Файлы справок</label>
+            <input type="file" id="xlsx_file" accept=".xlsx" multiple>
           </div>
+          <div class="import-upload-actions">
+            <button id="btnUpload" class="btn btn-primary" disabled>Загрузить</button>
+            <div class="upload-summary" id="uploadSummary"></div>
+          </div>
+        </div>
+        <div class="upload-hint">
+          Поддерживаются файлы .xlsx. Лимиты PHP: файл до <?= htmlspecialchars($uploadLimit ?? 'не задан') ?>,
+          запрос до <?= htmlspecialchars($postLimit ?? 'не задан') ?>.
         </div>
 
         <div class="file-list" id="fileList"></div>
-
-        <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
-          <button id="btnUpload" class="btn btn-primary" disabled>Загрузить</button>
-          <div class="upload-summary" id="uploadSummary"></div>
-        </div>
 
         <script>
           function goBack() {
@@ -343,7 +408,7 @@ $basePath = $basePath ?? '';
     </section>
 
     <?php if (!empty($reports)): ?>
-      <section class="table-section" id="reportsSection">
+      <section class="table-section import-reports" id="reportsSection">
         <div class="table-toolbar">
           <div class="table-info">
             <span class="table-title">Загруженные справки</span>
@@ -354,15 +419,15 @@ $basePath = $basePath ?? '';
           <table class="data-table">
             <thead>
               <tr>
-                <th style="width:40px">#</th>
+                <th class="import-report-number">#</th>
                 <th>Дата справки</th>
                 <th>Кол-во вагонов</th>
-                <?php if (!empty($canDelete)): ?><th style="width:48px"></th><?php endif; ?>
+                <th class="import-report-action"></th>
               </tr>
             </thead>
             <tbody id="reportsTbody"></tbody>
           </table>
-          <div id="reportsSentinel" style="height:1px"></div>
+          <div id="reportsSentinel" class="reports-sentinel"></div>
         </div>
       </section>
       <script>
@@ -385,14 +450,15 @@ $basePath = $basePath ?? '';
               html += '<tr class="row-data"><td>' + (i + 1) + '</td>'
                 + '<td>' + esc(String((r.type_reference || '') + ' [' + (r.report_date || '') + ']')) + '</td>'
                 + '<td>' + esc(String(r.cnt || 0)) + '</td>';
+              html += '<td><div class="report-actions"><a class="report-download" href="' + attr(base + '/import/download?report_dt=' + encodeURIComponent(r.report_key || '') + '&type_reference=' + encodeURIComponent(r.type_reference || '')) + '" title="Скачать справку" aria-label="Скачать справку"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v10l3.5-3.5 1.4 1.4-5.9 5.9-5.9-5.9 1.4-1.4L11 13V3zM5 19h14v2H5v-2z"/></svg></a>';
               if (canDelete) {
-                html += '<td><form class="report-delete-form" method="post" action="' + attr(base + '/import/delete') + '" onsubmit="return confirm(\'Удалить выбранную справку и все её строки?\')">'
+                html += '<form class="report-delete-form" method="post" action="' + attr(base + '/import/delete') + '" onsubmit="return confirm(\'Удалить выбранную справку и все её строки?\')">'
                   + '<input type="hidden" name="csrf_token" value="' + attr(csrf) + '">'
                   + '<input type="hidden" name="report_dt" value="' + attr(r.report_key || '') + '">'
                   + '<input type="hidden" name="type_reference" value="' + attr(r.type_reference || '') + '">'
-                  + '<button class="report-delete" type="submit" title="Удалить справку" aria-label="Удалить справку"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l1 2h4v2H3V5h4l1-2zm-2 6h12l-1 12H7L6 9zm3 2v8h2v-8H9zm4 0v8h2v-8h-2z"/></svg></button></form></td>';
+                  + '<button class="report-delete" type="submit" title="Удалить справку" aria-label="Удалить справку"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l1 2h4v2H3V5h4l1-2zm-2 6h12l-1 12H7L6 9zm3 2v8h2v-8H9zm4 0v8h2v-8h-2z"/></svg></button></form>';
               }
-              html += '</tr>';
+              html += '</div></td></tr>';
             }
             tbody.insertAdjacentHTML('beforeend', html);
             loaded = next;

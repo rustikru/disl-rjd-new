@@ -789,7 +789,7 @@ $canOpenDetail = \App\Services\Authorization::isSuper($user)
                     var wagonNumber = '<strong style="color: var(--primary); font-family: var(--mono); font-size: 12px;">' +
                         w.wagon_num + '</strong>';
                     if (window.APP_CAN_OPEN_DETAIL) {
-                        wagonNumber = '<a href="' + (window.APP_BASE || '') + '/detail?ctx=dislocation&wagon_no=' + encodeURIComponent(w.wagon_num) + '" target="_blank" title="Открыть детализацию по вагону">' +
+                        wagonNumber = '<a href="' + (window.APP_BASE || '') + '/detail?ctx=dislocation&source_page=maps&wagon_no=' + encodeURIComponent(w.wagon_num) + '" target="_blank" title="Открыть детализацию по вагону">' +
                             wagonNumber + '</a>';
                     }
                     return '<div style="border-bottom: 1px solid #e2e1e7; padding: 5px 0; font-size: 11px; line-height: 1.4;">' +

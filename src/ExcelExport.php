@@ -61,6 +61,70 @@ class ExcelExport
         return self::outputStream($response, $spreadsheet, $filename);
     }
 
+    /** Экспорт исходной справки РЖД в формате, используемом рассылкой. */
+    public static function downloadReference(
+        Response $response,
+        array $cols,
+        array $rows,
+        string $reportName,
+        string $reportDate,
+        string $filename
+    ): Response {
+        return self::outputStream(
+            $response,
+            self::referenceSpreadsheet($cols, $rows, $reportName, $reportDate),
+            $filename
+        );
+    }
+
+    public static function saveReference(
+        string $filePath,
+        array $cols,
+        array $rows,
+        string $reportName,
+        string $reportDate
+    ): void {
+        $spreadsheet = self::referenceSpreadsheet($cols, $rows, $reportName, $reportDate);
+        $writer = new Xlsx($spreadsheet);
+        $writer->setPreCalculateFormulas(false);
+        $writer->save($filePath);
+        $spreadsheet->disconnectWorksheets();
+    }
+
+    private static function referenceSpreadsheet(
+        array $cols,
+        array $rows,
+        string $reportName,
+        string $reportDate
+    ): Spreadsheet {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheetTitle = str_replace(['\\', '/', '?', '*', '[', ']', ':'], '', $reportName);
+        $sheet->setTitle(mb_substr($sheetTitle !== '' ? $sheetTitle : 'Справка РЖД', 0, 31));
+        $sheet->setCellValue('A1', 'Справка РЖД на ');
+        $sheet->setCellValue('B1', $reportDate);
+        if (count($cols) > 1) {
+            $lastColumn = Coordinate::stringFromColumnIndex(count($cols));
+            $sheet->mergeCells('B1:' . $lastColumn . '1');
+        }
+        foreach ($cols as $columnIndex => $column) {
+            $sheet->setCellValue([$columnIndex + 1, 2], $column['label'] ?? $column['key']);
+        }
+        foreach ($rows as $rowIndex => $row) {
+            foreach ($cols as $columnIndex => $column) {
+                ExcelStyle::setCellValue(
+                    $sheet,
+                    [$columnIndex + 1, $rowIndex + 3],
+                    $row[$column['key']] ?? '',
+                    $column
+                );
+            }
+        }
+        ExcelStyle::applyReferenceTable($sheet, count($cols));
+
+        return $spreadsheet;
+    }
+
     /**
      * Экспорт матричной таблицы с группировкой по дорогам и станциям.
      */
@@ -226,6 +290,7 @@ class ExcelExport
 
         $phpStream = fopen('php://temp', 'r+');
         $writer = new Xlsx($spreadsheet);
+        $writer->setPreCalculateFormulas(false);
         $writer->save($phpStream);
         rewind($phpStream);
 
