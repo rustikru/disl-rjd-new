@@ -166,18 +166,18 @@ if (!$conditions)
 
 <body class="<?= !empty($modalForm) ? 'user-kpi-modal-page' : '' ?>">
   <?php if (empty($modalForm)): ?>
-  <?php
-  $headerSub = '<div class="brand-sub">' . htmlspecialchars($typeLabel) . '</div>';
-  $headerLeft = '<a href="' . htmlspecialchars($basePath) . '/" class="btn-nav-back" title="На главную">←</a>';
-  $headerRight = '';
-  include __DIR__ . '/partials/header.php';
-  ?>
+    <?php
+    $headerSub = '<div class="brand-sub">' . htmlspecialchars($typeLabel) . '</div>';
+    $headerLeft = '<a href="' . htmlspecialchars($basePath) . '/" class="btn-nav-back" title="На главную">←</a>';
+    $headerRight = '';
+    include __DIR__ . '/partials/header.php';
+    ?>
   <?php endif; ?>
   <div class="app-body">
     <main class="main-content ui-form-page user-kpi-form">
       <div class="ui-page-head ui-page-head--form">
         <?php if (empty($modalForm)): ?>
-        <a class="ui-back-link" href="<?= htmlspecialchars($basePath) ?>/">← К карточкам KPI</a>
+          <a class="ui-back-link" href="<?= htmlspecialchars($basePath) ?>/">← К карточкам KPI</a>
         <?php endif; ?>
         <h1><?= $edited ? 'Редактирование KPI' : 'Создание KPI' ?></h1>
       </div>
@@ -216,13 +216,6 @@ if (!$conditions)
                       data-type="<?= htmlspecialchars($field['type']) ?>" <?= ($condition['field'] ?? '') === $field['key'] ? 'selected' : '' ?>><?= htmlspecialchars($field['label']) ?></option><?php endforeach; ?>
                 </select>
                 <select class="user-kpi-operator" aria-label="Оператор">
-                  <option value="=">Равно</option>
-                  <option value="!=">Не равно</option>
-                  <option value="LIKE">Содержит</option>
-                  <option value=">">Больше</option>
-                  <option value="<">Меньше</option>
-                  <option value=">=">Не меньше</option>
-                  <option value="<=">Не больше</option>
                 </select>
                 <input class="user-kpi-value" type="text" maxlength="200" placeholder="Значение"
                   value="<?= htmlspecialchars((string) ($condition['value'] ?? '')) ?>" required>
@@ -243,7 +236,7 @@ if (!$conditions)
                 <option value="<?= htmlspecialchars($code) ?>" <?= $detailChoice === $code ? 'selected' : '' ?>>
                   <?= htmlspecialchars($label) ?></option><?php endforeach; ?>
             </select></div>
-          
+
         </div>
       </section>
       <p id="userKpiError" class="user-kpi-error" role="alert"></p>
