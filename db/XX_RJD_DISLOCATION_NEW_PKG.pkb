@@ -401,6 +401,19 @@ as
             then
                 return 'type_reference = ''Подход'' AND NVL(asoup_arrive_dt, trip_end_dt) IS NOT NULL AND UPPER(TRIM(dest_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(NVL(asoup_arrive_dt, trip_end_dt)) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1';
             end if;
+        -- KPI для страницы "Погрузка"
+        elsif l_kpi.TYPE = 'loading_kpi'
+        then
+            if l_kpi.code = 'loading_today'
+            then
+                return 'type_reference = ''Отправка'' AND REGEXP_LIKE(UPPER(TRIM(depart_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRIM(wagon_no) NOT LIKE ''0%'' AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), ''[[:space:]]+'', '' '')), '' '') NOT LIKE ''%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%'' AND trip_start_dt >= TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) AND trip_start_dt < TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) + 1';
+            elsif l_kpi.code = 'loading_yesterday'
+            then
+                return 'type_reference = ''Отправка'' AND REGEXP_LIKE(UPPER(TRIM(depart_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRIM(wagon_no) NOT LIKE ''0%'' AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), ''[[:space:]]+'', '' '')), '' '') NOT LIKE ''%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%'' AND trip_start_dt >= TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1 AND trip_start_dt < TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
+            elsif l_kpi.code = 'loading_month'
+            then
+                return 'type_reference = ''Отправка'' AND REGEXP_LIKE(UPPER(TRIM(depart_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRIM(wagon_no) NOT LIKE ''0%'' AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), ''[[:space:]]+'', '' '')), '' '') NOT LIKE ''%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%'' AND trip_start_dt >= TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE), ''MM'') AND trip_start_dt < TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) + 1';
+            end if;
         end if;
 
         raise_application_error (-20001, 'Условие для KPI не определено.');
@@ -628,6 +641,7 @@ as
         l_count       pls_integer := 0;
         l_condition   varchar2 (4000);
         l_sql         varchar2 (32767);
+        l_report_where varchar2 (4000);
         l_cursor      integer;
         l_result      integer;
         l_number      number;
@@ -696,13 +710,38 @@ as
             return;
         end if;
 
+        if TRIM (p_kpi_type) = 'approach_kpi'
+        then
+            l_report_where :=
+                   ' AND type_reference = ''Подход'''
+                || ' AND report_dt = ('
+                || '   SELECT MAX(d.report_dt) FROM xx_dislocation_rjd d'
+                || '    WHERE d.organization_id = XX_RJD_DISLOCATION_NEW_PKG.GET_ORGANIZATION_ID()'
+                || '      AND d.type_reference = ''Подход'')';
+        elsif TRIM (p_kpi_type) in ('departue_kpi', 'loading_kpi')
+        then
+            l_report_where :=
+                   ' AND type_reference = ''Отправка'''
+                || ' AND report_dt = ('
+                || '   SELECT MAX(d.report_dt) FROM xx_dislocation_rjd d'
+                || '    WHERE d.organization_id = XX_RJD_DISLOCATION_NEW_PKG.GET_ORGANIZATION_ID()'
+                || '      AND d.type_reference = ''Отправка'')';
+        else
+            l_report_where :=
+                   ' AND ((type_reference = ''Подход'' AND report_dt = ('
+                || '   SELECT MAX(d.report_dt) FROM xx_dislocation_rjd d'
+                || '    WHERE d.organization_id = XX_RJD_DISLOCATION_NEW_PKG.GET_ORGANIZATION_ID()'
+                || '      AND d.type_reference = ''Подход''))'
+                || ' OR (type_reference = ''Отправка'' AND report_dt = ('
+                || '   SELECT MAX(d.report_dt) FROM xx_dislocation_rjd d'
+                || '    WHERE d.organization_id = XX_RJD_DISLOCATION_NEW_PKG.GET_ORGANIZATION_ID()'
+                || '      AND d.type_reference = ''Отправка'')))';
+        end if;
+
         l_sql := 'SELECT ' || l_sql
                  || ' FROM xx_dislocation_rjd'
                  || ' WHERE organization_id = XX_RJD_DISLOCATION_NEW_PKG.GET_ORGANIZATION_ID()'
-                 || ' AND (report_dt, type_reference) IN ('
-                 || '   SELECT report_dt, type_reference'
-                 || '     FROM TABLE(XX_RJD_DISLOCATION_NEW_PKG.GET_LATEST_REPORTS())'
-                 || ' )'
+                 || l_report_where
                  || ' AND NOT EXISTS ('
                  || '   SELECT 1 FROM xx_disl_idle_control_v dic'
                  || '    WHERE TRIM(dic.car_number) = TRIM(TO_CHAR(wagon_no))'
