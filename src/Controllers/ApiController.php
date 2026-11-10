@@ -17,6 +17,7 @@ use App\Services\TableLayoutService;
 use App\Logging\ErrorLogger;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Slim\Psr7\Response;
 
 class ApiController
 {
@@ -35,6 +36,7 @@ class ApiController
 
     private DbInterface $db;
     private Organizations $organizations;
+    private array $reportDtCache = [];
 
     public function __construct(DbInterface $db, ?Organizations $organizations = null)
     {
@@ -68,6 +70,36 @@ class ApiController
             $data = ['error' => $error->getMessage()];
         }
         return $this->json($response, $data);
+    }
+
+    /** Первичная загрузка фильтров и данных отчёта одним HTTP-запросом. */
+    public function reportInitial(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        string $reportCode
+    ): ResponseInterface {
+        $definition = ReportConfig::find($reportCode);
+        $handlers = (array) ($definition['api_handlers'] ?? []);
+        $filterMethod = (string) ($handlers['filters'] ?? '');
+        $dataMethod = (string) ($handlers['summary'] ?? $handlers['detail'] ?? '');
+        if ($filterMethod === '' || $dataMethod === ''
+            || !method_exists($this, $filterMethod) || !method_exists($this, $dataMethod)) {
+            return $this->json($response->withStatus(404), ['error' => 'Отчёт не найден']);
+        }
+
+        $filterResponse = $this->{$filterMethod}($request, new Response());
+        if ($filterResponse->getStatusCode() >= 400) {
+            return $filterResponse;
+        }
+        $dataResponse = $this->{$dataMethod}($request, new Response());
+        if ($dataResponse->getStatusCode() >= 400) {
+            return $dataResponse;
+        }
+
+        return $this->json($response, [
+            'filters' => $this->responseJson($filterResponse),
+            'data' => $this->responseJson($dataResponse),
+        ]);
     }
 
     /** GET /api/downtime-control/detail */
@@ -106,6 +138,14 @@ class ApiController
     /** GET /api/kpi/summary */
     public function kpiSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        $params = $request->getQueryParams();
+        $kpiType = trim((string) ($params['kpi_type'] ?? ''));
+        $sourcePage = trim((string) ($params['source_page'] ?? ''));
+        $expectedPage = KpiTypeRegistry::page($kpiType);
+        if ($expectedPage === null || $sourcePage !== $expectedPage) {
+            return $this->json($response->withStatus(400), ['error' => 'Некорректный запрос KPI']);
+        }
+
         $filter = $this->organizations->filter();
         $dtRow = $this->db->fetchAll(
             "SELECT MAX(report_dt) AS latest_dt
@@ -125,15 +165,6 @@ class ApiController
                 'updated_at' => $updatedAt,
                 'sections' => [['values' => []]],
             ]);
-        }
-
-        $params = $request->getQueryParams();
-        $kpiType = trim($params['kpi_type'] ?? '');
-        if ($kpiType === 'loading_kpi') {
-            return $this->loadingKpiSummary($request, $response);
-        }
-        if (KpiTypeRegistry::get($kpiType) === null) {
-            return $this->json($response->withStatus(400), ['error' => 'Неизвестный тип KPI']);
         }
 
         try {
@@ -249,12 +280,20 @@ class ApiController
                 $detailParams['train_groups'] = $detail['code'] ?? '';
             }
 
+            $cardDetail = ['ctx' => 'dislocation', 'params' => $detailParams];
+            if (($r['type'] ?? $kpiType) === 'loading_kpi') {
+                $cardDetail = [
+                    'ctx' => 'loading',
+                    'params' => ['loading_period' => $code],
+                ];
+            }
+
             $values[] = [
                 'id' => $r['id'] ?? '',
                 'type' => $r['type'] ?? $kpiType,
                 'value' => $r['x_value'] ?? '0',
                 'label' => $detail && !$detailConfig ? $detail['title'] : ($r['x_label'] ?? ''),
-                'detail' => ['ctx' => 'dislocation', 'params' => $detailParams],
+                'detail' => $cardDetail,
                 'trend' => $r['trend_dir'] ?? '',
                 'change' => $r['trend_pct'] ?? '',
                 'is_user' => $r['is_user'] ?? 'N',
@@ -270,44 +309,6 @@ class ApiController
             'updated_at' => $updatedAt,
             'sections' => [['values' => $values]],
         ]);
-    }
-    /** Карточки погрузки для GET /api/kpi/summary. */
-    private function loadingKpiSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
-    {
-        $params = $request->getQueryParams();
-        unset($params['loading_period']);
-        $source = $this->loadingFrom($params);
-        $cards = $this->db->fetchAll(
-            "SELECT k.id, k.code, k.label FROM XX_ETW.XX_RJD_KPI_TBL k
-              WHERE k.type = 'loading_kpi' AND k.is_system = 'Y' AND k.is_active = 'Y'
-                AND NOT EXISTS (
-                    SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h
-                     WHERE h.user_id = :hidden_user_id AND h.kpi_id = k.id
-                )
-              ORDER BY k.order_by, k.id",
-            ['hidden_user_id' => (int) ($_SESSION['user']['id'] ?? 0)]
-        );
-        $bindings = $source['bindings'];
-        $select = [];
-        foreach ($cards as $i => $card) {
-            $condition = $this->loadingPeriodCondition($card['code'], $bindings, 'kpi_' . $i);
-            $select[] = "COUNT(CASE WHEN $condition THEN 1 END) AS kpi_$i";
-        }
-        $counts = $source['reportDt'] && $select
-            ? $this->db->fetchOne('SELECT ' . implode(', ', $select) . " FROM {$source['from']}", $bindings)
-            : [];
-        $values = [];
-        foreach ($cards as $i => $card) {
-            $values[] = [
-                'id' => $card['id'],
-                'label' => $card['label'],
-                'value' => (int) ($counts['kpi_' . $i] ?? 0),
-                'can_hide' => 'Y',
-                'detail' => ['ctx' => 'loading', 'params' => ['loading_period' => $card['code']]],
-            ];
-        }
-        $updatedAt = $source['reportDt'] ? (new \DateTimeImmutable($source['reportDt']))->format('d.m.Y H:i') : null;
-        return $this->json($response, ['updated_at' => $updatedAt, 'sections' => [['values' => $values]]]);
     }
 
     /** Условие отбора по периоду погрузки. */
@@ -782,10 +783,6 @@ class ApiController
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_road', 'dest_station']);
         $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
         $data = $this->summaryReport($source, $rowDims, $colDefs);
-        if (($params['include_filters'] ?? '') === '1') {
-            $filterSource = $this->approachFrom(['report_dt' => $source['reportDt']]);
-            $data['filters'] = $this->approachFilterValues($filterSource);
-        }
         return $this->json($response, $data);
     }
 
@@ -860,10 +857,6 @@ class ApiController
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
         $data = $this->summaryReport($source, $rowDims, $colDefs);
-        if (($params['include_filters'] ?? '') === '1') {
-            $filterSource = $this->departureFrom(['report_dt' => $source['reportDt']]);
-            $data['filters'] = $this->departureFilterValues($filterSource);
-        }
         return $this->json($response, $data);
     }
 
@@ -1819,6 +1812,10 @@ class ApiController
         if ($dt) {
             return $dt;
         }
+        $cacheKey = $typeRef ?? '*';
+        if (array_key_exists($cacheKey, $this->reportDtCache)) {
+            return $this->reportDtCache[$cacheKey];
+        }
         $sql = 'SELECT MAX(report_dt) AS dt FROM xx_dislocation_rjd';
         $filter = $this->organizations->filter();
         $sql .= ' WHERE ' . $filter['sql'];
@@ -1828,7 +1825,8 @@ class ApiController
             $params['type_ref'] = $typeRef;
         }
         $row = $this->db->fetchOne($sql, $params);
-        return $row['dt'] ?? null;
+        $this->reportDtCache[$cacheKey] = $row['dt'] ?? null;
+        return $this->reportDtCache[$cacheKey];
     }
 
     /** [type_reference => MAX(report_dt)] для указанных типов справок. */
@@ -2044,5 +2042,11 @@ class ApiController
     {
         $response->getBody()->write(json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
         return $response->withHeader('Content-Type', 'application/json; charset=utf-8');
+    }
+
+    private function responseJson(ResponseInterface $response): array
+    {
+        $data = json_decode((string) $response->getBody(), true);
+        return is_array($data) ? $data : [];
     }
 }

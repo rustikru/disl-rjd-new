@@ -117,7 +117,7 @@ final class PageRegistry
                 continue;
             $pages[$code] = [
                 'label' => (string) ($report['name'] ?? $code),
-                'routes' => array_values(array_filter([$report['filters_endpoint'] ?? null, $report['summary_endpoint'] ?? null, $report['detail_endpoint'] ?? null])),
+                'routes' => array_values(array_filter([$report['initial_endpoint'] ?? null, $report['filters_endpoint'] ?? null, $report['summary_endpoint'] ?? null, $report['detail_endpoint'] ?? null])),
                 'visibility_group' => 'Сайт — отчёты',
                 'navigation' => $report['navigation'],
             ];
@@ -153,6 +153,10 @@ final class PageRegistry
     public static function availabilityKeysForPath(string $path, array $query = []): array
     {
         $path = '/' . ltrim($path, '/');
+        if ($path === '/api/kpi/summary') {
+            $page = self::kpiSourcePage(trim((string) ($query['kpi_type'] ?? '')));
+            return $page !== null ? self::availabilityKeys($page) : [];
+        }
         if ($path === '/api/dislocation/detail' && ($query['source_page'] ?? '') === 'maps') {
             return self::availabilityKeys('maps');
         }
@@ -246,6 +250,10 @@ final class PageRegistry
     public static function accessPages(string $path, array $query = []): array
     {
         $path = '/' . ltrim($path, '/');
+        if ($path === '/api/kpi/summary') {
+            $page = self::kpiSourcePage(trim((string) ($query['kpi_type'] ?? '')));
+            return $page !== null ? [$page] : [];
+        }
         if (in_array($path, ['/detail', '/api/dislocation/detail'], true) && array_key_exists('kpi_id', $query)) {
             $sourcePage = trim((string) ($query['source_page'] ?? ''));
             return self::isKpiSourcePage($sourcePage) ? [$sourcePage] : [];

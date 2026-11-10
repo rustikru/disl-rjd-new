@@ -268,6 +268,13 @@ final class ReportConfig
             unset($filter);
             $reportDefinition['mailing_handler'] = $mailingHandlers[$reportCode] ?? null;
             $reportDefinition['api_handlers'] = $apiHandlers[$reportCode] ?? [];
+            if (!empty($reportDefinition['filters_endpoint'])
+                && (!empty($reportDefinition['summary_endpoint']) || !empty($reportDefinition['detail_endpoint']))) {
+                $reportDefinition['initial_endpoint'] = '/api/' . $reportCode . '/initial';
+                $reportDefinition['api_handlers']['initial'] = 'reportInitial';
+            } else {
+                $reportDefinition['initial_endpoint'] = null;
+            }
             if (!isset($detailSettings[$reportCode])) {
                 continue;
             }
@@ -378,7 +385,6 @@ final class ReportConfig
             ],
             // Подход вагонов
             'approach' => [
-                'initial_filters_with_summary' => true,
                 'summary_file' => 'подход',
                 'detail_file' => 'подход-расширенная',
                 'total_text' => 'Общий итог',
@@ -397,7 +403,6 @@ final class ReportConfig
             ],
             // Отправление вагонов
             'departure' => [
-                'initial_filters_with_summary' => true,
                 'summary_file' => 'отправление',
                 'detail_file' => 'отправление-расширенная',
                 'total_text' => 'Всего отправлено',

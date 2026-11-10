@@ -458,12 +458,15 @@ return function (App $app, array $config): void {
                     $path=substr((string)$endpoint,4); // убрать /api
                     $api->get($path,function($req,$res) use($getDb,$getOrganizations,$method,$reportCode,$kind){
                         try {
-                            \App\Reports\ReportConfig::validateFilters($reportCode,$req->getQueryParams(),$kind!=='filters');
+                            \App\Reports\ReportConfig::validateFilters($reportCode,$req->getQueryParams(),!in_array($kind,['filters','initial'],true));
                         } catch (\InvalidArgumentException $error) {
                             $res->getBody()->write(json_encode(['status'=>'error','message'=>$error->getMessage()],JSON_UNESCAPED_UNICODE));
                             return $res->withStatus(422)->withHeader('Content-Type','application/json; charset=utf-8');
                         }
-                        return (new \App\Controllers\ApiController($getDb(), $getOrganizations()))->{$method}($req,$res);
+                        $controller = new \App\Controllers\ApiController($getDb(), $getOrganizations());
+                        return $kind === 'initial'
+                            ? $controller->{$method}($req,$res,$reportCode)
+                            : $controller->{$method}($req,$res);
                     });
                 }
             }

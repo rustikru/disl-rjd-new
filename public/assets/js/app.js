@@ -135,18 +135,24 @@ function loadKPI(keys, force) {
         }
         showKpi(data, board.containerId)
       },
-    ).fail(function () {
+    ).fail(function (jqXHR) {
       delete KPI_LOADED[key]
+      var code = jqXHR.responseJSON && jqXHR.responseJSON.code
+        ? ' (' + jqXHR.responseJSON.code + ')'
+        : ''
+      $('#' + board.containerId)
+        .html('<div class="ui-empty">Не удалось загрузить KPI' + esc(code) + '</div>')
+        .trigger('kpi:rendered')
     })
   })
 }
 
 function loadKpiForTab(tabId) {
-  if (ALLOWED_PAGES.indexOf('dashboard') === -1) return []
   var kpiTypes = window.APP_KPI_TYPES || {}
   var type = Object.keys(kpiTypes).find(function (key) {
     return kpiTypes[key].tab === tabId
   })
+  if (!type || ALLOWED_PAGES.indexOf(kpiTypes[type].page) === -1) return []
   var board = type && kpiTypes[type].page
   return board ? loadKPI([board]) : []
 }
@@ -636,7 +642,6 @@ function connectReportDefinitions() {
     pinned_row_label: 'pinnedRowLabel',
     pinned_station_key: 'pinnedStationKey',
     first_road_key: 'firstRoadKey',
-    initial_filters_with_summary: 'initialFiltersWithSummary',
   }
   Object.keys(reportDefinitions).forEach(function (reportCode) {
     var reportDefinition = reportDefinitions[reportCode]
@@ -667,6 +672,9 @@ function connectReportDefinitions() {
       : null
     tabSettings.filtersUrl = reportDefinition.filters_endpoint
       ? BASE + reportDefinition.filters_endpoint
+      : null
+    tabSettings.initialDataUrl = reportDefinition.initial_endpoint
+      ? BASE + reportDefinition.initial_endpoint
       : null
     tabSettings.groupCols = reportDefinition.row_dimensions || []
     tabSettings.colDims = (reportDefinition.column_dimensions || []).map(
@@ -773,7 +781,7 @@ Object.keys(window.APP_KPI_TYPES || {}).forEach(function (type) {
     containerId: definition.container_id,
     dataUrl: BASE + '/api/kpi/summary',
     params: function () {
-      var params = { kpi_type: type }
+      var params = { kpi_type: type, source_page: definition.page }
       return definition.page === 'loading' && WAGON_TABS.loading
         ? Object.assign(params, WAGON_TABS.loading.getParams())
         : params
@@ -807,11 +815,12 @@ function initTab(cfg) {
       $acts.append($btn)
     }
   }
-  if (!cfg.initialFiltersWithSummary) loadFilters(cfg)
+  if (!cfg.initialDataUrl) loadFilters(cfg)
   var _sumXhr = loadSummary(cfg)
   if (!cfg.summaryUrl && cfg.detailUrl && !window[cfg.loadedDetKey]) {
     var initHint = cfg.validate ? cfg.validate() : null
     if (initHint) {
+      loadFilters(cfg)
       $('#' + cfg.detTableId).html(
         '<div style="text-align:center;padding:60px;color:#E8392A;font-size:15px;font-weight:600">' +
           esc(initHint) +
@@ -829,6 +838,8 @@ function loadFilters(cfg) {
   if (!cfg.filtersUrl) return
   $.getJSON(cfg.filtersUrl).done(function (data) {
     if (cfg.fillFilters) cfg.fillFilters(data)
+    cfg.filtersLoaded = true
+    if (cfg.initialDataUrl) cfg.initialDataLoaded = true
   })
 }
 /* Загрузка сводной таблицы и KPI, если они есть настроены */
@@ -853,16 +864,22 @@ function loadSummary(cfg) {
     })
     .join(',')
   if (cby) summaryParams.col_by = cby
-  if (cfg.initialFiltersWithSummary && !cfg.filtersLoaded) {
-    summaryParams.include_filters = '1'
-  }
-
   /* Получаем сводную информацию  */
-  return $.getJSON(cfg.summaryUrl, summaryParams)
+  var summaryUrl =
+    cfg.initialDataUrl && !cfg.initialDataLoaded
+      ? cfg.initialDataUrl
+      : cfg.summaryUrl
+  return $.getJSON(summaryUrl, summaryParams)
     .done(function (data) {
-      if (data.filters && cfg.fillFilters && !cfg.filtersLoaded) {
-        cfg.fillFilters(data.filters)
+      if (
+        data &&
+        Object.prototype.hasOwnProperty.call(data, 'filters') &&
+        Object.prototype.hasOwnProperty.call(data, 'data')
+      ) {
+        if (cfg.fillFilters) cfg.fillFilters(data.filters)
         cfg.filtersLoaded = true
+        cfg.initialDataLoaded = true
+        data = data.data
       }
       if (cfg.metricsId) {
         var items = cfg.kpi
@@ -1048,7 +1065,7 @@ function loadSummary(cfg) {
       )
     })
     .fail(function (jqXHR) {
-      if (cfg.initialFiltersWithSummary && !cfg.filtersLoaded) loadFilters(cfg)
+      if (cfg.initialDataUrl && !cfg.filtersLoaded) loadFilters(cfg)
       var msg = ajaxErr(jqXHR)
       $table.html(
         '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">' +
@@ -1118,8 +1135,22 @@ function loadDetail(cfg) {
         },
         sortExtra,
       )
-  $.getJSON(cfg.detailUrl, listParams)
+  var detailUrl =
+    cfg.initialDataUrl && !cfg.initialDataLoaded
+      ? cfg.initialDataUrl
+      : cfg.detailUrl
+  $.getJSON(detailUrl, listParams)
     .done(function (data) {
+      if (
+        data &&
+        Object.prototype.hasOwnProperty.call(data, 'filters') &&
+        Object.prototype.hasOwnProperty.call(data, 'data')
+      ) {
+        if (cfg.fillFilters) cfg.fillFilters(data.filters)
+        cfg.filtersLoaded = true
+        cfg.initialDataLoaded = true
+        data = data.data
+      }
       if (Array.isArray(data.columns) && data.columns.length) cols = data.columns
       if (data.group_config && Array.isArray(data.rows)) {
         var groupCols = data.columns || []
