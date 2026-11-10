@@ -1255,7 +1255,7 @@ class ApiController
 
         $cargo = $this->db->fetchAll(
             "SELECT DISTINCT cargo_name
-             FROM xx_dislocation_rjd
+             FROM xx_rjd_dislocation_archive
              WHERE $whereCond
              ORDER BY cargo_name",
             $bindings
@@ -1297,7 +1297,7 @@ class ApiController
 
         $rows = $this->db->fetchAll(
             "SELECT DISTINCT $selectCols
-             FROM xx_dislocation_rjd
+             FROM xx_rjd_dislocation_archive
              WHERE $whereCond
              ORDER BY oper_dt DESC, wagon_no",
             $bindings
