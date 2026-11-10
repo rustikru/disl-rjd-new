@@ -27,8 +27,7 @@ BEGIN
     FOR c IN
         (SELECT d.id
            FROM XX_ETW.XX_DISLOCATION_RJD d
-          WHERE d.type_reference = 'Отправка'
-            AND d.report_dt =
+          WHERE d.report_dt =
                     (SELECT MAX (d2.report_dt)
                        FROM XX_ETW.XX_DISLOCATION_RJD d2
                       WHERE d2.organization_id = d.organization_id

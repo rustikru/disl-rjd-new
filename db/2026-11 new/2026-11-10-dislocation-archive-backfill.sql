@@ -10,8 +10,7 @@ BEGIN
     FOR c IN
         (SELECT d.ID
            FROM XX_ETW.XX_DISLOCATION_RJD d
-          WHERE d.TYPE_REFERENCE = 'Отправка'
-            AND TRIM (d.WAGON_NO) IS NOT NULL
+          WHERE TRIM (d.WAGON_NO) IS NOT NULL
           ORDER BY d.REPORT_DT, d.ID)
     LOOP
         SELECT *

@@ -514,11 +514,6 @@ as
                                      'Не заданы параметры архива движения');
         end if;
 
-        if TRIM (p_type_reference) != 'Отправка'
-        then
-            return;
-        end if;
-
         -- Параллельные загрузки не должны создавать одинаковые состояния.
         lock table xx_rjd_dislocation_archive in share row exclusive mode;
 
