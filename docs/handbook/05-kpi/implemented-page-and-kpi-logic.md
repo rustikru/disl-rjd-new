@@ -179,7 +179,7 @@ AND operation NOT LIKE '%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ
 
 Для всех обычных KPI из таблиц выше условие задаёт `db/XX_RJD_DISLOCATION_NEW_PKG.pkb::get_kpi_where()`. API карточек — `kpiSummary()`; основной вызов пакета — `get_kpi_row()`, запасные — `set_kpi_label()`, `fnc_get_kpi_trend_pct()`, `fnc_get_kpi_trend_dir()`. Для погрузки используются `loadingKpiSummary()` и `loadingPeriodCondition()`.
 
-Обычный подсчёт — количество записей. Для `formed_trains` считаются уникальные обрезанные индексы. Для `abandoned_trains` — уникальные сочетания индекса (при отсутствии — номера поезда или вагона) и станции. Для `abandoned_wagons` остаётся подсчёт вагонов, несмотря на новое отображаемое название.
+Обычный подсчёт — количество записей. Для `formed_trains` считаются уникальные обрезанные номера поездов. Для `abandoned_trains` и `abandoned_wagons` считаются уникальные обрезанные индексы поездов; пустой индекс не учитывается.
 
 Список карточек, коды и порядок — `XX_RJD_KPI_TBL_V`. Переходы — `public/assets/js/app.js::kpiCards()` и обработчик клика KPI. Стандартная детализация — `templates/detail.php`.
 

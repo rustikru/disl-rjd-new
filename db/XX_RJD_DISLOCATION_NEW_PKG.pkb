@@ -465,10 +465,9 @@ as
         if l_kpi_code = 'formed_trains'
         then
             l_count_expr := 'COUNT(DISTINCT TRIM(train_no))';
-        elsif l_kpi_code = 'abandoned_trains'
+        elsif l_kpi_code in ('abandoned_trains', 'abandoned_wagons')
         then
-            l_count_expr :=
-                'COUNT(DISTINCT NVL(TRIM(train_index), NVL(TRIM(train_no), TRIM(TO_CHAR(wagon_no)))) || '':'' || TRIM(oper_station))';
+            l_count_expr := 'COUNT(DISTINCT TRIM(train_index))';
         end if;
 
         l_kpi_where :=
@@ -699,6 +698,10 @@ as
             then
                 l_sql := l_sql || 'COUNT(DISTINCT CASE WHEN ('
                          || l_condition || ') THEN train_no END)';
+            elsif r.code in ('abandoned_trains', 'abandoned_wagons')
+            then
+                l_sql := l_sql || 'COUNT(DISTINCT CASE WHEN ('
+                         || l_condition || ') THEN TRIM(train_index) END)';
             else
                 l_sql := l_sql || 'COUNT(CASE WHEN ('
                          || l_condition || ') THEN 1 END)';
