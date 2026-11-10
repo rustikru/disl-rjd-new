@@ -218,15 +218,17 @@
       const historyPanel = container.querySelector('[data-panel="history"]')
       const historyStatus = historyPanel.querySelector('[role="status"]')
       let historyLoaded = false
-      async function loadMovement() {
-        if (historyLoaded) return
+      let historyPage = 0
+      async function loadMovement(page) {
+        page = page || 1
+        if (historyLoaded && historyPage === page) return
         historyLoaded = true
         historyStatus.textContent = 'Загрузка операций из сохранённых справок…'
         try {
           const response = await fetch(
             base +
               '/api/wagon/movement?' +
-              new URLSearchParams({ wagon_no: number }),
+              new URLSearchParams({ wagon_no: number, page: page }),
             { headers: { Accept: 'application/json' } },
           )
           if (!response.ok)
@@ -238,8 +240,12 @@
           )
             throw new Error('Сеанс завершён. Войдите повторно.')
           const result = await response.json()
+          historyPage = result.page || page
+          historyPanel
+            .querySelectorAll('.wagon-history, .wagon-history-pagination')
+            .forEach((element) => element.remove())
           historyStatus.textContent =
-            result.message || 'Операций текущего рейса: ' + result.rows.length
+            result.message || 'Операций текущего рейса: ' + result.total
           if (!result.rows.length) return
           const tableContainer = document.createElement('div')
           tableContainer.className = 'wagon-history'
@@ -265,9 +271,73 @@
           })
           tableContainer.append(table)
           historyPanel.append(tableContainer)
+          const totalPages = result.total_pages || 1
+          const pagination = document.createElement('div')
+          pagination.className =
+            'ui-pagination-wrap wagon-history-pagination'
+          const info = document.createElement('div')
+          info.className = 'ui-pagination-info'
+          info.textContent =
+            'Показаны ' + result.from + '–' + result.to + ' из ' + result.total
+          pagination.append(info)
+          if (totalPages > 1) {
+            const nav = document.createElement('nav')
+            nav.className = 'app-pagination'
+            nav.setAttribute('aria-label', 'Страницы движения вагона')
+            function addButton(label, target, disabled, active) {
+              const button = document.createElement('button')
+              button.type = 'button'
+              button.className =
+                'app-pagination__link' +
+                (disabled ? ' is-disabled' : '') +
+                (active ? ' is-active' : '')
+              button.textContent = label
+              button.disabled = disabled
+              if (active) button.setAttribute('aria-current', 'page')
+              button.addEventListener('click', () => loadMovement(target))
+              nav.append(button)
+            }
+            addButton('‹', Math.max(1, historyPage - 1), historyPage <= 1, false)
+            const pages = [
+              1,
+              2,
+              3,
+              historyPage - 1,
+              historyPage,
+              historyPage + 1,
+              totalPages,
+            ]
+              .filter(
+                (item, index, values) =>
+                  item >= 1 &&
+                  item <= totalPages &&
+                  values.indexOf(item) === index,
+              )
+              .sort((left, right) => left - right)
+            let previousPage = 0
+            pages.forEach((item) => {
+              if (previousPage && item - previousPage > 1) {
+                const dots = document.createElement('span')
+                dots.className = 'app-pagination__dots'
+                dots.textContent = '…'
+                nav.append(dots)
+              }
+              addButton(String(item), item, false, item === historyPage)
+              previousPage = item
+            })
+            addButton(
+              '›',
+              Math.min(totalPages, historyPage + 1),
+              historyPage >= totalPages,
+              false,
+            )
+            pagination.append(nav)
+          }
+          historyPanel.append(pagination)
         } catch (error) {
           historyStatus.textContent = error.message
           historyLoaded = false
+          historyPage = 0
         }
       }
       document.querySelectorAll('.wagon-tab').forEach((button) =>

@@ -49,9 +49,20 @@ class ApiController
     /** GET /api/wagon/movement */
     public function wagonMovement(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $number = trim((string) ($request->getQueryParams()['wagon_no'] ?? ''));
+        $query = $request->getQueryParams();
+        $number = trim((string) ($query['wagon_no'] ?? ''));
+        $page = max(1, (int) ($query['page'] ?? 1));
         try {
-            $data = (new WagonMovement($this->db, $this->organizations))->rows($number);
+            $data = (new WagonMovement($this->db, $this->organizations))->rows($number, $page, 50);
+            $rowCount = count($data['rows'] ?? []);
+            $data += [
+                'page' => 1,
+                'per_page' => 50,
+                'total' => $rowCount,
+                'total_pages' => 1,
+                'from' => $rowCount > 0 ? 1 : 0,
+                'to' => $rowCount,
+            ];
         } catch (\InvalidArgumentException $error) {
             $response = $response->withStatus(400);
             $data = ['error' => $error->getMessage()];

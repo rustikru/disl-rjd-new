@@ -10,7 +10,7 @@ final class WagonMovement
 {
     public function __construct(private DbInterface $db, private Organizations $organizations) {}
 
-    public function rows(string $number): array
+    public function rows(string $number, int $page = 1, int $perPage = 50): array
     {
         if (!preg_match('/^[0-9]{8}$/D', $number)) {
             throw new \InvalidArgumentException('Введите номер вагона из 8 цифр');
@@ -67,22 +67,45 @@ final class WagonMovement
             return ['rows' => [], 'trip' => $trip, 'message' => 'Недостаточно данных для определения операций текущего рейса.'];
         }
 
+        $deduplicatedSql = "SELECT $fields, oper_station_esr_code AS page_station_code
+                              FROM (SELECT $sourceFields,
+                                           ROW_NUMBER() OVER (
+                                               PARTITION BY oper_dt, UPPER(TRIM(NVL(operation, oper_mnemonic))),
+                                                            LTRIM(TRIM(oper_station_esr_code), '0'), UPPER(TRIM(oper_station))
+                                               ORDER BY report_dt DESC, id DESC
+                                           ) AS operation_row
+                                      FROM (" . implode(' UNION ALL ', $sources) . "))
+                             WHERE operation_row = 1";
+
+        $countRow = $this->db->fetchOne("SELECT COUNT(*) AS cnt FROM ($deduplicatedSql)", $params);
+        $total = (int) ($countRow['cnt'] ?? 0);
+        $perPage = max(1, min(100, $perPage));
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        $page = max(1, min($page, $totalPages));
+        $offset = ($page - 1) * $perPage;
+
         $rows = $this->db->fetchAll(
             "SELECT $fields
-               FROM (SELECT $sourceFields,
+               FROM (SELECT movement_rows.*,
                             ROW_NUMBER() OVER (
-                                PARTITION BY oper_dt, UPPER(TRIM(NVL(operation, oper_mnemonic))),
-                                             LTRIM(TRIM(oper_station_esr_code), '0'), UPPER(TRIM(oper_station))
-                                ORDER BY report_dt DESC, id DESC
-                            ) AS operation_row
-                       FROM (" . implode(' UNION ALL ', $sources) . "))
-              WHERE operation_row = 1 ORDER BY oper_dt, oper_station, operation",
-            $params
+                                ORDER BY oper_dt, oper_station, operation, page_station_code,
+                                         oper_road, train_no, waybill_no
+                            ) AS page_row
+                       FROM ($deduplicatedSql) movement_rows)
+              WHERE page_row > :page_offset AND page_row <= :page_limit
+              ORDER BY page_row",
+            $params + ['page_offset' => $offset, 'page_limit' => $offset + $perPage]
         );
 
         return [
             'rows'    => $rows,
             'trip'    => $trip,
+            'page'    => $page,
+            'per_page' => $perPage,
+            'total'   => $total,
+            'total_pages' => $totalPages,
+            'from'    => $total > 0 ? $offset + 1 : 0,
+            'to'      => min($total, $offset + $perPage),
             'message' => $rows ? '' : 'В сохранённых справках и архиве нет операций текущего рейса.',
         ];
     }
