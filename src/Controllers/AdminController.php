@@ -6,6 +6,7 @@ namespace App\Controllers;
 use App\Database\DbInterface;
 use App\Logging\ErrorLogger;
 use App\Services\AuditLog;
+use App\Services\Organizations;
 use DateTimeImmutable;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -14,6 +15,7 @@ class AdminController
 {
     private DbInterface $db;
     private array $config;
+    private Organizations $organizations;
 
     public function directoriesPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
@@ -31,10 +33,11 @@ class AdminController
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 
-    public function __construct(DbInterface $db, array $config = [])
+    public function __construct(DbInterface $db, array $config = [], ?Organizations $organizations = null)
     {
         $this->db = $db;
         $this->config = $config;
+        $this->organizations = $organizations ?? new Organizations($db);
     }
 
     public function index(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -785,8 +788,7 @@ class AdminController
         if (!(new \App\Services\DirectoryAccess($this->db))->canView()) {
             return $this->forbidden($response);
         }
-        $organizations = new \App\Services\Organizations($this->db);
-        $organizationId = $organizations->id();
+        $organizationId = $this->organizations->id();
         if (!$organizationId) {
             return $this->forbidden($response);
         }
@@ -853,7 +855,7 @@ class AdminController
         if (!$this->checkCsrf($body)) {
             return $this->forbidden($response);
         }
-        $organizationId = (new \App\Services\Organizations($this->db))->id();
+        $organizationId = $this->organizations->id();
         if (!$organizationId) {
             return $this->forbidden($response);
         }
@@ -884,7 +886,7 @@ class AdminController
         if (!$this->checkCsrf($body)) {
             return $this->forbidden($response);
         }
-        $organizationId = (new \App\Services\Organizations($this->db))->id();
+        $organizationId = $this->organizations->id();
         if (!$organizationId) {
             return $this->forbidden($response);
         }
@@ -903,7 +905,7 @@ class AdminController
         if (!(new \App\Services\DirectoryAccess($this->db))->canView()) {
             return $this->forbidden($response);
         }
-        $organizationId = (new \App\Services\Organizations($this->db))->id();
+        $organizationId = $this->organizations->id();
         if (!$organizationId) {
             return $this->forbidden($response);
         }
@@ -924,7 +926,7 @@ class AdminController
         if (!(new \App\Services\DirectoryAccess($this->db))->canView()) {
             return $this->forbidden($response);
         }
-        $organizationId = (new \App\Services\Organizations($this->db))->id();
+        $organizationId = $this->organizations->id();
         if (!$organizationId) {
             return $this->forbidden($response);
         }

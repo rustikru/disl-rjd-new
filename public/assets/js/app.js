@@ -69,6 +69,7 @@ function initSidebar() {
 
 // Переключение вкладок
 function switchTab(tabId) {
+  var tabXhr = null
   document.querySelectorAll('.nav-item').forEach(function (btn) {
     btn.classList.toggle('active', btn.dataset.tab === tabId)
   })
@@ -79,9 +80,12 @@ function switchTab(tabId) {
   Object.keys(WAGON_TABS).forEach(function (k) {
     var cfg = WAGON_TABS[k]
     if (tabId === k && !window[cfg.loadedKey]) {
-      initTab(cfg)
+      tabXhr = initTab(cfg)
     }
   })
+  var requests = tabXhr ? [tabXhr] : []
+  requests = requests.concat(loadKpiForTab(tabId))
+  return requests.length ? $.when.apply($, requests) : null
 }
 
 // Внутренние вкладки (pill)
@@ -113,10 +117,15 @@ function initInnerTabs() {
   })
 }
 
-// Загрузка всех KPI или выбранных блоков карточек.
-function loadKPI(keys) {
-  return (keys || Object.keys(KPI_BOARDS)).map(function (key) {
+var KPI_LOADED = {}
+
+// Загрузка KPI выбранных блоков карточек.
+function loadKPI(keys, force) {
+  return (keys || []).filter(function (key) {
+    return KPI_BOARDS[key] && (force || !KPI_LOADED[key])
+  }).map(function (key) {
     var board = KPI_BOARDS[key]
+    KPI_LOADED[key] = true
     return $.getJSON(board.dataUrl, board.params ? board.params() : {}).done(
       function (data) {
         //console.log('Ключ:', data)
@@ -126,8 +135,22 @@ function loadKPI(keys) {
         }
         showKpi(data, board.containerId)
       },
-    )
+    ).fail(function () {
+      delete KPI_LOADED[key]
+    })
   })
+}
+
+function loadKpiForTab(tabId) {
+  if (ALLOWED_PAGES.indexOf('dashboard') === -1) return []
+  var boardByTab = {
+    dislocation: 'dashboard',
+    approach: 'approach',
+    departure: 'departure',
+    loading: 'loading',
+  }
+  var board = boardByTab[tabId]
+  return board ? loadKPI([board]) : []
 }
 
 // Дата в API приходит в формате DD.MM.YYYY HH:MM.
@@ -2726,7 +2749,6 @@ $(function () {
   initInnerTabs()
 
   var hasReports = visibleReports.length > 0
-  var hasDashboard = ALLOWED_PAGES.indexOf('dashboard') !== -1
 
   // Если отчёты не назначены — скрываем панели и показываем заглушку.
   if (!hasReports) {
@@ -2764,16 +2786,10 @@ $(function () {
       : visibleReports.indexOf('dislocation') !== -1
         ? 'dislocation'
         : visibleReports[0] || ''
-  if (startTab) switchTab(startTab)
-
-  var kpiXhrs = hasDashboard ? loadKPI() : null
-  var summaryXhr = null
-  if (hasDashboard && startTab) {
-    summaryXhr = initTab(WAGON_TABS[startTab])
-  }
+  var startXhr = startTab ? switchTab(startTab) : null
 
   // Скрываем оверлей когда готовы и KPI, и сводная таблица
-  var allXhrs = (kpiXhrs || []).concat(summaryXhr ? [summaryXhr] : [])
+  var allXhrs = startXhr ? [startXhr] : []
   $.when.apply($, allXhrs).always(function () {
     var el = document.getElementById('pageLoadOverlay')
     if (el && el.parentNode) el.parentNode.removeChild(el)
@@ -2806,7 +2822,7 @@ $(function () {
       }
       window[cfg.loadedDetKey] = false
       loadSummary(cfg)
-      if (k === 'loading') loadKPI(['loading'])
+      if (k === 'loading') loadKPI(['loading'], true)
       if ($('#' + cfg.detPanelId).hasClass('active')) {
         window[cfg.loadedDetKey] = true
         loadDetail(cfg)
@@ -2816,7 +2832,7 @@ $(function () {
       if (cfg.resetFilters) cfg.resetFilters()
       window[cfg.loadedDetKey] = false
       loadSummary(cfg)
-      if (k === 'loading') loadKPI(['loading'])
+      if (k === 'loading') loadKPI(['loading'], true)
       if (
         (k === 'claims' || !cfg.summaryUrl) &&
         $('#' + cfg.detPanelId).hasClass('active')

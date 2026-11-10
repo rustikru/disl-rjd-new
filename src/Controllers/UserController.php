@@ -15,10 +15,14 @@ final class UserController
     private PasswordReset $passwordReset;
     private Organizations $organizations;
 
-    public function __construct(private DbInterface $db, private array $config = [])
+    public function __construct(
+        private DbInterface $db,
+        private array $config = [],
+        ?Organizations $organizations = null
+    )
     {
         $this->passwordReset = new PasswordReset($db, $config);
-        $this->organizations = new Organizations($db);
+        $this->organizations = $organizations ?? new Organizations($db);
     }
 
     /** GET /profile */

@@ -21,6 +21,7 @@ return function (App $app, array $config): void {
         $getDb,
         (int) $config['session_lifetime_seconds']
     ));
+    $app->add(new \App\Middleware\SqlTraceMiddleware());
 
     $getAuth = function () use ($config, &$auth, $getDb) {
         return $auth ??= new \App\Auth\AuthService($getDb(), $config);
@@ -124,14 +125,14 @@ return function (App $app, array $config): void {
         });
 
         // Создание и редактирование пользовательского KPI.
-        $group->get('/kpi/create', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\UserKpiController($getDb(), $config))->form($req, $res);
+        $group->get('/kpi/create', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\UserKpiController($getDb(), $config, $getOrganizations()))->form($req, $res);
         });
-        $group->get('/kpi/edit', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\UserKpiController($getDb(), $config))->form($req, $res);
+        $group->get('/kpi/edit', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\UserKpiController($getDb(), $config, $getOrganizations()))->form($req, $res);
         });
-        $group->get('/kpi/hidden', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\UserKpiController($getDb(), $config))->hidden($req, $res);
+        $group->get('/kpi/hidden', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\UserKpiController($getDb(), $config, $getOrganizations()))->hidden($req, $res);
         });
 
         // Карточка вагона
@@ -140,19 +141,19 @@ return function (App $app, array $config): void {
         });
 
         // Профиль текущего пользователя
-        $group->get('/profile', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\UserController($getDb(), $config))->profile($req, $res);
+        $group->get('/profile', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\UserController($getDb(), $config, $getOrganizations()))->profile($req, $res);
         });
         $group->post('/profile/password', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\UserController($getDb(), $config))->changePassword($req, $res);
         });
 
         // Личные настройки рассылки отчётов
-        $group->get('/profile/report-mailings', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\MailingController($getDb(), $config))->settingsPage($req, $res);
+        $group->get('/profile/report-mailings', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\MailingController($getDb(), $config, $getOrganizations()))->settingsPage($req, $res);
         });
-        $group->post('/profile/report-mailings/save', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\MailingController($getDb(), $config))->save($req, $res);
+        $group->post('/profile/report-mailings/save', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\MailingController($getDb(), $config, $getOrganizations()))->save($req, $res);
         });
         $group->post('/profile/report-mailings/active', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\MailingController($getDb(), $config))->setActive($req, $res);
@@ -160,28 +161,28 @@ return function (App $app, array $config): void {
         $group->post('/profile/report-mailings/delete', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\MailingController($getDb(), $config))->delete($req, $res);
         });
-        $group->post('/profile/report-mailings/run', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\MailingController($getDb(), $config))->run($req, $res);
+        $group->post('/profile/report-mailings/run', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\MailingController($getDb(), $config, $getOrganizations()))->run($req, $res);
         });
 
         // Страница импорта XLSX
-        $group->get('/import', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\ImportController($getDb(), $config))->showForm($req, $res);
+        $group->get('/import', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\ImportController($getDb(), $config, $getOrganizations()))->showForm($req, $res);
         });
-        $group->get('/import/download', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\ImportController($getDb(), $config))->downloadReference($req, $res);
+        $group->get('/import/download', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\ImportController($getDb(), $config, $getOrganizations()))->downloadReference($req, $res);
         });
 
-        $group->post('/import', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\ImportController($getDb(), $config))->handleUpload($req, $res);
+        $group->post('/import', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\ImportController($getDb(), $config, $getOrganizations()))->handleUpload($req, $res);
         });
-        $group->post('/import/delete', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\ImportController($getDb(), $config))->deleteReference($req, $res);
+        $group->post('/import/delete', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\ImportController($getDb(), $config, $getOrganizations()))->deleteReference($req, $res);
         });
 
         // карта
-        $group->get('/maps', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\MapsController($getDb(), $config))->showMaps($req, $res);
+        $group->get('/maps', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\MapsController($getDb(), $config, $getOrganizations()))->showMaps($req, $res);
         });
 
         // Администрирование (пользователи и роли)
@@ -276,21 +277,21 @@ return function (App $app, array $config): void {
         $group->get('/directories/', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->directoriesPage($req, $res);
         });
-        $group->get('/directories/norms', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\AdminController($getDb(), $config))->normsPage($req, $res);
+        $group->get('/directories/norms', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\AdminController($getDb(), $config, $getOrganizations()))->normsPage($req, $res);
         });
-        $group->get('/directories/norms/stations', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\AdminController($getDb(), $config))->normStations($req, $res);
+        $group->get('/directories/norms/stations', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\AdminController($getDb(), $config, $getOrganizations()))->normStations($req, $res);
         });
-        $group->get('/directories/norms/values', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\AdminController($getDb(), $config))->normValues($req, $res);
+        $group->get('/directories/norms/values', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\AdminController($getDb(), $config, $getOrganizations()))->normValues($req, $res);
         });
         // Удаление норматива
-        $group->post('/directories/norms/delete', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\AdminController($getDb(), $config))->deleteNorm($req, $res);
+        $group->post('/directories/norms/delete', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\AdminController($getDb(), $config, $getOrganizations()))->deleteNorm($req, $res);
         });
-        $group->post('/directories/norms/save', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\AdminController($getDb(), $config))->saveNorm($req, $res);
+        $group->post('/directories/norms/save', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\AdminController($getDb(), $config, $getOrganizations()))->saveNorm($req, $res);
         });
         $group->get('/directories/stations', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->stationsPage($req, $res);
@@ -339,21 +340,21 @@ return function (App $app, array $config): void {
         });
 
         // --- Нормативы ---
-        $group->get('/admin/directories/norms', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\AdminController($getDb(), $config))->normsPage($req, $res);
+        $group->get('/admin/directories/norms', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\AdminController($getDb(), $config, $getOrganizations()))->normsPage($req, $res);
         });
-        $group->get('/admin/directories/norms/stations', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\AdminController($getDb(), $config))->normStations($req, $res);
+        $group->get('/admin/directories/norms/stations', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\AdminController($getDb(), $config, $getOrganizations()))->normStations($req, $res);
         });
-        $group->get('/admin/directories/norms/values', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\AdminController($getDb(), $config))->normValues($req, $res);
+        $group->get('/admin/directories/norms/values', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\AdminController($getDb(), $config, $getOrganizations()))->normValues($req, $res);
         });
         // Удаление норматива
-        $group->post('/admin/directories/norms/delete', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\AdminController($getDb(), $config))->deleteNorm($req, $res);
+        $group->post('/admin/directories/norms/delete', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\AdminController($getDb(), $config, $getOrganizations()))->deleteNorm($req, $res);
         });
-        $group->post('/admin/directories/norms/save', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\AdminController($getDb(), $config))->saveNorm($req, $res);
+        $group->post('/admin/directories/norms/save', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\AdminController($getDb(), $config, $getOrganizations()))->saveNorm($req, $res);
         });
         $group->get('/admin/directories/stations', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->stationsPage($req, $res);
@@ -412,8 +413,8 @@ return function (App $app, array $config): void {
         $group->post('/admin/directories/organizations/active', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->toggleOrganization($req, $res);
         });
-        $group->post('/organization/select', function ($req, $res) use ($getDb, $config) {
-            return (new \App\Controllers\UserController($getDb(), $config))->selectOrganization($req, $res);
+        $group->post('/organization/select', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+            return (new \App\Controllers\UserController($getDb(), $config, $getOrganizations()))->selectOrganization($req, $res);
         });
 
         // Детальная страница (статический шаблон)
@@ -433,20 +434,20 @@ return function (App $app, array $config): void {
         // ==========================================
         // API (`/api`)
         // ==========================================
-        $group->group('/api', function ($api) use ($getDb, $config) {
+        $group->group('/api', function ($api) use ($getDb, $config, $getOrganizations) {
 
             // Движение вагона по текущему рейсу
-            $api->get('/wagon/movement', function ($req, $res) use ($config, $getDb) {
-                return (new \App\Controllers\ApiController($getDb()))->wagonMovement($req, $res);
+            $api->get('/wagon/movement', function ($req, $res) use ($config, $getDb, $getOrganizations) {
+                return (new \App\Controllers\ApiController($getDb(), $getOrganizations()))->wagonMovement($req, $res);
             });
 
             // --- Главный Дашборд ---
-            $api->get('/dashboard', function ($req, $res) use ($getDb) {
-                return (new \App\Controllers\ApiController($getDb()))->dashboard($req, $res);
+            $api->get('/dashboard', function ($req, $res) use ($getDb, $getOrganizations) {
+                return (new \App\Controllers\ApiController($getDb(), $getOrganizations()))->dashboard($req, $res);
             });
             // --- Загрузка файлов через API ---
-            $api->post('/import/file', function ($req, $res) use ($getDb, $config) {
-                return (new \App\Controllers\ImportController($getDb(), $config))->handleUploadJson($req, $res);
+            $api->post('/import/file', function ($req, $res) use ($getDb, $config, $getOrganizations) {
+                return (new \App\Controllers\ImportController($getDb(), $config, $getOrganizations()))->handleUploadJson($req, $res);
             });
 
             // Отчётные GET-маршруты регистрируются из единого ReportConfig.
@@ -455,59 +456,59 @@ return function (App $app, array $config): void {
                     $endpoint=$definition[$kind.'_endpoint']??null;
                     if(!$endpoint) continue;
                     $path=substr((string)$endpoint,4); // убрать /api
-                    $api->get($path,function($req,$res) use($getDb,$method,$reportCode,$kind){
+                    $api->get($path,function($req,$res) use($getDb,$getOrganizations,$method,$reportCode,$kind){
                         try {
                             \App\Reports\ReportConfig::validateFilters($reportCode,$req->getQueryParams(),$kind!=='filters');
                         } catch (\InvalidArgumentException $error) {
                             $res->getBody()->write(json_encode(['status'=>'error','message'=>$error->getMessage()],JSON_UNESCAPED_UNICODE));
                             return $res->withStatus(422)->withHeader('Content-Type','application/json; charset=utf-8');
                         }
-                        return (new \App\Controllers\ApiController($getDb()))->{$method}($req,$res);
+                        return (new \App\Controllers\ApiController($getDb(), $getOrganizations()))->{$method}($req,$res);
                     });
                 }
             }
             // --- Карточки KPI ---
-            $api->group('/kpi', function ($sub) use ($getDb) {
-                $sub->get('/summary', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\ApiController($getDb()))->kpiSummary($req, $res);
+            $api->group('/kpi', function ($sub) use ($getDb, $getOrganizations) {
+                $sub->get('/summary', function ($req, $res) use ($getDb, $getOrganizations) {
+                    return (new \App\Controllers\ApiController($getDb(), $getOrganizations()))->kpiSummary($req, $res);
                 });
-                $sub->get('/user/catalog', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\UserKpiController($getDb()))->catalog($req, $res);
+                $sub->get('/user/catalog', function ($req, $res) use ($getDb, $getOrganizations) {
+                    return (new \App\Controllers\UserKpiController($getDb(), [], $getOrganizations()))->catalog($req, $res);
                 });
-                $sub->post('/user', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\UserKpiController($getDb()))->save($req, $res);
+                $sub->post('/user', function ($req, $res) use ($getDb, $getOrganizations) {
+                    return (new \App\Controllers\UserKpiController($getDb(), [], $getOrganizations()))->save($req, $res);
                 });
-                $sub->delete('/user/{id:[0-9]+}', function ($req, $res, $args) use ($getDb) {
-                    return (new \App\Controllers\UserKpiController($getDb()))->delete($req, $res, (int) $args['id']);
+                $sub->delete('/user/{id:[0-9]+}', function ($req, $res, $args) use ($getDb, $getOrganizations) {
+                    return (new \App\Controllers\UserKpiController($getDb(), [], $getOrganizations()))->delete($req, $res, (int) $args['id']);
                 });
-                $sub->post('/card/{id:[0-9]+}/hide', function ($req, $res, $args) use ($getDb) {
-                    return (new \App\Controllers\UserKpiController($getDb()))->hide($req, $res, (int) $args['id']);
+                $sub->post('/card/{id:[0-9]+}/hide', function ($req, $res, $args) use ($getDb, $getOrganizations) {
+                    return (new \App\Controllers\UserKpiController($getDb(), [], $getOrganizations()))->hide($req, $res, (int) $args['id']);
                 });
-                $sub->post('/card/{id:[0-9]+}/restore', function ($req, $res, $args) use ($getDb) {
-                    return (new \App\Controllers\UserKpiController($getDb()))->restore($req, $res, (int) $args['id']);
+                $sub->post('/card/{id:[0-9]+}/restore', function ($req, $res, $args) use ($getDb, $getOrganizations) {
+                    return (new \App\Controllers\UserKpiController($getDb(), [], $getOrganizations()))->restore($req, $res, (int) $args['id']);
                 });
-                $sub->get('/hidden', function ($req, $res) use ($getDb) {
-                    return (new \App\Controllers\UserKpiController($getDb()))->hiddenList($req, $res);
+                $sub->get('/hidden', function ($req, $res) use ($getDb, $getOrganizations) {
+                    return (new \App\Controllers\UserKpiController($getDb(), [], $getOrganizations()))->hiddenList($req, $res);
                 });
             });
             // --- Экспорт виртуальной таблицы в Excel ---
-            $api->post('/export/vt-table', function ($req, $res) use ($getDb) {
-                return (new \App\Controllers\ApiController($getDb()))->exportVirtualTable($req, $res);
+            $api->post('/export/vt-table', function ($req, $res) use ($getDb, $getOrganizations) {
+                return (new \App\Controllers\ApiController($getDb(), $getOrganizations()))->exportVirtualTable($req, $res);
             });
 
             // --- Экспорт сложных матриц (шахматок дашборда) в Excel ---
-            $api->post('/export/matrix', function ($req, $res) use ($getDb) {
-                return (new \App\Controllers\ApiController($getDb()))->exportMatrixTable($req, $res);
+            $api->post('/export/matrix', function ($req, $res) use ($getDb, $getOrganizations) {
+                return (new \App\Controllers\ApiController($getDb(), $getOrganizations()))->exportMatrixTable($req, $res);
             });
 
-            $api->get('/table-layout/{reportCode:[a-z0-9-]+}', function ($req, $res, $args) use ($getDb) {
-                return (new \App\Controllers\ApiController($getDb()))->tableLayout($req, $res, (string) $args['reportCode']);
+            $api->get('/table-layout/{reportCode:[a-z0-9-]+}', function ($req, $res, $args) use ($getDb, $getOrganizations) {
+                return (new \App\Controllers\ApiController($getDb(), $getOrganizations()))->tableLayout($req, $res, (string) $args['reportCode']);
             });
-            $api->post('/table-layout/{reportCode:[a-z0-9-]+}', function ($req, $res, $args) use ($getDb) {
-                return (new \App\Controllers\ApiController($getDb()))->saveTableLayout($req, $res, (string) $args['reportCode']);
+            $api->post('/table-layout/{reportCode:[a-z0-9-]+}', function ($req, $res, $args) use ($getDb, $getOrganizations) {
+                return (new \App\Controllers\ApiController($getDb(), $getOrganizations()))->saveTableLayout($req, $res, (string) $args['reportCode']);
             });
-            $api->post('/table-layout/{reportCode:[a-z0-9-]+}/reset', function ($req, $res, $args) use ($getDb) {
-                return (new \App\Controllers\ApiController($getDb()))->resetTableLayout($req, $res, (string) $args['reportCode']);
+            $api->post('/table-layout/{reportCode:[a-z0-9-]+}/reset', function ($req, $res, $args) use ($getDb, $getOrganizations) {
+                return (new \App\Controllers\ApiController($getDb(), $getOrganizations()))->resetTableLayout($req, $res, (string) $args['reportCode']);
             });
 
         });

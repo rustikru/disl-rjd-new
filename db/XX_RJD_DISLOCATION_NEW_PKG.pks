@@ -2,7 +2,7 @@ CREATE OR REPLACE package XX_ETW.xx_rjd_dislocation_new_pkg
 as
     /******************************************************************************
     NAME:  xx_etw.xx_rjd_dislocation_new_pkg
-    PURPOSE:   Метафракс: Дислокация РЖД (справка из кабинета)
+    PURPOSE:   РњРµС‚Р°С„СЂР°РєСЃ: Р”РёСЃР»РѕРєР°С†РёСЏ Р Р–Р” (СЃРїСЂР°РІРєР° РёР· РєР°Р±РёРЅРµС‚Р°)
     REVISIONS:
     Ver        Date        Author           Description
     ---------  ----------  ---------------  ------------------------------------
@@ -13,6 +13,21 @@ as
 
     function get_organization_id
         return number;
+
+    type latest_report_rec is record
+    (
+        type_reference   varchar2 (50),
+        report_dt        date
+    );
+
+    type latest_report_tab is table of latest_report_rec;
+
+    function get_latest_reports (p_type_1       in varchar2 default 'РџРѕРґС…РѕРґ',
+                                 p_type_2       in varchar2 default 'РћС‚РїСЂР°РІРєР°',
+                                 p_report_day   in date default null)
+        return latest_report_tab
+        pipelined;
+
     procedure set_org_id (p_org_code varchar2);
     function fnc_get_downtime_wagon (p_downtime   in number,
                                      p_type       in varchar2 default 'name')

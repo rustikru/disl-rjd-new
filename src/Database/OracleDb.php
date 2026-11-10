@@ -45,6 +45,9 @@ class OracleDb implements DbInterface
         $stmt = oci_parse($this->connection, $sql);
         if (!$stmt) {
             $err = oci_error($this->connection);
+            if ($t0 > 0.0) {
+                QueryLogger::log('Oracle', 'fetchAll', $sql, $params, (microtime(true) - $t0) * 1000, $err);
+            }
             throw $this->oracleException('Oracle oci_parse', $err);
         }
         $binds = $params;
@@ -63,6 +66,9 @@ class OracleDb implements DbInterface
         $ok = @oci_execute($stmt, OCI_DEFAULT);
         if (!$ok) {
             $err = oci_error($stmt);
+            if ($t0 > 0.0) {
+                QueryLogger::log('Oracle', 'fetchAll', $sql, $params, (microtime(true) - $t0) * 1000, $err);
+            }
             oci_free_statement($stmt);
             throw $this->oracleException('Oracle fetchAll', $err);
         }
@@ -118,6 +124,9 @@ class OracleDb implements DbInterface
         $stmt = oci_parse($this->connection, $sql);
         if (!$stmt) {
             $err = oci_error($this->connection);
+            if ($t0 > 0.0) {
+                QueryLogger::log('Oracle', 'execute', $sql, $params, (microtime(true) - $t0) * 1000, $err);
+            }
             throw $this->oracleException('Oracle oci_parse', $err);
         }
         $binds = $params;
@@ -137,6 +146,9 @@ class OracleDb implements DbInterface
         $ok = @oci_execute($stmt, $mode);
         if (!$ok) {
             $err = oci_error($stmt);
+            if ($t0 > 0.0) {
+                QueryLogger::log('Oracle', 'execute', $sql, $params, (microtime(true) - $t0) * 1000, $err);
+            }
             oci_free_statement($stmt);
             throw $this->oracleException('Oracle execute', $err);
         }

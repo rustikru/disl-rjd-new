@@ -44,6 +44,7 @@ class SessionMiddleware implements MiddlewareInterface
         if (empty($_SESSION['csrf_token'])) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
         }
+        $hadUser = !empty($_SESSION['user']);
         $sync = function () use ($request): void {
             if (session_status() !== PHP_SESSION_ACTIVE || empty($_SESSION['user'])) return;
             $registry = new \App\Services\SessionRegistry(($this->getDb)(), $this->lifetime);
@@ -55,7 +56,9 @@ class SessionMiddleware implements MiddlewareInterface
         };
         $sync();
         $response = $handler->handle($request);
-        $sync();
+        if (!$hadUser && !empty($_SESSION['user'])) {
+            $sync();
+        }
         return $response;
     }
 }

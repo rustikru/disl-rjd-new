@@ -2,7 +2,7 @@ CREATE OR REPLACE package body XX_ETW.xx_rjd_dislocation_new_pkg
 as
     /******************************************************************************
         NAME:  xx_etw.xx_rjd_dislocation_new_pkg
-        PURPOSE:   Дислокация РЖД (справка из кабинета)
+        PURPOSE:   Р”РёСЃР»РѕРєР°С†РёСЏ Р Р–Р” (СЃРїСЂР°РІРєР° РёР· РєР°Р±РёРЅРµС‚Р°)
         REVISIONS:
         Ver        Date        Author           Description
         ---------  ----------  ---------------  ------------------------------------
@@ -15,6 +15,73 @@ as
     begin
         return TO_NUMBER (SYS_CONTEXT ('USERENV', 'CLIENT_IDENTIFIER'));
     end get_organization_id;
+
+    function get_latest_reports (p_type_1       in varchar2 default 'РџРѕРґС…РѕРґ',
+                                 p_type_2       in varchar2 default 'РћС‚РїСЂР°РІРєР°',
+                                 p_report_day   in date default null)
+        return latest_report_tab
+        pipelined
+    is
+        l_row         latest_report_rec;
+        l_report_dt   date;
+    begin
+        if TRIM (p_type_1) is not null
+        then
+            if p_report_day is null
+            then
+                select MAX (report_dt)
+                  into l_report_dt
+                  from xx_dislocation_rjd
+                 where organization_id = get_organization_id ()
+                   and type_reference = TRIM (p_type_1);
+            else
+                select MAX (report_dt)
+                  into l_report_dt
+                  from xx_dislocation_rjd
+                 where organization_id = get_organization_id ()
+                   and type_reference = TRIM (p_type_1)
+                   and report_dt >= TRUNC (p_report_day)
+                   and report_dt < TRUNC (p_report_day) + 1;
+            end if;
+
+            if l_report_dt is not null
+            then
+                l_row.type_reference := TRIM (p_type_1);
+                l_row.report_dt := l_report_dt;
+                pipe row (l_row);
+            end if;
+        end if;
+
+        if     TRIM (p_type_2) is not null
+           and (TRIM (p_type_1) is null or TRIM (p_type_2) != TRIM (p_type_1))
+        then
+            if p_report_day is null
+            then
+                select MAX (report_dt)
+                  into l_report_dt
+                  from xx_dislocation_rjd
+                 where organization_id = get_organization_id ()
+                   and type_reference = TRIM (p_type_2);
+            else
+                select MAX (report_dt)
+                  into l_report_dt
+                  from xx_dislocation_rjd
+                 where organization_id = get_organization_id ()
+                   and type_reference = TRIM (p_type_2)
+                   and report_dt >= TRUNC (p_report_day)
+                   and report_dt < TRUNC (p_report_day) + 1;
+            end if;
+
+            if l_report_dt is not null
+            then
+                l_row.type_reference := TRIM (p_type_2);
+                l_row.report_dt := l_report_dt;
+                pipe row (l_row);
+            end if;
+        end if;
+
+        return;
+    end get_latest_reports;
     
     procedure set_org_id (p_org_code varchar2)
     is
@@ -38,34 +105,34 @@ as
         v_wag_name_up := UPPER (p_wag_name);
 
         case
-            when v_wag_name_up like '%ЦИСТЕРНЫ%'
+            when v_wag_name_up like '%Р¦РРЎРўР•Р РќР«%'
             then
-                return 'ЦС';
-            when v_wag_name_up like '%КРЫТЫЕ%'
+                return 'Р¦РЎ';
+            when v_wag_name_up like '%РљР Р«РўР«Р•%'
             then
-                return 'КР';
-            when v_wag_name_up like '%ПОЛУВАГОНЫ%'
+                return 'РљР ';
+            when v_wag_name_up like '%РџРћР›РЈР’РђР“РћРќР«%'
             then
-                return 'ПВ';
-            when     v_wag_name_up like '%ПЛАТФОРМЫ%'
-                 and v_wag_name_up not like '%ФИТИНГОВЫЕ%'
+                return 'РџР’';
+            when     v_wag_name_up like '%РџР›РђРўР¤РћР РњР«%'
+                 and v_wag_name_up not like '%Р¤РРўРРќР“РћР’Р«Р•%'
             then
-                return 'ПЛ';
-            when v_wag_name_up like '%ФИТИНГОВЫЕ%'
+                return 'РџР›';
+            when v_wag_name_up like '%Р¤РРўРРќР“РћР’Р«Р•%'
             then
-                return 'ФТГ';
-            when v_wag_name_up like '%ПРОЧИЕ%'
+                return 'Р¤РўР“';
+            when v_wag_name_up like '%РџР РћР§РР•%'
             then
-                return 'ПР';
-            when v_wag_name_up like '%МИНЕРАЛОВОЗЫ%'
+                return 'РџР ';
+            when v_wag_name_up like '%РњРРќР•Р РђР›РћР’РћР—Р«%'
             then
-                return 'МВЗ';
-            when v_wag_name_up like '%ЗЕРНОВОЗЫ%'
+                return 'РњР’Р—';
+            when v_wag_name_up like '%Р—Р•Р РќРћР’РћР—Р«%'
             then
-                return 'ЗРВ';
-            when v_wag_name_up like '%ЦЕМЕНТОВОЗЫ%'
+                return 'Р—Р Р’';
+            when v_wag_name_up like '%Р¦Р•РњР•РќРўРћР’РћР—Р«%'
             then
-                return 'ЦМВ';
+                return 'Р¦РњР’';
             else
                 return p_wag_name;
         end case;
@@ -75,7 +142,7 @@ as
                                      p_type       in varchar2 default 'name')
         return varchar2
     is
-        l_name       varchar2 (150) := 'простой';
+        l_name       varchar2 (150) := 'РїСЂРѕСЃС‚РѕР№';
         l_order_by   number := 0;
         l_downtime   number;
     begin
@@ -83,31 +150,31 @@ as
 
         if l_downtime is null
         then
-            l_name := 'Недостаточно данных о начале простоя';
+            l_name := 'РќРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ РґР°РЅРЅС‹С… Рѕ РЅР°С‡Р°Р»Рµ РїСЂРѕСЃС‚РѕСЏ';
             l_order_by := 70;
         elsif l_downtime between 0 and 4
         then
-            l_name := l_name || ' до 5 сут.';
+            l_name := l_name || ' РґРѕ 5 СЃСѓС‚.';
             l_order_by := 10;
         elsif l_downtime between 5 and 6
         then
-            l_name := l_name || ' от 5 до 7 сут.';
+            l_name := l_name || ' РѕС‚ 5 РґРѕ 7 СЃСѓС‚.';
             l_order_by := 20;
         elsif l_downtime between 7 and 9
         then
-            l_name := l_name || ' от 7 до 10 сут.';
+            l_name := l_name || ' РѕС‚ 7 РґРѕ 10 СЃСѓС‚.';
             l_order_by := 30;
         elsif l_downtime between 10 and 19
         then
-            l_name := l_name || ' от 10 до 20 сут.';
+            l_name := l_name || ' РѕС‚ 10 РґРѕ 20 СЃСѓС‚.';
             l_order_by := 40;
         elsif l_downtime between 20 and 29
         then
-            l_name := l_name || ' от 20 до 30 сут.';
+            l_name := l_name || ' РѕС‚ 20 РґРѕ 30 СЃСѓС‚.';
             l_order_by := 50;
         elsif l_downtime > 29
         then
-            l_name := l_name || ' от 30 и более сут.';
+            l_name := l_name || ' РѕС‚ 30 Рё Р±РѕР»РµРµ СЃСѓС‚.';
             l_order_by := 60;
         else
             l_name := l_name || ' *';
@@ -131,13 +198,13 @@ as
     begin
         if NVL (p_weight, 0) = 0
         then
-            return 'пор.';
+            return 'РїРѕСЂ.';
         else
-            return 'гр.';
+            return 'РіСЂ.';
         end if;
     end;
 
-    -- вынесена на уровень пакета, чтобы использовать в тренде
+    -- РІС‹РЅРµСЃРµРЅР° РЅР° СѓСЂРѕРІРµРЅСЊ РїР°РєРµС‚Р°, С‡С‚РѕР±С‹ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РІ С‚СЂРµРЅРґРµ
     procedure calculate_change (
         p_yesterday_value   in     number,
         p_today_value       in     number,
@@ -153,7 +220,7 @@ as
         then
             v_return_txt := '%';
         else
-            v_return_txt := 'Вчера: ';
+            v_return_txt := 'Р’С‡РµСЂР°: ';
         end if;
 
         if v_yesterday = 0 and v_today > 0
@@ -179,7 +246,7 @@ as
         else
             if v_yesterday != 0
             then
-                --p_percent := 'Вчера:'||to_char(v_yesterday);
+                --p_percent := 'Р’С‡РµСЂР°:'||to_char(v_yesterday);
                 if p_return = 'percent'
                 then
                     p_percent :=
@@ -218,7 +285,7 @@ as
             p_direction := '';
     end calculate_change;
 
-    -- Возвращает условие отбора для KPI.
+    -- Р’РѕР·РІСЂР°С‰Р°РµС‚ СѓСЃР»РѕРІРёРµ РѕС‚Р±РѕСЂР° РґР»СЏ KPI.
     function get_kpi_where (p_kpi_id in number)
         return varchar2
     is
@@ -246,83 +313,83 @@ as
           from xx_rjd_kpi_tbl_v
          where id = p_kpi_id;
 
-        -- KPI для страницы "Отправление вагонов"
+        -- KPI РґР»СЏ СЃС‚СЂР°РЅРёС†С‹ "РћС‚РїСЂР°РІР»РµРЅРёРµ РІР°РіРѕРЅРѕРІ"
         if l_kpi.TYPE = 'departue_kpi'
         then
             if l_kpi.code = 'eysk'
             then
-                return 'UPPER(dest_station) LIKE UPPER(''%Ейск%515405%'')';
+                return 'UPPER(dest_station) LIKE UPPER(''%Р•Р№СЃРє%515405%'')';
             elsif l_kpi.code = 'zabaykalsk'
             then
-                return 'UPPER(dest_station) LIKE UPPER(''%Забайкальск%'')';
+                return 'UPPER(dest_station) LIKE UPPER(''%Р—Р°Р±Р°Р№РєР°Р»СЊСЃРє%'')';
             elsif l_kpi.code = 'luzskaya'
             then
-                return 'UPPER(dest_station) LIKE UPPER(''%Лужская%'')';
+                return 'UPPER(dest_station) LIKE UPPER(''%Р›СѓР¶СЃРєР°СЏ%'')';
             elsif l_kpi.code = 'abandoned_trains'
             then
-                return 'type_reference = ''Отправка'' AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
+                return 'type_reference = ''РћС‚РїСЂР°РІРєР°'' AND (UPPER(NVL(operation, '' '')) LIKE ''%Р‘Р РћРЎРђРќРР• РџРћР•Р—Р”Рђ РќРђ РЎРўРђРќР¦РР%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%Р‘Р РћРЁР•Рќ%''))';
             elsif l_kpi.code = 'departed-today'
             then
-                return 'type_reference = ''Отправка'' AND asoup_depart_dt IS NOT NULL AND UPPER(TRIM(depart_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(asoup_depart_dt) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
+                return 'type_reference = ''РћС‚РїСЂР°РІРєР°'' AND asoup_depart_dt IS NOT NULL AND UPPER(TRIM(depart_station)) LIKE ''%РЈР“Р›%768207%'' AND TRUNC(asoup_depart_dt) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
             elsif l_kpi.code = 'departed-yesterday'
             then
-                return 'type_reference = ''Отправка'' AND asoup_depart_dt IS NOT NULL AND UPPER(TRIM(depart_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(asoup_depart_dt) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1';
+                return 'type_reference = ''РћС‚РїСЂР°РІРєР°'' AND asoup_depart_dt IS NOT NULL AND UPPER(TRIM(depart_station)) LIKE ''%РЈР“Р›%768207%'' AND TRUNC(asoup_depart_dt) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1';
             elsif l_kpi.code = 'loaded-wagons'
             then
-                return 'type_reference = ''Отправка'' AND UPPER(TRIM(depart_station)) LIKE ''%УГЛ%768207%'' AND dist_remain_km > 0 AND NVL(cargo_weight_kg, 0) > CASE WHEN UPPER(NVL(wagon_type_code, '' '')) LIKE ''%ПЛАТФОРМ%'' THEN 12000 ELSE 0 END';
+                return 'type_reference = ''РћС‚РїСЂР°РІРєР°'' AND UPPER(TRIM(depart_station)) LIKE ''%РЈР“Р›%768207%'' AND dist_remain_km > 0 AND NVL(cargo_weight_kg, 0) > CASE WHEN UPPER(NVL(wagon_type_code, '' '')) LIKE ''%РџР›РђРўР¤РћР Рњ%'' THEN 12000 ELSE 0 END';
             end if;
-        -- KPI для страницы "Дислокация/Дашборд"
+        -- KPI РґР»СЏ СЃС‚СЂР°РЅРёС†С‹ "Р”РёСЃР»РѕРєР°С†РёСЏ/Р”Р°С€Р±РѕСЂРґ"
         elsif l_kpi.TYPE = 'dashboard_kpi'
         then
             if l_kpi.code = 'wag_cistern'
             then
-                return 'xx_etw.xx_rjd_dislocation_new_pkg.fnc_mapping_wag_type(wagon_type_code) = ''ЦС''';
+                return 'xx_etw.xx_rjd_dislocation_new_pkg.fnc_mapping_wag_type(wagon_type_code) = ''Р¦РЎ''';
             elsif l_kpi.code = 'wag_others'
             then
-                return 'xx_etw.xx_rjd_dislocation_new_pkg.fnc_mapping_wag_type(wagon_type_code) != ''ЦС''';
+                return 'xx_etw.xx_rjd_dislocation_new_pkg.fnc_mapping_wag_type(wagon_type_code) != ''Р¦РЎ''';
             elsif l_kpi.code = 'loaded_transit'
             then
-                return 'UPPER(TRIM(dest_station)) NOT LIKE ''%УГЛ%768207%'' AND dest_station != oper_station AND cargo_weight_kg > 0';
+                return 'UPPER(TRIM(dest_station)) NOT LIKE ''%РЈР“Р›%768207%'' AND dest_station != oper_station AND cargo_weight_kg > 0';
             elsif l_kpi.code = 'comming_to_ugl'
             then
-                return 'UPPER(TRIM(dest_station)) LIKE ''%УГЛ%768207%'' AND oper_station != dest_station';
+                return 'UPPER(TRIM(dest_station)) LIKE ''%РЈР“Р›%768207%'' AND oper_station != dest_station';
             elsif l_kpi.code = 'arrived_today_ugl'
             then
-                return 'UPPER(TRIM(dest_station)) LIKE ''%УГЛ%768207%'' AND oper_station = dest_station AND TRUNC(oper_dt) = TRUNC(SYSDATE)';
+                return 'UPPER(TRIM(dest_station)) LIKE ''%РЈР“Р›%768207%'' AND oper_station = dest_station AND TRUNC(oper_dt) = TRUNC(SYSDATE)';
             end if;
-        -- KPI для страницы "Подход вагонов"
+        -- KPI РґР»СЏ СЃС‚СЂР°РЅРёС†С‹ "РџРѕРґС…РѕРґ РІР°РіРѕРЅРѕРІ"
         elsif l_kpi.TYPE = 'approach_kpi'
         then
             if l_kpi.code = 'eysk'
             then
-                return 'UPPER(depart_station) LIKE UPPER(''%Ейск%515405%'')';
+                return 'UPPER(depart_station) LIKE UPPER(''%Р•Р№СЃРє%515405%'')';
             elsif l_kpi.code = 'zabaykalsk'
             then
-                return 'UPPER(depart_station) LIKE UPPER(''%Забайкальск%'')';
+                return 'UPPER(depart_station) LIKE UPPER(''%Р—Р°Р±Р°Р№РєР°Р»СЊСЃРє%'')';
             elsif l_kpi.code = 'luzskaya'
             then
-                return 'UPPER(depart_station) LIKE UPPER(''%Лужская%'')';
+                return 'UPPER(depart_station) LIKE UPPER(''%Р›СѓР¶СЃРєР°СЏ%'')';
             elsif l_kpi.code = 'delivery_time'
             then
-                return 'type_reference = ''Подход'' AND TRUNC(report_dt) > TRUNC(norm_delivery_dt) AND trip_end_dt IS NULL AND UPPER(oper_station) NOT LIKE UPPER(''%Угле%'')';
+                return 'type_reference = ''РџРѕРґС…РѕРґ'' AND TRUNC(report_dt) > TRUNC(norm_delivery_dt) AND trip_end_dt IS NULL AND UPPER(oper_station) NOT LIKE UPPER(''%РЈРіР»Рµ%'')';
             elsif l_kpi.code = 'abandoned_wagons'
             then
-                return 'type_reference = ''Подход'' AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
+                return 'type_reference = ''РџРѕРґС…РѕРґ'' AND (UPPER(NVL(operation, '' '')) LIKE ''%Р‘Р РћРЎРђРќРР• РџРћР•Р—Р”Рђ РќРђ РЎРўРђРќР¦РР%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%Р‘Р РћРЁР•Рќ%''))';
             elsif l_kpi.code = 'formed_trains'
             then
-                return 'type_reference = ''Подход'' AND (REGEXP_SUBSTR(TRIM(train_index), ''^[0-9]+'') LIKE ''%68207'' OR UPPER(train_index) LIKE ''%УГЛЕУРАЛЬСКАЯ%'' OR UPPER(train_index) LIKE ''%БЕРЕЗНИКИ%'' OR UPPER(train_index) LIKE ''%КИЗЕЛ%'' OR UPPER(train_index) LIKE ''%ЗАЯЧЬЯ ГОРКА%'')';
-            -- прибыло сегодня
+                return 'type_reference = ''РџРѕРґС…РѕРґ'' AND (REGEXP_SUBSTR(TRIM(train_index), ''^[0-9]+'') LIKE ''%68207'' OR UPPER(train_index) LIKE ''%РЈР“Р›Р•РЈР РђР›Р¬РЎРљРђРЇ%'' OR UPPER(train_index) LIKE ''%Р‘Р•Р Р•Р—РќРРљР%'' OR UPPER(train_index) LIKE ''%РљРР—Р•Р›%'' OR UPPER(train_index) LIKE ''%Р—РђРЇР§Р¬РЇ Р“РћР РљРђ%'')';
+            -- РїСЂРёР±С‹Р»Рѕ СЃРµРіРѕРґРЅСЏ
             elsif l_kpi.code = 'arrived-today'
             then
-                return 'type_reference = ''Подход'' AND NVL(asoup_arrive_dt, trip_end_dt) IS NOT NULL AND UPPER(TRIM(dest_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(NVL(asoup_arrive_dt, trip_end_dt)) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
-            -- прибыло вчера
+                return 'type_reference = ''РџРѕРґС…РѕРґ'' AND NVL(asoup_arrive_dt, trip_end_dt) IS NOT NULL AND UPPER(TRIM(dest_station)) LIKE ''%РЈР“Р›%768207%'' AND TRUNC(NVL(asoup_arrive_dt, trip_end_dt)) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
+            -- РїСЂРёР±С‹Р»Рѕ РІС‡РµСЂР°
             elsif l_kpi.code = 'arrived-yesterday'
             then
-                return 'type_reference = ''Подход'' AND NVL(asoup_arrive_dt, trip_end_dt) IS NOT NULL AND UPPER(TRIM(dest_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(NVL(asoup_arrive_dt, trip_end_dt)) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1';
+                return 'type_reference = ''РџРѕРґС…РѕРґ'' AND NVL(asoup_arrive_dt, trip_end_dt) IS NOT NULL AND UPPER(TRIM(dest_station)) LIKE ''%РЈР“Р›%768207%'' AND TRUNC(NVL(asoup_arrive_dt, trip_end_dt)) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1';
             end if;
         end if;
 
-        raise_application_error (-20001, 'Условие для KPI не определено.');
+        raise_application_error (-20001, 'РЈСЃР»РѕРІРёРµ РґР»СЏ KPI РЅРµ РѕРїСЂРµРґРµР»РµРЅРѕ.');
     end get_kpi_where;
 
     function fnc_check_kpi (p_kpi_id in number, p_disl_rjd_id in number)
@@ -345,7 +412,7 @@ as
             return 0;
     end fnc_check_kpi;
 
-    -- Формирует подпись KPI по текущей и предыдущей справке.
+    -- Р¤РѕСЂРјРёСЂСѓРµС‚ РїРѕРґРїРёСЃСЊ KPI РїРѕ С‚РµРєСѓС‰РµР№ Рё РїСЂРµРґС‹РґСѓС‰РµР№ СЃРїСЂР°РІРєРµ.
     function set_kpi_label (p_kpi_id in number, p_date in date default null)
         return varchar2
     is
@@ -362,7 +429,7 @@ as
 
         l_kpi_where := get_kpi_where (p_kpi_id);
 
-        -- Неизвестный KPI
+        -- РќРµРёР·РІРµСЃС‚РЅС‹Р№ KPI
         if l_kpi_where = '1=0'
         then
             return '';
@@ -379,21 +446,19 @@ as
 
         l_kpi_where :=
                l_kpi_where
-            || ' AND NOT EXISTS (SELECT 1 FROM xx_disl_idle_control_v dic WHERE TRIM(dic.car_number) = TRIM(TO_CHAR(wagon_no)) AND UPPER(TRIM(dic.is_excluded)) = ''Y'' AND UPPER(REPLACE(TRIM(dic.idle_reasons_name), ''Ё'', ''Е'')) IN (''ЛОМ'', ''МЕТАЛЛОЛОМ'', ''СНЯТЬ с АВТОСЛЕЖЕНИЯ''))';
+            || ' AND NOT EXISTS (SELECT 1 FROM xx_disl_idle_control_v dic WHERE TRIM(dic.car_number) = TRIM(TO_CHAR(wagon_no)) AND UPPER(TRIM(dic.is_excluded)) = ''Y'' AND UPPER(REPLACE(TRIM(dic.idle_reasons_name), ''РЃ'', ''Р•'')) IN (''Р›РћРњ'', ''РњР•РўРђР›Р›РћР›РћРњ'', ''РЎРќРЇРўР¬ СЃ РђР’РўРћРЎР›Р•Р–Р•РќРРЇ''))';
 
         if p_date is null
         then
-            -- Текущие данные (последний report_dt по каждому type_reference)
+            -- РўРµРєСѓС‰РёРµ РґР°РЅРЅС‹Рµ РёР· РїРѕСЃР»РµРґРЅРµР№ СЃРїСЂР°РІРєРё РєР°Р¶РґРѕРіРѕ С‚РёРїР°.
             l_sql :=
                    'SELECT '
                 || l_count_expr
                 || ' FROM xx_dislocation_rjd'
                 || ' WHERE organization_id = XX_RJD_DISLOCATION_NEW_PKG.GET_ORGANIZATION_ID()'
                 || ' AND (report_dt, type_reference) IN ('
-                || '   SELECT MAX(report_dt), type_reference'
-                || '   FROM xx_dislocation_rjd'
-                || '   WHERE organization_id = XX_RJD_DISLOCATION_NEW_PKG.GET_ORGANIZATION_ID()'
-                || '   GROUP BY type_reference'
+                || '   SELECT report_dt, type_reference'
+                || '     FROM TABLE(XX_RJD_DISLOCATION_NEW_PKG.GET_LATEST_REPORTS())'
                 || ' ) AND '
                 || l_kpi_where;
 
@@ -401,26 +466,22 @@ as
             execute immediate l_sql
                 into l_value;
         else
-            -- Последняя максимальная справка за вчера
+            -- РџРѕСЃР»РµРґРЅСЏСЏ СЃРїСЂР°РІРєР° РєР°Р¶РґРѕРіРѕ С‚РёРїР° Р·Р° СѓРєР°Р·Р°РЅРЅС‹Рµ СЃСѓС‚РєРё.
             l_sql :=
                    'SELECT '
                 || l_count_expr
                 || ' FROM xx_dislocation_rjd'
                 || ' WHERE organization_id = XX_RJD_DISLOCATION_NEW_PKG.GET_ORGANIZATION_ID()'
                 || ' AND (report_dt, type_reference) IN ('
-                || '   SELECT MAX(report_dt), type_reference'
-                || '     FROM xx_dislocation_rjd'
-                || '    WHERE organization_id = XX_RJD_DISLOCATION_NEW_PKG.GET_ORGANIZATION_ID()'
-                || '      AND report_dt >= TRUNC(:d1)'
-                || '      AND report_dt <  TRUNC(:d2) + 1'
-                || '    GROUP BY type_reference'
+                || '   SELECT report_dt, type_reference'
+                || '     FROM TABLE(XX_RJD_DISLOCATION_NEW_PKG.GET_LATEST_REPORTS(''РџРѕРґС…РѕРґ'', ''РћС‚РїСЂР°РІРєР°'', :d1))'
                 || ' ) AND '
                 || l_kpi_where;
 
             --dbms_output.put_line(' 2_l_sql=' || l_sql);
             execute immediate l_sql
                 into l_value
-                using p_date, p_date;
+                using p_date;
         end if;
 
         return TO_CHAR (l_value);
@@ -435,7 +496,7 @@ as
             return '';
     end set_kpi_label;
 
-    -- Изменение по сравнению с прошлым днем/есяцем
+    -- РР·РјРµРЅРµРЅРёРµ РїРѕ СЃСЂР°РІРЅРµРЅРёСЋ СЃ РїСЂРѕС€Р»С‹Рј РґРЅРµРј/РµСЃСЏС†РµРј
     procedure prv_kpi_trend (p_id        in     number,
                              p_pct_out      out varchar2,
                              p_dir_out      out varchar2)
@@ -445,7 +506,7 @@ as
         v_current       number := 0;
         v_previous      number := 0;
     begin
-        select NVL (trend_period, 'Day'), NVL (trend_unit, 'шт.')
+        select NVL (trend_period, 'Day'), NVL (trend_unit, 'С€С‚.')
           into v_period, v_metric_type
           from xx_rjd_kpi_tbl_v
          where id = p_id;
@@ -527,10 +588,10 @@ as
         if p_report_dt is null or TRIM (p_type_reference) is null
         then
             raise_application_error (-20031,
-                                     'Не заданы параметры архива движения');
+                                     'РќРµ Р·Р°РґР°РЅС‹ РїР°СЂР°РјРµС‚СЂС‹ Р°СЂС…РёРІР° РґРІРёР¶РµРЅРёСЏ');
         end if;
 
-        -- Параллельные загрузки не должны создавать одинаковые состояния.
+        -- РџР°СЂР°Р»Р»РµР»СЊРЅС‹Рµ Р·Р°РіСЂСѓР·РєРё РЅРµ РґРѕР»Р¶РЅС‹ СЃРѕР·РґР°РІР°С‚СЊ РѕРґРёРЅР°РєРѕРІС‹Рµ СЃРѕСЃС‚РѕСЏРЅРёСЏ.
         lock table xx_rjd_dislocation_archive in share row exclusive mode;
 
         for c
@@ -624,7 +685,7 @@ as
                        and type_reference = c.type_reference
                        and organization_id = get_organization_id ();
             else
-                -- Старая справка нужна только для пополнения архива.
+                -- РЎС‚Р°СЂР°СЏ СЃРїСЂР°РІРєР° РЅСѓР¶РЅР° С‚РѕР»СЊРєРѕ РґР»СЏ РїРѕРїРѕР»РЅРµРЅРёСЏ Р°СЂС…РёРІР°.
                 delete xx_dislocation_rjd
                  where     report_dt = c.report_dt
                        and type_reference = c.type_reference
@@ -1080,7 +1141,7 @@ as
         if p_report_dt is null or TRIM (p_type_reference) is null
         then
             raise_application_error (-20030,
-                                     'Не заданы параметры удаляемой справки');
+                                     'РќРµ Р·Р°РґР°РЅС‹ РїР°СЂР°РјРµС‚СЂС‹ СѓРґР°Р»СЏРµРјРѕР№ СЃРїСЂР°РІРєРё');
         end if;
 
         delete from xx_dislocation_rjd
@@ -1247,7 +1308,7 @@ as
                              on rs.esr_code = xdr.oper_station_esr_code
                    where     xdr.oper_station_esr_code is not null
                          and xdr.organization_id = get_organization_id ()
-                         and xdr.type_reference in ('Подход', 'Отправка')
+                         and xdr.type_reference in ('РџРѕРґС…РѕРґ', 'РћС‚РїСЂР°РІРєР°')
                          and xdr.report_dt =
                              (select MAX (latest_rows.report_dt)
                                 from xx_dislocation_rjd latest_rows
@@ -1278,19 +1339,19 @@ as
     begin
         if TRIM (p_esr_code) is null
         then
-            raise_application_error (-20001, 'Не указан код ЕСР');
+            raise_application_error (-20001, 'РќРµ СѓРєР°Р·Р°РЅ РєРѕРґ Р•РЎР ');
         end if;
 
         if TRIM (p_station_name) is null
         then
-            raise_application_error (-20002, 'Не указано название станции');
+            raise_application_error (-20002, 'РќРµ СѓРєР°Р·Р°РЅРѕ РЅР°Р·РІР°РЅРёРµ СЃС‚Р°РЅС†РёРё');
         end if;
 
         if p_latitude is not null and (p_latitude < -90 or p_latitude > 90)
         then
             raise_application_error (
                 -20003,
-                'Широта должна быть в диапазоне от -90 до 90');
+                'РЁРёСЂРѕС‚Р° РґРѕР»Р¶РЅР° Р±С‹С‚СЊ РІ РґРёР°РїР°Р·РѕРЅРµ РѕС‚ -90 РґРѕ 90');
         end if;
 
         if     p_longitude is not null
@@ -1298,7 +1359,7 @@ as
         then
             raise_application_error (
                 -20004,
-                'Долгота должна быть в диапазоне от -180 до 180');
+                'Р”РѕР»РіРѕС‚Р° РґРѕР»Р¶РЅР° Р±С‹С‚СЊ РІ РґРёР°РїР°Р·РѕРЅРµ РѕС‚ -180 РґРѕ 180');
         end if;
     end validate_station;
 
@@ -1343,7 +1404,7 @@ as
     begin
         if TRIM (p_esr_code) is null
         then
-            raise_application_error (-20005, 'Не указан код ЕСР');
+            raise_application_error (-20005, 'РќРµ СѓРєР°Р·Р°РЅ РєРѕРґ Р•РЎР ');
         end if;
 
         delete xx_rjd_stations
@@ -1367,13 +1428,13 @@ as
            or p_idle_reasons_id is null
         then
             raise_application_error (-20001,
-                                     'Не заполнены обязательные поля');
+                                     'РќРµ Р·Р°РїРѕР»РЅРµРЅС‹ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ РїРѕР»СЏ');
         end if;
 
         if p_end_date is not null and p_end_date < p_start_date
         then
             raise_application_error (-20002,
-                                     'Дата окончания раньше даты начала');
+                                     'Р”Р°С‚Р° РѕРєРѕРЅС‡Р°РЅРёСЏ СЂР°РЅСЊС€Рµ РґР°С‚С‹ РЅР°С‡Р°Р»Р°');
         end if;
 
         select COUNT (*)
@@ -1389,7 +1450,7 @@ as
         then
             raise_application_error (
                 -20003,
-                'Для вагона уже есть пересекающийся период');
+                'Р”Р»СЏ РІР°РіРѕРЅР° СѓР¶Рµ РµСЃС‚СЊ РїРµСЂРµСЃРµРєР°СЋС‰РёР№СЃСЏ РїРµСЂРёРѕРґ');
         end if;
 
         if l_id is null
@@ -1458,7 +1519,7 @@ as
     begin
         if TRIM (p_name) is null
         then
-            raise_application_error (-20001, 'Укажите название причины');
+            raise_application_error (-20001, 'РЈРєР°Р¶РёС‚Рµ РЅР°Р·РІР°РЅРёРµ РїСЂРёС‡РёРЅС‹');
         end if;
 
         select COUNT (*)
@@ -1471,7 +1532,7 @@ as
         then
             raise_application_error (
                 -20002,
-                'Причина с таким названием уже существует');
+                'РџСЂРёС‡РёРЅР° СЃ С‚Р°РєРёРј РЅР°Р·РІР°РЅРёРµРј СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚');
         end if;
 
         if l_id is null
@@ -1502,7 +1563,7 @@ as
         then
             raise_application_error (
                 -20003,
-                'Причина используется в контроле простоев');
+                'РџСЂРёС‡РёРЅР° РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РІ РєРѕРЅС‚СЂРѕР»Рµ РїСЂРѕСЃС‚РѕРµРІ');
         end if;
 
         delete from xx_etw.xx_disl_idle_reasons
@@ -1543,7 +1604,7 @@ as
         null;
     end mail_send;
 
-    -- Формирует общий фильтр SELECT при подготовке запроса Oracle VPD.
+    -- Р¤РѕСЂРјРёСЂСѓРµС‚ РѕР±С‰РёР№ С„РёР»СЊС‚СЂ SELECT РїСЂРё РїРѕРґРіРѕС‚РѕРІРєРµ Р·Р°РїСЂРѕСЃР° Oracle VPD.
     function data_scope_predicate (p_schema varchar2, p_object varchar2)
         return varchar2
     is
@@ -1571,7 +1632,7 @@ as
             return '1=1';
         end if;
 
-        -- Переименование исключает совпадение с колонками внешнего запроса.
+        -- РџРµСЂРµРёРјРµРЅРѕРІР°РЅРёРµ РёСЃРєР»СЋС‡Р°РµС‚ СЃРѕРІРїР°РґРµРЅРёРµ СЃ РєРѕР»РѕРЅРєР°РјРё РІРЅРµС€РЅРµРіРѕ Р·Р°РїСЂРѕСЃР°.
         l_rules :=
                'select r.organization_id rule_org, r.cargo_code rule_cargo,
                         r.station_code rule_station, r.effect rule_effect

@@ -17,11 +17,13 @@ final class MailingController
 {
     private DbInterface $db;
     private array $config;
+    private Organizations $organizations;
 
-    public function __construct(DbInterface $db, array $config = [])
+    public function __construct(DbInterface $db, array $config = [], ?Organizations $organizations = null)
     {
         $this->db = $db;
         $this->config = $config;
+        $this->organizations = $organizations ?? new Organizations($db);
     }
 
     public function settingsPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -254,7 +256,7 @@ final class MailingController
             return $this->redirectToForm($response, $form, 'Сессия устарела. Обновите страницу');
         }
         $userId = (int) ($_SESSION['user']['id'] ?? 0);
-        $organizationId = (int) (new Organizations($this->db))->id();
+        $organizationId = (int) $this->organizations->id();
         if ($userId <= 0 || $organizationId <= 0) {
             return $this->redirectToForm($response, $form, 'Не выбрана организация');
         }
@@ -349,7 +351,7 @@ final class MailingController
         }
         $availableOrganizationIds = array_map(
             static fn(array $organization): int => (int) $organization['id'],
-            (new Organizations($this->db))->organizations()
+            $this->organizations->organizations()
         );
         if (!in_array((int) $mailing['organization_id'], $availableOrganizationIds, true)) {
             return $this->redirect($response, 'err', 'Организация этой рассылки больше недоступна пользователю');

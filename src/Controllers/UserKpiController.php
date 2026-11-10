@@ -17,9 +17,13 @@ final class UserKpiController
 {
     private Organizations $organizations;
 
-    public function __construct(private DbInterface $db, private array $config = [])
+    public function __construct(
+        private DbInterface $db,
+        private array $config = [],
+        ?Organizations $organizations = null
+    )
     {
-        $this->organizations = new Organizations($db);
+        $this->organizations = $organizations ?? new Organizations($db);
     }
     
     public function form(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface

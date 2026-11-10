@@ -12,24 +12,29 @@ final class ReportService
     /** Даты последних справок по типам. */
     public function getLatestDtsByType(?string $dt = null, ?array $types = null): array
     {
-        if ($types !== null && count($types) === 0) {
+        $types ??= ['Подход', 'Отправка'];
+        if (count($types) === 0) {
             return [];
         }
-        $sql = 'SELECT type_reference, MAX(report_dt) AS dt FROM xx_dislocation_rjd';
-        $filter = $this->organizations->filter();
-        $sql .= ' WHERE ' . $filter['sql'];
-        $params = $filter['params'];
-        if ($types !== null) {
-            $placeholders = implode(',', array_map(fn($i) => ":t$i", array_keys($types)));
-            $sql .= " AND type_reference IN ($placeholders)";
-            foreach ($types as $i => $t) {
-                $params["t$i"] = $t;
-            }
+        $parts = [];
+        $params = [];
+        $types = array_values(array_unique($types));
+        for ($i = 0; $i < count($types); $i += 2) {
+            $second = $i + 1;
+            $parts[] = "SELECT type_reference, report_dt AS dt
+                          FROM TABLE(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.GET_LATEST_REPORTS(
+                              :t$i, :t$second, NULL
+                          ))";
+            $params["t$i"] = $types[$i];
+            $params["t$second"] = $types[$second] ?? null;
         }
-        $sql .= ' GROUP BY type_reference';
+        $sql = implode(' UNION ALL ', $parts);
         $rows = $this->db->fetchAll($sql, $params);
         $dates = [];
         foreach ($rows as $r) {
+            if (empty($r['dt'])) {
+                continue;
+            }
             $dates[(string) $r['type_reference']] = $dt ?? (string) $r['dt'];
         }
         return $dates;
