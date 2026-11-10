@@ -14,6 +14,8 @@ use Slim\Psr7\Response;
 
 class PageAccessMiddleware implements MiddlewareInterface
 {
+    private const ACCESS_CACHE_SECONDS = 60;
+
     /** @var callable():\App\Database\DbInterface */
     private $dbResolver;
     private string $basePath;
@@ -53,8 +55,15 @@ class PageAccessMiddleware implements MiddlewareInterface
 
         $allowed = [];
         try {
-            $allowed = $this->allowedPages((int) ($user['id'] ?? 0));
-            $_SESSION['user']['allowed_pages'] = $allowed;
+            $allowedCachedAt = (int) ($_SESSION['allowed_pages_cached_at'] ?? 0);
+            if (isset($_SESSION['user']['allowed_pages'])
+                && $allowedCachedAt > time() - self::ACCESS_CACHE_SECONDS) {
+                $allowed = (array) $_SESSION['user']['allowed_pages'];
+            } else {
+                $allowed = $this->allowedPages((int) ($user['id'] ?? 0));
+                $_SESSION['user']['allowed_pages'] = $allowed;
+                $_SESSION['allowed_pages_cached_at'] = time();
+            }
         } catch (\Throwable $e) {
             ErrorLogger::logThrowable($e, [
                 'module' => self::class,

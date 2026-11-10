@@ -636,6 +636,7 @@ function connectReportDefinitions() {
     pinned_row_label: 'pinnedRowLabel',
     pinned_station_key: 'pinnedStationKey',
     first_road_key: 'firstRoadKey',
+    initial_filters_with_summary: 'initialFiltersWithSummary',
   }
   Object.keys(reportDefinitions).forEach(function (reportCode) {
     var reportDefinition = reportDefinitions[reportCode]
@@ -806,7 +807,7 @@ function initTab(cfg) {
       $acts.append($btn)
     }
   }
-  loadFilters(cfg)
+  if (!cfg.initialFiltersWithSummary) loadFilters(cfg)
   var _sumXhr = loadSummary(cfg)
   if (!cfg.summaryUrl && cfg.detailUrl && !window[cfg.loadedDetKey]) {
     var initHint = cfg.validate ? cfg.validate() : null
@@ -852,10 +853,17 @@ function loadSummary(cfg) {
     })
     .join(',')
   if (cby) summaryParams.col_by = cby
+  if (cfg.initialFiltersWithSummary && !cfg.filtersLoaded) {
+    summaryParams.include_filters = '1'
+  }
 
   /* Получаем сводную информацию  */
   return $.getJSON(cfg.summaryUrl, summaryParams)
     .done(function (data) {
+      if (data.filters && cfg.fillFilters && !cfg.filtersLoaded) {
+        cfg.fillFilters(data.filters)
+        cfg.filtersLoaded = true
+      }
       if (cfg.metricsId) {
         var items = cfg.kpi
           ? cfg.kpi(data)
@@ -1040,6 +1048,7 @@ function loadSummary(cfg) {
       )
     })
     .fail(function (jqXHR) {
+      if (cfg.initialFiltersWithSummary && !cfg.filtersLoaded) loadFilters(cfg)
       var msg = ajaxErr(jqXHR)
       $table.html(
         '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">' +

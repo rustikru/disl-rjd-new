@@ -510,22 +510,20 @@ as
             return '';
     end set_kpi_label;
 
-    -- Изменение по сравнению с прошлым днем/есяцем
-    procedure prv_kpi_trend (p_id        in     number,
-                             p_pct_out      out varchar2,
-                             p_dir_out      out varchar2)
+    -- Изменение по сравнению с прошлым днем/месяцем.
+    procedure calculate_kpi_trend (p_id        in     number,
+                                   p_current   in     number,
+                                   p_pct_out      out varchar2,
+                                   p_dir_out      out varchar2)
     is
         v_period        varchar2 (10);
         v_metric_type   varchar2 (20);
-        v_current       number := 0;
         v_previous      number := 0;
     begin
         select NVL (trend_period, 'Day'), NVL (trend_unit, 'шт.')
           into v_period, v_metric_type
           from xx_rjd_kpi_tbl_v
          where id = p_id;
-
-        v_current := TO_NUMBER (NVL (set_kpi_label (p_id), '0'));
 
         if v_period = 'Day'
         then
@@ -539,10 +537,25 @@ as
         end if;
 
         calculate_change (p_yesterday_value   => v_previous,
-                          p_today_value       => v_current,
+                          p_today_value       => p_current,
                           p_return            => v_metric_type,
                           p_percent           => p_pct_out,
                           p_direction         => p_dir_out);
+    exception
+        when others
+        then
+            p_pct_out := null;
+            p_dir_out := '';
+    end calculate_kpi_trend;
+
+    procedure prv_kpi_trend (p_id        in     number,
+                             p_pct_out      out varchar2,
+                             p_dir_out      out varchar2)
+    is
+        v_current   number := 0;
+    begin
+        v_current := TO_NUMBER (NVL (set_kpi_label (p_id), '0'));
+        calculate_kpi_trend (p_id, v_current, p_pct_out, p_dir_out);
     exception
         when others
         then
@@ -591,6 +604,174 @@ as
         pipe row (t_xx_rjd_kpi_row (v_value, v_pct, v_dir));
         return;
     end get_kpi_row;
+
+    -- Возвращает системные KPI выбранного раздела одним вызовом из приложения.
+    function get_page_kpi (p_kpi_type in varchar2, p_user_id in number)
+        return page_kpi_tab
+        pipelined
+    is
+        type card_rec is record
+        (
+            id             number,
+            code           varchar2 (100),
+            type           varchar2 (100),
+            label          varchar2 (500),
+            trend_period   varchar2 (20),
+            order_by       number,
+            has_error      varchar2 (1)
+        );
+        type card_tab is table of card_rec index by pls_integer;
+        type value_tab is table of number index by pls_integer;
+
+        l_cards       card_tab;
+        l_values      value_tab;
+        l_count       pls_integer := 0;
+        l_condition   varchar2 (4000);
+        l_sql         varchar2 (32767);
+        l_cursor      integer;
+        l_result      integer;
+        l_number      number;
+        l_value       varchar2 (4000);
+        l_trend_pct   varchar2 (100);
+        l_trend_dir   varchar2 (10);
+        l_row         page_kpi_rec;
+    begin
+        for r in (select k.id,
+                         k.code,
+                         k.type,
+                         k.label,
+                         k.trend_period,
+                         k.order_by
+                    from xx_rjd_kpi_tbl k
+                   where k.is_system = 'Y'
+                     and k.is_active = 'Y'
+                     and k.type = TRIM (p_kpi_type)
+                     and not exists
+                             (select 1
+                                from xx_rjd_kpi_hidden h
+                               where h.user_id = p_user_id
+                                 and h.kpi_id = k.id)
+                   order by k.order_by, k.id)
+        loop
+            l_count := l_count + 1;
+            l_cards (l_count).id := r.id;
+            l_cards (l_count).code := r.code;
+            l_cards (l_count).type := r.type;
+            l_cards (l_count).label := r.label;
+            l_cards (l_count).trend_period := r.trend_period;
+            l_cards (l_count).order_by := r.order_by;
+            l_cards (l_count).has_error := 'N';
+
+            begin
+                l_condition := get_kpi_where (r.id);
+            exception
+                when others
+                then
+                    if SQLCODE = -20001
+                    then
+                        l_cards (l_count).has_error := 'Y';
+                        l_condition := '1=0';
+                    else
+                        raise;
+                    end if;
+            end;
+
+            if l_count > 1
+            then
+                l_sql := l_sql || ',';
+            end if;
+
+            if r.code = 'formed_trains'
+            then
+                l_sql := l_sql || 'COUNT(DISTINCT CASE WHEN ('
+                         || l_condition || ') THEN train_no END)';
+            else
+                l_sql := l_sql || 'COUNT(CASE WHEN ('
+                         || l_condition || ') THEN 1 END)';
+            end if;
+        end loop;
+
+        if l_count = 0
+        then
+            return;
+        end if;
+
+        l_sql := 'SELECT ' || l_sql
+                 || ' FROM xx_dislocation_rjd'
+                 || ' WHERE organization_id = XX_RJD_DISLOCATION_NEW_PKG.GET_ORGANIZATION_ID()'
+                 || ' AND (report_dt, type_reference) IN ('
+                 || '   SELECT report_dt, type_reference'
+                 || '     FROM TABLE(XX_RJD_DISLOCATION_NEW_PKG.GET_LATEST_REPORTS())'
+                 || ' )'
+                 || ' AND NOT EXISTS ('
+                 || '   SELECT 1 FROM xx_disl_idle_control_v dic'
+                 || '    WHERE TRIM(dic.car_number) = TRIM(TO_CHAR(wagon_no))'
+                 || '      AND UPPER(TRIM(dic.is_excluded)) = ''Y'''
+                 || '      AND UPPER(REPLACE(TRIM(dic.idle_reasons_name), ''Ё'', ''Е''))'
+                 || '          IN (''ЛОМ'', ''МЕТАЛЛОЛОМ'', ''СНЯТЬ С АВТОСЛЕЖЕНИЯ'')'
+                 || ' )';
+
+        l_cursor := DBMS_SQL.OPEN_CURSOR;
+        begin
+            DBMS_SQL.PARSE (l_cursor, l_sql, DBMS_SQL.NATIVE);
+            for i in 1 .. l_count
+            loop
+                DBMS_SQL.DEFINE_COLUMN (l_cursor, i, l_number);
+            end loop;
+            l_result := DBMS_SQL.EXECUTE (l_cursor);
+            if DBMS_SQL.FETCH_ROWS (l_cursor) > 0
+            then
+                for i in 1 .. l_count
+                loop
+                    DBMS_SQL.COLUMN_VALUE (l_cursor, i, l_number);
+                    l_values (i) := l_number;
+                end loop;
+            end if;
+            DBMS_SQL.CLOSE_CURSOR (l_cursor);
+        exception
+            when others
+            then
+                if DBMS_SQL.IS_OPEN (l_cursor)
+                then
+                    DBMS_SQL.CLOSE_CURSOR (l_cursor);
+                end if;
+                raise;
+        end;
+
+        for i in 1 .. l_count
+        loop
+            l_value := TO_CHAR (NVL (l_values (i), 0));
+            l_trend_pct := null;
+            l_trend_dir := null;
+
+            if l_cards (i).has_error = 'N'
+               and TRIM (l_cards (i).trend_period) is not null
+            then
+                calculate_kpi_trend (l_cards (i).id,
+                                     NVL (l_values (i), 0),
+                                     l_trend_pct,
+                                     l_trend_dir);
+            end if;
+
+            l_row.id := l_cards (i).id;
+            l_row.code := l_cards (i).code;
+            l_row.type := l_cards (i).type;
+            l_row.x_label := l_cards (i).label;
+            l_row.x_value := case
+                                 when l_cards (i).has_error = 'Y'
+                                 then 'Условие для KPI не определено.'
+                                 else l_value
+                             end;
+            l_row.trend_pct := l_trend_pct;
+            l_row.trend_dir := l_trend_dir;
+            l_row.trend_period := l_cards (i).trend_period;
+            l_row.order_by := l_cards (i).order_by;
+            l_row.is_error := l_cards (i).has_error;
+            pipe row (l_row);
+        end loop;
+
+        return;
+    end get_page_kpi;
 
     procedure archive_rjd_movement (p_report_dt        in date,
                                     p_type_reference   in varchar2)

@@ -13,6 +13,8 @@ use Psr\Http\Server\RequestHandlerInterface;
  */
 class SessionMiddleware implements MiddlewareInterface
 {
+    private const REGISTRY_TOUCH_INTERVAL = 30;
+
     private string $sessionName;
     private bool $secureCookie;
     private string $cookiePath;
@@ -45,19 +47,24 @@ class SessionMiddleware implements MiddlewareInterface
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
         }
         $hadUser = !empty($_SESSION['user']);
-        $sync = function () use ($request): void {
+        $sync = function (bool $force = false) use ($request): void {
             if (session_status() !== PHP_SESSION_ACTIVE || empty($_SESSION['user'])) return;
+            $lastCheck = (int) ($_SESSION['registry_checked_at'] ?? 0);
+            if (!$force && $lastCheck > time() - self::REGISTRY_TOUCH_INTERVAL) return;
             $registry = new \App\Services\SessionRegistry(($this->getDb)(), $this->lifetime);
             if (!$registry->touch(session_id(), $_SESSION['user'], (string) ($request->getServerParams()['REMOTE_ADDR'] ?? ''), $request->getHeaderLine('User-Agent'))) {
                 $_SESSION = [];
                 session_regenerate_id(true);
                 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+                return;
             }
+            $_SESSION['registry_checked_at'] = time();
         };
-        $sync();
+        $method = strtoupper($request->getMethod());
+        $sync(!in_array($method, ['GET', 'HEAD'], true));
         $response = $handler->handle($request);
         if (!$hadUser && !empty($_SESSION['user'])) {
-            $sync();
+            $sync(true);
         }
         return $response;
     }

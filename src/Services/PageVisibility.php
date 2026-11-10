@@ -7,16 +7,26 @@ use App\Database\DbInterface;
 
 final class PageVisibility
 {
+    private const CACHE_SECONDS = 30;
+
     public function __construct(private DbInterface $db)
     {
     }
 
     public function disabledPages(): array
     {
-        return array_map(
+        $cachedAt = (int) ($_SESSION['disabled_pages_cached_at'] ?? 0);
+        if (isset($_SESSION['disabled_pages']) && $cachedAt > time() - self::CACHE_SECONDS) {
+            return (array) $_SESSION['disabled_pages'];
+        }
+
+        $disabledPages = array_map(
             static fn(array $row): string => (string) $row['page_code'],
             $this->db->fetchAll('SELECT page_code FROM xx_rjd_disabled_pages ORDER BY page_code')
         );
+        $_SESSION['disabled_pages'] = $disabledPages;
+        $_SESSION['disabled_pages_cached_at'] = time();
+        return $disabledPages;
     }
 
     public function save(array $disabledPages, ?int $userId): void
@@ -37,6 +47,8 @@ final class PageVisibility
                 );
             }
             $this->db->commit();
+            $_SESSION['disabled_pages'] = $disabledPages;
+            $_SESSION['disabled_pages_cached_at'] = time();
         } catch (\Throwable $error) {
             $this->db->rollback();
             throw $error;

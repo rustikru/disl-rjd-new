@@ -56,6 +56,26 @@ as
         return t_xx_rjd_kpi_tab
         pipelined;
 
+    type page_kpi_rec is record
+    (
+        id             number,
+        code           varchar2 (100),
+        type           varchar2 (100),
+        x_label        varchar2 (500),
+        x_value        varchar2 (4000),
+        trend_pct      varchar2 (100),
+        trend_dir      varchar2 (10),
+        trend_period   varchar2 (20),
+        order_by       number,
+        is_error       varchar2 (1)
+    );
+
+    type page_kpi_tab is table of page_kpi_rec;
+
+    function get_page_kpi (p_kpi_type in varchar2, p_user_id in number)
+        return page_kpi_tab
+        pipelined;
+
     function get_kpi_where (p_kpi_id in number)
         return varchar2;
 

@@ -128,71 +128,34 @@ class ApiController
         }
 
         $params = $request->getQueryParams();
-        $bindings = ['hidden_user_id' => (int) ($_SESSION['user']['id'] ?? 0)];
-        $whereCond = '1=1';
-
         $kpiType = trim($params['kpi_type'] ?? '');
         if ($kpiType === 'loading_kpi') {
             return $this->loadingKpiSummary($request, $response);
         }
-        if ($kpiType !== '') {
-            $whereCond .= ' AND k.type = :kpi_type';
-            $bindings['kpi_type'] = $kpiType;
+        if (KpiTypeRegistry::get($kpiType) === null) {
+            return $this->json($response->withStatus(400), ['error' => 'Неизвестный тип KPI']);
         }
 
-        $cards = $this->db->fetchAll(
-            "SELECT k.id, k.code, k.type, k.label AS x_label, k.trend_period
-               FROM XX_ETW.XX_RJD_KPI_TBL k
-              WHERE k.is_system = 'Y' AND k.is_active = 'Y' AND $whereCond
-                AND NOT EXISTS (
-                    SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h
-                     WHERE h.user_id = :hidden_user_id AND h.kpi_id = k.id
-                )
-              ORDER BY k.order_by, k.id",
-            $bindings
-        );
-        $rows = [];
-        foreach ($cards as $card) {
-            $id = (int) $card['id'];
-            try {
-                if (trim((string) ($card['trend_period'] ?? '')) === '') {
-                    $result = $this->db->fetchOne(
-                        "SELECT xx_rjd_dislocation_new_pkg.set_kpi_label(:label_id) AS x_value
-                           FROM dual",
-                        ['label_id' => $id]
-                    );
-                    $result = array_merge($result ?: [], ['trend_pct' => null, 'trend_dir' => null]);
-                } else {
-                    $result = $this->db->fetchOne(
-                        "SELECT xx_rjd_dislocation_new_pkg.set_kpi_label(:label_id) AS x_value,
-                                xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_pct(:trend_pct_id) AS trend_pct,
-                                xx_rjd_dislocation_new_pkg.fnc_get_kpi_trend_dir(:trend_dir_id) AS trend_dir
-                           FROM dual",
-                        ['label_id' => $id, 'trend_pct_id' => $id, 'trend_dir_id' => $id]
-                    );
-                }
-                $rows[] = array_merge($card, $result ?: []);
-            } catch (\Throwable $error) {
-                if (strpos($error->getMessage(), 'ORA-20001') !== false) {
-                    $rows[] = array_merge($card, [
-                        'x_value' => 'Условие для KPI не определено.',
-                        'trend_pct' => null,
-                        'trend_dir' => null,
-                        'is_error' => 'Y',
-                    ]);
-                    continue;
-                }
-                $code = ErrorLogger::logThrowable($error, [
-                    'operation' => 'load_system_kpi',
-                    'kpi_id' => $id,
-                ]);
-                $rows[] = array_merge($card, [
-                    'x_value' => 'Ошибка расчёта KPI (' . $code . ')',
-                    'trend_pct' => null,
-                    'trend_dir' => null,
-                    'is_error' => 'Y',
-                ]);
-            }
+        try {
+            $rows = $this->db->fetchAll(
+                'SELECT *
+                   FROM TABLE(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.GET_PAGE_KPI(
+                       :kpi_type, :user_id
+                   ))',
+                [
+                    'kpi_type' => $kpiType,
+                    'user_id' => (int) ($_SESSION['user']['id'] ?? 0),
+                ]
+            );
+        } catch (\Throwable $error) {
+            $code = ErrorLogger::logThrowable($error, [
+                'operation' => 'load_system_kpi',
+                'kpi_type' => $kpiType,
+            ], $request);
+            return $this->json($response->withStatus(500), [
+                'error' => 'Не удалось загрузить KPI',
+                'code' => $code,
+            ]);
         }
 
         if (KpiTypeRegistry::isUserCreatable($kpiType)) {
@@ -211,28 +174,30 @@ class ApiController
                       ORDER BY order_by, id",
                     ['owner_id' => $userId, 'hidden_user_id' => $userId, 'type' => $kpiType]
                 );
-                $source = $this->dislFrom([]);
-                foreach ($userCards as $card) {
-                    $condition = KpiCondition::compile($kpiType, (string) ($card['where_config'] ?? ''));
-                    $count = 0;
-                    if ($source['from'] !== '') {
-                        $countRow = $this->db->fetchOne(
-                            "SELECT COUNT(*) AS total FROM {$source['from']} xdr WHERE 1=1 AND type_reference = :kpi_type_reference AND {$condition['sql']}",
-                            array_merge($source['bindings'], $condition['params'], [
-                                'kpi_type_reference' => KpiTypeRegistry::referenceType($kpiType),
-                            ])
-                        );
-                        $count = (int) ($countRow['total'] ?? 0);
+                if ($userCards !== []) {
+                    $source = $this->dislFrom([]);
+                    foreach ($userCards as $card) {
+                        $condition = KpiCondition::compile($kpiType, (string) ($card['where_config'] ?? ''));
+                        $count = 0;
+                        if ($source['from'] !== '') {
+                            $countRow = $this->db->fetchOne(
+                                "SELECT COUNT(*) AS total FROM {$source['from']} xdr WHERE 1=1 AND type_reference = :kpi_type_reference AND {$condition['sql']}",
+                                array_merge($source['bindings'], $condition['params'], [
+                                    'kpi_type_reference' => KpiTypeRegistry::referenceType($kpiType),
+                                ])
+                            );
+                            $count = (int) ($countRow['total'] ?? 0);
+                        }
+                        $rows[] = [
+                            'id' => $card['id'], 'code' => $card['code'], 'type' => $card['type'],
+                            'x_label' => $card['label'], 'x_value' => $count,
+                            'trend_pct' => null, 'trend_dir' => null, 'is_user' => 'Y',
+                            'is_global' => $card['visibility'] === 'GLOBAL' ? 'Y' : 'N',
+                            'can_edit' => (($card['visibility'] === 'PRIVATE' && (int) $card['owner_id'] === $userId)
+                                || ($card['visibility'] === 'GLOBAL' && \App\Services\Authorization::isSuper())) ? 'Y' : 'N',
+                            'config' => json_decode((string) ($card['where_config'] ?? ''), true),
+                        ];
                     }
-                    $rows[] = [
-                        'id' => $card['id'], 'code' => $card['code'], 'type' => $card['type'],
-                        'x_label' => $card['label'], 'x_value' => $count,
-                        'trend_pct' => null, 'trend_dir' => null, 'is_user' => 'Y',
-                        'is_global' => $card['visibility'] === 'GLOBAL' ? 'Y' : 'N',
-                        'can_edit' => (($card['visibility'] === 'PRIVATE' && (int) $card['owner_id'] === $userId)
-                            || ($card['visibility'] === 'GLOBAL' && \App\Services\Authorization::isSuper())) ? 'Y' : 'N',
-                        'config' => json_decode((string) ($card['where_config'] ?? ''), true),
-                    ];
                 }
             } catch (\Throwable $error) {
                 $code = ErrorLogger::logThrowable($error, ['operation' => 'load_user_kpi_summary', 'user_id' => (int) ($_SESSION['user']['id'] ?? 0)]);
@@ -296,6 +261,7 @@ class ApiController
                 'is_global' => $r['is_global'] ?? 'N',
                 'can_edit' => $r['can_edit'] ?? 'N',
                 'can_hide' => 'Y',
+                'is_error' => $r['is_error'] ?? 'N',
                 'config' => $r['config'] ?? null,
             ];
         }
@@ -800,23 +766,7 @@ class ApiController
             return $this->json($response, ['cargo' => [], 'depart_station' => []]);
         }
 
-        $cargo = $this->db->fetchAll(
-            "SELECT DISTINCT cargo_name FROM {$source['from']}
-             WHERE cargo_name IS NOT NULL AND nvl(prev_cargo,'*') != '*'
-             ORDER BY cargo_name",
-            $source['bindings']
-        );
-        $departStation = $this->db->fetchAll(
-            "SELECT DISTINCT depart_station FROM {$source['from']}
-             WHERE depart_station IS NOT NULL AND nvl(depart_station,'*') != '*'
-             ORDER BY depart_station",
-            $source['bindings']
-        );
-
-        return $this->json($response, [
-            'cargo' => array_column($cargo, 'cargo_name'),
-            'depart_station' => array_column($departStation, 'depart_station'),
-        ]);
+        return $this->json($response, $this->approachFilterValues($source));
     }
 
     /** GET /api/approach/summary */
@@ -831,7 +781,12 @@ class ApiController
 
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_road', 'dest_station']);
         $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
-        return $this->json($response, $this->summaryReport($source, $rowDims, $colDefs));
+        $data = $this->summaryReport($source, $rowDims, $colDefs);
+        if (($params['include_filters'] ?? '') === '1') {
+            $filterSource = $this->approachFrom(['report_dt' => $source['reportDt']]);
+            $data['filters'] = $this->approachFilterValues($filterSource);
+        }
+        return $this->json($response, $data);
     }
 
     /** GET /api/approach/detail */
@@ -887,19 +842,7 @@ class ApiController
             return $this->json($response, ['cargo' => [], 'dest_station' => []]);
         }
 
-        $cargo = $this->db->fetchAll(
-            "SELECT DISTINCT cargo_name FROM {$source['from']} WHERE cargo_name IS NOT NULL ORDER BY cargo_name",
-            $source['bindings']
-        );
-        $destStation = $this->db->fetchAll(
-            "SELECT DISTINCT dest_station FROM {$source['from']} WHERE dest_station IS NOT NULL ORDER BY dest_station ",
-            $source['bindings']
-        );
-
-        return $this->json($response, [
-            'cargo' => array_column($cargo, 'cargo_name'),
-            'dest_station' => array_column($destStation, 'dest_station'),
-        ]);
+        return $this->json($response, $this->departureFilterValues($source));
     }
 
     /** GET /api/departure/summary 
@@ -916,7 +859,52 @@ class ApiController
 
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['depart_road', 'depart_station']);
         $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
-        return $this->json($response, $this->summaryReport($source, $rowDims, $colDefs));
+        $data = $this->summaryReport($source, $rowDims, $colDefs);
+        if (($params['include_filters'] ?? '') === '1') {
+            $filterSource = $this->departureFrom(['report_dt' => $source['reportDt']]);
+            $data['filters'] = $this->departureFilterValues($filterSource);
+        }
+        return $this->json($response, $data);
+    }
+
+    private function approachFilterValues(array $source): array
+    {
+        $cargo = $this->db->fetchAll(
+            "SELECT DISTINCT cargo_name FROM {$source['from']}
+             WHERE cargo_name IS NOT NULL AND NVL(prev_cargo, '*') != '*'
+             ORDER BY cargo_name",
+            $source['bindings']
+        );
+        $departStation = $this->db->fetchAll(
+            "SELECT DISTINCT depart_station FROM {$source['from']}
+             WHERE depart_station IS NOT NULL AND NVL(depart_station, '*') != '*'
+             ORDER BY depart_station",
+            $source['bindings']
+        );
+
+        return [
+            'cargo' => array_column($cargo, 'cargo_name'),
+            'depart_station' => array_column($departStation, 'depart_station'),
+        ];
+    }
+
+    private function departureFilterValues(array $source): array
+    {
+        $cargo = $this->db->fetchAll(
+            "SELECT DISTINCT cargo_name FROM {$source['from']}
+             WHERE cargo_name IS NOT NULL ORDER BY cargo_name",
+            $source['bindings']
+        );
+        $destStation = $this->db->fetchAll(
+            "SELECT DISTINCT dest_station FROM {$source['from']}
+             WHERE dest_station IS NOT NULL ORDER BY dest_station",
+            $source['bindings']
+        );
+
+        return [
+            'cargo' => array_column($cargo, 'cargo_name'),
+            'dest_station' => array_column($destStation, 'dest_station'),
+        ];
     }
 
     /** GET /api/departure/detail */

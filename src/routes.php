@@ -511,7 +511,7 @@ return function (App $app, array $config): void {
                 return (new \App\Controllers\ApiController($getDb(), $getOrganizations()))->resetTableLayout($req, $res, (string) $args['reportCode']);
             });
 
-        });
+        })->add(new \App\Middleware\SessionReleaseMiddleware());
 
     })
         ->add(new \App\Middleware\PageAccessMiddleware($getDb, $config['base_path'] ?? '', $config))

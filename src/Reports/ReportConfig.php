@@ -378,6 +378,7 @@ final class ReportConfig
             ],
             // Подход вагонов
             'approach' => [
+                'initial_filters_with_summary' => true,
                 'summary_file' => 'подход',
                 'detail_file' => 'подход-расширенная',
                 'total_text' => 'Общий итог',
@@ -396,6 +397,7 @@ final class ReportConfig
             ],
             // Отправление вагонов
             'departure' => [
+                'initial_filters_with_summary' => true,
                 'summary_file' => 'отправление',
                 'detail_file' => 'отправление-расширенная',
                 'total_text' => 'Всего отправлено',
