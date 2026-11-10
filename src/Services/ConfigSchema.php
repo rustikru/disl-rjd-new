@@ -13,6 +13,7 @@ final class ConfigSchema
             'app_debug'=>self::d('bool',false,'Приложение'), 'app_name'=>self::d('string','Дислокация РЖД','Приложение'),
             'base_path'=>self::d('string','','Приложение'),
             'dislocation_stale_hours'=>self::d('int',8,'Приложение',null,1,720),
+            'user_kpi_management_enabled'=>self::d('bool',false,'Приложение',label:'Управление пользовательскими KPI',help:'Разрешает создание, редактирование, скрытие и восстановление KPI-карточек.'),
             'maintenance_enabled'=>self::d('bool',false,'Технические работы',label:'Режим технических работ'),
             'maintenance_start'=>self::d('datetime','','Технические работы',label:'Начало',help:'Оставьте пустым, чтобы включить сразу.'),
             'maintenance_end'=>self::d('datetime','','Технические работы',label:'Окончание',help:'Оставьте пустым для бессрочного режима.'),

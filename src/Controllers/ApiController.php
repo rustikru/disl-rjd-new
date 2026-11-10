@@ -7,6 +7,7 @@ use App\Database\DbInterface;
 use App\Reports\ReportConfig;
 use App\Reports\KpiCondition;
 use App\Reports\KpiGroupingTemplates;
+use App\Reports\KpiTypeRegistry;
 use App\Services\Claims;
 use App\Services\Organizations;
 use App\Services\ReportService;
@@ -183,7 +184,7 @@ class ApiController
             }
         }
 
-        if (in_array($kpiType, ['approach_kpi', 'departue_kpi'], true)) {
+        if (KpiTypeRegistry::isUserCreatable($kpiType)) {
             try {
                 $userId = (int) ($_SESSION['user']['id'] ?? 0);
                 $userCards = $this->db->fetchAll(
@@ -207,7 +208,7 @@ class ApiController
                         $countRow = $this->db->fetchOne(
                             "SELECT COUNT(*) AS total FROM {$source['from']} xdr WHERE 1=1 AND type_reference = :kpi_type_reference AND {$condition['sql']}",
                             array_merge($source['bindings'], $condition['params'], [
-                                'kpi_type_reference' => $kpiType === 'approach_kpi' ? 'Подход' : 'Отправка',
+                                'kpi_type_reference' => KpiTypeRegistry::referenceType($kpiType),
                             ])
                         );
                         $count = (int) ($countRow['total'] ?? 0);
@@ -445,7 +446,7 @@ class ApiController
                 ['kpi_id' => (int) $kpiId, 'owner_id' => $userId, 'hidden_user_id' => $userId]
             );
             if ($userKpi) {
-                if (!in_array((string) $userKpi['type'], ['approach_kpi', 'departue_kpi'], true)) {
+                if (!KpiTypeRegistry::isUserCreatable((string) $userKpi['type'])) {
                     return $this->json($response->withStatus(404), ['error' => 'Карточка KPI не найдена']);
                 }
                 $kpi = ['code' => $userKpi['code'], 'label' => $userKpi['label']];
@@ -513,7 +514,7 @@ class ApiController
             if ($userCondition !== null) {
                 $whereCond .= ' AND type_reference = :kpi_type_reference AND ' . $userCondition['sql'];
                 $bindings = array_merge($bindings, $userCondition['params'], [
-                    'kpi_type_reference' => $userKpi['type'] === 'approach_kpi' ? 'Подход' : 'Отправка',
+                    'kpi_type_reference' => KpiTypeRegistry::referenceType((string) $userKpi['type']),
                 ]);
             } else {
                 $condition = trim((string) ($kpi['kpi_condition'] ?? '')) ?: '1=0';

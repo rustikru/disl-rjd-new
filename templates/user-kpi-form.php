@@ -1,6 +1,6 @@
 <?php
 $basePath = $basePath ?? '';
-$typeLabel = $type === 'approach_kpi' ? 'Подход вагонов' : 'Отправление вагонов';
+$typeLabel = $typeLabel ?? 'KPI';
 $config = is_array($config) ? $config : [];
 $detail = is_array($config['detail'] ?? null) ? $config['detail'] : [];
 $conditions = (array) ($config['conditions'] ?? []);

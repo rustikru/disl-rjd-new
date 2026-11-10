@@ -6,6 +6,7 @@ namespace App\Controllers;
 use App\Database\DbInterface;
 use App\Reports\ReportConfig;
 use App\Reports\WagonConfig;
+use App\Reports\KpiTypeRegistry;
 use App\Services\PageAvailability;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -31,6 +32,8 @@ class DashboardController
         $allowedPages = $this->resolveAllowedPages($user);
         $navConfig = require __DIR__ . '/../Navigation.php';
         $reportDefinitions = ReportConfig::forContext('page');
+        $kpiTypes = KpiTypeRegistry::clientConfig();
+        $userKpiManagementEnabled = (bool) $this->config['user_kpi_management_enabled'];
         $disabledPages = (array) (\App\Services\ConfigSchema::current()['disabled_pages'] ?? []);
         $pageAvailability = new PageAvailability(
             $disabledPages,

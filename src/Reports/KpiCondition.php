@@ -5,53 +5,9 @@ namespace App\Reports;
 
 final class KpiCondition
 {
-    private const HIDDEN_FIELDS = [
-        'wagon_no',
-        'wagon_state',
-        'cargo_weight_kg',
-        'oper_dt',
-        'norm_delivery_dt',
-    ];
-    // Поля для конструктора условий KPI. Ключи массива - имена полей в БД, значения - типы данных.
-    private const FIELDS = [
-        // Подход
-        'approach_kpi' => [
-            'wagon_no' => 'string', 'depart_station' => 'string', 'dest_station' => 'string',
-            'oper_station' => 'string', 'cargo_name' => 'string',
-            'wagon_type_code' => 'string', 'wagon_state' => 'string',
-            'train_index' => 'string', 'train_no' => 'string',
-            'cargo_weight_kg' => 'number', 'oper_dt' => 'date',
-            'norm_delivery_dt' => 'date',
-        ],
-        // Отправка 
-        'departue_kpi' => [
-            'wagon_no' => 'string', 'depart_station' => 'string', 'dest_station' => 'string',
-            'oper_station' => 'string', 'cargo_name' => 'string',
-            'wagon_type_code' => 'string', 'wagon_state' => 'string',
-            'train_index' => 'string', 'train_no' => 'string',
-            'cargo_weight_kg' => 'number', 'oper_dt' => 'date',
-        
-        ],
-    ];
-
     public static function fields(string $type, bool $includeHidden = false): array
     {
-        $labels = [
-            'wagon_no' => 'Номер вагона', 'depart_station' => 'Станция отправления', 'dest_station' => 'Станция назначения',
-            'oper_station' => 'Станция операции', 'cargo_name' => 'Груз',
-            'wagon_type_code' => 'Род вагона', 'wagon_state' => 'Состояние вагона',
-            'train_index' => 'Индекс поезда', 'train_no' => 'Номер поезда',
-            'cargo_weight_kg' => 'Вес груза, кг', 'oper_dt' => 'Дата операции',
-            'norm_delivery_dt' => 'Нормативная дата доставки', 
-        ];
-        $result = [];
-        foreach (self::FIELDS[$type] ?? [] as $key => $kind) {
-            if (!$includeHidden && in_array($key, self::HIDDEN_FIELDS, true)) {
-                continue;
-            }
-            $result[] = ['key' => $key, 'label' => $labels[$key], 'type' => $kind];
-        }
-        return $result;
+        return KpiTypeRegistry::fields($type, $includeHidden);
     }
 
     public static function compile(string $type, string $json): array
@@ -65,7 +21,7 @@ final class KpiCondition
             throw new \InvalidArgumentException('Добавьте от 1 до 10 условий.');
         }
 
-        $allowed = self::FIELDS[$type] ?? [];
+        $allowed = KpiTypeRegistry::fieldTypes($type);
         $parts = [];
         $bindings = [];
         foreach ($conditions as $index => $condition) {

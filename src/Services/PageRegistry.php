@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Reports\ReportConfig;
+use App\Reports\KpiTypeRegistry;
 
 /** каталог страниц, маршрутов, прав, видимости и меню. */
 final class PageRegistry
@@ -10,12 +11,6 @@ final class PageRegistry
     /** API, которые используются несколькими страницами. */
     private const SHARED_ROUTES = [
         '/api/technical-state/detail' => ['wagon-card'],
-    ];
-
-    private const KPI_SOURCE_PAGES = [
-        'dashboard_kpi' => 'dashboard',
-        'approach_kpi' => 'approach',
-        'departue_kpi' => 'departure',
     ];
 
     private const CORE = [
@@ -195,12 +190,12 @@ final class PageRegistry
     /** Возвращает страницу, на которой размещена системная карточка KPI. */
     public static function kpiSourcePage(string $type): ?string
     {
-        return self::KPI_SOURCE_PAGES[trim($type)] ?? null;
+        return KpiTypeRegistry::page($type);
     }
 
     public static function isKpiSourcePage(string $page): bool
     {
-        return in_array(trim($page), array_values(self::KPI_SOURCE_PAGES), true);
+        return KpiTypeRegistry::pageLabel($page) !== null;
     }
 
     /** Оставляет в меню только разрешённые и включённые страницы. */

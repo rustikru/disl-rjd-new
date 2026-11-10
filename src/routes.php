@@ -468,27 +468,27 @@ return function (App $app, array $config): void {
                 }
             }
             // --- Карточки KPI ---
-            $api->group('/kpi', function ($sub) use ($getDb, $getOrganizations) {
+            $api->group('/kpi', function ($sub) use ($getDb, $getOrganizations, $config) {
                 $sub->get('/summary', function ($req, $res) use ($getDb, $getOrganizations) {
                     return (new \App\Controllers\ApiController($getDb(), $getOrganizations()))->kpiSummary($req, $res);
                 });
-                $sub->get('/user/catalog', function ($req, $res) use ($getDb, $getOrganizations) {
-                    return (new \App\Controllers\UserKpiController($getDb(), [], $getOrganizations()))->catalog($req, $res);
+                $sub->get('/user/catalog', function ($req, $res) use ($getDb, $getOrganizations, $config) {
+                    return (new \App\Controllers\UserKpiController($getDb(), $config, $getOrganizations()))->catalog($req, $res);
                 });
-                $sub->post('/user', function ($req, $res) use ($getDb, $getOrganizations) {
-                    return (new \App\Controllers\UserKpiController($getDb(), [], $getOrganizations()))->save($req, $res);
+                $sub->post('/user', function ($req, $res) use ($getDb, $getOrganizations, $config) {
+                    return (new \App\Controllers\UserKpiController($getDb(), $config, $getOrganizations()))->save($req, $res);
                 });
-                $sub->delete('/user/{id:[0-9]+}', function ($req, $res, $args) use ($getDb, $getOrganizations) {
-                    return (new \App\Controllers\UserKpiController($getDb(), [], $getOrganizations()))->delete($req, $res, (int) $args['id']);
+                $sub->delete('/user/{id:[0-9]+}', function ($req, $res, $args) use ($getDb, $getOrganizations, $config) {
+                    return (new \App\Controllers\UserKpiController($getDb(), $config, $getOrganizations()))->delete($req, $res, (int) $args['id']);
                 });
-                $sub->post('/card/{id:[0-9]+}/hide', function ($req, $res, $args) use ($getDb, $getOrganizations) {
-                    return (new \App\Controllers\UserKpiController($getDb(), [], $getOrganizations()))->hide($req, $res, (int) $args['id']);
+                $sub->post('/card/{id:[0-9]+}/hide', function ($req, $res, $args) use ($getDb, $getOrganizations, $config) {
+                    return (new \App\Controllers\UserKpiController($getDb(), $config, $getOrganizations()))->hide($req, $res, (int) $args['id']);
                 });
-                $sub->post('/card/{id:[0-9]+}/restore', function ($req, $res, $args) use ($getDb, $getOrganizations) {
-                    return (new \App\Controllers\UserKpiController($getDb(), [], $getOrganizations()))->restore($req, $res, (int) $args['id']);
+                $sub->post('/card/{id:[0-9]+}/restore', function ($req, $res, $args) use ($getDb, $getOrganizations, $config) {
+                    return (new \App\Controllers\UserKpiController($getDb(), $config, $getOrganizations()))->restore($req, $res, (int) $args['id']);
                 });
-                $sub->get('/hidden', function ($req, $res) use ($getDb, $getOrganizations) {
-                    return (new \App\Controllers\UserKpiController($getDb(), [], $getOrganizations()))->hiddenList($req, $res);
+                $sub->get('/hidden', function ($req, $res) use ($getDb, $getOrganizations, $config) {
+                    return (new \App\Controllers\UserKpiController($getDb(), $config, $getOrganizations()))->hiddenList($req, $res);
                 });
             });
             // --- Экспорт виртуальной таблицы в Excel ---

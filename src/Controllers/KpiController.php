@@ -37,6 +37,7 @@ final class KpiController
         $basePath = $this->config['base_path'] ?? '';
         $user = $_SESSION['user'] ?? [];
         $csrf = $_SESSION['csrf_token'] ?? '';
+        $userKpiManagementEnabled = (bool) ($this->config['user_kpi_management_enabled'] ?? false);
         ob_start();
         include __DIR__ . '/../../templates/admin/kpi.php';
         $response->getBody()->write((string) ob_get_clean());
@@ -51,6 +52,7 @@ final class KpiController
         $id = (int) ($body['id'] ?? 0);
         $row = $this->db->fetchOne("SELECT id, is_system FROM XX_ETW.XX_RJD_KPI_TBL WHERE id = :id", ['id' => $id]);
         if (!$row) return $this->redirect($response, '/admin/kpi');
+        if ($row['is_system'] !== 'Y' && !$this->userManagementEnabled()) return $response->withStatus(403);
         $label = trim((string) ($body['label'] ?? ''));
         $active = ($body['is_active'] ?? 'N') === 'Y' ? 'Y' : 'N';
         if ($label === '' || mb_strlen($label) > 150) return $this->redirect($response, '/admin/kpi?error=validation');
@@ -88,6 +90,7 @@ final class KpiController
     {
         $body = (array) $request->getParsedBody();
         if (!Authorization::isSuper()) return $response->withStatus(403);
+        if (!$this->userManagementEnabled()) return $response->withStatus(403);
         if (!$this->validCsrf($body)) return $response->withStatus(403);
         $id = (int) ($body['id'] ?? 0);
         try {
@@ -103,6 +106,11 @@ final class KpiController
     private function validCsrf(array $body): bool
     {
         return !empty($body['csrf_token']) && hash_equals((string) ($_SESSION['csrf_token'] ?? ''), (string) $body['csrf_token']);
+    }
+
+    private function userManagementEnabled(): bool
+    {
+        return (bool) ($this->config['user_kpi_management_enabled'] ?? false);
     }
 
     private function redirect(ResponseInterface $response, string $path): ResponseInterface

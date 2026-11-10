@@ -7,6 +7,7 @@ use App\Database\DbInterface;
 use App\Logging\ErrorLogger;
 use App\Reports\KpiCondition;
 use App\Reports\KpiGroupingTemplates;
+use App\Reports\KpiTypeRegistry;
 use App\Services\Authorization;
 use App\Services\Organizations;
 use App\Services\PageRegistry;
@@ -28,11 +29,14 @@ final class UserKpiController
     
     public function form(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        if (!$this->managementEnabled()) {
+            return $response->withStatus(404);
+        }
         $type = trim((string) ($request->getQueryParams()['kpi_type'] ?? ''));
         $id = (int) ($request->getQueryParams()['id'] ?? 0);
         $modalForm = ($request->getQueryParams()['modal'] ?? '') === '1';
         $isAdminEdit = ($request->getQueryParams()['admin'] ?? '') === '1' && \App\Services\Authorization::isSuper();
-        if (!$this->organizations->isMtf() || !in_array($type, ['approach_kpi', 'departue_kpi'], true)) {
+        if (!$this->organizations->isMtf() || !KpiTypeRegistry::isUserCreatable($type)) {
             return $response->withStatus(404);
         }
         
@@ -55,6 +59,7 @@ final class UserKpiController
         $fields = KpiCondition::fields($type);
         $allFields = KpiCondition::fields($type, true);
         $groupingTemplates = KpiGroupingTemplates::options();
+        $typeLabel = (string) (KpiTypeRegistry::get($type)['label'] ?? 'KPI');
         $detailChoice = strtoupper((string) ($detail['template'] ?? ''));
         if ($detailChoice === '' && strtoupper((string) ($detail['type'] ?? '')) === 'GROUPED') {
             $detailChoice = (string) (($detail['group_field'] ?? '') === 'train_no' ? 'TRAIN_NUMBER' : (($detail['group_field'] ?? '') === 'train_index' ? 'TRAIN_INDEX' : ''));
@@ -74,8 +79,11 @@ final class UserKpiController
 
     public function catalog(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        if (!$this->managementEnabled()) {
+            return $this->json($response->withStatus(403), ['error' => 'Управление KPI временно отключено']);
+        }
         $type = trim((string) ($request->getQueryParams()['kpi_type'] ?? ''));
-        if (!in_array($type, ['approach_kpi', 'departue_kpi'], true) || !$this->organizations->isMtf()) {
+        if (!KpiTypeRegistry::isUserCreatable($type) || !$this->organizations->isMtf()) {
             return $this->json($response->withStatus(403), ['error' => 'Недоступно']);
         }
         return $this->json($response, [
@@ -86,6 +94,9 @@ final class UserKpiController
 
     public function save(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        if (!$this->managementEnabled()) {
+            return $this->json($response->withStatus(403), ['error' => 'Управление KPI временно отключено']);
+        }
         $body = (array) $request->getParsedBody();
         if (!$this->validCsrf((string) ($body['csrf_token'] ?? ''))) {
             return $this->json($response->withStatus(403), ['error' => 'Ошибка проверки запроса']);
@@ -97,7 +108,7 @@ final class UserKpiController
         $visibility = $isSuper && strtoupper(trim((string) ($body['visibility'] ?? 'PRIVATE'))) === 'GLOBAL'
             ? 'GLOBAL'
             : 'PRIVATE';
-        if (!$this->organizations->isMtf() || $userId < 1 || !in_array($type, ['approach_kpi', 'departue_kpi'], true)) {
+        if (!$this->organizations->isMtf() || $userId < 1 || !KpiTypeRegistry::isUserCreatable($type)) {
             return $this->json($response->withStatus(403), ['error' => 'Недоступно']);
         }
         if ($label === '' || mb_strlen($label) > 150) {
@@ -146,7 +157,7 @@ final class UserKpiController
                      VALUES (:type, :code, :label, 999, 'шт.', :page_code, :owner_id, 'N', :visibility, :where_config)",
                     [
                         'type' => $type, 'code' => 'user_' . substr(hash('sha256', $userId . microtime(true)), 0, 24),
-                        'label' => $label, 'page_code' => $type === 'approach_kpi' ? 'approach' : 'departure',
+                        'label' => $label, 'page_code' => KpiTypeRegistry::page($type),
                         'owner_id' => $userId, 'visibility' => $visibility, 'where_config' => $json,
                     ]
                 );
@@ -165,6 +176,9 @@ final class UserKpiController
 
     public function delete(ServerRequestInterface $request, ResponseInterface $response, int $id): ResponseInterface
     {
+        if (!$this->managementEnabled()) {
+            return $this->json($response->withStatus(403), ['error' => 'Управление KPI временно отключено']);
+        }
         $body = (array) $request->getParsedBody();
         if (!$this->validCsrf((string) ($body['csrf_token'] ?? ''))) {
             return $this->json($response->withStatus(403), ['error' => 'Ошибка проверки запроса']);
@@ -187,16 +201,25 @@ final class UserKpiController
 
     public function hide(ServerRequestInterface $request, ResponseInterface $response, int $id): ResponseInterface
     {
+        if (!$this->managementEnabled()) {
+            return $this->json($response->withStatus(403), ['error' => 'Управление KPI временно отключено']);
+        }
         return $this->setHidden($request, $response, $id, true);
     }
 
     public function restore(ServerRequestInterface $request, ResponseInterface $response, int $id): ResponseInterface
     {
+        if (!$this->managementEnabled()) {
+            return $this->json($response->withStatus(403), ['error' => 'Управление KPI временно отключено']);
+        }
         return $this->setHidden($request, $response, $id, false);
     }
 
     public function hiddenList(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        if (!$this->managementEnabled()) {
+            return $this->json($response->withStatus(403), ['error' => 'Управление KPI временно отключено']);
+        }
         $userId = (int) ($_SESSION['user']['id'] ?? 0);
         try {
             $rows = $this->hiddenRows($userId);
@@ -209,6 +232,9 @@ final class UserKpiController
 
     public function hidden(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        if (!$this->managementEnabled()) {
+            return $response->withStatus(404);
+        }
         $userId = (int) ($_SESSION['user']['id'] ?? 0);
         try {
             $rows = $this->hiddenRows($userId);
@@ -304,6 +330,11 @@ final class UserKpiController
     private function validCsrf(string $csrf): bool
     {
         return $csrf !== '' && hash_equals((string) ($_SESSION['csrf_token'] ?? ''), $csrf);
+    }
+
+    private function managementEnabled(): bool
+    {
+        return (bool) ($this->config['user_kpi_management_enabled'] ?? false);
     }
 
     private function json(ResponseInterface $response, array $data): ResponseInterface

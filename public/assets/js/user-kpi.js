@@ -1,10 +1,14 @@
 ;(function ($) {
   'use strict'
 
-  var boards = [
-    { id: 'approachMetrics', type: 'approach_kpi' },
-    { id: 'departureMetrics', type: 'departue_kpi' },
-  ]
+  if (!window.APP_USER_KPI_MANAGEMENT_ENABLED) return
+
+  var kpiTypes = window.APP_KPI_TYPES || {}
+  var boards = Object.keys(kpiTypes).filter(function (type) {
+    return kpiTypes[type].user_creatable
+  }).map(function (type) {
+    return { id: kpiTypes[type].container_id, type: type }
+  })
 
   function openForm(type, id, admin) {
     var url =
@@ -54,8 +58,12 @@
     }
     $list.html(
       rows.map(function (row) {
-        var page = row.page_code || ({ dashboard_kpi: 'dashboard', approach_kpi: 'approach', departue_kpi: 'departure', loading_kpi: 'loading' }[row.type] || '')
-        var pageLabel = { dashboard: 'Дашборд', approach: 'Подход вагонов', departure: 'Отправление вагонов', loading: 'Погрузка' }[page] || 'KPI'
+        var typeDefinition = kpiTypes[row.type] || {}
+        var page = row.page_code || typeDefinition.page || ''
+        var pageType = Object.keys(kpiTypes).find(function (type) {
+          return kpiTypes[type].page === page
+        })
+        var pageLabel = (pageType && kpiTypes[pageType].label) || 'KPI'
         var scope = row.is_system === 'Y' ? 'Системная' : row.visibility === 'PRIVATE' ? 'Личная' : 'Общая'
         return '<div class="kpi-hidden-row"><div><strong>' + $('<div>').text(row.label || '').html() + '</strong><span>' + pageLabel + ' · ' + scope + '</span></div><button type="button" class="btn btn-ghost btn-sm kpi-hidden-restore" data-kpi-id="' + Number(row.id) + '">Вернуть</button></div>'
       }).join(''),

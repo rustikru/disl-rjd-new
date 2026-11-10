@@ -27,7 +27,7 @@ include __DIR__ . '/partials/header.php';
       <?php if ($rows): ?>
         <div class="ui-table-wrap"><table class="ui-table"><thead><tr><th>Название</th><th>Страница</th><th></th></tr></thead><tbody>
         <?php foreach ($rows as $row): ?>
-          <?php $page = (string) ($row['page_code'] ?? ''); if ($page === '') $page = (string) (\App\Services\PageRegistry::kpiSourcePage((string) ($row['type'] ?? '')) ?? ''); $pageLabel = ['dashboard' => 'Дашборд', 'approach' => 'Подход вагонов', 'departure' => 'Отправление вагонов', 'loading' => 'Погрузка'][$page] ?? 'KPI'; ?>
+          <?php $page = (string) ($row['page_code'] ?? ''); if ($page === '') $page = (string) (\App\Services\PageRegistry::kpiSourcePage((string) ($row['type'] ?? '')) ?? ''); $pageLabel = \App\Reports\KpiTypeRegistry::pageLabel($page) ?? 'KPI'; ?>
           <tr><td><?= htmlspecialchars((string) $row['label']) ?></td><td><?= htmlspecialchars($pageLabel) ?> · <?= ($row['is_system'] ?? 'N') === 'Y' ? 'Системная' : 'Общая' ?></td><td><button class="btn btn-ghost btn-sm kpi-restore" type="button" data-kpi-id="<?= (int) $row['id'] ?>">Вернуть</button></td></tr>
         <?php endforeach; ?>
         </tbody></table></div>

@@ -34,6 +34,8 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
     window.APP_NAV_CONFIG = <?= json_encode($navConfig ?? [], JSON_UNESCAPED_UNICODE) ?>;
     window.APP_ORGANIZATION_CODE = <?= json_encode($activeOrganizationCode, JSON_UNESCAPED_UNICODE) ?>;
     window.APP_REPORT_DEFINITIONS = <?= json_encode($reportDefinitions ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.APP_KPI_TYPES = <?= json_encode($kpiTypes ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.APP_USER_KPI_MANAGEMENT_ENABLED = <?= !empty($userKpiManagementEnabled) ? 'true' : 'false' ?>;
     window.DISLOCATION_STALE_HOURS = <?= (int) ($dislocationStaleHours ?? 8) ?>;
   </script>
 </head>
@@ -106,7 +108,7 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
       <!-- Подход -->
       <div id="panel-approach" class="tab-panel">
         <div class="kpi-board-wrap">
-          <div class="kpi-settings-link"><a class="kpi-hidden-open" href="<?= htmlspecialchars($basePath) ?>/kpi/hidden" aria-label="Скрытые KPI" title="Скрытые KPI"><img src="<?= htmlspecialchars($basePath) ?>/assets/img/icon/icon-hide.svg" class="user-menu-item-icon""></a></div>
+          <?php if (!empty($userKpiManagementEnabled)): ?><div class="kpi-settings-link"><a class="kpi-hidden-open" href="<?= htmlspecialchars($basePath) ?>/kpi/hidden" aria-label="Скрытые KPI" title="Скрытые KPI"><img src="<?= htmlspecialchars($basePath) ?>/assets/img/icon/icon-hide.svg" class="user-menu-item-icon""></a></div><?php endif; ?>
           <div class="kpi-grid" id="approachMetrics" style="margin-bottom:16px"></div>
         </div>
 
@@ -162,7 +164,7 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
       <!-- Отправление вагонов -->
       <div id="panel-departure" class="tab-panel">
         <div class="kpi-board-wrap">
-          <div class="kpi-settings-link"><a class="kpi-hidden-open" href="<?= htmlspecialchars($basePath) ?>/kpi/hidden" aria-label="Скрытые KPI" title="Скрытые KPI"><img src="<?= htmlspecialchars($basePath) ?>/assets/img/icon/icon-hide.svg" class="user-menu-item-icon""></a></div>
+          <?php if (!empty($userKpiManagementEnabled)): ?><div class="kpi-settings-link"><a class="kpi-hidden-open" href="<?= htmlspecialchars($basePath) ?>/kpi/hidden" aria-label="Скрытые KPI" title="Скрытые KPI"><img src="<?= htmlspecialchars($basePath) ?>/assets/img/icon/icon-hide.svg" class="user-menu-item-icon""></a></div><?php endif; ?>
           <div class="kpi-grid" id="departureMetrics" style="margin-bottom:16px"></div>
         </div>
         <div class="inner-tabs">
@@ -208,7 +210,7 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
         </div>
       </div>
 
-      <dialog class="kpi-hidden-dialog" id="kpiHiddenDialog" aria-labelledby="kpiHiddenTitle">
+      <?php if (!empty($userKpiManagementEnabled)): ?><dialog class="kpi-hidden-dialog" id="kpiHiddenDialog" aria-labelledby="kpiHiddenTitle">
         <div class="kpi-hidden-head"><h2 id="kpiHiddenTitle">Скрытые KPI</h2><button type="button" class="kpi-hidden-close" aria-label="Закрыть">×</button></div>
         <div class="kpi-hidden-list" id="kpiHiddenList">Загрузка…</div>
       </dialog>
@@ -217,6 +219,7 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
         <button type="button" class="kpi-form-close" aria-label="Закрыть">×</button>
         <iframe id="kpiFormFrame" title="Создание KPI"></iframe>
       </dialog>
+      <?php endif; ?>
 
       <!-- Погрузка -->
       <div id="panel-loading" class="tab-panel">

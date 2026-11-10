@@ -286,12 +286,9 @@ $basePath = $basePath ?? '';
         userKpiParams.set('kpi_id', userKpiId);
 
         // API проверяет доступ к исходному разделу, где размещена KPI-карточка.
-        var sourcePages = {
-          dashboard_kpi: 'dashboard',
-          approach_kpi: 'approach',
-          departue_kpi: 'departure'
-        };
-        var sourcePage = params.get('source_page') || sourcePages[params.get('kpi_type')] || '';
+        var kpiTypes = <?= json_encode(\App\Reports\KpiTypeRegistry::clientConfig(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+        var kpiType = kpiTypes[params.get('kpi_type')] || {};
+        var sourcePage = params.get('source_page') || kpiType.page || '';
         if (sourcePage) userKpiParams.set('source_page', sourcePage);
 
         if (params.has('report_dt')) userKpiParams.set('report_dt', params.get('report_dt'));
@@ -305,7 +302,7 @@ $basePath = $basePath ?? '';
           queryBase.delete('cargo_state');
           queryBase.delete('group_value');
           queryBase.delete('group_value_is_null');
-          queryBase.set('ctx', params.get('kpi_type') === 'approach_kpi' ? 'approach' : 'departure');
+          queryBase.set('ctx', sourcePage);
           queryBase.set('_endpoint', '/api/dislocation/detail');
           queryBase.set('kpi_table', 'Y');
           renderGroupedKpi(data, function (row, section) {

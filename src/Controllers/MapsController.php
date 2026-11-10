@@ -6,7 +6,6 @@ namespace App\Controllers;
 use App\Database\DbInterface;
 use App\Controllers\ApiController;
 use App\Services\Organizations;
-use App\Services\WagonCargoState;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -96,7 +95,10 @@ class MapsController
             "SELECT  
                     xdr.wagon_no,
                     xdr.wagon_type_code,
-                    xdr.cargo_weight_kg,
+                    XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_GET_CARGO_STATE(
+                        xdr.wagon_type_code,
+                        xdr.cargo_weight_kg
+                    ) AS cargo_w_type,
                     xdr.cargo_name,
                     xdr.dest_station,
                     xdr.wagon_state,
@@ -146,7 +148,7 @@ class MapsController
             $stationsMap[$code]['wagons'][] = [
                 'wagon_num' => (string) ($r['wagon_no'] ?? ''),
                 'wagon_type' => (string) ($r['wagon_type_code'] ?? ''),
-                'ld' => WagonCargoState::isLoaded($r['wagon_type_code'] ?? null, $r['cargo_weight_kg'] ?? null),
+                'ld' => ($r['cargo_w_type'] ?? '') === 'гр.',
                 'cargo' => (string) ($r['cargo_name'] ?? ''),
                 'dest_station' => (string) ($r['dest_station'] ?? ''),
                 'wagon_state' => (string) ($r['wagon_state'] ?? ''),

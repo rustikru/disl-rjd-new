@@ -196,11 +196,25 @@ as
         return varchar2
     is
     begin
-        if NVL (p_weight, 0) = 0
+        return fnc_get_cargo_state (null, p_weight);
+    end;
+
+    function fnc_get_cargo_state (p_wagon_type_code   in varchar2,
+                                  p_weight             in number)
+        return varchar2 deterministic
+    is
+        l_min_weight number := 0;
+    begin
+        if UPPER (NVL (p_wagon_type_code, ' ')) like '%ПЛАТФОРМ%'
         then
-            return 'пор.';
-        else
+            l_min_weight := 12000;
+        end if;
+
+        if NVL (p_weight, 0) > l_min_weight
+        then
             return 'гр.';
+        else
+            return 'пор.';
         end if;
     end;
 
@@ -336,7 +350,7 @@ as
                 return 'type_reference = ''Отправка'' AND asoup_depart_dt IS NOT NULL AND UPPER(TRIM(depart_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(asoup_depart_dt) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1';
             elsif l_kpi.code = 'loaded-wagons'
             then
-                return 'type_reference = ''Отправка'' AND UPPER(TRIM(depart_station)) LIKE ''%УГЛ%768207%'' AND dist_remain_km > 0 AND NVL(cargo_weight_kg, 0) > CASE WHEN UPPER(NVL(wagon_type_code, '' '')) LIKE ''%ПЛАТФОРМ%'' THEN 12000 ELSE 0 END';
+                return 'type_reference = ''Отправка'' AND UPPER(TRIM(depart_station)) LIKE ''%УГЛ%768207%'' AND dist_remain_km > 0 AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_GET_CARGO_STATE(wagon_type_code, cargo_weight_kg) = ''гр.''';
             end if;
         -- KPI для страницы "Дислокация/Дашборд"
         elsif l_kpi.TYPE = 'dashboard_kpi'

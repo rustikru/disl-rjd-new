@@ -143,13 +143,11 @@ function loadKPI(keys, force) {
 
 function loadKpiForTab(tabId) {
   if (ALLOWED_PAGES.indexOf('dashboard') === -1) return []
-  var boardByTab = {
-    dislocation: 'dashboard',
-    approach: 'approach',
-    departure: 'departure',
-    loading: 'loading',
-  }
-  var board = boardByTab[tabId]
+  var kpiTypes = window.APP_KPI_TYPES || {}
+  var type = Object.keys(kpiTypes).find(function (key) {
+    return kpiTypes[key].tab === tabId
+  })
+  var board = type && kpiTypes[type].page
   return board ? loadKPI([board]) : []
 }
 
@@ -735,17 +733,14 @@ function kpiCards(data) {
         ? null
         : item.detail ||
           (item.id ? { ctx: 'dislocation', params: { kpi_id: item.id } } : null)
-    var sourcePages = {
-      dashboard_kpi: 'dashboard',
-      approach_kpi: 'approach',
-      departue_kpi: 'departure',
-    }
+    var kpiTypes = window.APP_KPI_TYPES || {}
+    var sourcePage = kpiTypes[item.type] && kpiTypes[item.type].page
 
     // Контекст страницы задаём по фактическому типу KPI из ответа API.
-    if (detail && detail.ctx === 'dislocation' && sourcePages[item.type]) {
+    if (detail && detail.ctx === 'dislocation' && sourcePage) {
       detail = Object.assign({}, detail, {
         params: Object.assign({}, detail.params || {}, {
-          source_page: sourcePages[item.type],
+          source_page: sourcePage,
         }),
       })
     }
@@ -759,8 +754,8 @@ function kpiCards(data) {
       isError: item.is_error === 'Y',
       isUser: item.is_user === 'Y',
       isGlobal: item.is_global === 'Y',
-      canEdit: item.can_edit === 'Y',
-      canHide: item.can_hide === 'Y',
+      canEdit: !!window.APP_USER_KPI_MANAGEMENT_ENABLED && item.can_edit === 'Y',
+      canHide: !!window.APP_USER_KPI_MANAGEMENT_ENABLED && item.can_hide === 'Y',
       config: item.config || null,
       variant: 'pill',
       trend: makeTrend(item.change, item.trend),
@@ -770,43 +765,21 @@ function kpiCards(data) {
 }
 
 // KPI-карточки для дашборда и отдельных блоков
-var KPI_BOARDS = {
-  dashboard: {
-    containerId: 'kpiGrid',
+var KPI_BOARDS = {}
+Object.keys(window.APP_KPI_TYPES || {}).forEach(function (type) {
+  var definition = window.APP_KPI_TYPES[type]
+  KPI_BOARDS[definition.page] = {
+    containerId: definition.container_id,
     dataUrl: BASE + '/api/kpi/summary',
     params: function () {
-      return { kpi_type: 'dashboard_kpi' }
+      var params = { kpi_type: type }
+      return definition.page === 'loading' && WAGON_TABS.loading
+        ? Object.assign(params, WAGON_TABS.loading.getParams())
+        : params
     },
     cards: kpiCards,
-  },
-  departure: {
-    containerId: 'departureMetrics',
-    dataUrl: BASE + '/api/kpi/summary',
-    params: function () {
-      return { kpi_type: 'departue_kpi' }
-    },
-    cards: kpiCards,
-  },
-  loading: {
-    containerId: 'loadingMetrics',
-    dataUrl: BASE + '/api/kpi/summary',
-    params: function () {
-      return Object.assign(
-        { kpi_type: 'loading_kpi' },
-        WAGON_TABS.loading.getParams(),
-      )
-    },
-    cards: kpiCards,
-  },
-  approach: {
-    containerId: 'approachMetrics',
-    dataUrl: BASE + '/api/kpi/summary',
-    params: function () {
-      return { kpi_type: 'approach_kpi' }
-    },
-    cards: kpiCards,
-  },
-}
+  }
+})
 
 function fillSelect(selector, values) {
   var $sel = $(selector)

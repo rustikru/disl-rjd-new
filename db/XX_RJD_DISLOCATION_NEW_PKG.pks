@@ -36,6 +36,10 @@ as
     function fnc_get_state_wagon (p_weight in number)
         return varchar2;
 
+    function fnc_get_cargo_state (p_wagon_type_code   in varchar2,
+                                  p_weight             in number)
+        return varchar2 deterministic;
+
     function set_kpi_label (p_kpi_id in number, p_date in date default null)
         return varchar2;
 
