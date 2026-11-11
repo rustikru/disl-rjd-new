@@ -1,0 +1,124 @@
+DROP TABLE XX_ETW.XX_RJD_USERS CASCADE CONSTRAINTS;
+
+CREATE TABLE XX_ETW.XX_RJD_USERS
+(
+  ID               NUMBER,
+  USERNAME         VARCHAR2(100 BYTE)           NOT NULL,
+  DISPLAY_NAME     VARCHAR2(255 BYTE)           NOT NULL,
+  EMAIL            VARCHAR2(255 BYTE)           DEFAULT '',
+  PASSWORD_HASH    VARCHAR2(255 BYTE)           DEFAULT '',
+  IS_ACTIVE        NUMBER(1)                    DEFAULT 1                     NOT NULL,
+  CREATED_AT       DATE                         DEFAULT CURRENT_TIMESTAMP,
+  ORGANIZATION_ID  NUMBER
+)
+TABLESPACE USERS
+PCTUSED    40
+PCTFREE    10
+INITRANS   1
+MAXTRANS   255
+STORAGE    (
+            INITIAL          64K
+            NEXT             1M
+            MINEXTENTS       1
+            MAXEXTENTS       UNLIMITED
+            PCTINCREASE      0
+            FREELISTS        1
+            FREELIST GROUPS  1
+            BUFFER_POOL      DEFAULT
+           )
+LOGGING 
+NOCOMPRESS 
+NOCACHE;
+
+COMMENT ON COLUMN XX_ETW.XX_RJD_USERS.ORGANIZATION_ID IS 'Основная организация пользователя и организация по умолчанию';
+
+
+CREATE UNIQUE INDEX XX_ETW.UQ_XX_RJD_USERS_ID ON XX_ETW.XX_RJD_USERS
+(ID)
+LOGGING
+TABLESPACE USERS
+PCTFREE    10
+INITRANS   2
+MAXTRANS   255
+STORAGE    (
+            INITIAL          64K
+            NEXT             1M
+            MINEXTENTS       1
+            MAXEXTENTS       UNLIMITED
+            PCTINCREASE      0
+            FREELISTS        1
+            FREELIST GROUPS  1
+            BUFFER_POOL      DEFAULT
+           );
+
+ALTER TABLE XX_ETW.XX_RJD_USERS ADD (
+  UNIQUE (USERNAME)
+  USING INDEX
+    TABLESPACE USERS
+    PCTFREE    10
+    INITRANS   2
+    MAXTRANS   255
+    STORAGE    (
+                INITIAL          64K
+                NEXT             1M
+                MINEXTENTS       1
+                MAXEXTENTS       UNLIMITED
+                PCTINCREASE      0
+                FREELISTS        1
+                FREELIST GROUPS  1
+                BUFFER_POOL      DEFAULT
+               )
+  ENABLE VALIDATE
+,  CONSTRAINT UQ_XX_RJD_USERS_ID
+  UNIQUE (ID)
+  USING INDEX XX_ETW.UQ_XX_RJD_USERS_ID
+  ENABLE VALIDATE);
+
+
+CREATE INDEX XX_ETW.IX_XX_RJD_USERS_ORG ON XX_ETW.XX_RJD_USERS
+(ORGANIZATION_ID)
+LOGGING
+TABLESPACE USERS
+PCTFREE    10
+INITRANS   2
+MAXTRANS   255
+STORAGE    (
+            INITIAL          64K
+            NEXT             1M
+            MINEXTENTS       1
+            MAXEXTENTS       UNLIMITED
+            PCTINCREASE      0
+            FREELISTS        1
+            FREELIST GROUPS  1
+            BUFFER_POOL      DEFAULT
+           );
+
+--  There is no statement for index XX_ETW.SYS_C006168535.
+--  The object is created when the parent object is created.
+DROP SEQUENCE XX_ETW.XX_RJD_USERS_SEQ;
+
+CREATE SEQUENCE XX_ETW.XX_RJD_USERS_SEQ
+  START WITH 7
+  MAXVALUE 9999999999999999999999999999
+  MINVALUE 1
+  NOCYCLE
+  NOCACHE
+  NOORDER;
+
+
+CREATE OR REPLACE TRIGGER XX_ETW.XX_RJD_USERS_ID
+BEFORE INSERT ON XX_ETW.XX_RJD_USERS
+FOR EACH ROW
+BEGIN
+  IF :NEW.id IS NULL THEN
+    :NEW.id := XX_RJD_USERS_seq.NEXTVAL;
+  END IF;
+END;
+/
+
+
+ALTER TABLE XX_ETW.XX_RJD_USERS ADD (
+  CONSTRAINT FK_XX_RJD_USERS_ORG 
+  FOREIGN KEY (ORGANIZATION_ID) 
+  REFERENCES XX_ETW.XX_RJD_ORGANIZATIONS (ID)
+  ENABLE VALIDATE);

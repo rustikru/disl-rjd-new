@@ -13,13 +13,13 @@ use Psr\Http\Server\RequestHandlerInterface;
  */
 class SessionMiddleware implements MiddlewareInterface
 {
-    private const SESSION_LIFETIME = 28800; // 8 часов
+    private const REGISTRY_TOUCH_INTERVAL = 30;
 
     private string $sessionName;
     private bool $secureCookie;
     private string $cookiePath;
 
-    public function __construct(string $sessionName, bool $secureCookie = true, string $basePath = '', private ?\Closure $getDb = null)
+    public function __construct(string $sessionName, bool $secureCookie, string $basePath, private ?\Closure $getDb, private int $lifetime)
     {
         $this->sessionName = $sessionName;
         $this->secureCookie = $secureCookie;
@@ -29,7 +29,7 @@ class SessionMiddleware implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         if (session_status() === PHP_SESSION_NONE) {
-            ini_set('session.gc_maxlifetime', (string) self::SESSION_LIFETIME);
+            ini_set('session.gc_maxlifetime', (string) $this->lifetime);
             ini_set('session.cookie_lifetime', '0');
             ini_set('session.use_strict_mode', '1');
             ini_set('session.use_only_cookies', '1');
@@ -46,18 +46,26 @@ class SessionMiddleware implements MiddlewareInterface
         if (empty($_SESSION['csrf_token'])) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
         }
-        $sync = function () use ($request): void {
+        $hadUser = !empty($_SESSION['user']);
+        $sync = function (bool $force = false) use ($request): void {
             if (session_status() !== PHP_SESSION_ACTIVE || empty($_SESSION['user'])) return;
-            $registry = new \App\Services\SessionRegistry(($this->getDb)());
+            $lastCheck = (int) ($_SESSION['registry_checked_at'] ?? 0);
+            if (!$force && $lastCheck > time() - self::REGISTRY_TOUCH_INTERVAL) return;
+            $registry = new \App\Services\SessionRegistry(($this->getDb)(), $this->lifetime);
             if (!$registry->touch(session_id(), $_SESSION['user'], (string) ($request->getServerParams()['REMOTE_ADDR'] ?? ''), $request->getHeaderLine('User-Agent'))) {
                 $_SESSION = [];
                 session_regenerate_id(true);
                 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+                return;
             }
+            $_SESSION['registry_checked_at'] = time();
         };
-        $sync();
+        $method = strtoupper($request->getMethod());
+        $sync(!in_array($method, ['GET', 'HEAD'], true));
         $response = $handler->handle($request);
-        $sync();
+        if (!$hadUser && !empty($_SESSION['user'])) {
+            $sync(true);
+        }
         return $response;
     }
 }

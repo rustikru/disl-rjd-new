@@ -3,10 +3,11 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Logging\ErrorLogger;
 use App\Services\AuditLog;
-
 use App\Database\DbInterface;
 use App\Reports\ReportConfig;
+use App\Services\Authorization;
 use App\Services\Organizations;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -87,7 +88,9 @@ class ImportController
     {
         $filter = $this->organizations->filter();
         $reports = $this->db->fetchAll(
-            "SELECT to_char((report_dt),'DD.MM.YYYY HH24:MI:SS') AS report_date, type_reference, COUNT(*) AS cnt
+            "SELECT to_char((report_dt),'DD.MM.YYYY HH24:MI:SS') AS report_date,
+                    to_char((report_dt),'YYYY-MM-DD HH24:MI:SS') AS report_key,
+                    type_reference, COUNT(*) AS cnt
              FROM xx_dislocation_rjd
              WHERE {$filter['sql']}
              GROUP BY to_char((report_dt),'DD.MM.YYYY HH24:MI:SS'), (report_dt), type_reference
@@ -98,6 +101,8 @@ class ImportController
         $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
         $user     = $_SESSION['user'] ?? [];
+        $csrf = $_SESSION['csrf_token'] ?? '';
+        $canDelete = Authorization::isAdmin($user);
         $uploadLimit = ini_get('upload_max_filesize') ?: 'не задан';
         $postLimit   = ini_get('post_max_size') ?: 'не задан';
 
@@ -107,6 +112,112 @@ class ImportController
 
         $response->getBody()->write($html);
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    /** GET /import/download */
+    public function downloadReference(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $memoryLimit = trim((string) ($this->config['report_mail_memory_limit'] ?? ''));
+        if ($memoryLimit !== '') {
+            ini_set('memory_limit', $memoryLimit);
+        }
+
+        $params = $request->getQueryParams();
+        $reportDt = trim((string) ($params['report_dt'] ?? ''));
+        $type = trim((string) ($params['type_reference'] ?? ''));
+        $organizationId = $this->organizations->id();
+        if ($organizationId === null
+            || !preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $reportDt)
+            || !in_array($type, ['Подход', 'Отправка'], true)) {
+            return $this->redirect($response, '/import?error=' . rawurlencode('Некорректные параметры справки'));
+        }
+
+        try {
+            $columns = ReportConfig::sourceColumns();
+            $select = implode(', ', array_map(
+                static fn(array $column): string => strtoupper((string) $column['key']) . ' AS "' . $column['key'] . '"',
+                $columns
+            ));
+            $rows = $this->db->fetchAll(
+                "SELECT $select
+                   FROM xx_dislocation_rjd
+                  WHERE organization_id = :organization_id
+                    AND report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')
+                    AND type_reference = :type_reference
+                  ORDER BY wagon_no",
+                ['organization_id' => $organizationId, 'report_dt' => $reportDt, 'type_reference' => $type]
+            );
+            if (!$rows) {
+                return $this->redirect($response, '/import?warn=' . rawurlencode('Справка не найдена'));
+            }
+            $date = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $reportDt);
+            $dateLabel = $date ? $date->format('d.m.Y H:i:s') : $reportDt;
+            $fileDate = $date ? $date->format('Y-m-d_H-i-s') : date('Y-m-d_H-i-s');
+
+            return \App\ExcelExport::downloadReference(
+                $response,
+                $columns,
+                $rows,
+                'Справка РЖД - ' . $type,
+                $dateLabel,
+                'Справка_РЖД_' . $type . '_' . $fileDate
+            );
+        } catch (\Throwable $error) {
+            $code = ErrorLogger::logThrowable($error, [
+                'operation' => 'download_import_reference',
+                'organization_id' => $organizationId,
+                'report_dt' => $reportDt,
+                'type_reference' => $type,
+            ], $request);
+            return $this->redirect($response, '/import?error=' . rawurlencode('Не удалось сформировать справку. Код ошибки: ' . $code));
+        }
+    }
+
+    /** POST /import/delete */
+    public function deleteReference(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+        if (!Authorization::isAdmin()) return $response->withStatus(403);
+        if (empty($body['csrf_token']) || !hash_equals((string) ($_SESSION['csrf_token'] ?? ''), (string) $body['csrf_token'])) {
+            return $response->withStatus(403);
+        }
+        $reportDt = trim((string) ($body['report_dt'] ?? ''));
+        $type = trim((string) ($body['type_reference'] ?? ''));
+        $organizationId = $this->organizations->id();
+        if ($organizationId === null || !preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $reportDt)
+            || $type === '' || mb_strlen($type) > 50) {
+            return $this->redirect($response, '/import?error=' . rawurlencode('Некорректные параметры справки'));
+        }
+        try {
+            $row = $this->db->fetchOne(
+                "SELECT COUNT(*) AS cnt FROM xx_dislocation_rjd
+                  WHERE organization_id = :organization_id
+                    AND report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')
+                    AND type_reference = :type_reference",
+                ['organization_id' => $organizationId, 'report_dt' => $reportDt, 'type_reference' => $type]
+            );
+            $count = (int) ($row['cnt'] ?? 0);
+            if ($count < 1) return $this->redirect($response, '/import?warn=' . rawurlencode('Справка уже удалена'));
+            $this->db->execute(
+                "BEGIN XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.DELETE_REFERENCE(
+                    TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS'), :type_reference
+                ); END;",
+                ['report_dt' => $reportDt, 'type_reference' => $type]
+            );
+            (new AuditLog($this->db))->write(
+                'IMPORT_DELETE', 'REFERENCE', $type,
+                'Удалена справка: ' . $count . ' строк, дата ' . $reportDt
+            );
+        } catch (\Throwable $error) {
+            $code = ErrorLogger::logThrowable($error, [
+                'operation' => 'delete_import_reference',
+                'organization_id' => $organizationId,
+                'report_dt' => $reportDt,
+                'type_reference' => $type,
+            ], $request);
+            return $this->redirect($response, '/import?error=' . rawurlencode('Не удалось удалить справку. Код ошибки: ' . $code));
+        }
+        return $this->redirect($response, '/import?success=' . rawurlencode('Справка удалена'));
     }
 
     /** POST /import */
@@ -147,7 +258,11 @@ class ImportController
                 $result = $this->importLocalFile($tmpPath);
             } catch (\Throwable $e) {
                 @unlink($tmpPath);
-                $errors[] = '«' . $name . '»: ' . $e->getMessage();
+                $code = ErrorLogger::logThrowable($e, [
+                    'operation' => 'import_reference',
+                    'file_name' => $name,
+                ], $request);
+                $errors[] = '«' . $name . '»: не удалось загрузить справку. Код ошибки: ' . $code;
                 continue;
             }
 
@@ -155,6 +270,16 @@ class ImportController
 
             if ($result['skipped']) {
                 $warns[] = '«' . $name . '»: справка «' . $result['type'] . '» на ' . $result['report_dt'] . ' уже загружена';
+            } elseif (!$result['current_updated']) {
+                $successes[] = '«' . $name . '»: архив дополнен данными на ' . $result['report_dt']
+                    . '; в текущей таблице оставлена более поздняя справка на ' . $result['latest_report_dt'];
+                (new AuditLog($this->db))->write(
+                    'IMPORT_UPLOAD',
+                    'REFERENCE',
+                    (string) $result['type'],
+                    'Архив дополнен из файла «' . $name . '» на ' . $result['report_dt']
+                        . '; текущая справка ' . $result['latest_report_dt']
+                );
             } else {
                 $successes[] = '«' . $name . '»: загружено ' . $result['rows'] . ' строк ('
                     . $result['type'] . ', ' . $result['report_dt'] . ')';
@@ -207,7 +332,15 @@ class ImportController
             $result = $this->importLocalFile($tmpPath);
         } catch (\Throwable $e) {
             @unlink($tmpPath);
-            return $this->jsonResponse($response, 500, ['status' => 'error', 'message' => $e->getMessage()]);
+            $code = ErrorLogger::logThrowable($e, [
+                'operation' => 'import_reference_api',
+                'file_name' => $name,
+            ], $request);
+            return $this->jsonResponse($response, 500, [
+                'status' => 'error',
+                'message' => 'Не удалось загрузить справку',
+                'code' => $code,
+            ]);
         }
 
         @unlink($tmpPath);
@@ -225,15 +358,22 @@ class ImportController
             'IMPORT_UPLOAD',
             'REFERENCE',
             (string) $result['type'],
-            'Загружен файл «' . $name . '»: ' . $result['rows'] . ' строк, дата ' . $result['report_dt']
+            $result['current_updated']
+                ? 'Загружен файл «' . $name . '»: ' . $result['rows'] . ' строк, дата ' . $result['report_dt']
+                : 'Архив дополнен из файла «' . $name . '» на ' . $result['report_dt']
+                    . '; текущая справка ' . $result['latest_report_dt']
         );
 
         return $this->jsonResponse($response, 200, [
             'status' => 'ok',
-            'message' => 'Загружено ' . $result['rows'] . ' строк',
+            'message' => $result['current_updated']
+                ? 'Загружено ' . $result['rows'] . ' строк'
+                : 'Архив дополнен; в текущей таблице оставлена справка на ' . $result['latest_report_dt'],
             'rows' => $result['rows'],
             'report_dt' => $result['report_dt'],
             'type' => $result['type'],
+            'current_updated' => $result['current_updated'],
+            'latest_report_dt' => $result['latest_report_dt'],
         ]);
     }
 
@@ -293,29 +433,57 @@ class ImportController
             . ' VALUES (:p_organization_id, :p_report_dt, :p_type_reference, ' . implode(', ', $placeholders) . ')';
 
         $reportDate = substr($reportDt, 0, 10); // 'YYYY-MM-DD'
+        $latestRow = $this->db->fetchOne(
+            "SELECT TO_CHAR(MAX(report_dt), 'YYYY-MM-DD HH24:MI:SS') AS report_dt
+               FROM xx_dislocation_rjd
+              WHERE TRUNC(report_dt) = TO_DATE(:p_report_date, 'YYYY-MM-DD')
+                AND type_reference = :p_file_type
+                AND organization_id = :p_organization_id",
+            [
+                'p_report_date' => $reportDate,
+                'p_file_type' => $fileType,
+                'p_organization_id' => $organizationId,
+            ]
+        );
+        $latestReportDt = trim((string) ($latestRow['report_dt'] ?? ''));
+        $isOlder = $latestReportDt !== '' && strcmp($reportDt, $latestReportDt) < 0;
         $inserted = 0;
 
         $this->db->beginTransaction();
         try {
             // Замена справки атомарна: при ошибке вставки удаление также откатится.
-            $this->db->execute(
-                "DELETE FROM xx_dislocation_rjd
-                  WHERE TRUNC(report_dt) = TO_DATE(:p_report_date, 'YYYY-MM-DD')
-                    AND type_reference   = :p_file_type
-                    AND organization_id  = :p_organization_id",
-                [
-                    'p_report_date' => $reportDate,
-                    'p_file_type' => $fileType,
-                    'p_organization_id' => $organizationId,
-                ]
-            );
+            if ($isOlder) {
+                $this->db->execute(
+                    "DELETE FROM xx_dislocation_rjd
+                      WHERE report_dt = TO_DATE(:p_report_dt, 'YYYY-MM-DD HH24:MI:SS')
+                        AND type_reference = :p_file_type
+                        AND organization_id = :p_organization_id",
+                    [
+                        'p_report_dt' => $reportDt,
+                        'p_file_type' => $fileType,
+                        'p_organization_id' => $organizationId,
+                    ]
+                );
+            } else {
+                $this->db->execute(
+                    "DELETE FROM xx_dislocation_rjd
+                      WHERE TRUNC(report_dt) = TO_DATE(:p_report_date, 'YYYY-MM-DD')
+                        AND type_reference = :p_file_type
+                        AND organization_id = :p_organization_id",
+                    [
+                        'p_report_date' => $reportDate,
+                        'p_file_type' => $fileType,
+                        'p_organization_id' => $organizationId,
+                    ]
+                );
+            }
 
             for ($row = 5; $row <= $highestRow; $row++) {
                 $vals = [];
                 for ($col = 1; $col <= 126; $col++) {
                     $coord = Coordinate::stringFromColumnIndex($col) . $row;
                     $v = $sheet->getCell($coord)->getValue();
-                    $vals[] = ($v === null) ? null : trim((string) $v);
+                    $vals[] = ($v === null) ? null : $this->normalizeImportedValue((string) $v);
                 }
 
                 if (empty(array_filter($vals, fn($v) => $v !== null && $v !== ''))) {
@@ -336,6 +504,27 @@ class ImportController
                 $this->db->execute($insertSql, $params);
                 $inserted++;
             }
+
+            $this->db->execute(
+                "BEGIN XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.ARCHIVE_RJD_MOVEMENT(
+                    TO_DATE(:p_report_dt, 'YYYY-MM-DD HH24:MI:SS'), :p_type_reference
+                ); END;",
+                ['p_report_dt' => $reportDt, 'p_type_reference' => $fileType]
+            );
+
+            if ($isOlder) {
+                $this->db->execute(
+                    "DELETE FROM xx_dislocation_rjd
+                      WHERE report_dt = TO_DATE(:p_report_dt, 'YYYY-MM-DD HH24:MI:SS')
+                        AND type_reference = :p_file_type
+                        AND organization_id = :p_organization_id",
+                    [
+                        'p_report_dt' => $reportDt,
+                        'p_file_type' => $fileType,
+                        'p_organization_id' => $organizationId,
+                    ]
+                );
+            }
             $this->db->commit();
         } catch (\Throwable $e) {
             $this->db->rollback();
@@ -345,7 +534,14 @@ class ImportController
             unset($spreadsheet);
         }
 
-        return ['skipped' => false, 'report_dt' => $rawDt, 'type' => $fileType, 'rows' => $inserted];
+        return [
+            'skipped' => false,
+            'report_dt' => $rawDt,
+            'type' => $fileType,
+            'rows' => $inserted,
+            'current_updated' => !$isOlder,
+            'latest_report_dt' => $latestReportDt,
+        ];
     }
 
     private function parseReportDate(string $raw): string
@@ -357,6 +553,12 @@ class ImportController
         throw new \RuntimeException("Не удалось разобрать дату справки из ячейки A2: «{$raw}»");
     }
 
+    /** Исправляет символ, которым в справке иногда записывается кириллическая «З». */
+    private function normalizeImportedValue(string $value): string
+    {
+        return trim(str_replace("▤", 'З', $value));
+    }
+
     private function columnFieldNames(): array
     {
         return array_column(ReportConfig::sourceColumns(), 'key');
@@ -366,14 +568,18 @@ class ImportController
      * Определяет тип справки по первой непустой dest_station (кол. 12 = столбец L).
      * 'УГЛЕУРАЛЬСКАЯ (768207)' → 'Подход', всё остальное → 'Отправка'.
      */
-    private function detectFileType(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, int $highestRow): string
-    {
+    private function detectFileType(
+        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet,
+        int $highestRow
+    ): string {
         for ($row = 5; $row <= min(35, $highestRow); $row++) {
             $val = trim((string) ($sheet->getCell('L' . $row)->getValue() ?? ''));
+
             if ($val !== '') {
-                return ($val === 'УГЛЕУРАЛЬСКАЯ (768207)') ? 'Подход' : 'Отправка';
+                return str_contains($val, '768207') ? 'Подход' : 'Отправка';
             }
         }
+
         return 'Отправка';
     }
 

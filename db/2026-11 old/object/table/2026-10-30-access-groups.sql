@@ -1,0 +1,62 @@
+-- Группы доступа: сохранённые наборы существующих ролей.
+-- Выполнить один раз от имени владельца схемы приложения.
+
+create table xx_rjd_access_groups (
+   id          number primary key,
+   name        varchar2(120 char) not null,
+   description varchar2(500 char),
+   constraint xx_rjd_access_groups_uq unique ( name )
+);
+
+create sequence xx_rjd_access_groups_seq
+   start with 1
+   increment by 1
+   nocache;
+
+create or replace trigger xx_rjd_access_groups_bi
+before insert on xx_rjd_access_groups
+for each row
+when (new.id is null)
+begin
+   select xx_rjd_access_groups_seq.nextval
+     into :new.id
+     from dual;
+end;
+/
+
+create table xx_rjd_access_group_roles (
+   access_group_id number not null,
+   role_id         number not null,
+   constraint xx_rjd_access_group_roles_pk primary key ( access_group_id,
+                                                         role_id ),
+   constraint xx_rjd_access_group_roles_g_fk foreign key ( access_group_id )
+      references xx_rjd_access_groups ( id )
+         on delete cascade,
+   constraint xx_rjd_access_group_roles_r_fk foreign key ( role_id )
+      references xx_rjd_roles ( id )
+         on delete cascade
+);
+
+create index xx_rjd_access_grp_role_ix on
+   xx_rjd_access_group_roles (
+      role_id
+   );
+
+-- Сохраняем доступ к новому административному пункту тем же ролям,
+-- которым уже разрешён раздел «Роли».
+insert into xx_rjd_role_pages (
+   role_id,
+   page
+)
+   select source.role_id,
+          'access-groups'
+     from xx_rjd_role_pages source
+    where source.page = 'roles'
+      and not exists (
+      select 1
+        from xx_rjd_role_pages target
+       where target.role_id = source.role_id
+         and target.page = 'access-groups'
+   );
+
+commit;

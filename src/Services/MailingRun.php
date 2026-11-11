@@ -5,9 +5,9 @@ namespace App\Services;
 
 use App\Controllers\ApiController;
 use App\Database\DbInterface;
+use App\ExcelExport;
 use App\Excel\ExcelStyle;
 use App\Reports\ReportConfig;
-use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Slim\Psr7\Factory\ResponseFactory;
@@ -23,6 +23,21 @@ final class MailingRun
 
     public function run(array $mailing): array
     {
+        $this->db->execute('BEGIN DBMS_APPLICATION_INFO.SET_CLIENT_INFO(:user_id); END;', [
+            'user_id' => (string) (int) ($mailing['user_id'] ?? 0),
+        ]);
+        try {
+            return $this->runReports($mailing);
+        } finally {
+            $this->db->execute('BEGIN DBMS_APPLICATION_INFO.SET_CLIENT_INFO(:user_id); END;', [
+                'user_id' => (string) (int) ($_SESSION['user']['id'] ?? 0),
+            ]);
+            (new Organizations($this->db))->sync();
+        }
+    }
+
+    private function runReports(array $mailing): array
+    {
         $memoryLimit = trim((string) ($this->config['report_mail_memory_limit'] ?? ''));
         if ($memoryLimit !== '') {
             ini_set('memory_limit', $memoryLimit);
@@ -30,7 +45,7 @@ final class MailingRun
         if (empty($this->config['report_mail_enabled'])) {
             throw new \RuntimeException('Формирование рассылок отключено в конфигурации');
         }
-        $mode = (string) ($this->config['mail_mode'] ?? 'file');
+        $mode = (string) $this->config['mail_mode'];
         if (!in_array($mode, ['file', 'oracle'], true)) {
             throw new \RuntimeException('Режим mail_mode должен быть file или oracle');
         }
@@ -62,6 +77,22 @@ final class MailingRun
             }
 
             $columns = $reportDefinition['detail_columns'] ?? [];
+            if (($mailingItem['layout_mode'] ?? 'D') === 'U') {
+                $layout = (new TableLayoutService($this->db))->get((int) ($mailing['user_id'] ?? 0), $reportCode);
+                $columnByKey = [];
+                foreach ($columns as $column) {
+                    $columnByKey[(string) $column['key']] = $column;
+                }
+                $orderedColumns = [];
+                foreach ($layout['columns'] as $layoutColumn) {
+                    $key = (string) ($layoutColumn['key'] ?? '');
+                    if (isset($columnByKey[$key])) {
+                        $orderedColumns[] = $columnByKey[$key];
+                        unset($columnByKey[$key]);
+                    }
+                }
+                $columns = array_merge($orderedColumns, array_values($columnByKey));
+            }
             $queryParameters = (array) ($mailingItem['filters'] ?? []);
             $queryParameters['fields'] = implode(',', array_column($columns, 'key'));
             if (!empty($reportDefinition['detail_sort'])) {
@@ -90,7 +121,11 @@ final class MailingRun
             $rows = is_array($payload['rows'] ?? null) ? $payload['rows'] : [];
             $fileBase = sprintf('%02d_%s', $position + 1, $this->safeFileName($reportDefinition['name']));
             $filePath = $runDirectory . DIRECTORY_SEPARATOR . $fileBase . '.xlsx';
-            $this->writeXlsx($filePath, $columns, $rows, $reportDefinition['name']);
+            $excelStyle = (string) ($reportDefinition['excel_style'] ?? 'default');
+            $reportDate = $excelStyle === 'rjd-reference'
+                ? (string) ($payload['report_date'] ?? '')
+                : null;
+            $this->writeXlsx($filePath, $columns, $rows, $reportDefinition['name'], $excelStyle, $reportDate);
             $createdFiles[] = $filePath;
             $reportSummaries[] = [
                 'report_code' => $reportCode,
@@ -153,25 +188,48 @@ final class MailingRun
         ];
     }
 
-    private function writeXlsx(string $filePath, array $columns, array $rows, string $reportName): void
+    private function writeXlsx(
+        string $filePath,
+        array $columns,
+        array $rows,
+        string $reportName,
+        string $excelStyle = 'default',
+        ?string $reportDate = null
+    ): void
     {
+        if ($excelStyle === 'rjd-reference') {
+            ExcelExport::saveReference(
+                $filePath,
+                $columns,
+                $rows,
+                $reportName,
+                (string) $reportDate
+            );
+            return;
+        }
+
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheetTitle = str_replace(['\\', '/', '?', '*', '[', ']', ':'], '', $reportName);
         $sheet->setTitle(mb_substr($sheetTitle !== '' ? $sheetTitle : 'Отчёт', 0, 31));
+        $headerRow = 1;
+        $dataRow = $headerRow + 1;
+
         foreach ($columns as $columnIndex => $column) {
-            $sheet->setCellValue([$columnIndex + 1, 1], $column['label'] ?? $column['key']);
+            $sheet->setCellValue([$columnIndex + 1, $headerRow], $column['label'] ?? $column['key']);
         }
         foreach ($rows as $rowIndex => $row) {
             foreach ($columns as $columnIndex => $column) {
                 $value = $row[$column['key']] ?? '';
-                $sheet->setCellValueExplicit(
-                    [$columnIndex + 1, $rowIndex + 2],
-                    $value === null ? '' : (string) $value,
-                    DataType::TYPE_STRING
+                ExcelStyle::setCellValue(
+                    $sheet,
+                    [$columnIndex + 1, $rowIndex + $dataRow],
+                    $value,
+                    $column
                 );
             }
         }
+
         ExcelStyle::applyDetailTable($sheet, count($columns));
         $writer = new Xlsx($spreadsheet);
         $writer->setPreCalculateFormulas(false);

@@ -4,9 +4,12 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Database\DbInterface;
+use App\Logging\ErrorLogger;
 
 final class Organizations
 {
+    private const CACHE_SECONDS = 60;
+
     private DbInterface $db;
     private ?int $fixedId;
     private ?array $organizations = null;
@@ -39,7 +42,15 @@ final class Organizations
         }
 
         $userId = (int) ($_SESSION['user']['id'] ?? 0);
-        $this->organizations = $this->loadOrganizations($userId);
+        $cachedOrganizations = $_SESSION['organizations'] ?? null;
+        $cachedUserId = (int) ($_SESSION['organizations_user_id'] ?? 0);
+        $cachedAt = (int) ($_SESSION['organizations_cached_at'] ?? 0);
+        $hasCache = is_array($cachedOrganizations)
+            && $cachedUserId === $userId
+            && $cachedAt > time() - self::CACHE_SECONDS;
+        $this->organizations = $hasCache
+            ? array_values($cachedOrganizations)
+            : $this->loadOrganizations($userId);
 
         $allowedIds = array_map(
             static fn(array $organization): int => (int) $organization['id'],
@@ -55,13 +66,19 @@ final class Organizations
 
         if ($this->activeId !== null) {
             $_SESSION['organization_id'] = $this->activeId;
-            $this->setClientId($this->activeId);
+            if (!$hasCache) {
+                $this->setClientId($this->activeId);
+            }
         } else {
             unset($_SESSION['organization_id']);
-            $this->clearClientId();
+            if (!$hasCache) {
+                $this->clearClientId();
+            }
         }
 
         $_SESSION['organizations'] = $this->organizations;
+        $_SESSION['organizations_user_id'] = $userId;
+        $_SESSION['organizations_cached_at'] = $hasCache ? $cachedAt : time();
     }
 
     public function organizations(): array
@@ -186,6 +203,11 @@ final class Organizations
             }
         } catch (\Throwable $error) {
             // Дополнительные организации могли быть ещё не перенесены в старой схеме.
+            ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'organizations',
+                'params' => ['user_id' => $userId],
+            ]);
         }
 
         return array_values($result);

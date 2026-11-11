@@ -18,7 +18,7 @@ class AuthService
     {
         $this->db = $db;
         $this->adEnabled = $config['ad_enabled'];
-        $this->kerberosAutoCreateUser = (bool) ($config['kerberos_auto_create_user'] ?? true);
+        $this->kerberosAutoCreateUser = (bool) $config['kerberos_auto_create_user'];
         $this->ldap = new LdapAuth($config);
     }
 
@@ -57,19 +57,7 @@ class AuthService
         $this->markSuccessfulLogin((int) $user['id']);
         (new AuditLog($this->db))->write('LOGIN', 'USER', (int) $user['id'], 'Вход через Kerberos', (int) $user['id'], (string) $user['username']);
         $roles = $this->fetchUserRoles((int) $user['id']);
-        $roleCodes = array_column($roles, 'code');
-
-        return [
-            'id' => $user['id'],
-            'username' => $user['username'],
-            'display_name' => $user['display_name'],
-            'email' => $user['email'],
-            'auth_source' => 'kerberos',
-            'role_codes' => $roleCodes,
-            'role_names' => array_column($roles, 'name'),
-            'is_admin' => in_array('ADMIN', $roleCodes, true) || in_array('SUPER', $roleCodes, true),
-            'is_super' => in_array('SUPER', $roleCodes, true),
-        ];
+        return $this->sessionUser($user, $roles, 'kerberos');
     }
 
     public function login(string $username, string $password): ?array
@@ -86,17 +74,11 @@ class AuthService
                 );
                 $this->markSuccessfulLogin((int) ($dbUser['id'] ?? 0));
                 (new AuditLog($this->db))->write('LOGIN', 'USER', (int) ($dbUser['id'] ?? 0), 'Вход через Active Directory', (int) ($dbUser['id'] ?? 0), (string) ($dbUser['username'] ?? $username));
-                $adUser['id'] = $dbUser['id'] ?? null;
-                $adUser['username'] = $dbUser['username'] ?? $username;
-                $adUser['display_name'] = $dbUser['display_name'] ?? $adUser['display_name'];
-                $adUser['email'] = $dbUser['email'] ?? $adUser['email'];
                 $roles = $this->fetchUserRoles((int) ($dbUser['id'] ?? 0));
-                $adUser['role_codes'] = array_column($roles, 'code');
-                $adUser['role_names'] = array_column($roles, 'name');
-                $adUser['is_admin']   = in_array('ADMIN', $adUser['role_codes'], true)
-                    || in_array('SUPER', $adUser['role_codes'], true);
-                $adUser['is_super']   = in_array('SUPER', $adUser['role_codes'], true);
-                return $adUser;
+                return $this->sessionUser([
+                    'id'=>$dbUser['id']??null,'username'=>$dbUser['username']??$username,
+                    'display_name'=>$dbUser['display_name']??$adUser['display_name'],'email'=>$dbUser['email']??$adUser['email'],
+                ],$roles,'active_directory');
             }
         }
 
@@ -120,18 +102,14 @@ class AuthService
         $this->markSuccessfulLogin((int) $user['id']);
         (new AuditLog($this->db))->write('LOGIN', 'USER', (int) $user['id'], 'Вход по локальному паролю', (int) $user['id'], (string) $user['username']);
 
-        return [
-            'id'           => $user['id'],
-            'username'     => $user['username'],
-            'display_name' => $user['display_name'],
-            'email'        => $user['email'],
-            'auth_source'  => 'local',
-            'role_codes'   => array_column($roles, 'code'),
-            'role_names'   => array_column($roles, 'name'),
-            'is_admin'     => in_array('ADMIN', array_column($roles, 'code'), true)
-                || in_array('SUPER', array_column($roles, 'code'), true),
-            'is_super'     => in_array('SUPER', array_column($roles, 'code'), true),
-        ];
+        return $this->sessionUser($user, $roles, 'local');
+    }
+
+    private function sessionUser(array $user,array $roles,string $source): array
+    {
+        $codes=array_column($roles,'code');
+        return array_merge(['id'=>$user['id']??null,'username'=>$user['username']??'','display_name'=>$user['display_name']??'','email'=>$user['email']??'',
+            'auth_source'=>$source,'role_codes'=>$codes,'role_names'=>array_column($roles,'name')],\App\Services\Authorization::flags($codes));
     }
 
 

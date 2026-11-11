@@ -11,7 +11,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 class ExcelExport
 {
     /**
-     * Универсальный экспорт детализированных таблиц 
+     * Экспорт детализированной таблицы.
      */
     public static function download(
         Response $response,
@@ -24,7 +24,7 @@ class ExcelExport
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Детализация');
 
-        // Шапка
+        // Заголовки колонок.
         $colIdx = 1;
         foreach ($cols as $c) {
             $colLetter = Coordinate::stringFromColumnIndex($colIdx);
@@ -32,7 +32,7 @@ class ExcelExport
             $colIdx++;
         }
 
-        // Данные
+        // Строки таблицы.
         $rowIdx = 2;
         foreach ($rows as $row) {
             $colIdx = 1;
@@ -41,11 +41,12 @@ class ExcelExport
                 $val = is_array($row) ? ($row[$key] ?? '') : ($row->$key ?? '');
                 $colLetter = Coordinate::stringFromColumnIndex($colIdx);
 
-                // Защита номеров вагонов и станций от порчи числовым форматом Excel
-                if (is_numeric($val) && strlen((string) $val) < 10) {
+                // Номера вагонов и другие идентификаторы должны оставаться текстом.
+                $isTextIdentifier = in_array($key, ['wagon_no', 'car_number', 'prev_wagon_no', 'wagon_no2'], true);
+                if (is_numeric($val) && !$isTextIdentifier && strlen((string) $val) < 10 && empty($c['formatData'])) {
                     $sheet->setCellValue($colLetter . $rowIdx, (float) $val);
                 } else {
-                    $sheet->setCellValueExplicit($colLetter . $rowIdx, $val, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                    ExcelStyle::setCellValue($sheet, $colLetter . $rowIdx, $val, $c);
                 }
                 $colIdx++;
             }
@@ -60,8 +61,72 @@ class ExcelExport
         return self::outputStream($response, $spreadsheet, $filename);
     }
 
+    /** Экспорт исходной справки РЖД в формате, используемом рассылкой. */
+    public static function downloadReference(
+        Response $response,
+        array $cols,
+        array $rows,
+        string $reportName,
+        string $reportDate,
+        string $filename
+    ): Response {
+        return self::outputStream(
+            $response,
+            self::referenceSpreadsheet($cols, $rows, $reportName, $reportDate),
+            $filename
+        );
+    }
+
+    public static function saveReference(
+        string $filePath,
+        array $cols,
+        array $rows,
+        string $reportName,
+        string $reportDate
+    ): void {
+        $spreadsheet = self::referenceSpreadsheet($cols, $rows, $reportName, $reportDate);
+        $writer = new Xlsx($spreadsheet);
+        $writer->setPreCalculateFormulas(false);
+        $writer->save($filePath);
+        $spreadsheet->disconnectWorksheets();
+    }
+
+    private static function referenceSpreadsheet(
+        array $cols,
+        array $rows,
+        string $reportName,
+        string $reportDate
+    ): Spreadsheet {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheetTitle = str_replace(['\\', '/', '?', '*', '[', ']', ':'], '', $reportName);
+        $sheet->setTitle(mb_substr($sheetTitle !== '' ? $sheetTitle : 'Справка РЖД', 0, 31));
+        $sheet->setCellValue('A1', 'Справка РЖД на ');
+        $sheet->setCellValue('B1', $reportDate);
+        if (count($cols) > 1) {
+            $lastColumn = Coordinate::stringFromColumnIndex(count($cols));
+            $sheet->mergeCells('B1:' . $lastColumn . '1');
+        }
+        foreach ($cols as $columnIndex => $column) {
+            $sheet->setCellValue([$columnIndex + 1, 2], $column['label'] ?? $column['key']);
+        }
+        foreach ($rows as $rowIndex => $row) {
+            foreach ($cols as $columnIndex => $column) {
+                ExcelStyle::setCellValue(
+                    $sheet,
+                    [$columnIndex + 1, $rowIndex + 3],
+                    $row[$column['key']] ?? '',
+                    $column
+                );
+            }
+        }
+        ExcelStyle::applyReferenceTable($sheet, count($cols));
+
+        return $spreadsheet;
+    }
+
     /**
-     * 2. Экспорт матричных таблиц (двухуровневые шахматки дашборда)
+     * Экспорт матричной таблицы с группировкой по дорогам и станциям.
      */
     public static function downloadMatrix(
         Response $response,
@@ -119,7 +184,7 @@ class ExcelExport
         $matrixColumnCount = max(1, $currentColIdx - 1);
         ExcelStyle::applyMatrixHeader($sheet, $matrixColumnCount);
 
-        // Наполнение данными (Дороги + вложенные Станции)
+        // Строки дорог и вложенных станций.
         $rowIdx = 3;
         $groupKeys = array_values(array_filter(array_map(
             static fn($group) => is_array($group) ? ($group['key'] ?? null) : null,
@@ -209,7 +274,7 @@ class ExcelExport
     }
 
     /**
-     * Выводит Excel-файл в поток 
+     * Выводит Excel-файл в поток.
      */
     private static function outputStream(Response $response, Spreadsheet $spreadsheet, string $filename): Response
     {
@@ -225,6 +290,7 @@ class ExcelExport
 
         $phpStream = fopen('php://temp', 'r+');
         $writer = new Xlsx($spreadsheet);
+        $writer->setPreCalculateFormulas(false);
         $writer->save($phpStream);
         rewind($phpStream);
 

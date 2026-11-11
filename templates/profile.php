@@ -43,9 +43,9 @@ $isActive = (int) $profile['is_active'] === 1;
     .profile-data dd { margin:0; color:var(--text-1); overflow-wrap:anywhere; }
     .profile-item { padding:7px 0; color:var(--text-1); }
     .profile-item small { display:block; margin-top:2px; color:var(--text-3); font-size:10.5px; }
-    .profile-access { display:flex; flex-wrap:wrap; gap:6px; }
-    .profile-access span { padding:4px 8px; border:1px solid var(--border); border-radius:6px; background:var(--row-head); color:var(--text-2); font-size:11px; }
     .profile-empty { padding:7px 0; color:var(--text-3); }
+    .profile-notice { margin-bottom:14px; padding:10px 12px; border-radius:8px; background:var(--accent-lt); color:var(--accent); font-size:12px; }
+    .profile-error { background:#fce8e8; color:var(--brand-neg); }
     @media(max-width:700px) {
       .profile-page { padding:16px 12px 28px; }
       .profile-sections { grid-template-columns:1fr; }
@@ -67,6 +67,8 @@ $isActive = (int) $profile['is_active'] === 1;
     <div class="profile-heading">
       <h1>Мой профиль</h1>
     </div>
+    <?php if ($message): ?><div class="profile-notice"><?= $e($message) ?></div><?php endif; ?>
+    <?php if ($error): ?><div class="profile-notice profile-error"><?= $e($error) ?></div><?php endif; ?>
 
     <section class="profile-panel">
       <div class="profile-summary">
@@ -99,24 +101,6 @@ $isActive = (int) $profile['is_active'] === 1;
           <?php if (!$organizations): ?><div class="profile-empty">Организации не назначены</div><?php endif; ?>
         </section>
 
-        <section class="profile-section">
-          <h2>Роли</h2>
-          <?php foreach ($roles as $role): ?>
-            <div class="profile-item">
-              <?= $e($role['name']) ?>
-              <small><?= $e($role['code']) ?><?= !empty($role['description']) ? ' · ' . $e($role['description']) : '' ?></small>
-            </div>
-          <?php endforeach; ?>
-          <?php if (!$roles): ?><div class="profile-empty">Роли не назначены</div><?php endif; ?>
-        </section>
-
-        <section class="profile-section">
-          <h2>Доступные разделы</h2>
-          <div class="profile-access">
-            <?php foreach ($access as $label): ?><span><?= $e($label) ?></span><?php endforeach; ?>
-          </div>
-          <?php if (!$access): ?><div class="profile-empty">Разделы не назначены</div><?php endif; ?>
-        </section>
       </div>
     </section>
   </main>

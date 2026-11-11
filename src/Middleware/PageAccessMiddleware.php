@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Logging\ErrorLogger;
 use App\Services\PageAvailability;
+use App\Services\PageVisibility;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -12,6 +14,8 @@ use Slim\Psr7\Response;
 
 class PageAccessMiddleware implements MiddlewareInterface
 {
+    private const ACCESS_CACHE_SECONDS = 60;
+
     /** @var callable():\App\Database\DbInterface */
     private $dbResolver;
     private string $basePath;
@@ -32,39 +36,63 @@ class PageAccessMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        $settingsPath = substr($request->getUri()->getPath(), strlen(rtrim($this->basePath, '/')));
-        if (!empty($user['is_super']) && in_array($settingsPath, ['/admin/settings', '/admin/page-visibility'], true)) {
-            return $handler->handle($request);
-        }
-
+        $disabledPages = (new PageVisibility(($this->dbResolver)()))->disabledPages();
+        $currentConfig = \App\Services\ConfigSchema::current();
+        $currentConfig['disabled_pages'] = $disabledPages;
+        \App\Services\ConfigSchema::setCurrent($currentConfig);
         $pageAvailability = new PageAvailability(
-            (array) ($this->config['disabled_pages'] ?? []),
+            $disabledPages,
             $this->basePath
         );
+
+        if (\App\Services\Authorization::isSuper($user)) {
+            return $handler->handle($request);
+        }
         $disabledPage = $pageAvailability->disabledPageForRequest($request);
         if ($disabledPage !== null) {
             return $this->unavailable($request);
         }
 
-        $page = $this->resolvePage($request->getUri()->getPath());
+        $allowed = [];
+        try {
+            $allowedCachedAt = (int) ($_SESSION['allowed_pages_cached_at'] ?? 0);
+            if (isset($_SESSION['user']['allowed_pages'])
+                && $allowedCachedAt > time() - self::ACCESS_CACHE_SECONDS) {
+                $allowed = (array) $_SESSION['user']['allowed_pages'];
+            } else {
+                $allowed = $this->allowedPages((int) ($user['id'] ?? 0));
+                $_SESSION['user']['allowed_pages'] = $allowed;
+                $_SESSION['allowed_pages_cached_at'] = time();
+            }
+        } catch (\Throwable $e) {
+            ErrorLogger::logThrowable($e, [
+                'module' => self::class,
+                'function' => 'process',
+                'params' => ['user_id' => (int) ($user['id'] ?? 0)],
+            ], $request);
+            // Таблицы ролей ещё нет — сохраняем прежний режим первичной настройки.
+            return $handler->handle($request);
+        }
+
+        $page = $this->resolvePage($request->getUri()->getPath(), $request->getQueryParams());
         if ($page === null) {
             // Путь не относится к разграничиваемым страницам — пропускаем
             return $handler->handle($request);
         }
 
-        // Администратор — полный доступ
-        if ($user['is_admin'] ?? false) {
-            return $handler->handle($request);
+        $definition = \App\Services\PageRegistry::all()[$page] ?? [];
+        if (!empty($definition['super_only']) && !\App\Services\Authorization::isSuper($user)) {
+            return $this->deny($request, $page);
+        }
+        if (!empty($definition['admin_only']) && !\App\Services\Authorization::isAdmin($user)) {
+            return $this->deny($request, $page);
         }
 
-        try {
-            $allowed = $this->allowedPages((int) ($user['id'] ?? 0));
-        } catch (\Throwable $e) {
-            // таблицы ролей ещё нет — не блокируем
-            return $handler->handle($request);
-        }
-
-        if (in_array($page, $allowed, true)) {
+        $accessPages = \App\Services\PageRegistry::accessPages(
+            $this->path($request->getUri()->getPath()),
+            $request->getQueryParams()
+        );
+        if (array_intersect($accessPages, $allowed)) {
             return $handler->handle($request);
         }
 
@@ -76,40 +104,17 @@ class PageAccessMiddleware implements MiddlewareInterface
         return $this->deny($request, $page);
     }
 
-    private function resolvePage(string $path): ?string
+    private function resolvePage(string $path, array $query = []): ?string
+    {
+        return \App\Services\PageRegistry::pageForPath($this->path($path), $query);
+    }
+
+    private function path(string $path): string
     {
         if ($this->basePath !== '' && str_starts_with($path, $this->basePath)) {
             $path = substr($path, strlen($this->basePath));
         }
-        $path = '/' . ltrim($path, '/');
-
-        if ($path === '/' || $path === '' || $path === '/detail') {
-            // главная всегда доступна — вкладки фильтрует клиент, данные защищены через /api
-            return null;
-        }
-        if ($path === '/directories' || $path === '/directories/') {
-            return 'directories';
-        }
-        if (preg_match('~^/(?:admin/)?directories/(norms|stations)(/.*)?$~', $path, $match)) {
-            $action = $match[2] ?? '';
-            return in_array($action, ['/save', '/delete'], true) ? 'directories_edit' : 'directories';
-        }
-        if (str_starts_with($path, '/admin')) {
-            return 'admin';
-        }
-        if ($path === '/wagon') {
-            return 'dashboard';
-        }
-        if (str_starts_with($path, '/maps')) {
-            return 'maps';
-        }
-        if (str_starts_with($path, '/import') || str_starts_with($path, '/api/import')) {
-            return 'import';
-        }
-        if (str_starts_with($path, '/api')) {
-            return 'dashboard';
-        }
-        return null;
+        return '/' . ltrim($path, '/');
     }
 
     private function allowedPages(int $userId): array
@@ -121,7 +126,10 @@ class PageAccessMiddleware implements MiddlewareInterface
               WHERE ur.user_id = :id',
             ['id' => $userId]
         );
-        return \App\Services\DirectoryAccess::expandPages(array_map(static fn($r) => $r['page'], $rows));
+        return \App\Services\PageRegistry::forUser(
+            array_map(static fn($r) => $r['page'], $rows),
+            (array) ($_SESSION['user'] ?? [])
+        );
     }
 
     private function noAdminYet(): bool
@@ -134,6 +142,10 @@ class PageAccessMiddleware implements MiddlewareInterface
             );
             return (int) ($row['cnt'] ?? 0) === 0;
         } catch (\Throwable $e) {
+            ErrorLogger::logThrowable($e, [
+                'module' => self::class,
+                'function' => 'noAdminYet',
+            ]);
             return true;
         }
     }

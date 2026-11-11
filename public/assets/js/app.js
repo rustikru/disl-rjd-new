@@ -3,11 +3,11 @@
 var BASE = window.APP_BASE || ''
 var ALLOWED_PAGES = window.APP_ALLOWED_PAGES || []
 var DISABLED_PAGES = window.APP_DISABLED_PAGES || []
+var CAN_OPEN_DETAIL = ALLOWED_PAGES.indexOf('wagon-detail') !== -1
 
 // Проверка доступа к вкладке
 function canSeeTab(tab) {
   if (!tab.page) return true
-  if (window.APP_IS_ADMIN) return true
   return ALLOWED_PAGES.indexOf(tab.page) !== -1
 }
 
@@ -26,14 +26,6 @@ var TAB_GROUPS = (window.APP_NAV_CONFIG || []).map(function (group) {
     }),
   }
 })
-
-// Раздел администрирования — только для роли ADMIN
-if (window.APP_IS_ADMIN && DISABLED_PAGES.indexOf('admin') === -1) {
-  TAB_GROUPS.push({
-    label: 'Администрирование',
-    tabs: [{ id: 'admin', label: 'Перейти', url: BASE + '/admin/users' }],
-  })
-}
 
 // Сайдбар
 function initSidebar() {
@@ -77,6 +69,7 @@ function initSidebar() {
 
 // Переключение вкладок
 function switchTab(tabId) {
+  var tabXhr = null
   document.querySelectorAll('.nav-item').forEach(function (btn) {
     btn.classList.toggle('active', btn.dataset.tab === tabId)
   })
@@ -87,9 +80,12 @@ function switchTab(tabId) {
   Object.keys(WAGON_TABS).forEach(function (k) {
     var cfg = WAGON_TABS[k]
     if (tabId === k && !window[cfg.loadedKey]) {
-      initTab(cfg)
+      tabXhr = initTab(cfg)
     }
   })
+  var requests = tabXhr ? [tabXhr] : []
+  requests = requests.concat(loadKpiForTab(tabId))
+  return requests.length ? $.when.apply($, requests) : null
 }
 
 // Внутренние вкладки (pill)
@@ -121,10 +117,15 @@ function initInnerTabs() {
   })
 }
 
-// Загрузка всех KPI или выбранных блоков карточек.
-function loadKPI(keys) {
-  return (keys || Object.keys(KPI_BOARDS)).map(function (key) {
+var KPI_LOADED = {}
+
+// Загрузка KPI выбранных блоков карточек.
+function loadKPI(keys, force) {
+  return (keys || []).filter(function (key) {
+    return KPI_BOARDS[key] && (force || !KPI_LOADED[key])
+  }).map(function (key) {
     var board = KPI_BOARDS[key]
+    KPI_LOADED[key] = true
     return $.getJSON(board.dataUrl, board.params ? board.params() : {}).done(
       function (data) {
         //console.log('Ключ:', data)
@@ -134,8 +135,26 @@ function loadKPI(keys) {
         }
         showKpi(data, board.containerId)
       },
-    )
+    ).fail(function (jqXHR) {
+      delete KPI_LOADED[key]
+      var code = jqXHR.responseJSON && jqXHR.responseJSON.code
+        ? ' (' + jqXHR.responseJSON.code + ')'
+        : ''
+      $('#' + board.containerId)
+        .html('<div class="ui-empty">Не удалось загрузить KPI' + esc(code) + '</div>')
+        .trigger('kpi:rendered')
+    })
   })
+}
+
+function loadKpiForTab(tabId) {
+  var kpiTypes = window.APP_KPI_TYPES || {}
+  var type = Object.keys(kpiTypes).find(function (key) {
+    return kpiTypes[key].tab === tabId
+  })
+  if (!type || ALLOWED_PAGES.indexOf(kpiTypes[type].page) === -1) return []
+  var board = type && kpiTypes[type].page
+  return board ? loadKPI([board]) : []
 }
 
 // Дата в API приходит в формате DD.MM.YYYY HH:MM.
@@ -152,15 +171,13 @@ function showDislocationDate(value) {
   )
   if (!match) return
 
-  var reportTime =
-    Date.UTC(
-      Number(match[3]),
-      Number(match[2]) - 1,
-      Number(match[1]),
-      Number(match[4]),
-      Number(match[5]),
-    ) -
-    Number(window.APP_TIMEZONE_OFFSET_SECONDS || 0) * 1000
+  var reportTime = new Date(
+    Number(match[3]),
+    Number(match[2]) - 1,
+    Number(match[1]),
+    Number(match[4]),
+    Number(match[5]),
+  ).getTime()
   var staleHours = Math.max(1, Number(window.DISLOCATION_STALE_HOURS) || 8)
   if (Date.now() - reportTime <= staleHours * 60 * 60 * 1000) return
 
@@ -188,7 +205,7 @@ function showKpi(data, containerId) {
 
   var cardsHtml = currentBoard.cards(data).map(kpiCard).join('')
 
-  $('#' + targetContainer).html(cardsHtml)
+  $('#' + targetContainer).html(cardsHtml).trigger('kpi:rendered')
 }
 
 // Конфиг вкладок
@@ -300,7 +317,7 @@ function showClaimsSummary(data, tabSettings) {
         detailFilters.claim_filter = 'penalty'
       if (column.key === 'payable_days') detailFilters.claim_filter = 'payable'
       var content = esc(String(text))
-      if (!columnIndex || Number(value) > 0) {
+      if (CAN_OPEN_DETAIL && (!columnIndex || Number(value) > 0)) {
         var query = new URLSearchParams({ ctx: 'claims' })
         Object.keys(detailFilters).forEach(function (filterKey) {
           if (
@@ -350,11 +367,121 @@ function reportFilterValues(reportDefinition) {
   ;(reportDefinition.filters || []).forEach(function (filterDefinition) {
     var $field = $('#' + filterDefinition.field_id)
     if (!$field.length) return
-    var value = String($field.val() || '').trim()
+
+    var value
+    if (filterDefinition.multiple) {
+      var $widget = $field.siblings('.filter-multiselect')
+      var selected = $widget.length
+        ? $widget.find('input[type="checkbox"]:checked').map(function () {
+            return String(this.value || '').trim()
+          }).get()
+        : ($field.val() || [])
+
+      selected = Array.from(new Set(selected.filter(function (item) {
+        return item !== ''
+      })))
+      value = selected.length ? JSON.stringify(selected) : ''
+    } else {
+      value = String($field.val() || '').trim()
+    }
+
     if (value !== '') values[filterDefinition.key] = value
   })
   return values
 }
+
+function updateMultiSelectLabel($field) {
+  var $widget = $field.siblings('.filter-multiselect')
+  var selected = $widget.find('input[type="checkbox"]:checked').map(function () {
+    return String(this.value || '').trim()
+  }).get()
+  selected = Array.from(new Set(selected.filter(function (value) {
+    return value !== ''
+  })))
+
+  var labels = selected.map(function (value) {
+    var option = $field.find('option').filter(function () {
+      return String(this.value || '').trim() === value
+    }).first()
+    return option.length ? option.text() : value
+  })
+
+  $widget.find('.filter-multiselect-button').text(
+    labels.length ? (labels.length === 1 ? labels[0] : 'Выбрано: ' + labels.length) : '— Все —',
+  )
+}
+
+function refreshMultiSelect($field) {
+  var $widget = $field.siblings('.filter-multiselect')
+  if (!$widget.length) {
+    $widget = $('<div>').addClass('filter-multiselect')
+    var $button = $('<button type="button">').addClass('filter-multiselect-button')
+    var $options = $('<div>').addClass('filter-multiselect-options').prop('hidden', true)
+    $button.on('click', function () {
+      var open = $options.prop('hidden')
+      $('.filter-multiselect-options').prop('hidden', true)
+      $options.prop('hidden', !open)
+      if (open) $options.find('.filter-multiselect-search').trigger('focus')
+    })
+    $widget.append($button, $options)
+    $field.after($widget).hide()
+  }
+
+  var selected = Array.isArray($field.val()) ? $field.val() : []
+  selected = Array.from(new Set(selected.map(function (value) {
+    return String(value || '').trim()
+  }).filter(function (value) {
+    return value !== ''
+  })))
+
+  var $options = $widget.find('.filter-multiselect-options').empty()
+  var $search = $('<input type="search" placeholder="Поиск...">').addClass('filter-multiselect-search')
+  var $list = $('<div>').addClass('filter-multiselect-list')
+  var renderedValues = new Set()
+
+  $search.on('input', function () {
+    var query = this.value.toLocaleLowerCase('ru-RU').trim()
+    $list.children('label').each(function () {
+      this.hidden = query !== '' && this.textContent.toLocaleLowerCase('ru-RU').indexOf(query) < 0
+    })
+  })
+  $options.append($search, $list)
+
+  $field.find('option').each(function () {
+    var option = this
+    var value = String(option.value || '').trim()
+    // Пустое значение «Все» не является вариантом мультивыбора.
+    if (!value || renderedValues.has(value)) return
+    renderedValues.add(value)
+
+    var $check = $('<input type="checkbox">')
+      .val(value)
+      .prop('checked', selected.indexOf(value) >= 0)
+
+    $check.on('change', function () {
+      var checked = new Set($list.find('input[type="checkbox"]:checked').map(function () {
+        return String(this.value || '').trim()
+      }).get())
+
+      $field.find('option').each(function () {
+        var optionValue = String(this.value || '').trim()
+        this.selected = optionValue !== '' && checked.has(optionValue)
+      })
+      $field.trigger('change')
+      updateMultiSelectLabel($field)
+    })
+
+    $list.append($('<label>').append($check, $('<span>').text(option.text)))
+  })
+
+  updateMultiSelectLabel($field)
+}
+
+$(document).on('click', function (event) {
+  if (!$(event.target).closest('.filter-multiselect').length) {
+    $('.filter-multiselect-options').prop('hidden', true)
+  }
+})
 
 function fillReportFilterOptions(reportDefinition, optionLists) {
   ;(reportDefinition.filters || []).forEach(function (filterDefinition) {
@@ -366,25 +493,58 @@ function fillReportFilterOptions(reportDefinition, optionLists) {
     var options = optionLists[filterDefinition.options_key] || []
     var $field = $('#' + filterDefinition.field_id)
     var selectedValue = $field.val()
-    $field.find('option:not(:first)').remove()
+    var renderedValues = new Set()
+
+    if (filterDefinition.multiple) {
+      $field.empty()
+      selectedValue = Array.isArray(selectedValue) ? selectedValue : []
+    } else {
+      $field.find('option.report-filter-option').remove()
+    }
+
     options.forEach(function (option) {
+      var optionValue
+      var optionLabel
       if (option && typeof option === 'object') {
-        var optionValue =
+        optionValue =
           option.value || option.station_code || option.code || option.id || ''
-        var optionLabel =
+        optionLabel =
           option.label || option.station_name || option.name || optionValue
-        $field.append($('<option>').val(optionValue).text(optionLabel))
       } else {
-        $field.append($('<option>').val(option).text(option))
+        optionValue = option
+        optionLabel = option
       }
+
+      optionValue = String(optionValue || '').trim()
+      if (!optionValue || renderedValues.has(optionValue)) return
+      renderedValues.add(optionValue)
+      $field.append(
+        $('<option>')
+          .addClass('report-filter-option')
+          .val(optionValue)
+          .text(optionLabel),
+      )
     })
-    $field.val(selectedValue || '')
+
+    if (filterDefinition.multiple) {
+      selectedValue = Array.from(new Set(selectedValue.map(function (value) {
+        return String(value || '').trim()
+      }).filter(function (value) {
+        return value !== '' && renderedValues.has(value)
+      })))
+      $field.val(selectedValue)
+      refreshMultiSelect($field)
+    } else {
+      $field.val(selectedValue || '')
+    }
   })
 }
 
 function clearReportFilterValues(reportDefinition) {
   ;(reportDefinition.filters || []).forEach(function (filterDefinition) {
-    $('#' + filterDefinition.field_id).val('')
+    var $field = $('#' + filterDefinition.field_id)
+    $field.val(filterDefinition.multiple ? [] : '')
+    if (filterDefinition.multiple) refreshMultiSelect($field)
   })
 }
 
@@ -404,10 +564,14 @@ function buildReportFilterFields(reportCode, reportDefinition) {
   var $filterFields = $('#panel-' + reportCode + ' .filters-inner').first()
   if (!$filterFields.length) return
   $filterFields.find('.filter-item').remove()
+  $filterFields.find('.filter-range').remove()
   var $filterActions = $filterFields.find('.filter-actions').first()
+  var $dateRange = null
 
   ;(reportDefinition.filters || []).forEach(function (filterDefinition) {
     var $filterItem = $('<div>').addClass('filter-item')
+    if (filterDefinition.multiple) $filterItem.addClass('filter-item--multi')
+    $filterItem.attr('data-filter', filterDefinition.key)
     var $label = $('<label>')
       .addClass('filter-label')
       .attr('for', filterDefinition.field_id)
@@ -415,7 +579,12 @@ function buildReportFilterFields(reportCode, reportDefinition) {
     var $field
 
     if (filterDefinition.value_type === 'select') {
-      $field = $('<select>').append($('<option>').val('').text('— Все —'))
+      $field = $('<select>')
+      if (filterDefinition.multiple) {
+        $field.attr('multiple', 'multiple')
+      } else {
+        $field.append($('<option>').val('').text('— Все —'))
+      }
       ;(filterDefinition.choices || []).forEach(function (choice) {
         $field.append($('<option>').val(choice.value).text(choice.label))
       })
@@ -425,8 +594,8 @@ function buildReportFilterFields(reportCode, reportDefinition) {
         filterDefinition.value_type === 'date' ? 'date' : 'text',
       )
       if (filterDefinition.key === 'wagon_no') {
-        $field.attr('placeholder', 'Номер вагона1; Номер вагона2; ...')
-        $filterItem.css('flex-basis', '100%')
+        $field.attr('placeholder', 'Вагон1; Вагон2; …')
+        $filterItem.addClass('filter-item--wagon')
       }
     }
 
@@ -435,7 +604,18 @@ function buildReportFilterFields(reportCode, reportDefinition) {
       .attr('id', filterDefinition.field_id)
       .val(reportInitialFilterValue(filterDefinition.initial_value))
     $filterItem.append($label, $field)
-    if ($filterActions.length) $filterItem.insertBefore($filterActions)
+    if (filterDefinition.multiple) refreshMultiSelect($field)
+    if (
+      reportCode === 'analysis-period' &&
+      ['date_from', 'date_to'].indexOf(filterDefinition.key) >= 0
+    ) {
+      if (!$dateRange) {
+        $dateRange = $('<div>').addClass('filter-range')
+        if ($filterActions.length) $dateRange.insertBefore($filterActions)
+        else $filterFields.append($dateRange)
+      }
+      $dateRange.append($filterItem)
+    } else if ($filterActions.length) $filterItem.insertBefore($filterActions)
     else $filterFields.append($filterItem)
   })
 }
@@ -493,6 +673,9 @@ function connectReportDefinitions() {
     tabSettings.filtersUrl = reportDefinition.filters_endpoint
       ? BASE + reportDefinition.filters_endpoint
       : null
+    tabSettings.initialDataUrl = reportDefinition.initial_endpoint
+      ? BASE + reportDefinition.initial_endpoint
+      : null
     tabSettings.groupCols = reportDefinition.row_dimensions || []
     tabSettings.colDims = (reportDefinition.column_dimensions || []).map(
       function (columnDimension) {
@@ -520,7 +703,9 @@ function connectReportDefinitions() {
           )
         },
       )
-      return missingFilter ? 'Укажите поле «' + missingFilter.label + '»' : null
+      return missingFilter
+        ? 'Для просмотра данных укажите «' + missingFilter.label + '»'
+        : null
     }
   })
 }
@@ -554,56 +739,58 @@ function kpiCards(data) {
     (data.sections && data.sections[0] && data.sections[0].values) || []
 
   return valuesArray.map(function (item) {
+    var detail =
+      item.is_error === 'Y'
+        ? null
+        : item.detail ||
+          (item.id ? { ctx: 'dislocation', params: { kpi_id: item.id } } : null)
+    var kpiTypes = window.APP_KPI_TYPES || {}
+    var sourcePage = kpiTypes[item.type] && kpiTypes[item.type].page
+
+    // Контекст страницы задаём по фактическому типу KPI из ответа API.
+    if (detail && detail.ctx === 'dislocation' && sourcePage) {
+      detail = Object.assign({}, detail, {
+        params: Object.assign({}, detail.params || {}, {
+          source_page: sourcePage,
+        }),
+      })
+    }
+
     return {
+      id: item.id,
+      type: item.type,
       label: item.label,
-      value: item.value,
+      value: item.is_error === 'Y' ? '—' : item.value,
+      sub: item.is_error === 'Y' ? item.value : null,
+      isError: item.is_error === 'Y',
+      isUser: item.is_user === 'Y',
+      isGlobal: item.is_global === 'Y',
+      canEdit: !!window.APP_USER_KPI_MANAGEMENT_ENABLED && item.can_edit === 'Y',
+      canHide: !!window.APP_USER_KPI_MANAGEMENT_ENABLED && item.can_hide === 'Y',
+      config: item.config || null,
       variant: 'pill',
       trend: makeTrend(item.change, item.trend),
-      detail:
-        item.detail ||
-        (item.id ? { ctx: 'dislocation', params: { kpi_id: item.id } } : null),
+      detail: detail,
     }
   })
 }
 
 // KPI-карточки для дашборда и отдельных блоков
-var KPI_BOARDS = {
-  dashboard: {
-    containerId: 'kpiGrid',
+var KPI_BOARDS = {}
+Object.keys(window.APP_KPI_TYPES || {}).forEach(function (type) {
+  var definition = window.APP_KPI_TYPES[type]
+  KPI_BOARDS[definition.page] = {
+    containerId: definition.container_id,
     dataUrl: BASE + '/api/kpi/summary',
     params: function () {
-      return { kpi_type: 'dashboard_kpi' }
+      var params = { kpi_type: type, source_page: definition.page }
+      return definition.page === 'loading' && WAGON_TABS.loading
+        ? Object.assign(params, WAGON_TABS.loading.getParams())
+        : params
     },
     cards: kpiCards,
-  },
-  departure: {
-    containerId: 'departureMetrics',
-    dataUrl: BASE + '/api/kpi/summary',
-    params: function () {
-      return { kpi_type: 'departue_kpi' }
-    },
-    cards: kpiCards,
-  },
-  loading: {
-    containerId: 'loadingMetrics',
-    dataUrl: BASE + '/api/kpi/summary',
-    params: function () {
-      return Object.assign(
-        { kpi_type: 'loading_kpi' },
-        WAGON_TABS.loading.getParams(),
-      )
-    },
-    cards: kpiCards,
-  },
-  approach: {
-    containerId: 'approachMetrics',
-    dataUrl: BASE + '/api/kpi/summary',
-    params: function () {
-      return { kpi_type: 'approach_kpi' }
-    },
-    cards: kpiCards,
-  },
-}
+  }
+})
 
 function fillSelect(selector, values) {
   var $sel = $(selector)
@@ -630,13 +817,14 @@ function initTab(cfg) {
       $acts.append($btn)
     }
   }
-  loadFilters(cfg)
+  if (!cfg.initialDataUrl) loadFilters(cfg)
   var _sumXhr = loadSummary(cfg)
   if (!cfg.summaryUrl && cfg.detailUrl && !window[cfg.loadedDetKey]) {
     var initHint = cfg.validate ? cfg.validate() : null
     if (initHint) {
+      loadFilters(cfg)
       $('#' + cfg.detTableId).html(
-        '<div style="text-align:center;padding:60px;color:#E8392A;font-size:15px;font-weight:600">' +
+        '<div class="report-filter-hint">' +
           esc(initHint) +
           '</div>',
       )
@@ -652,6 +840,8 @@ function loadFilters(cfg) {
   if (!cfg.filtersUrl) return
   $.getJSON(cfg.filtersUrl).done(function (data) {
     if (cfg.fillFilters) cfg.fillFilters(data)
+    cfg.filtersLoaded = true
+    if (cfg.initialDataUrl) cfg.initialDataLoaded = true
   })
 }
 /* Загрузка сводной таблицы и KPI, если они есть настроены */
@@ -676,10 +866,27 @@ function loadSummary(cfg) {
     })
     .join(',')
   if (cby) summaryParams.col_by = cby
-
   /* Получаем сводную информацию  */
-  return $.getJSON(cfg.summaryUrl, summaryParams)
+  var summaryUrl =
+    cfg.initialDataUrl && !cfg.initialDataLoaded
+      ? cfg.initialDataUrl
+      : cfg.summaryUrl
+  return $.getJSON(summaryUrl, summaryParams)
     .done(function (data) {
+      if (
+        data &&
+        Object.prototype.hasOwnProperty.call(data, 'filters') &&
+        Object.prototype.hasOwnProperty.call(data, 'data')
+      ) {
+        if (cfg.fillFilters) cfg.fillFilters(data.filters)
+        cfg.filtersLoaded = true
+        cfg.initialDataLoaded = true
+        data = data.data
+      }
+      if (data.updated_at) {
+        showDislocationDate(data.updated_at)
+        $('#headerDate').text(data.updated_at)
+      }
       if (cfg.metricsId) {
         var items = cfg.kpi
           ? cfg.kpi(data)
@@ -864,6 +1071,7 @@ function loadSummary(cfg) {
       )
     })
     .fail(function (jqXHR) {
+      if (cfg.initialDataUrl && !cfg.filtersLoaded) loadFilters(cfg)
       var msg = ajaxErr(jqXHR)
       $table.html(
         '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">' +
@@ -877,6 +1085,7 @@ function loadSummary(cfg) {
 function loadDetail(cfg) {
   var $sub = $('#' + cfg.detSubId)
   var $table = $('#' + cfg.detTableId)
+  $table.attr('data-layout-report', cfg.ctx)
   // showInline: false — поле скрыто из inline-детализации (но видно на странице detail.php)
   var cols = DETAIL_CONTEXTS[cfg.ctx]
     ? DETAIL_CONTEXTS[cfg.ctx].cols.filter(function (c) {
@@ -932,9 +1141,54 @@ function loadDetail(cfg) {
         },
         sortExtra,
       )
-  $.getJSON(cfg.detailUrl, listParams)
+  var detailUrl =
+    cfg.initialDataUrl && !cfg.initialDataLoaded
+      ? cfg.initialDataUrl
+      : cfg.detailUrl
+  $.getJSON(detailUrl, listParams)
     .done(function (data) {
-      if (cfg.showList) {
+      if (
+        data &&
+        Object.prototype.hasOwnProperty.call(data, 'filters') &&
+        Object.prototype.hasOwnProperty.call(data, 'data')
+      ) {
+        if (cfg.fillFilters) cfg.fillFilters(data.filters)
+        cfg.filtersLoaded = true
+        cfg.initialDataLoaded = true
+        data = data.data
+      }
+      if (Array.isArray(data.columns) && data.columns.length) cols = data.columns
+      if (data.group_config && Array.isArray(data.rows)) {
+        var groupCols = data.columns || []
+        var groupHtml = '<table class="ui-table user-kpi-group-table"><thead><tr>' + groupCols.map(function (col) { return '<th>' + esc(col.label) + '</th>' }).join('') + '</tr></thead><tbody>'
+        data.rows.forEach(function (row, index) {
+          groupHtml += '<tr class="user-kpi-group-row" data-group-index="' + index + '">' + groupCols.map(function (col) { return '<td>' + esc(row[col.key] == null ? '' : row[col.key]) + '</td>' }).join('') + '</tr>'
+          groupHtml += '<tr class="user-kpi-group-expanded" data-expanded-index="' + index + '" hidden><td colspan="' + groupCols.length + '"><div class="user-kpi-group-detail">Загрузка...</div></td></tr>'
+        })
+        if (!data.rows.length) groupHtml += '<tr><td colspan="' + Math.max(groupCols.length, 1) + '">' + esc(data.group_config.empty_label || 'Нет данных') + '</td></tr>'
+        groupHtml += '</tbody></table>'
+        $table.html(groupHtml)
+        $table.off('click.userKpiGroup').on('click.userKpiGroup', '.user-kpi-group-row', function () {
+          var index = Number($(this).attr('data-group-index'))
+          var row = data.rows[index]
+          var $expanded = $table.find('[data-expanded-index="' + index + '"]')
+          if (!$expanded.prop('hidden')) { $expanded.prop('hidden', true); return }
+          $expanded.prop('hidden', false)
+          var $detailHost = $expanded.find('.user-kpi-group-detail')
+          if (!$detailHost.attr('id')) $detailHost.attr('id', 'user-kpi-group-' + index + '-' + String(cfg.detTableId || 'detail').replace(/[^a-z0-9_-]/gi, ''))
+          if ($detailHost.data('loaded')) return
+          var groupValue = row.group_value
+          var requestParams = Object.assign({}, listParams, { group_value: groupValue == null ? '' : groupValue, group_value_is_null: groupValue == null ? 'Y' : 'N' })
+          $.getJSON(cfg.detailUrl, requestParams).done(function (detailData) {
+            if (detailData.rows && detailData.rows.length) {
+              showTable($detailHost, detailData.rows, detailData.columns || [])
+            } else {
+              $detailHost.text(data.group_config.empty_label || 'Нет данных')
+            }
+            $detailHost.data('loaded', true)
+          }).fail(function (xhr) { $detailHost.text(ajaxErr(xhr)) })
+        })
+      } else if (cfg.showList) {
         cfg.showList(data, cfg)
       } else {
         showTable($table, data.rows, cols)
@@ -964,6 +1218,7 @@ function loadDetail(cfg) {
 }
 /* Детализация — виртуальная таблица */
 var _vtInline = {}
+var _vtTableLayouts = {}
 /* Матричные данные сводных таблиц (для Excel-экспорта) */
 var _matrixData = {}
 
@@ -1007,7 +1262,7 @@ function vtMeasureCols(colDefs, data) {
   var cv = document.createElement('canvas')
   var ctx = cv.getContext('2d')
   var PAD = 20,
-    MIN = 50,
+    MIN = 70,
     MAX = 320
   ctx.font = 'bold 12px sans-serif'
   var widths = colDefs.map(function (c) {
@@ -1031,6 +1286,26 @@ function vtMeasureCols(colDefs, data) {
   })
   return widths
 }
+function applyInlineTableLayout(columns, layout) {
+  if (!layout || !Array.isArray(layout.columns)) return columns.slice()
+  var byKey = {}
+  columns.forEach(function (column) {
+    delete column.width
+    byKey[column.key] = column
+  })
+  var ordered = []
+  layout.columns.forEach(function (item) {
+    if (!byKey[item.key]) return
+    var width = Number(item.width)
+    if (width >= 70 && width <= 800) byKey[item.key].width = width
+    else delete byKey[item.key].width
+    ordered.push(byKey[item.key])
+    delete byKey[item.key]
+  })
+  Object.keys(byKey).forEach(function (key) { ordered.push(byKey[key]) })
+  return ordered
+}
+
 /* Рендер таблицы с виртуальным скроллом.*/
 function showTable($container, rows, colDefs) {
   colDefs = colDefs.map(function (c) {
@@ -1045,26 +1320,56 @@ function showTable($container, rows, colDefs) {
     return c
   })
   var id = $container.attr('id')
+  var layoutReport = $container.attr('data-layout-report') || ''
   if ($container[0]._vtCleanup) $container[0]._vtCleanup()
+  if (layoutReport && !Object.prototype.hasOwnProperty.call(_vtTableLayouts, layoutReport)) {
+    _vtTableLayouts[layoutReport] = false
+    var allRowsForLayout = rows || []
+    $.getJSON(BASE + '/api/table-layout/' + encodeURIComponent(layoutReport))
+      .done(function (layout) {
+        _vtTableLayouts[layoutReport] = layout
+        showTable($container, allRowsForLayout, applyInlineTableLayout(colDefs, layout))
+      })
+      .fail(function () {
+        _vtTableLayouts[layoutReport] = { columns: [] }
+        showTable($container, allRowsForLayout, colDefs)
+      })
+    return
+  }
+  if (layoutReport && _vtTableLayouts[layoutReport] && Array.isArray(_vtTableLayouts[layoutReport].columns)) {
+    colDefs = applyInlineTableLayout(colDefs, _vtTableLayouts[layoutReport])
+  }
   $container.addClass('vt-host')
   var ROW_H = 28 // высота строки, используется для расчёта виртуального скролла
   var BUFFER = 8 // кол-во строк в буфере до и после видимой области, для предотвращения мерцания при скролле
   var allData = rows || []
+  var filterState = {}
+
+  function filterDisplayValue(column, row) {
+    var value = row[column.key]
+    if (column.fmt) value = column.fmt(value)
+    return value == null || value === '' ? '(Пустые)' : String(value)
+  }
 
   _vtInline[id] = { all: allData, filtered: allData.slice(), cols: colDefs }
 
   var measured = vtMeasureCols(colDefs, allData)
-  var baseW = measured.reduce(function (s, w) {
-    return s + w
-  }, 0)
   var availW = $container[0].offsetWidth || window.innerWidth - 260
-  var scale = availW > baseW ? availW / baseW : 1
-  var template = measured
-    .map(function (w) {
-      return Math.floor(w * scale) + 'px'
-    })
-    .join(' ')
-  var totalW = availW > baseW ? availW : baseW
+  var savedTotal = 0, defaultTotal = 0
+  colDefs.forEach(function (column, index) {
+    var savedWidth = Number(column.width)
+    if (savedWidth >= 70 && savedWidth <= 800) savedTotal += savedWidth
+    else defaultTotal += measured[index]
+  })
+  var defaultScale = defaultTotal > 0 && availW - savedTotal > defaultTotal
+    ? (availW - savedTotal) / defaultTotal : 1
+  var widths = measured.map(function (width, index) {
+    var savedWidth = Number(colDefs[index].width)
+    if (savedWidth >= 70 && savedWidth <= 800) return savedWidth
+    return Math.max(70, Math.min(800, Math.floor(width * defaultScale)))
+  })
+  var template = widths.map(function (width) { return width + 'px' }).join(' ')
+  var totalW = widths.reduce(function (sum, width) { return sum + width }, 0)
 
   $container.html(
     '<div class="vt-viewport" id="ivp-' +
@@ -1104,16 +1409,151 @@ function showTable($container, rows, colDefs) {
       (c.meta ? ' col-meta' : '') +
       '">' +
       esc(c.label) +
-      '</div>'
+      '<span class="vt-resize-handle" data-key="' + esc(c.key) + '" title="Изменить ширину столбца"></span></div>'
     fHtml +=
       '<div class="vt-fc' +
       (c.pinned ? ' col-pinned' : '') +
-      '"><input data-k="' +
+      '"><button type="button" class="vt-filter-button" data-k="' +
       c.key +
-      '" type="text" placeholder=""></div>'
+      '" title="Фильтр по столбцу">Все ▾</button></div>'
   })
   document.getElementById('ivh-' + id).innerHTML = hHtml
   document.getElementById('ivf-' + id).innerHTML = fHtml
+
+  var head = document.getElementById('ivh-' + id)
+  var sortState = { key: '', dir: 0 }
+  head.addEventListener('click', function (event) {
+    var cell = event.target.closest('.vt-th')
+    if (!cell || event.target.closest('.sortable-ghost, .vt-resize-handle')) return
+    var key = cell.dataset.key
+    if (!key) return
+    sortState.dir = sortState.key === key ? (sortState.dir + 1) % 3 : 1
+    sortState.key = sortState.dir === 0 ? '' : key
+    head.querySelectorAll('.vt-th').forEach(function (item) {
+      item.classList.remove('vt-th--sort-asc', 'vt-th--sort-desc')
+    })
+    if (sortState.dir) {
+      cell.classList.add(sortState.dir === 1 ? 'vt-th--sort-asc' : 'vt-th--sort-desc')
+    }
+    applyTableState()
+  })
+  head.querySelectorAll('.vt-th').forEach(function (cell, index) {
+    cell.dataset.key = colDefs[index].key
+  })
+  var resizeMove = null
+  var resizeEnd = null
+  var resizeSaveTimer = null
+  head.addEventListener('mousedown', function (event) {
+    var handle = event.target.closest('.vt-resize-handle')
+    if (!handle || event.button !== 0) return
+    var key = handle.getAttribute('data-key')
+    var index = colDefs.findIndex(function (column) { return column.key === key })
+    if (index < 0) return
+    event.preventDefault()
+    event.stopPropagation()
+    var startX = event.clientX
+    var startWidth = widths[index]
+    head.classList.add('vt-head--resizing')
+    resizeMove = function (moveEvent) {
+      widths[index] = Math.max(70, Math.min(800, Math.round(startWidth + moveEvent.clientX - startX)))
+      template = widths.map(function (width) { return width + 'px' }).join(' ')
+      totalW = widths.reduce(function (sum, width) { return sum + width }, 0)
+      $container.find('.vt-head, .vt-filter, .vt-row').css({ gridTemplateColumns: template, width: totalW + 'px' })
+      $container.find('.vt-content').css('width', totalW + 'px')
+    }
+    resizeEnd = function () {
+      document.removeEventListener('mousemove', resizeMove)
+      document.removeEventListener('mouseup', resizeEnd)
+      head.classList.remove('vt-head--resizing')
+      resizeMove = resizeEnd = null
+      if (!layoutReport) return
+      colDefs[index].width = widths[index]
+      var widthData = {}
+      colDefs.forEach(function (column, columnIndex) { widthData[column.key] = widths[columnIndex] })
+      var cachedLayout = _vtTableLayouts[layoutReport] || { columns: [] }
+      var cachedByKey = {}
+      ;(cachedLayout.columns || []).forEach(function (item) { cachedByKey[item.key] = item })
+      Object.keys(widthData).forEach(function (columnKey) {
+        cachedByKey[columnKey] = Object.assign({}, cachedByKey[columnKey] || {}, { key: columnKey, width: widthData[columnKey] })
+      })
+      _vtTableLayouts[layoutReport] = { columns: Object.keys(cachedByKey).map(function (columnKey) { return cachedByKey[columnKey] }) }
+      if (resizeSaveTimer) clearTimeout(resizeSaveTimer)
+      resizeSaveTimer = setTimeout(function () {
+        resizeSaveTimer = null
+        $.ajax({
+          url: BASE + '/api/table-layout/' + encodeURIComponent(layoutReport),
+          method: 'POST',
+          data: { csrf_token: window.APP_CSRF || '', widths: JSON.stringify(widthData) },
+        }).done(function (layout) {
+          _vtTableLayouts[layoutReport] = layout
+        })
+      }, 250)
+    }
+    document.addEventListener('mousemove', resizeMove)
+    document.addEventListener('mouseup', resizeEnd)
+  })
+
+  head.addEventListener('dblclick', function (event) {
+    var handle = event.target.closest('.vt-resize-handle')
+    if (!handle) return
+    event.preventDefault()
+    event.stopPropagation()
+    var key = handle.getAttribute('data-key')
+    var index = colDefs.findIndex(function (column) { return column.key === key })
+    if (index < 0) return
+    widths[index] = measured[index]
+    colDefs[index].width = measured[index]
+    template = widths.map(function (width) { return width + 'px' }).join(' ')
+    totalW = widths.reduce(function (sum, width) { return sum + width }, 0)
+    $container.find('.vt-head, .vt-filter, .vt-row').css({ gridTemplateColumns: template, width: totalW + 'px' })
+    $container.find('.vt-content').css('width', totalW + 'px')
+    if (layoutReport) {
+      if (resizeSaveTimer) {
+        clearTimeout(resizeSaveTimer)
+        resizeSaveTimer = null
+      }
+      var resetWidth = {}; resetWidth[key] = null
+      var cachedLayout = _vtTableLayouts[layoutReport] || { columns: [] }
+      ;(cachedLayout.columns || []).forEach(function (item) { if (item.key === key) item.width = null })
+      $.ajax({
+        url: BASE + '/api/table-layout/' + encodeURIComponent(layoutReport),
+        method: 'POST',
+        data: { csrf_token: window.APP_CSRF || '', widths: JSON.stringify(resetWidth) },
+      }).done(function (layout) { _vtTableLayouts[layoutReport] = layout })
+    }
+  })
+
+  if (typeof Sortable !== 'undefined' && !head._sortable) {
+    head._sortable = Sortable.create(head, {
+      animation: 150,
+      draggable: '.vt-th:not(.col-pinned)',
+      filter: '.col-pinned, .vt-resize-handle',
+      preventOnFilter: false,
+      ghostClass: 'vt-th--ghost',
+      onStart: function () { head.classList.add('vt-head--dragging') },
+      onEnd: function () {
+        head.classList.remove('vt-head--dragging')
+        var keys = Array.prototype.map.call(head.querySelectorAll('.vt-th'), function (cell) { return cell.dataset.key })
+        var byKey = {}
+        colDefs.forEach(function (column) { byKey[column.key] = column })
+        var reordered = keys.map(function (key) { return byKey[key] }).filter(Boolean)
+        if (layoutReport) {
+          var oldLayout = _vtTableLayouts[layoutReport] || { columns: [] }
+          var oldByKey = {}
+          ;(oldLayout.columns || []).forEach(function (item) { oldByKey[item.key] = item })
+          _vtTableLayouts[layoutReport] = {
+            columns: keys.map(function (key) { return Object.assign({}, oldByKey[key] || {}, { key: key }) }),
+          }
+          $.ajax({
+            url: BASE + '/api/table-layout/' + encodeURIComponent(layoutReport),
+            method: 'POST',
+            data: { csrf_token: window.APP_CSRF || '', columns: JSON.stringify(keys) },
+          }).done(function (layout) { _vtTableLayouts[layoutReport] = layout })
+        }
+        setTimeout(function () { showTable($container, allData, reordered) }, 0)
+      },
+    })
+  }
 
   function cellHtml(c, row) {
     var v = row[c.key]
@@ -1133,7 +1573,8 @@ function showTable($container, rows, colDefs) {
     var content = esc(String(display))
     if (
       (c.key === 'wagon_no' || c.key === 'car_number') &&
-      /^\d{8}$/.test(String(v))
+      /^\d{8}$/.test(String(v)) &&
+      ALLOWED_PAGES.indexOf('wagon-card') !== -1
     ) {
       content =
         '<a class="wagon-link" href="' +
@@ -1151,6 +1592,90 @@ function showTable($container, rows, colDefs) {
   var rowsEl = document.getElementById('ivr-' + id)
   var lastFirst = -1,
     lastLast = -1
+
+  function updateFilteredCount() {
+    var $subEl = $container.closest('.table-section').find('.table-sub')
+    if ($subEl.length) {
+      $subEl.text('Строк: ' + _vtInline[id].filtered.length.toLocaleString('ru-RU'))
+    }
+  }
+
+  function getFilterValues(key, state) {
+    var column = colDefs.find(function (item) { return item.key === key })
+    if (!column) return []
+    state = state || filterState
+    return Array.from(new Set(allData.filter(function (row) {
+      return Object.keys(state).every(function (activeKey) {
+        if (activeKey === key) return true
+        var activeColumn = colDefs.find(function (item) { return item.key === activeKey })
+        return activeColumn && state[activeKey].has(filterDisplayValue(activeColumn, row))
+      })
+    }).map(function (row) {
+      return filterDisplayValue(column, row)
+    }))).sort(function (a, b) {
+      return a.localeCompare(b, 'ru', { numeric: true, sensitivity: 'base' })
+    })
+  }
+
+  function updateFilterButtons() {
+    $container.find('.vt-filter-button').each(function () {
+      var key = this.getAttribute('data-k')
+      var selected = filterState[key]
+      this.classList.toggle('is-active', !!selected)
+      this.textContent = selected ? selected.size + ' выбрано ▾' : 'Все ▾'
+    })
+  }
+
+  function normalizeColumnFilters(changedKey) {
+    var changed = true
+    while (changed) {
+      changed = false
+      var snapshot = {}
+      Object.keys(filterState).forEach(function (key) { snapshot[key] = new Set(filterState[key]) })
+      var nextState = {}
+      Object.keys(snapshot).forEach(function (key) {
+        if (key === changedKey) {
+          nextState[key] = snapshot[key]
+          return
+        }
+        var available = new Set(getFilterValues(key, snapshot))
+        var selected = new Set(Array.from(snapshot[key]).filter(function (value) { return available.has(value) }))
+        if (selected.size || snapshot[key].size === 0) nextState[key] = selected
+        if (selected.size !== snapshot[key].size) changed = true
+      })
+      if (Object.keys(nextState).length !== Object.keys(filterState).length) changed = true
+      filterState = nextState
+    }
+    updateFilterButtons()
+  }
+
+  function applyTableState(changedKey) {
+    if (changedKey) normalizeColumnFilters(changedKey)
+    var data = _vtInline[id]
+    var activeKeys = Object.keys(filterState)
+    data.filtered = activeKeys.length
+      ? data.all.filter(function (row) {
+          return activeKeys.every(function (key) {
+            var column = colDefs.find(function (item) { return item.key === key })
+            return column && filterState[key].has(filterDisplayValue(column, row))
+          })
+        })
+      : data.all.slice()
+    if (sortState.key) {
+      data.filtered.sort(function (a, b) {
+        var av = a[sortState.key] == null ? '' : a[sortState.key]
+        var bv = b[sortState.key] == null ? '' : b[sortState.key]
+        var an = Number(av), bn = Number(bv)
+        var result = !isNaN(an) && !isNaN(bn)
+          ? an - bn
+          : String(av).localeCompare(String(bv), 'ru', { numeric: true, sensitivity: 'base' })
+        return sortState.dir === 1 ? result : -result
+      })
+    }
+    lastFirst = lastLast = -1
+    render(true)
+    updateFilteredCount()
+  }
 
   function render(force) {
     var data = _vtInline[id]
@@ -1183,37 +1708,96 @@ function showTable($container, rows, colDefs) {
       html += '</div>'
     }
     rowsEl.style.paddingTop = first * ROW_H + 'px'
-    rowsEl.style.paddingBottom = (total - last) * ROW_H + 'px'
+    rowsEl.style.paddingBottom = Math.max(0, (total - last) * ROW_H) + 'px'
     rowsEl.innerHTML = html
   }
 
-  document.getElementById('ivf-' + id).addEventListener('input', function () {
-    var inputs = this.querySelectorAll('input')
-    var terms = []
-    for (var i = 0; i < inputs.length; i++) {
-      var v = inputs[i].value.trim().toLowerCase()
-      if (v) terms.push({ k: inputs[i].getAttribute('data-k'), v: v })
-    }
-    var data = _vtInline[id]
-    data.filtered = !terms.length
-      ? data.all.slice()
-      : data.all.filter(function (row) {
-          for (var t = 0; t < terms.length; t++) {
-            if (
-              String(row[terms[t].k] == null ? '' : row[terms[t].k])
-                .toLowerCase()
-                .indexOf(terms[t].v) === -1
-            )
-              return false
-          }
-          return true
+  var filterPopup = null
+
+  function closeFilterPopup() {
+    if (filterPopup) filterPopup.remove()
+    filterPopup = null
+  }
+
+  function openColumnFilter(button) {
+    closeFilterPopup()
+    var key = button.getAttribute('data-k')
+    var column = colDefs.find(function (item) { return item.key === key })
+    if (!column) return
+    var values = getFilterValues(key)
+    var draft = filterState[key]
+      ? new Set(Array.from(filterState[key]).filter(function (value) { return values.indexOf(value) !== -1; }))
+      : new Set(values)
+    var popup = document.createElement('div')
+    popup.className = 'vt-column-filter'
+    popup.innerHTML = '<input class="vt-column-filter-search" type="search" placeholder="Поиск...">'
+      + '<div class="vt-column-filter-tools"><button type="button" data-action="all">Выбрать все</button><button type="button" data-action="none">Снять все</button></div>'
+      + '<div class="vt-column-filter-list"></div>'
+      + '<div class="vt-column-filter-actions"><button type="button" class="btn btn-ghost btn-sm" data-action="cancel">Отмена</button><button type="button" class="btn btn-primary btn-sm" data-action="apply">Применить</button></div>'
+    document.body.appendChild(popup)
+    filterPopup = popup
+    var search = popup.querySelector('.vt-column-filter-search')
+    var list = popup.querySelector('.vt-column-filter-list')
+
+    function renderOptions() {
+      var query = search.value.toLocaleLowerCase('ru-RU').trim()
+      list.innerHTML = ''
+      values.forEach(function (value, index) {
+        if (query && value.toLocaleLowerCase('ru-RU').indexOf(query) < 0) return
+        var label = document.createElement('label')
+        var check = document.createElement('input')
+        var text = document.createElement('span')
+        check.type = 'checkbox'
+        check.checked = draft.has(value)
+        check.dataset.index = String(index)
+        check.addEventListener('change', function () {
+          if (check.checked) draft.add(value)
+          else draft.delete(value)
         })
-    lastFirst = lastLast = -1
-    render(true)
-    var $subEl = $container.closest('.table-section').find('.table-sub')
-    if ($subEl.length)
-      $subEl.text('Строк: ' + data.filtered.length.toLocaleString('ru-RU'))
+        text.textContent = value
+        label.append(check, text)
+        list.appendChild(label)
+      })
+    }
+
+    popup.addEventListener('click', function (event) {
+      var action = event.target.getAttribute('data-action')
+      if (action === 'all') {
+        values.forEach(function (value) { draft.add(value) })
+        renderOptions()
+      } else if (action === 'none') {
+        draft.clear()
+        renderOptions()
+      } else if (action === 'cancel') {
+        closeFilterPopup()
+      } else if (action === 'apply') {
+        if (draft.size === values.length) delete filterState[key]
+        else filterState[key] = new Set(draft)
+        button.classList.toggle('is-active', !!filterState[key])
+        button.textContent = filterState[key] ? draft.size + ' выбрано ▾' : 'Все ▾'
+        closeFilterPopup()
+        applyTableState(key)
+      }
+    })
+    search.addEventListener('input', renderOptions)
+    renderOptions()
+    var rect = button.getBoundingClientRect()
+    popup.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - popup.offsetWidth - 8)) + 'px'
+    popup.style.top = Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - popup.offsetHeight - 8)) + 'px'
+    search.focus()
+  }
+
+  document.getElementById('ivf-' + id).addEventListener('click', function (event) {
+    var button = event.target.closest('.vt-filter-button')
+    if (button) openColumnFilter(button)
   })
+
+  function filterDocumentClick(event) {
+    if (filterPopup && !filterPopup.contains(event.target) && !event.target.closest('.vt-filter-button')) {
+      closeFilterPopup()
+    }
+  }
+  document.addEventListener('click', filterDocumentClick)
 
   var ticking = false
   vp.addEventListener('scroll', function () {
@@ -1241,6 +1825,11 @@ function showTable($container, rows, colDefs) {
 
   render(true)
   $container[0]._vtCleanup = function () {
+    if (resizeMove) document.removeEventListener('mousemove', resizeMove)
+    if (resizeEnd) document.removeEventListener('mouseup', resizeEnd)
+    if (head._sortable) head._sortable.destroy()
+    closeFilterPopup()
+    document.removeEventListener('click', filterDocumentClick)
     window.removeEventListener('resize', fitVpHeight)
     window.removeEventListener('scroll', fitVpHeight)
   }
@@ -1502,11 +2091,10 @@ function drawSummary(
     )
   }
 
-  // Переходим на массив строк вместо конкатенации строк
   var h = []
   var rowspan = depth > 1 ? ' rowspan="' + depth + '"' : ''
 
-  // Один заголовочный столбец иерархии: «Страна / Дорога / Станция»
+  // Один столбец иерархии: «Страна / Дорога / Станция»
   var groupHeader = groupCols
     .map(function (gc) {
       return esc(gc.label)
@@ -1732,21 +2320,7 @@ function drawSummary(
   ]
 
   if (!hasSubtotals) {
-    if (grandSum && ctx) {
-      totalH.push(
-        '<td class="col-total-col cell-link" data-ctx="' +
-          esc(ctx) +
-          '" data-road="" data-station="" data-col="">' +
-          grandSum.toLocaleString('ru-RU') +
-          '</td>',
-      )
-    } else {
-      totalH.push(
-        '<td class="col-total-col">' +
-          grandSum.toLocaleString('ru-RU') +
-          '</td>',
-      )
-    }
+    totalH.push(totalLink(grandSum, ctx, '', '', null))
   }
 
   displayCells.forEach(function (dc, di) {
@@ -1848,7 +2422,10 @@ function kpiCard(item) {
   var cls =
     'kpi-card' +
     (item.accent ? ' accent' : '') +
-    (hasDetail ? ' kpi-card--link' : '')
+    (item.isError ? ' kpi-card--error' : '') +
+    (hasDetail ? ' kpi-card--link' : '') +
+    (item.isUser || item.canHide ? ' kpi-card--user' : '') +
+    (item.canHide && !item.isGlobal && !item.isUser ? ' kpi-card--hide-only' : '')
   var detAttr = hasDetail
     ? " data-detail='" +
       JSON.stringify(item.detail).replace(/'/g, '&#39;') +
@@ -1856,6 +2433,23 @@ function kpiCard(item) {
     : ''
   var valStr =
     typeof val === 'number' ? val.toLocaleString('ru-RU') : esc(String(val))
+  var valueLength = String(val).replace(/\s/g, '').length
+  var valueClass =
+    'kpi-value' +
+    (valueLength > 5
+      ? ' kpi-value--very-long'
+      : valueLength > 3
+        ? ' kpi-value--long'
+        : '')
+  var actionHtml = ''
+  if (item.canHide) {
+    actionHtml =
+      '<div class="kpi-user-actions">' +
+      (item.canEdit ? '<button type="button" class="kpi-user-edit" data-kpi-id="' + Number(item.id) + '" data-kpi-type="' + esc(item.type || '') + '" data-kpi-admin="' + (item.isGlobal ? '1' : '0') + '" aria-label="Редактировать KPI" title="Редактировать"><svg class="kpi-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5V20h3.5L18 9.5 14.5 6 4 16.5zM20.7 6.8a1 1 0 0 0 0-1.4l-2.1-2.1a1 1 0 0 0-1.4 0l-1.7 1.7 3.5 3.5 1.7-1.7z"/></svg></button>' : '') +
+      '<button type="button" class="kpi-global-hide" data-kpi-id="' + Number(item.id) + '" aria-label="Скрыть KPI" title="Скрыть"><svg class="kpi-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18-1.4 1.4-3.1-3.1A11.7 11.7 0 0 1 12 20C5 20 1 12 1 12a20 20 0 0 1 4.2-5.4L1.6 3 3 3zm4.3 5.7A6.8 6.8 0 0 0 3.3 12c1.2 1.8 4.2 6 8.7 6 1 0 2-.2 2.8-.5l-2-2A4 4 0 0 1 8.5 11l-1.2-1.3zM12 4c7 0 11 8 11 8a19 19 0 0 1-3.1 4.4L18.5 15a15.8 15.8 0 0 0 2.2-3c-1.2-1.8-4.2-6-8.7-6-.7 0-1.4.1-2 .2L8.4 4.6C9.5 4.2 10.7 4 12 4zm0 4a4 4 0 0 1 4 4v.3l-4.3-4.3h.3z"/></svg></button></div>'
+  } else if (item.canEdit) {
+    actionHtml = '<div class="kpi-user-actions"><button type="button" class="kpi-user-edit" data-kpi-id="' + Number(item.id) + '" data-kpi-type="' + esc(item.type || '') + '" aria-label="Редактировать KPI" title="Редактировать"><svg class="kpi-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5V20h3.5L18 9.5 14.5 6 4 16.5zM20.7 6.8a1 1 0 0 0 0-1.4l-2.1-2.1a1 1 0 0 0-1.4 0l-1.7 1.7 3.5 3.5 1.7-1.7z"/></svg></button><button type="button" class="kpi-global-hide" data-kpi-id="' + Number(item.id) + '" aria-label="Скрыть KPI" title="Скрыть"><svg class="kpi-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18-1.4 1.4-3.1-3.1A11.7 11.7 0 0 1 12 20C5 20 1 12 1 12a20 20 0 0 1 4.2-5.4L1.6 3 3 3zm4.3 5.7A6.8 6.8 0 0 0 3.3 12c1.2 1.8 4.2 6 8.7 6 1 0 2-.2 2.8-.5l-2-2A4 4 0 0 1 8.5 11l-1.2-1.3zM12 4c7 0 11 8 11 8a19 19 0 0 1-3.1 4.4L18.5 15a15.8 15.8 0 0 0 2.2-3c-1.2-1.8-4.2-6-8.7-6-.7 0-1.4.1-2 .2L8.4 4.6C9.5 4.2 10.7 4 12 4zm0 4a4 4 0 0 1 4 4v.3l-4.3-4.3h.3z"/></svg></button></div>'
+  }
 
   if (item.variant === 'pill' || item.trend) {
     var badgeHtml = ''
@@ -1870,6 +2464,7 @@ function kpiCard(item) {
           : dir === 'down'
             ? ' kpi-badge--down'
             : '')
+            
       badgeHtml = '<span class="' + bc + '">' + arrow + esc(t.pct) + '</span>'
     }
     return (
@@ -1878,15 +2473,18 @@ function kpiCard(item) {
       '"' +
       detAttr +
       '>' +
+      '<div class="kpi-card-main">' +
       '<div class="kpi-label">' +
       esc(item.label) +
       '</div>' +
-      '<div class="kpi-value-row"><span class="kpi-value">' +
+      '<div class="kpi-value-row"><span class="' + valueClass + '">' +
       valStr +
       '</span>' +
       badgeHtml +
       '</div>' +
       (item.sub ? '<div class="kpi-delta">' + esc(item.sub) + '</div>' : '') +
+      '</div>' +
+      actionHtml +
       '</div>'
     )
   }
@@ -1897,6 +2495,7 @@ function kpiCard(item) {
     '"' +
     detAttr +
     '>' +
+    '<div class="kpi-card-main">' +
     '<div class="kpi-value">' +
     valStr +
     '</div>' +
@@ -1904,6 +2503,8 @@ function kpiCard(item) {
     esc(item.label) +
     '</div>' +
     (item.sub ? '<div class="kpi-delta">' + esc(item.sub) + '</div>' : '') +
+    '</div>' +
+    actionHtml +
     '</div>'
   )
 }
@@ -2026,7 +2627,15 @@ function navNewTab(url) {
 }
 
 // Служебные колонки не передаём в параметры детализации.
+function canOpenDetailFor(extra) {
+  var sourcePage = extra && extra.source_page
+  return sourcePage
+    ? ALLOWED_PAGES.indexOf(sourcePage) !== -1
+    : CAN_OPEN_DETAIL
+}
+
 function openDetail(ctx, road, station, col, groupBy, subs, extra) {
+  if (!canOpenDetailFor(extra)) return
   var p = new URLSearchParams()
   p.set('ctx', ctx)
   if (groupBy) p.set('group_by', groupBy)
@@ -2075,6 +2684,11 @@ function openDetail(ctx, road, station, col, groupBy, subs, extra) {
 
 // Переход к детализации из ячейки сводной.
 $(document).on('click', '.cell-link', function (e) {
+  if (!CAN_OPEN_DETAIL) {
+    e.preventDefault()
+    e.stopPropagation()
+    return
+  }
   if ($(this).hasClass('claims-detail-link')) return
   e.preventDefault()
   e.stopPropagation()
@@ -2099,7 +2713,8 @@ $(document).on('click', '.cell-link', function (e) {
 })
 
 // Клик по KPI-карточке с детализацией
-$(document).on('click', '.kpi-card--link', function () {
+$(document).on('click', '.kpi-card--link', function (event) {
+  if ($(event.target).closest('.kpi-user-actions').length) return
   var raw = $(this).attr('data-detail')
   if (!raw) return
   var d
@@ -2113,6 +2728,7 @@ $(document).on('click', '.kpi-card--link', function () {
     return
   }
   var extra = d.params || {}
+  if (!canOpenDetailFor(extra)) return
   var tabCfg = d.ctx && WAGON_TABS[d.ctx]
   if (tabCfg && tabCfg.getParams) Object.assign(extra, tabCfg.getParams())
   openDetail(
@@ -2145,15 +2761,16 @@ $(document).on('click', '.row-sub-parent', function (e) {
 // Начало всего и конец тоже
 $(function () {
   var reportCodes = Object.keys(WAGON_TABS)
+  var visibleReports = reportCodes.filter(function (code) {
+    return ALLOWED_PAGES.indexOf(code) !== -1
+  })
   initSidebar()
   initInnerTabs()
 
-  var hasDashboard =
-    reportCodes.length > 0 &&
-    (window.APP_IS_ADMIN || ALLOWED_PAGES.indexOf('dashboard') !== -1)
+  var hasReports = visibleReports.length > 0
 
-  // Если дашборд недоступен — скрываем все его панели и показываем заглушку
-  if (!hasDashboard) {
+  // Если отчёты не назначены — скрываем панели и показываем заглушку.
+  if (!hasReports) {
     var allPanels = document.querySelectorAll('.tab-panel')
     for (var pi = 0; pi < allPanels.length; pi++) {
       allPanels[pi].style.display = 'none'
@@ -2183,21 +2800,15 @@ $(function () {
   // Восстанавливаем активную вкладку из URL hash (при возврате с детализации)
   var hashTab = (location.hash || '').replace('#', '')
   var startTab =
-    hashTab && WAGON_TABS[hashTab]
+    hashTab && visibleReports.indexOf(hashTab) !== -1
       ? hashTab
-      : WAGON_TABS.dislocation
+      : visibleReports.indexOf('dislocation') !== -1
         ? 'dislocation'
-        : reportCodes[0] || ''
-  if (startTab) switchTab(startTab)
-
-  var kpiXhrs = hasDashboard ? loadKPI() : null
-  var summaryXhr = null
-  if (hasDashboard && startTab) {
-    summaryXhr = initTab(WAGON_TABS[startTab])
-  }
+        : visibleReports[0] || ''
+  var startXhr = startTab ? switchTab(startTab) : null
 
   // Скрываем оверлей когда готовы и KPI, и сводная таблица
-  var allXhrs = (kpiXhrs || []).concat(summaryXhr ? [summaryXhr] : [])
+  var allXhrs = startXhr ? [startXhr] : []
   $.when.apply($, allXhrs).always(function () {
     var el = document.getElementById('pageLoadOverlay')
     if (el && el.parentNode) el.parentNode.removeChild(el)
@@ -2222,7 +2833,7 @@ $(function () {
       var applyHint = cfg.validate ? cfg.validate() : null
       if (applyHint) {
         $('#' + cfg.detTableId).html(
-          '<div style="text-align:center;padding:60px;color:#E8392A;font-size:15px;font-weight:600">' +
+          '<div class="report-filter-hint">' +
             esc(applyHint) +
             '</div>',
         )
@@ -2230,7 +2841,7 @@ $(function () {
       }
       window[cfg.loadedDetKey] = false
       loadSummary(cfg)
-      if (k === 'loading') loadKPI(['loading'])
+      if (k === 'loading') loadKPI(['loading'], true)
       if ($('#' + cfg.detPanelId).hasClass('active')) {
         window[cfg.loadedDetKey] = true
         loadDetail(cfg)
@@ -2240,7 +2851,7 @@ $(function () {
       if (cfg.resetFilters) cfg.resetFilters()
       window[cfg.loadedDetKey] = false
       loadSummary(cfg)
-      if (k === 'loading') loadKPI(['loading'])
+      if (k === 'loading') loadKPI(['loading'], true)
       if (
         (k === 'claims' || !cfg.summaryUrl) &&
         $('#' + cfg.detPanelId).hasClass('active')

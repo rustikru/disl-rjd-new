@@ -8,8 +8,20 @@ use App\Database\OracleDb;
 
 final class OracleMail
 {
+    private const MAIL_PACKAGE = 'XX_RJD_DISLOCATION_NEW_PKG';
+
     public function __construct(private DbInterface $db, private array $config)
     {
+    }
+
+    public function sendSystem(array $recipients, string $subject, string $text, array $files): void
+    {
+        $prefix = rtrim(trim((string) ($this->config['system_mail_subject'] ?? '')), '. ');
+        $subject = ltrim(trim($subject), '. ');
+        if ($prefix !== '') {
+            $subject = $prefix . ($subject !== '' ? '. ' . $subject : '');
+        }
+        $this->send($recipients, $subject, $text, $files);
     }
 
     public function send(array $recipients, string $subject, string $text, array $files): void
@@ -24,10 +36,7 @@ final class OracleMail
         if (!filter_var($sender, FILTER_VALIDATE_EMAIL)) {
             throw new \RuntimeException('Некорректный report_mail_sender в конфигурации');
         }
-        $package = strtoupper(trim((string) ($this->config['report_mail_oracle_package'] ?? '')));
-        if (!preg_match('/^[A-Z][A-Z0-9_$#]*(?:\.[A-Z][A-Z0-9_$#]*)?$/D', $package)) {
-            throw new \RuntimeException('Некорректное имя Oracle-пакета рассылки');
-        }
+        $package = self::MAIL_PACKAGE;
 
         foreach ($recipients as $recipient) {
             if (!filter_var($recipient, FILTER_VALIDATE_EMAIL)) {

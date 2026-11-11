@@ -26,7 +26,7 @@ final class MailingService
     {
         $perPage = max(1, min($perPage, 100));
         $offset = (max(1, $page) - 1) * $perPage;
-        $mailings = $this->db->fetchAll(
+        $mailings = $this->db->page(
             "SELECT m.id, m.organization_id, m.name, m.recipients, m.subject, m.message_body, m.file_format,
                     m.schedule_type, m.send_time, m.week_days, m.month_day, m.is_active,
                     TO_CHAR(m.last_run_at, 'DD.MM.YYYY HH24:MI') AS last_run_at,
@@ -35,9 +35,10 @@ final class MailingService
                FROM xx_rjd_user_mailings m
                JOIN xx_rjd_organizations o ON o.id = m.organization_id
               WHERE m.user_id = :user_id
-              ORDER BY m.is_active DESC, m.updated_at DESC, m.id DESC
-              OFFSET $offset ROWS FETCH NEXT $perPage ROWS ONLY",
-            ['user_id' => $userId]
+              ORDER BY m.is_active DESC, m.updated_at DESC, m.id DESC",
+            ['user_id' => $userId],
+            $offset,
+            $perPage
         );
 
         foreach ($mailings as &$mailing) {
@@ -74,33 +75,48 @@ final class MailingService
     }
 
     /**
-     * Возвращает активные рассылки, которые нужно запустить в указанную минуту.
-     * Если выбранного дня нет в месяце, используется последний день месяца.
+     * Возвращает активные рассылки, для которых сегодня наступило время запуска.
+     * Просроченные задания не теряются при редком запуске планировщика.
      */
-    public function dueMailings(DateTimeInterface $dateTime): array
+    public function dueMailings(DateTimeInterface $dateTime, int $windowMinutes = 0): array
     {
+        $dateTime = \DateTimeImmutable::createFromInterface($dateTime);
+        $runDate = $dateTime->format('Y-m-d');
         $mailings = $this->db->fetchAll(
             "SELECT m.*
                FROM xx_rjd_user_mailings m
               WHERE m.is_active = 1
-                AND m.send_time = :send_time
-                AND (m.last_run_at IS NULL
-                     OR TRUNC(m.last_run_at) < TO_DATE(:run_date, 'YYYY-MM-DD'))
+                AND NOT EXISTS (
+                    SELECT 1
+                      FROM xx_rjd_user_mailing_runs r
+                     WHERE r.mailing_id = m.id
+                       AND r.run_mode = 'scheduled'
+                       AND r.started_at >= TO_DATE(:run_date_start, 'YYYY-MM-DD')
+                       AND r.started_at < TO_DATE(:run_date_end, 'YYYY-MM-DD') + 1
+                )
               ORDER BY m.id",
             [
-                'send_time' => $dateTime->format('H:i'),
-                'run_date' => $dateTime->format('Y-m-d'),
+                'run_date_start' => $runDate,
+                'run_date_end' => $runDate,
             ]
         );
 
         $dueMailings = [];
         foreach ($mailings as $mailing) {
-            if (!$this->isDueOnDate($mailing, $dateTime)) {
+            $sendTime = (string) ($mailing['send_time'] ?? '');
+            if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $sendTime)) {
                 continue;
             }
+
+            // Время уже наступило: запускать даже если планировщик опоздал на часы.
+            if ($sendTime > $dateTime->format('H:i') || !$this->isDueOnDate($mailing, $dateTime)) {
+                continue;
+            }
+
             $mailing['items'] = $this->mailingItems((int) $mailing['id']);
             $dueMailings[] = $mailing;
         }
+
         return $dueMailings;
     }
 
@@ -122,6 +138,79 @@ final class MailingService
         $lastDayOfMonth = (int) $dateTime->format('t');
         $runDay = min($selectedDay, $lastDayOfMonth);
         return (int) $dateTime->format('j') === $runDay;
+    }
+
+    /**
+     * Атомарно резервирует плановый запуск на текущую дату.
+     * Возвращает ID строки журнала; 0 означает, что запуск уже зарезервирован
+     * либо расписание было отключено/изменено до резервирования.
+     */
+    public function claimScheduledRun(int $mailingId, DateTimeInterface $dateTime): int
+    {
+        $runDate = $dateTime->format('Y-m-d');
+        $this->db->beginTransaction();
+
+        try {
+            $mailing = $this->db->fetchOne(
+                "SELECT id, schedule_type, send_time, week_days, month_day, recipients
+                   FROM xx_rjd_user_mailings
+                  WHERE id = :id
+                    AND is_active = 1
+                  FOR UPDATE",
+                ['id' => $mailingId]
+            );
+
+            if (
+                !$mailing
+                || (string) ($mailing['send_time'] ?? '') > $dateTime->format('H:i')
+                || !$this->isDueOnDate($mailing, $dateTime)
+            ) {
+                $this->db->rollback();
+                return 0;
+            }
+
+            $existingRun = $this->db->fetchOne(
+                "SELECT id
+                   FROM xx_rjd_user_mailing_runs
+                  WHERE mailing_id = :mailing_id
+                    AND run_mode = 'scheduled'
+                    AND started_at >= TO_DATE(:run_date_start, 'YYYY-MM-DD')
+                    AND started_at < TO_DATE(:run_date_end, 'YYYY-MM-DD') + 1",
+                [
+                    'mailing_id' => $mailingId,
+                    'run_date_start' => $runDate,
+                    'run_date_end' => $runDate,
+                ]
+            );
+
+            if ($existingRun) {
+                $this->db->rollback();
+                return 0;
+            }
+
+            $this->db->execute(
+                "INSERT INTO xx_rjd_user_mailing_runs
+                    (mailing_id, started_at, status, run_mode, recipients)
+                 VALUES
+                    (:mailing_id, TO_DATE(:started_at, 'YYYY-MM-DD HH24:MI:SS'), 'running', 'scheduled', :recipients)",
+                [
+                    'mailing_id' => $mailingId,
+                    'started_at' => $dateTime->format('Y-m-d H:i:s'),
+                    'recipients' => mb_substr((string) ($mailing['recipients'] ?? ''), 0, 2000),
+                ]
+            );
+
+            $identifier = $this->db->fetchOne(
+                'SELECT xx_rjd_user_mailing_run_seq.CURRVAL AS id FROM dual'
+            );
+            $runId = (int) ($identifier['id'] ?? 0);
+            $this->db->commit();
+
+            return $runId;
+        } catch (\Throwable $error) {
+            $this->db->rollback();
+            throw $error;
+        }
     }
 
     public function setActiveByAdmin(int $mailingId, bool $active): bool
@@ -186,7 +275,11 @@ final class MailingService
                     $filters[$filterDefinition['key']] = $filterValue;
                 }
             }
-            $mailingItems[] = ['report_code' => $reportCode, 'filters' => $filters];
+            $mailingItems[] = [
+                'report_code' => $reportCode,
+                'filters' => $filters,
+                'layout_mode' => (($reportForm['layout_mode'] ?? 'D') === 'U') ? 'U' : 'D',
+            ];
         }
         if (!$mailingItems) {
             throw new \InvalidArgumentException('Добавьте отчёт в рассылку');
@@ -246,13 +339,14 @@ final class MailingService
             foreach ($mailingItems as $position => $mailingItem) {
                 $this->db->execute(
                     'INSERT INTO xx_rjd_user_mailing_reports
-                        (mailing_id, report_code, position, filters_json)
-                     VALUES (:mailing_id, :report_code, :position, :filters_json)',
+                        (mailing_id, report_code, position, filters_json, layout_mode)
+                     VALUES (:mailing_id, :report_code, :position, :filters_json, :layout_mode)',
                     [
                         'mailing_id' => $mailingId,
                         'report_code' => $mailingItem['report_code'],
                         'position' => $position,
                         'filters_json' => json_encode($mailingItem['filters'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                        'layout_mode' => $mailingItem['layout_mode'],
                     ]
                 );
             }
@@ -360,7 +454,7 @@ final class MailingService
             : ($status === 'disabled' ? 'WHERE m.is_active <> 1' : '');
         $perPage = max(1, min($perPage, 100));
         $offset = (max(1, $page) - 1) * $perPage;
-        return $this->db->fetchAll(
+        return $this->db->page(
             "SELECT m.id, m.name, m.recipients, m.file_format, m.schedule_type,
                     m.send_time, m.week_days, m.month_day, m.is_active,
                     TO_CHAR(m.last_run_at, 'DD.MM.YYYY HH24:MI') AS last_run_at,
@@ -372,8 +466,10 @@ final class MailingService
                JOIN xx_rjd_users u ON u.id = m.user_id
                JOIN xx_rjd_organizations o ON o.id = m.organization_id
               $where
-              ORDER BY m.is_active DESC, m.send_time, u.display_name, m.name
-              OFFSET $offset ROWS FETCH NEXT $perPage ROWS ONLY"
+              ORDER BY m.is_active DESC, m.send_time, u.display_name, m.name",
+            [],
+            $offset,
+            $perPage
         );
     }
 
@@ -387,7 +483,7 @@ final class MailingService
     {
         $perPage = max(1, min($perPage, 100));
         $offset = (max(1, $page) - 1) * $perPage;
-        return $this->db->fetchAll(
+        return $this->db->page(
             "SELECT r.id, r.mailing_id,
                     TO_CHAR(r.started_at, 'DD.MM.YYYY HH24:MI:SS') AS started_at,
                     TO_CHAR(r.finished_at, 'DD.MM.YYYY HH24:MI:SS') AS finished_at,
@@ -398,15 +494,17 @@ final class MailingService
                JOIN xx_rjd_user_mailings m ON m.id = r.mailing_id
                JOIN xx_rjd_users u ON u.id = m.user_id
                JOIN xx_rjd_organizations o ON o.id = m.organization_id
-              ORDER BY r.started_at DESC, r.id DESC
-              OFFSET $offset ROWS FETCH NEXT $perPage ROWS ONLY"
+              ORDER BY r.started_at DESC, r.id DESC",
+            [],
+            $offset,
+            $perPage
         );
     }
     // Получить список элементов рассылки
     private function mailingItems(int $mailingId): array
     {
         $items = $this->db->fetchAll(
-            'SELECT id, report_code, position, filters_json
+            'SELECT id, report_code, position, filters_json, layout_mode
                FROM xx_rjd_user_mailing_reports
               WHERE mailing_id = :mailing_id
               ORDER BY position, id',
@@ -414,6 +512,7 @@ final class MailingService
         );
         foreach ($items as &$item) {
             $item['filters'] = json_decode((string) ($item['filters_json'] ?? '{}'), true) ?: [];
+            $item['layout_mode'] = ($item['layout_mode'] ?? 'D') === 'U' ? 'U' : 'D';
             unset($item['filters_json']);
         }
         unset($item);

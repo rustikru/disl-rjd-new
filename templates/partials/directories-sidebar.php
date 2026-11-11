@@ -1,10 +1,21 @@
 <?php
 $activeAdminPage = $activeAdminPage ?? '';
-$directoryNavItems = [
-    ['key' => 'norms', 'label' => 'Нормативы', 'url' => $basePath . '/directories/norms'],
-    ['key' => 'stations', 'label' => 'Станции и координаты', 'url' => $basePath . '/directories/stations'],
-];
+$directoryUser = $user ?? ($_SESSION['user'] ?? []);
+$directoryAvailability = new \App\Services\PageAvailability((array)(\App\Services\ConfigSchema::current()['disabled_pages']??[]));
+$directoryNavItems = [];
+$directoryPages = (array) ($directoryUser['allowed_pages'] ?? []);
+$canShowDirectories = \App\Services\PageRegistry::canShowInMenu('directories', $directoryPages, $directoryUser, $directoryAvailability);
+foreach (\App\Services\PageRegistry::all() as $pageCode => $definition) {
+    if (!$canShowDirectories || !\App\Services\PageRegistry::canShowInMenu($pageCode, $directoryPages, $directoryUser, $directoryAvailability)) continue;
+    foreach ((array) ($definition['directory_navigation'] ?? []) as $item) {
+        $directoryNavItems[] = $item + ['label' => $definition['label'], 'page' => $pageCode];
+    }
+}
+if (!$canShowDirectories) $directoryNavItems = [];
+usort($directoryNavItems, static fn(array $a,array $b): int => ($a['order']??0) <=> ($b['order']??0));
+foreach ($directoryNavItems as &$item) $item['url'] = $basePath . $item['url']; unset($item);
 ?>
+<?php if ($directoryNavItems !== []): ?>
 <aside class="sidebar">
   <div class="nav-group">
     <span class="nav-group-label">Справочники</span>
@@ -13,3 +24,4 @@ $directoryNavItems = [
     <?php endforeach; ?>
   </div>
 </aside>
+<?php endif; ?>

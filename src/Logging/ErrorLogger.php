@@ -97,7 +97,10 @@ class ErrorLogger
     {
         $logFile = self::logFile();
         @mkdir(dirname($logFile), 0777, true);
-        file_put_contents($logFile, $text, FILE_APPEND | LOCK_EX);
+        $written = @file_put_contents($logFile, $text, FILE_APPEND | LOCK_EX);
+        if ($written === false) {
+            error_log('Не удалось записать журнал ошибок ' . $logFile . PHP_EOL . $text);
+        }
     }
 
     private static function logFile(): string

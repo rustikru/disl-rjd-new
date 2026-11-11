@@ -16,9 +16,39 @@ $basePath = $basePath ?? '';
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
   <style>
     .import-wrap {
-      max-width: 760px;
-      margin: 36px auto;
-      padding: 0 20px;
+      max-width: 720px;
+      margin: 20px auto;
+      padding: 0 16px 24px;
+    }
+
+    .import-wrap .table-section {
+      margin-bottom: 16px;
+    }
+
+    .import-wrap .table-toolbar {
+      min-height: 48px;
+      padding: 10px 18px;
+    }
+
+    .import-upload-body {
+      padding: 14px 18px 16px;
+    }
+
+    .import-upload-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .import-file-field {
+      min-width: 0;
+    }
+
+    .import-upload-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
     .alert {
@@ -55,9 +85,9 @@ $basePath = $basePath ?? '';
 
     input[type=file] {
       display: block;
-      margin-top: 6px;
+      margin-top: 4px;
       width: 100%;
-      font-size: 14px;
+      font-size: 13px;
     }
 
     .btn-loading {
@@ -68,7 +98,7 @@ $basePath = $basePath ?? '';
 
     /* Список файлов */
     .file-list {
-      margin: 14px 0 0;
+      margin: 10px 0 0;
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -164,9 +194,59 @@ $basePath = $basePath ?? '';
     }
 
     .upload-summary {
-      margin-top: 14px;
       font-size: 13px;
       color: #5c6370;
+    }
+    .report-delete-form { display:flex; justify-content:flex-end; }
+    .report-delete {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:30px; height:30px; padding:0; border:1px solid var(--border);
+      border-radius:7px; background:var(--surface); color:var(--brand-neg); cursor:pointer;
+    }
+    .report-delete:hover { background:#fce8e8; border-color:var(--brand-neg); }
+    .report-delete svg { width:14px; height:14px; fill:currentColor; }
+    .report-actions { display:flex; justify-content:flex-end; gap:5px; }
+    .report-download {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:30px; height:30px; padding:0; border:1px solid var(--border);
+      border-radius:7px; background:var(--surface); color:var(--accent); text-decoration:none;
+    }
+    .report-download:hover { background:#f4edfc; border-color:var(--accent); }
+    .report-download svg { width:14px; height:14px; fill:currentColor; }
+    .report-download .spin { display:none; }
+    .report-download.is-loading svg { display:none; }
+    .report-download.is-loading .spin { display:inline-block; }
+    .report-actions.is-downloading .report-download {
+      opacity:.55; cursor:not-allowed; pointer-events:none;
+    }
+    .report-actions.is-downloading .report-download.is-loading { opacity:1; }
+    .download-status { color:var(--accent); }
+
+    .import-reports .data-table th,
+    .import-reports .data-table td {
+      height: 38px;
+      padding-top: 6px;
+      padding-bottom: 6px;
+    }
+
+    .import-report-number { width: 40px; }
+    .import-report-action { width: 82px; }
+    .reports-sentinel { height: 1px; }
+    .import-reports .data-table td:nth-child(2) { text-align: left; }
+    .import-reports .data-table td:nth-child(3) { text-align: right; }
+
+    @media (max-width: 620px) {
+      .import-wrap {
+        margin-top: 12px;
+        padding-inline: 10px;
+      }
+      .import-upload-row {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+      }
+      .import-upload-actions .btn {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -181,29 +261,33 @@ $basePath = $basePath ?? '';
 ?>
 
   <div class="import-wrap">
+    <?php if (!empty($_GET['error'])): ?><div class="alert alert-error"><?= nl2br(htmlspecialchars((string) $_GET['error'])) ?></div><?php endif; ?>
+    <?php if (!empty($_GET['warn'])): ?><div class="alert alert-warn"><?= nl2br(htmlspecialchars((string) $_GET['warn'])) ?></div><?php endif; ?>
+    <?php if (!empty($_GET['success'])): ?><div class="alert alert-ok"><?= nl2br(htmlspecialchars((string) $_GET['success'])) ?></div><?php endif; ?>
 
-    <section class="table-section" style="margin-bottom:28px">
+    <section class="table-section">
       <div class="table-toolbar">
         <div class="table-info">
           <span class="table-title">Загрузка справки РЖД (.xlsx)</span>
         </div>
       </div>
-      <div style="padding:20px 24px">
-        <div style="margin-bottom:18px">
-          <label class="filter-label" for="xlsx_file">Файлы справок</label>
-          <input type="file" id="xlsx_file" accept=".xlsx" multiple>
-          <div class="upload-hint">
-            Поддерживаются файлы .xlsx. Лимиты PHP: файл до <?= htmlspecialchars($uploadLimit ?? 'не задан') ?>,
-            запрос до <?= htmlspecialchars($postLimit ?? 'не задан') ?>.
+      <div class="import-upload-body">
+        <div class="import-upload-row">
+          <div class="import-file-field">
+            <label class="filter-label" for="xlsx_file">Файлы справок</label>
+            <input type="file" id="xlsx_file" accept=".xlsx" multiple>
           </div>
+          <div class="import-upload-actions">
+            <button id="btnUpload" class="btn btn-primary" disabled>Загрузить</button>
+            <div class="upload-summary" id="uploadSummary"></div>
+          </div>
+        </div>
+        <div class="upload-hint">
+          Поддерживаются файлы .xlsx. Лимиты PHP: файл до <?= htmlspecialchars($uploadLimit ?? 'не задан') ?>,
+          запрос до <?= htmlspecialchars($postLimit ?? 'не задан') ?>.
         </div>
 
         <div class="file-list" id="fileList"></div>
-
-        <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
-          <button id="btnUpload" class="btn btn-primary" disabled>Загрузить</button>
-          <div class="upload-summary" id="uploadSummary"></div>
-        </div>
 
         <script>
           function goBack() {
@@ -332,25 +416,27 @@ $basePath = $basePath ?? '';
     </section>
 
     <?php if (!empty($reports)): ?>
-      <section class="table-section" id="reportsSection">
+      <section class="table-section import-reports" id="reportsSection">
         <div class="table-toolbar">
           <div class="table-info">
             <span class="table-title">Загруженные справки</span>
             <span class="table-sub" id="reportsSub"></span>
+            <span class="table-sub download-status" id="downloadStatus" role="status" aria-live="polite"></span>
           </div>
         </div>
         <div class="table-scroll">
           <table class="data-table">
             <thead>
               <tr>
-                <th style="width:40px">#</th>
+                <th class="import-report-number">#</th>
                 <th>Дата справки</th>
                 <th>Кол-во вагонов</th>
+                <th class="import-report-action"></th>
               </tr>
             </thead>
             <tbody id="reportsTbody"></tbody>
           </table>
-          <div id="reportsSentinel" style="height:1px"></div>
+          <div id="reportsSentinel" class="reports-sentinel"></div>
         </div>
       </section>
       <script>
@@ -361,6 +447,10 @@ $basePath = $basePath ?? '';
           var tbody = document.getElementById('reportsTbody');
           var sentinel = document.getElementById('reportsSentinel');
           var sub = document.getElementById('reportsSub');
+          var downloadStatus = document.getElementById('downloadStatus');
+          var canDelete = <?= !empty($canDelete) ? 'true' : 'false' ?>;
+          var csrf = <?= json_encode($csrf ?? '', JSON_UNESCAPED_UNICODE) ?>;
+          var base = <?= json_encode($basePath, JSON_UNESCAPED_UNICODE) ?>;
 
           function loadMore() {
             var next = Math.min(loaded + PAGE, data.length);
@@ -369,7 +459,16 @@ $basePath = $basePath ?? '';
               var r = data[i];
               html += '<tr class="row-data"><td>' + (i + 1) + '</td>'
                 + '<td>' + esc(String((r.type_reference || '') + ' [' + (r.report_date || '') + ']')) + '</td>'
-                + '<td>' + esc(String(r.cnt || 0)) + '</td></tr>';
+                + '<td>' + esc(String(r.cnt || 0)) + '</td>';
+              html += '<td><div class="report-actions"><a class="report-download" href="' + attr(base + '/import/download?report_dt=' + encodeURIComponent(r.report_key || '') + '&type_reference=' + encodeURIComponent(r.type_reference || '')) + '" title="Скачать справку" aria-label="Скачать справку"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v10l3.5-3.5 1.4 1.4-5.9 5.9-5.9-5.9 1.4-1.4L11 13V3zM5 19h14v2H5v-2z"/></svg><span class="spin" aria-hidden="true"></span></a>';
+              if (canDelete) {
+                html += '<form class="report-delete-form" method="post" action="' + attr(base + '/import/delete') + '" onsubmit="return confirm(\'Удалить выбранную справку и все её строки?\')">'
+                  + '<input type="hidden" name="csrf_token" value="' + attr(csrf) + '">'
+                  + '<input type="hidden" name="report_dt" value="' + attr(r.report_key || '') + '">'
+                  + '<input type="hidden" name="type_reference" value="' + attr(r.type_reference || '') + '">'
+                  + '<button class="report-delete" type="submit" title="Удалить справку" aria-label="Удалить справку"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l1 2h4v2H3V5h4l1-2zm-2 6h12l-1 12H7L6 9zm3 2v8h2v-8H9zm4 0v8h2v-8h-2z"/></svg></button></form>';
+              }
+              html += '</div></td></tr>';
             }
             tbody.insertAdjacentHTML('beforeend', html);
             loaded = next;
@@ -380,6 +479,69 @@ $basePath = $basePath ?? '';
           function esc(s) {
             return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
           }
+          function attr(s) {
+            return esc(String(s)).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+          }
+
+          function downloadFilename(response) {
+            var disposition = response.headers.get('Content-Disposition') || '';
+            var encoded = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+            if (encoded) {
+              try { return decodeURIComponent(encoded[1]); } catch (e) { }
+            }
+            var plain = disposition.match(/filename="([^"]+)"/i);
+            return plain ? plain[1] : 'Справка_РЖД.xlsx';
+          }
+
+          tbody.addEventListener('click', function (event) {
+            var link = event.target.closest('.report-download');
+            if (!link) return;
+            event.preventDefault();
+            if (tbody.querySelector('.report-download.is-loading')) return;
+
+            var actions = tbody.querySelectorAll('.report-actions');
+            actions.forEach(function (item) { item.classList.add('is-downloading'); });
+            link.classList.add('is-loading');
+            link.setAttribute('aria-disabled', 'true');
+            link.setAttribute('title', 'Справка формируется');
+            downloadStatus.textContent = 'Формируется справка…';
+            var redirected = false;
+
+            fetch(link.href, { credentials: 'same-origin' })
+              .then(function (response) {
+                if (response.redirected) {
+                  redirected = true;
+                  window.location.assign(response.url);
+                  return null;
+                }
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.blob().then(function (blob) {
+                  return { blob: blob, filename: downloadFilename(response) };
+                });
+              })
+              .then(function (file) {
+                if (!file) return;
+                var url = URL.createObjectURL(file.blob);
+                var download = document.createElement('a');
+                download.href = url;
+                download.download = file.filename;
+                document.body.appendChild(download);
+                download.click();
+                download.remove();
+                setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+                downloadStatus.textContent = 'Справка сформирована и скачана.';
+              })
+              .catch(function () {
+                downloadStatus.textContent = 'Не удалось сформировать справку. Повторите попытку.';
+              })
+              .finally(function () {
+                if (redirected) return;
+                actions.forEach(function (item) { item.classList.remove('is-downloading'); });
+                link.classList.remove('is-loading');
+                link.removeAttribute('aria-disabled');
+                link.setAttribute('title', 'Скачать справку');
+              });
+          });
 
           var observer = new IntersectionObserver(function (entries) {
             if (entries[0].isIntersecting) loadMore();

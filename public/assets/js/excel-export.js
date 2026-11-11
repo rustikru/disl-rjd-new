@@ -1,8 +1,8 @@
 /**
- * 1. Выгрузка плоских таблиц детализации
+ * 1. Выгрузка таблиц детализации
  */
 function saveExcelfromVT(tableId, filename, tableType) {
-  // Проверяем, существует ли глобальный объект с данными виртуальных таблиц
+  // Проверяем, существует ли объект с данными виртуальных таблиц
   if (typeof _vtInline === 'undefined' || !_vtInline[tableId]) {
     console.error(
       'Ошибка экспорта: Данные для таблицы "' +
@@ -52,7 +52,7 @@ function saveExcelfromVT(tableId, filename, tableType) {
 }
 
 /**
- * 2. Выгрузка сложных многоуровневых матриц
+ * 2. Выгрузка сложных матриц
  */
 function saveExcelMatrix(tableId, filename) {
   if (typeof _matrixData === 'undefined' || !_matrixData[tableId]) {

@@ -4,9 +4,9 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Database\DbInterface;
-use App\Services\DirectoryAccess;
 use App\Services\Organizations;
 use App\Services\PasswordReset;
+use App\Logging\ErrorLogger;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -15,10 +15,14 @@ final class UserController
     private PasswordReset $passwordReset;
     private Organizations $organizations;
 
-    public function __construct(private DbInterface $db, private array $config = [])
+    public function __construct(
+        private DbInterface $db,
+        private array $config = [],
+        ?Organizations $organizations = null
+    )
     {
         $this->passwordReset = new PasswordReset($db, $config);
-        $this->organizations = new Organizations($db);
+        $this->organizations = $organizations ?? new Organizations($db);
     }
 
     /** GET /profile */
@@ -39,32 +43,43 @@ final class UserController
             return $response->withStatus(404);
         }
 
-        $roles = $this->db->fetchAll(
-            "SELECT r.code, r.name, r.description
-               FROM xx_rjd_roles r
-               JOIN xx_rjd_user_roles ur ON ur.role_id = r.id
-              WHERE ur.user_id = :id AND r.code <> 'SUPER'
-              ORDER BY r.name",
-            ['id' => $id]
-        );
-        $pages = $this->db->fetchAll(
-            'SELECT DISTINCT p.page FROM xx_rjd_role_pages p JOIN xx_rjd_user_roles ur ON ur.role_id = p.role_id WHERE ur.user_id = :id',
-            ['id' => $id]
-        );
-        $allowed = DirectoryAccess::expandPages(array_column($pages, 'page'));
-        $isAdmin = !empty($user['is_admin']) || in_array('ADMIN', array_column($roles, 'code'), true);
-        $access = $isAdmin
-            ? array_values(AdminController::PAGES)
-            : array_values(array_intersect_key(AdminController::PAGES, array_flip($allowed)));
         $organizations = $this->organizations->organizations();
         $organizationId = $this->organizations->id();
         $basePath = $this->config['base_path'] ?? '';
         $appName = $this->config['app_name'] ?? 'Дислокация';
+        $message = $_SESSION['profile_message'] ?? null;
+        $error = $_SESSION['profile_error'] ?? null;
+        unset($_SESSION['profile_message'], $_SESSION['profile_error']);
 
         ob_start();
         include __DIR__ . '/../../templates/profile.php';
         $response->getBody()->write((string) ob_get_clean());
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    /** POST /profile/password */
+    public function changePassword(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+        if (!$this->validCsrf((string) ($body['csrf_token'] ?? '')))
+            return $response->withStatus(403);
+        $password = (string) ($body['password'] ?? '');
+        if (mb_strlen($password) < 8) {
+            $_SESSION['profile_error'] = 'Пароль должен содержать не менее 8 символов';
+            return $this->redirect($response, '/profile');
+        }
+        if (!hash_equals($password, (string) ($body['password_confirmation'] ?? ''))) {
+            $_SESSION['profile_error'] = 'Пароли не совпадают';
+            return $this->redirect($response, '/profile');
+        }
+        try {
+            $this->db->execute('UPDATE xx_rjd_users SET password_hash = :password_hash WHERE id = :id AND is_active = 1', ['password_hash' => password_hash($password, PASSWORD_BCRYPT), 'id' => (int) ($_SESSION['user']['id'] ?? 0)]);
+            $_SESSION['profile_message'] = 'Пароль изменён';
+        } catch (\Throwable $error) {
+            ErrorLogger::logThrowable($error, ['operation' => 'profile_change_password', 'user_id' => (int) ($_SESSION['user']['id'] ?? 0)]);
+            $_SESSION['profile_error'] = 'Не удалось изменить пароль. Обратитесь к администратору.';
+        }
+        return $this->redirect($response, '/profile');
     }
 
     public function forgotPassword(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface

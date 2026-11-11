@@ -6,7 +6,7 @@ use App\Database\DbInterface;
 
 final class SessionRegistry
 {
-    public function __construct(private DbInterface $db) {}
+    public function __construct(private DbInterface $db, private int $lifetime) {}
 
     public function touch(string $id, array $user, string $ip, string $agent): bool
     {
@@ -23,7 +23,7 @@ final class SessionRegistry
 
     public function active(): array
     {
-        $rows = $this->db->fetchAll('SELECT session_key, user_id, username, display_name, ip, agent, started, seen FROM xx_rjd_sessions WHERE revoked = 0 AND seen > :cutoff ORDER BY seen DESC', ['cutoff'=>time()-28800]);
+        $rows = $this->db->fetchAll('SELECT session_key, user_id, username, display_name, ip, agent, started, seen FROM xx_rjd_sessions WHERE revoked = 0 AND seen > :cutoff ORDER BY seen DESC', ['cutoff'=>time()-$this->lifetime]);
         $result = [];
         foreach ($rows as $row) {
             $row['name'] = $row['display_name'] ?? '';
@@ -52,4 +52,15 @@ final class SessionRegistry
     {
         $this->db->execute('UPDATE xx_rjd_sessions SET revoked = 1 WHERE session_key = :sid', ['sid'=>$key]);
     }
+
+    public function revokeKeys(array $keys): void
+    {
+        $keys = array_values(array_unique(array_filter($keys, static fn($key): bool => is_string($key) && preg_match('/^[a-f0-9]{64}$/', $key))));
+        if (!$keys) return;
+        $params = [];
+        $holders = [];
+        foreach ($keys as $i => $key) { $params['s'.$i] = $key; $holders[] = ':s'.$i; }
+        $this->db->execute('UPDATE xx_rjd_sessions SET revoked = 1 WHERE session_key IN ('.implode(',', $holders).')', $params);
+    }
+
 }

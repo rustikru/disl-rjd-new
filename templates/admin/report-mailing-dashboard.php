@@ -59,6 +59,7 @@ $statusNames = ['running' => 'Выполняется', 'success' => 'Успеш�
     .mailing-flash--error { color:var(--brand-neg); background:#fbecec; border:1px solid #f0c9c9; }
     .mailing-actions { display:flex; gap:6px; justify-content:flex-end; }
     .mailing-actions form { margin:0; }
+    .mailing-schedule-run { min-height:30px; padding:5px 10px; font-size:12px; }
     .mailing-icon-btn { display:inline-flex; align-items:center; justify-content:center; width:31px; height:31px; padding:0; border:1px solid var(--border); border-radius:8px; color:var(--text-2); background:var(--surface); cursor:pointer; }
     .mailing-icon-btn:hover { color:var(--accent); border-color:var(--accent); background:var(--accent-lt); }
     .compact-mailing-table th { padding:8px 11px; font-size:10px; }
@@ -75,7 +76,7 @@ $statusNames = ['running' => 'Выполняется', 'success' => 'Успеш�
   include __DIR__ . '/../partials/header.php';
 ?>
 <div class="app-body">
-  <?php $activeAdminPage = 'report-mailings'; include __DIR__ . '/../partials/admin-sidebar.php'; ?>
+  <?php $activeAdminPage = 'admin-report-mailings'; include __DIR__ . '/../partials/admin-sidebar.php'; ?>
   <main class="main-content">
     <div class="admin-head"><div class="admin-title">Рассылки пользователей<small>Рассылки пользователей и журнал их запуска</small></div></div>
     <?php if (!empty($flashOk)): ?><div class="mailing-flash mailing-flash--ok"><?= htmlspecialchars($flashOk) ?></div><?php endif; ?>
@@ -84,6 +85,10 @@ $statusNames = ['running' => 'Выполняется', 'success' => 'Успеш�
     <section class="mailing-panel">
       <div class="mailing-panel-head">
         <div class="mailing-panel-title">Рассылки</div>
+        <form method="POST" action="<?= htmlspecialchars($basePath) ?>/admin/report-mailings/run-due" onsubmit="return confirm('Проверить расписание и запустить рассылки, время которых наступило за последние 5 минут?')">
+          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf) ?>">
+          <button class="btn btn-primary mailing-schedule-run" type="submit" data-schedule-run>▶ Запустить по расписанию</button>
+        </form>
         <nav class="mailing-filter" aria-label="Фильтр рассылок">
           <?php foreach (['all' => 'Все', 'active' => 'Активные', 'disabled' => 'Отключённые'] as $filterCode => $filterName): ?>
             <a class="mailing-filter-link<?= $mailingStatusFilter === $filterCode ? ' is-active' : '' ?>" href="<?= htmlspecialchars($basePath) ?>/admin/report-mailings?status=<?= $filterCode ?>"><?= $filterName ?><span class="mailing-filter-number"><?= (int) ($mailingStatusCounts[$filterCode] ?? 0) ?></span></a>
@@ -182,5 +187,13 @@ $statusNames = ['running' => 'Выполняется', 'success' => 'Успеш�
   </main>
 </div>
 <script src="<?= htmlspecialchars($basePath) ?>/assets/js/mailing-run.js"></script>
+<script>
+document.querySelectorAll('[data-schedule-run]').forEach(function (button) {
+  button.form.addEventListener('submit', function () {
+    button.disabled = true
+    button.textContent = 'Проверка расписания…'
+  })
+})
+</script>
 </body>
 </html>

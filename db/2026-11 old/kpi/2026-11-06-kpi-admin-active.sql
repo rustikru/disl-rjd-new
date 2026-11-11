@@ -1,0 +1,8 @@
+-- Признак включения KPI для административного управления.
+ALTER TABLE XX_ETW.XX_RJD_KPI_TBL ADD (IS_ACTIVE CHAR(1 BYTE) DEFAULT 'Y' NOT NULL);
+
+ALTER TABLE XX_ETW.XX_RJD_KPI_TBL ADD CONSTRAINT XX_RJD_KPI_TBL_ACTIVE_CK
+    CHECK (IS_ACTIVE IN ('Y', 'N'));
+
+COMMENT ON COLUMN XX_ETW.XX_RJD_KPI_TBL.IS_ACTIVE IS
+    'Y - KPI отображается, N - KPI отключён администратором';

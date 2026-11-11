@@ -6,6 +6,8 @@ namespace App\Controllers;
 use App\Database\DbInterface;
 use App\Logging\ErrorLogger;
 use App\Services\AuditLog;
+use App\Services\Organizations;
+use DateTimeImmutable;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -13,15 +15,7 @@ class AdminController
 {
     private DbInterface $db;
     private array $config;
-
-    public const PAGES = [
-        'dashboard' => 'Дашборд',
-        'maps'      => 'Карта',
-        'import'    => 'Загрузка справок',
-        'admin'     => 'Администрирование',
-        'directories' => 'Просмотр справочников',
-        'directories_edit' => 'Ведение справочников',
-    ];
+    private Organizations $organizations;
 
     public function directoriesPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
@@ -39,15 +33,26 @@ class AdminController
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 
-    public function __construct(DbInterface $db, array $config = [])
+    public function __construct(DbInterface $db, array $config = [], ?Organizations $organizations = null)
     {
         $this->db = $db;
         $this->config = $config;
+        $this->organizations = $organizations ?? new Organizations($db);
     }
 
     public function index(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        return $this->redirect($response, '/admin/users');
+        $user = $_SESSION['user'] ?? [];
+        $pages = \App\Services\Authorization::isSuper($user)
+            ? array_keys(\App\Services\PageRegistry::labels())
+            : (array) ($user['allowed_pages'] ?? []);
+        foreach (\App\Services\PageRegistry::all() as $code => $definition) {
+            $item = $definition['admin_navigation'] ?? null;
+            if ($item && in_array($code, $pages, true)) {
+                return $this->redirect($response, (string) $item['url']);
+            }
+        }
+        return $this->forbidden($response);
     }
 
     public function auditPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -70,20 +75,19 @@ class AdminController
         $total = (int) ($count['cnt'] ?? 0);
         $pages = max(1, (int) ceil($total / $perPage));
         $page = min($page, $pages);
-        $params['offset_rows'] = ($page - 1) * $perPage;
-        $params['limit_rows'] = $perPage;
-        $appTimezone = str_replace("'", "''", (string) ($this->config['app_timezone'] ?? 'Asia/Yekaterinburg'));
-        $rows = $this->db->fetchAll(
+        $offset = ($page - 1) * $perPage;
+        $rows = $this->db->page(
             "SELECT a.id, a.username, a.action_code, a.object_type, a.object_id,
                     a.description, a.ip_address,
                     TO_CHAR(
-                        FROM_TZ(CAST(a.created_at AS TIMESTAMP), DBTIMEZONE) AT TIME ZONE '{$appTimezone}',
+                        CAST(a.created_at AS TIMESTAMP),
                         'DD.MM.YYYY HH24:MI:SS'
                     ) AS created_at
                FROM xx_rjd_audit_log a" . $where . "
-              ORDER BY a.id DESC
-              OFFSET :offset_rows ROWS FETCH NEXT :limit_rows ROWS ONLY",
-            $params
+              ORDER BY a.id DESC",
+            $params,
+            $offset,
+            $perPage
         );
 
         $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
@@ -92,6 +96,126 @@ class AdminController
         ob_start();
         include __DIR__ . '/../../templates/admin/audit.php';
         $response->getBody()->write((string) ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function systemPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isSuper()) {
+            return $this->forbidden($response);
+        }
+
+        $root = dirname(__DIR__, 2);
+        $phpVersion = PHP_VERSION;
+        $os = php_uname('s') . ' ' . php_uname('r');
+        $environment = (string) ($this->config['app_env'] ?? 'unknown');
+        $checkedAt = date('d.m.Y H:i:s');
+
+        $uptimeSeconds = null;
+        if (is_readable('/proc/uptime')) {
+            $uptimeContent = @file_get_contents('/proc/uptime');
+            if ($uptimeContent !== false) {
+                $uptimeSeconds = max(0, (int) (float) strtok($uptimeContent, ' '));
+            }
+        }
+
+        $memory = null;
+        if (is_readable('/proc/meminfo')) {
+            $memInfo = (string) @file_get_contents('/proc/meminfo');
+            preg_match('/^MemTotal:\\s+(\\d+)\\s+kB$/m', $memInfo, $totalMatch);
+            preg_match('/^MemAvailable:\\s+(\\d+)\\s+kB$/m', $memInfo, $availableMatch);
+            if (!empty($totalMatch[1]) && isset($availableMatch[1])) {
+                $total = (int) $totalMatch[1] * 1024;
+                $available = (int) $availableMatch[1] * 1024;
+                $used = max(0, $total - $available);
+                $memory = [
+                    'total' => $total,
+                    'used' => $used,
+                    'available' => $available,
+                    'percent' => (int) round($used / $total * 100),
+                ];
+            }
+        }
+
+        $disk = null;
+        $diskTotal = @disk_total_space($root);
+        $diskFree = @disk_free_space($root);
+        if ($diskTotal !== false && $diskFree !== false && $diskTotal > 0) {
+            $diskUsed = $diskTotal - $diskFree;
+            $disk = [
+                'total' => (float) $diskTotal,
+                'used' => (float) $diskUsed,
+                'free' => (float) $diskFree,
+                'percent' => (int) round($diskUsed / $diskTotal * 100),
+            ];
+        }
+
+        $loadAverage = function_exists('sys_getloadavg') ? sys_getloadavg() : false;
+        $loadAverage = is_array($loadAverage) ? $loadAverage : null;
+
+        $oracleStatus = 'Не проверено';
+        $oracleDescription = 'Контрольное подключение к Oracle';
+        $oracleState = 'warning';
+        $oracleLatency = null;
+        try {
+            $startedAt = microtime(true);
+            $this->db->fetchOne('SELECT 1 AS status FROM DUAL');
+            $oracleLatency = (int) round((microtime(true) - $startedAt) * 1000);
+            $oracleStatus = 'Подключено';
+            $oracleDescription = 'Контрольный запрос выполнен';
+            $oracleState = 'ok';
+        } catch (\Throwable $error) {
+            ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'systemPage',
+            ], $request);
+            $oracleStatus = 'Недоступна';
+            $oracleDescription = 'Не удалось выполнить контрольный запрос';
+            $oracleState = 'error';
+        }
+
+        $tempDirectory = sys_get_temp_dir();
+        $components = [
+            [
+                'name' => 'PHP Runtime',
+                'description' => 'Среда выполнения PHP',
+                'status' => 'ok',
+                'label' => 'Работает',
+            ],
+            [
+                'name' => 'Oracle Database',
+                'description' => $oracleDescription,
+                'status' => $oracleState,
+                'label' => $oracleStatus,
+            ],
+            [
+                'name' => 'Расширение OCI8',
+                'description' => 'Драйвер подключения PHP к Oracle',
+                'status' => extension_loaded('oci8') ? 'ok' : 'error',
+                'label' => extension_loaded('oci8') ? 'Доступно' : 'Не установлено',
+            ],
+            [
+                'name' => 'Файловая система',
+                'description' => 'Каталог приложения',
+                'status' => is_readable($root) ? 'ok' : 'error',
+                'label' => is_readable($root) ? 'Доступна' : 'Нет доступа',
+            ],
+            [
+                'name' => 'Временный каталог',
+                'description' => $tempDirectory,
+                'status' => is_writable($tempDirectory) ? 'ok' : 'error',
+                'label' => is_writable($tempDirectory) ? 'Доступен для записи' : 'Нет записи',
+            ],
+        ];
+
+        $appName = (string) ($this->config['app_name'] ?? 'Дислокация');
+        $basePath = (string) ($this->config['base_path'] ?? '');
+        $user = $_SESSION['user'] ?? [];
+
+        ob_start();
+        include __DIR__ . '/../../templates/admin/system.php';
+        $response->getBody()->write((string) ob_get_clean());
+
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 
@@ -109,11 +233,10 @@ class AdminController
         );
 
         $dateColumns = $this->userDateColumnsAvailable();
-        $appTimezone = str_replace("'", "''", (string) ($this->config['app_timezone'] ?? 'Asia/Yekaterinburg'));
         $dateSelect = $dateColumns
-            ? ", TO_CHAR((FROM_TZ(CAST(u.created_at AS TIMESTAMP), DBTIMEZONE) AT TIME ZONE '{$appTimezone}'), 'DD.MM.YYYY HH24:MI') AS created_at,
-                 TO_CHAR((FROM_TZ(CAST(u.updated_at AS TIMESTAMP), DBTIMEZONE) AT TIME ZONE '{$appTimezone}'), 'DD.MM.YYYY HH24:MI') AS updated_at,
-                 TO_CHAR((FROM_TZ(CAST(u.last_login_at AS TIMESTAMP), DBTIMEZONE) AT TIME ZONE '{$appTimezone}'), 'DD.MM.YYYY HH24:MI') AS last_login_at"
+            ? ", TO_CHAR(CAST(u.created_at AS TIMESTAMP), 'DD.MM.YYYY HH24:MI') AS created_at,
+                 TO_CHAR(CAST(u.updated_at AS TIMESTAMP), 'DD.MM.YYYY HH24:MI') AS updated_at,
+                 TO_CHAR(CAST(u.last_login_at AS TIMESTAMP), 'DD.MM.YYYY HH24:MI') AS last_login_at"
             : ', NULL AS created_at, NULL AS updated_at, NULL AS last_login_at';
         $superUserFilter = $this->isSuper() ? '' : " WHERE NOT EXISTS (
             SELECT 1 FROM xx_rjd_user_roles sur
@@ -136,7 +259,7 @@ class AdminController
         $rolesByUser = [];
         foreach ($userRolesRaw as $ur) {
             $rolesByUser[(int) $ur['user_id']][] = [
-                'id'   => $ur['id'],
+                'id' => $ur['id'],
                 'code' => $ur['code'],
                 'name' => $ur['name'],
             ];
@@ -148,6 +271,10 @@ class AdminController
                 'SELECT user_id, organization_id FROM xx_rjd_user_organizations'
             );
         } catch (\Throwable $error) {
+            ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'usersPage',
+            ], $request);
             $userOrganizations = [];
         }
         foreach ($userOrganizations as $row) {
@@ -158,17 +285,17 @@ class AdminController
         foreach ($rawUsers as $u) {
             $u['roles'] = $rolesByUser[(int) $u['id']] ?? [];
             $u['organization_ids'] = $organizationsByUser[(int) $u['id']] ?? [];
-            $users[]    = $u;
+            $users[] = $u;
         }
 
-        $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
-        $user     = $_SESSION['user'] ?? [];
+        $user = $_SESSION['user'] ?? [];
 
-        $query    = $request->getQueryParams();
-        $flashOk  = $query['ok']  ?? null;
+        $query = $request->getQueryParams();
+        $flashOk = $query['ok'] ?? null;
         $flashErr = $query['err'] ?? null;
-        $csrf     = $_SESSION['csrf_token'] ?? '';
+        $csrf = $_SESSION['csrf_token'] ?? '';
 
         ob_start();
         include __DIR__ . '/../../templates/admin/users.php';
@@ -189,11 +316,10 @@ class AdminController
 
         $userId = (int) ($args['id'] ?? 0);
         $dateColumns = $this->userDateColumnsAvailable();
-        $appTimezone = str_replace("'", "''", (string) ($this->config['app_timezone'] ?? 'Asia/Yekaterinburg'));
         $dateSelect = $dateColumns
-            ? ", TO_CHAR((FROM_TZ(CAST(created_at AS TIMESTAMP), DBTIMEZONE) AT TIME ZONE '{$appTimezone}'), 'DD.MM.YYYY HH24:MI') AS created_at,
-                 TO_CHAR((FROM_TZ(CAST(updated_at AS TIMESTAMP), DBTIMEZONE) AT TIME ZONE '{$appTimezone}'), 'DD.MM.YYYY HH24:MI') AS updated_at,
-                 TO_CHAR((FROM_TZ(CAST(last_login_at AS TIMESTAMP), DBTIMEZONE) AT TIME ZONE '{$appTimezone}'), 'DD.MM.YYYY HH24:MI') AS last_login_at"
+            ? ", TO_CHAR(CAST(created_at AS TIMESTAMP), 'DD.MM.YYYY HH24:MI') AS created_at,
+                 TO_CHAR(CAST(updated_at AS TIMESTAMP), 'DD.MM.YYYY HH24:MI') AS updated_at,
+                 TO_CHAR(CAST(last_login_at AS TIMESTAMP), 'DD.MM.YYYY HH24:MI') AS last_login_at"
             : ', NULL AS created_at, NULL AS updated_at, NULL AS last_login_at';
         $editedUser = $this->db->fetchOne(
             'SELECT id, username, display_name, email, is_active, organization_id' . $dateSelect . '
@@ -207,11 +333,15 @@ class AdminController
             return $this->forbidden($response);
         }
         $isNewUser = false;
+        $scopeService = new \App\Services\DataScopes($this->db);
+        $dataScopes = $scopeService->options();
+        $selectedScopeIds = $scopeService->userIds($userId);
 
         $roles = $this->db->fetchAll("SELECT id, code, name FROM xx_rjd_roles WHERE code <> 'SUPER' ORDER BY id");
         $organizations = $this->db->fetchAll(
             'SELECT id, code, name, short_name, is_active FROM xx_rjd_organizations ORDER BY is_active DESC, name'
         );
+        $accessGroups = $this->accessGroupsWithRoles();
         $editedUser['role_ids'] = array_map(
             'intval',
             array_column($this->db->fetchAll(
@@ -228,6 +358,11 @@ class AdminController
                 ), 'organization_id')
             );
         } catch (\Throwable $error) {
+            ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'userEditPage',
+                'params' => ['user_id' => $userId],
+            ], $request);
             $editedUser['organization_ids'] = [];
         }
 
@@ -265,10 +400,13 @@ class AdminController
             'last_login_at' => null,
         ];
         $isNewUser = true;
+        $dataScopes = (new \App\Services\DataScopes($this->db))->options();
+        $selectedScopeIds = [];
         $roles = $this->db->fetchAll("SELECT id, code, name FROM xx_rjd_roles WHERE code <> 'SUPER' ORDER BY id");
         $organizations = $this->db->fetchAll(
             'SELECT id, code, name, short_name, is_active FROM xx_rjd_organizations ORDER BY is_active DESC, name'
         );
+        $accessGroups = $this->accessGroupsWithRoles();
         $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
         $user = $_SESSION['user'] ?? [];
@@ -281,6 +419,249 @@ class AdminController
         include __DIR__ . '/../../templates/admin/user-edit.php';
         $response->getBody()->write((string) ob_get_clean());
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function accessGroupsPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isAdmin()) {
+            return $this->forbidden($response);
+        }
+
+        $groups = $this->db->fetchAll(
+            'SELECT g.id, g.name, g.description,
+                    (SELECT COUNT(*) FROM xx_rjd_access_group_roles gr WHERE gr.access_group_id = g.id) AS role_count
+               FROM xx_rjd_access_groups g
+              ORDER BY NLSSORT(g.name, \'NLS_SORT=RUSSIAN\')'
+        );
+        $groupRoles = [];
+        foreach ($this->db->fetchAll(
+            'SELECT gr.access_group_id, r.name
+               FROM xx_rjd_access_group_roles gr
+               JOIN xx_rjd_roles r ON r.id = gr.role_id
+              ORDER BY r.name'
+        ) as $row) {
+            $groupRoles[(int) $row['access_group_id']][] = (string) $row['name'];
+        }
+
+        $canManageAccessGroups = $this->isSuper();
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user = $_SESSION['user'] ?? [];
+        $query = $request->getQueryParams();
+        $flashOk = $query['ok'] ?? null;
+        $flashErr = $query['err'] ?? null;
+
+        ob_start();
+        include __DIR__ . '/../../templates/admin/access-groups.php';
+        $response->getBody()->write((string) ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function accessGroupCreatePage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isSuper()) {
+            return $this->forbidden($response);
+        }
+        return $this->accessGroupFormPage($request, $response, [
+            'id' => 0,
+            'name' => '',
+            'description' => '',
+        ], [], true);
+    }
+
+    public function accessGroupEditPage(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args
+    ): ResponseInterface {
+        if (!$this->isSuper()) {
+            return $this->forbidden($response);
+        }
+
+        $groupId = (int) ($args['id'] ?? 0);
+        $group = $this->db->fetchOne(
+            'SELECT id, name, description FROM xx_rjd_access_groups WHERE id = :id',
+            ['id' => $groupId]
+        );
+        if (!$group) {
+            return $this->redirect($response, '/admin/access-groups?err=' . urlencode('Группа доступа не найдена'));
+        }
+        $roleIds = array_map('intval', array_column($this->db->fetchAll(
+            'SELECT role_id FROM xx_rjd_access_group_roles WHERE access_group_id = :id',
+            ['id' => $groupId]
+        ), 'role_id'));
+        return $this->accessGroupFormPage($request, $response, $group, $roleIds, false);
+    }
+
+    private function accessGroupFormPage(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $editedAccessGroup,
+        array $selectedRoleIds,
+        bool $isNewAccessGroup
+    ): ResponseInterface {
+        $roles = $this->db->fetchAll("SELECT id, code, name FROM xx_rjd_roles WHERE code <> 'SUPER' ORDER BY name");
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user = $_SESSION['user'] ?? [];
+        $query = $request->getQueryParams();
+        $flashOk = $query['ok'] ?? null;
+        $flashErr = $query['err'] ?? null;
+        $csrf = $_SESSION['csrf_token'] ?? '';
+
+        ob_start();
+        include __DIR__ . '/../../templates/admin/access-group-edit.php';
+        $response->getBody()->write((string) ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function saveAccessGroup(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isSuper()) {
+            return $this->forbidden($response);
+        }
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body)) {
+            return $this->redirect($response, '/admin/access-groups?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+        }
+
+        $groupId = (int) ($body['access_group_id'] ?? 0);
+        $name = trim((string) ($body['name'] ?? ''));
+        $description = trim((string) ($body['description'] ?? ''));
+        $roleIds = $this->allowedRoleIds((array) ($body['role_ids'] ?? []));
+        $formUrl = $groupId > 0 ? '/admin/access-groups/' . $groupId . '/edit' : '/admin/access-groups/new';
+
+        if ($name === '' || mb_strlen($name) > 120 || mb_strlen($description) > 500 || $roleIds === []) {
+            return $this->redirect($response, $formUrl . '?err=' . urlencode('Укажите название группы и выберите хотя бы одну роль'));
+        }
+        $duplicate = $this->db->fetchOne(
+            'SELECT id FROM xx_rjd_access_groups WHERE LOWER(name) = LOWER(:name) AND (:exclude_id = 0 OR id <> :exclude_id)',
+            ['name' => $name, 'exclude_id' => $groupId]
+        );
+        if ($duplicate) {
+            return $this->redirect($response, $formUrl . '?err=' . urlencode('Группа доступа с таким названием уже существует'));
+        }
+
+        $this->db->beginTransaction();
+        try {
+            if ($groupId > 0) {
+                $this->db->execute(
+                    'UPDATE xx_rjd_access_groups SET name = :name, description = :description WHERE id = :id',
+                    ['name' => $name, 'description' => $description !== '' ? $description : null, 'id' => $groupId]
+                );
+                $exists = $this->db->fetchOne('SELECT id FROM xx_rjd_access_groups WHERE id = :id', ['id' => $groupId]);
+                if (!$exists) {
+                    throw new \RuntimeException('Access group not found');
+                }
+                $this->db->execute('DELETE FROM xx_rjd_access_group_roles WHERE access_group_id = :id', ['id' => $groupId]);
+            } else {
+                $this->db->execute(
+                    'INSERT INTO xx_rjd_access_groups (name, description) VALUES (:name, :description)',
+                    ['name' => $name, 'description' => $description !== '' ? $description : null]
+                );
+                $group = $this->db->fetchOne('SELECT id FROM xx_rjd_access_groups WHERE name = :name', ['name' => $name]);
+                $groupId = (int) ($group['id'] ?? 0);
+                if ($groupId <= 0) {
+                    throw new \RuntimeException('Access group ID was not created');
+                }
+            }
+            foreach ($roleIds as $roleId) {
+                $this->db->execute(
+                    'INSERT INTO xx_rjd_access_group_roles (access_group_id, role_id) VALUES (:group_id, :role_id)',
+                    ['group_id' => $groupId, 'role_id' => $roleId]
+                );
+            }
+            $this->db->commit();
+        } catch (\Throwable $error) {
+            $this->db->rollback();
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'saveAccessGroup',
+                'params' => [
+                    'access_group_id' => $groupId,
+                    'name' => $name,
+                    'description' => $description,
+                    'role_ids' => $roleIds,
+                ],
+            ], $request);
+            return $this->redirect(
+                $response,
+                $formUrl . '?err=' . urlencode('Не удалось сохранить группу доступа. Код ошибки: ' . $errorId)
+            );
+        }
+
+        (new AuditLog($this->db))->write(
+            $formUrl === '/admin/access-groups/new' ? 'ACCESS_GROUP_CREATE' : 'ACCESS_GROUP_UPDATE',
+            'ACCESS_GROUP',
+            $groupId,
+            'Сохранена группа доступа «' . $name . '»'
+        );
+        return $this->redirect($response, '/admin/access-groups/' . $groupId . '/edit?ok=' . urlencode('Группа доступа сохранена'));
+    }
+
+    public function deleteAccessGroup(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isSuper()) {
+            return $this->forbidden($response);
+        }
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body)) {
+            return $this->redirect($response, '/admin/access-groups?err=' . urlencode('Ошибка запроса, попробуйте снова'));
+        }
+
+        $groupId = (int) ($body['access_group_id'] ?? 0);
+        $group = $this->db->fetchOne('SELECT id, name FROM xx_rjd_access_groups WHERE id = :id', ['id' => $groupId]);
+        if (!$group) {
+            return $this->redirect($response, '/admin/access-groups?err=' . urlencode('Группа доступа не найдена'));
+        }
+        $this->db->beginTransaction();
+        try {
+            $this->db->execute('DELETE FROM xx_rjd_access_group_roles WHERE access_group_id = :id', ['id' => $groupId]);
+            $this->db->execute('DELETE FROM xx_rjd_access_groups WHERE id = :id', ['id' => $groupId]);
+            $this->db->commit();
+        } catch (\Throwable $error) {
+            $this->db->rollback();
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'deleteAccessGroup',
+                'params' => ['access_group_id' => $groupId],
+            ], $request);
+            return $this->redirect(
+                $response,
+                '/admin/access-groups?err=' . urlencode('Не удалось удалить группу доступа. Код ошибки: ' . $errorId)
+            );
+        }
+        (new AuditLog($this->db))->write('ACCESS_GROUP_DELETE', 'ACCESS_GROUP', $groupId, 'Удалена группа доступа «' . (string) $group['name'] . '»');
+        return $this->redirect($response, '/admin/access-groups?ok=' . urlencode('Группа доступа удалена'));
+    }
+
+    private function accessGroupsWithRoles(): array
+    {
+        $groups = $this->db->fetchAll('SELECT id, name, description FROM xx_rjd_access_groups ORDER BY name');
+        $roles = $this->db->fetchAll(
+            'SELECT access_group_id, role_id FROM xx_rjd_access_group_roles ORDER BY role_id'
+        );
+        $rolesByGroup = [];
+        foreach ($roles as $row) {
+            $rolesByGroup[(int) $row['access_group_id']][] = (int) $row['role_id'];
+        }
+        foreach ($groups as &$group) {
+            $group['role_ids'] = $rolesByGroup[(int) $group['id']] ?? [];
+        }
+        unset($group);
+        return $groups;
+    }
+
+    private function accessGroupRoleIds(int $groupId): ?array
+    {
+        $group = $this->db->fetchOne('SELECT id FROM xx_rjd_access_groups WHERE id = :id', ['id' => $groupId]);
+        if (!$group) {
+            return null;
+        }
+        return $this->allowedRoleIds(array_column($this->db->fetchAll(
+            'SELECT role_id FROM xx_rjd_access_group_roles WHERE access_group_id = :id',
+            ['id' => $groupId]
+        ), 'role_id'));
     }
 
     public function rolesPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -299,16 +680,16 @@ class AdminController
             $rolePages[(int) $rp['role_id']][$rp['page']] = true;
         }
 
-        $pages = self::PAGES;
+        $pages = \App\Services\PageRegistry::labels();
 
-        $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
-        $user     = $_SESSION['user'] ?? [];
+        $user = $_SESSION['user'] ?? [];
 
-        $query    = $request->getQueryParams();
-        $flashOk  = $query['ok']  ?? null;
+        $query = $request->getQueryParams();
+        $flashOk = $query['ok'] ?? null;
         $flashErr = $query['err'] ?? null;
-        $csrf     = $_SESSION['csrf_token'] ?? '';
+        $csrf = $_SESSION['csrf_token'] ?? '';
 
         ob_start();
         include __DIR__ . '/../../templates/admin/roles.php';
@@ -340,6 +721,9 @@ class AdminController
         if (!$this->isAdmin()) {
             return $this->forbidden($response);
         }
+        if ($this->isSuper()) {
+            return $this->redirect($response, '/admin/roles/' . (int) ($args['id'] ?? 0) . '/edit');
+        }
         $role = $this->db->fetchOne(
             "SELECT id, code, name, description, is_system FROM xx_rjd_roles WHERE id = :id AND code <> 'SUPER'",
             ['id' => (int) ($args['id'] ?? 0)]
@@ -347,12 +731,10 @@ class AdminController
         if (!$role) {
             return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
         }
-        $selectedPages = ($role['code'] ?? '') === 'ADMIN'
-            ? array_keys(self::PAGES)
-            : array_column($this->db->fetchAll(
-                'SELECT page FROM xx_rjd_role_pages WHERE role_id = :id',
-                ['id' => (int) $role['id']]
-            ), 'page');
+        $selectedPages = \App\Services\PageRegistry::expandPermissions(array_column($this->db->fetchAll(
+            'SELECT page FROM xx_rjd_role_pages WHERE role_id = :id',
+            ['id' => (int) $role['id']]
+        ), 'page'));
         return $this->roleFormPage($request, $response, $role, $selectedPages, false, true);
     }
 
@@ -371,10 +753,10 @@ class AdminController
         if (!$role) {
             return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
         }
-        $selectedPages = array_column($this->db->fetchAll(
+        $selectedPages = \App\Services\PageRegistry::expandPermissions(array_column($this->db->fetchAll(
             'SELECT page FROM xx_rjd_role_pages WHERE role_id = :id',
             ['id' => (int) $role['id']]
-        ), 'page');
+        ), 'page'));
         return $this->roleFormPage($request, $response, $role, $selectedPages, false, false);
     }
 
@@ -386,7 +768,7 @@ class AdminController
         bool $isNewRole,
         bool $isViewOnly
     ): ResponseInterface {
-        $pages = self::PAGES;
+        $pages = \App\Services\PageRegistry::labels();
         $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
         $user = $_SESSION['user'] ?? [];
@@ -406,8 +788,7 @@ class AdminController
         if (!(new \App\Services\DirectoryAccess($this->db))->canView()) {
             return $this->forbidden($response);
         }
-        $organizations = new \App\Services\Organizations($this->db);
-        $organizationId = $organizations->id();
+        $organizationId = $this->organizations->id();
         if (!$organizationId) {
             return $this->forbidden($response);
         }
@@ -426,8 +807,17 @@ class AdminController
             $norms = [];
             $flashErr = $error->getMessage();
         }
-        $form = ['id' => '', 'station_code' => '', 'station_name' => '', 'rule_type' => 'SHIPPER', 'rule_value' => '', 'free_days' => 0,
-                 'daily_rate' => 0, 'valid_from' => date('Y-m-d'), 'valid_to' => ''];
+        $form = [
+            'id' => '',
+            'station_code' => '',
+            'station_name' => '',
+            'rule_type' => 'SHIPPER',
+            'rule_value' => '',
+            'free_days' => 0,
+            'daily_rate' => 0,
+            'valid_from' => date('Y-m-d'),
+            'valid_to' => ''
+        ];
         if ($request->getAttribute('norm_error') !== null) {
             $form = array_intersect_key((array) $request->getParsedBody(), $form) + $form;
         } elseif ($canEdit && !empty($query['edit'])) {
@@ -465,13 +855,14 @@ class AdminController
         if (!$this->checkCsrf($body)) {
             return $this->forbidden($response);
         }
-        $organizationId = (new \App\Services\Organizations($this->db))->id();
+        $organizationId = $this->organizations->id();
         if (!$organizationId) {
             return $this->forbidden($response);
         }
         try {
             (new \App\Services\ClaimNorms($this->db, $organizationId))->save(
-                $body, (int) ($_SESSION['user']['id'] ?? 0)
+                $body,
+                (int) ($_SESSION['user']['id'] ?? 0)
             );
             (new AuditLog($this->db))->write(
                 'NORM_SAVE',
@@ -495,7 +886,7 @@ class AdminController
         if (!$this->checkCsrf($body)) {
             return $this->forbidden($response);
         }
-        $organizationId = (new \App\Services\Organizations($this->db))->id();
+        $organizationId = $this->organizations->id();
         if (!$organizationId) {
             return $this->forbidden($response);
         }
@@ -514,14 +905,15 @@ class AdminController
         if (!(new \App\Services\DirectoryAccess($this->db))->canView()) {
             return $this->forbidden($response);
         }
-        $organizationId = (new \App\Services\Organizations($this->db))->id();
+        $organizationId = $this->organizations->id();
         if (!$organizationId) {
             return $this->forbidden($response);
         }
         $params = $request->getQueryParams();
         try {
             $values = (new \App\Services\ClaimNorms($this->db, $organizationId))->values(
-                (string) ($params['type'] ?? ''), mb_substr((string) ($params['q'] ?? ''), 0, 100)
+                (string) ($params['type'] ?? ''),
+                mb_substr((string) ($params['q'] ?? ''), 0, 100)
             );
         } catch (\InvalidArgumentException $error) {
             return $this->json($response, ['error' => $error->getMessage()], 400);
@@ -534,7 +926,7 @@ class AdminController
         if (!(new \App\Services\DirectoryAccess($this->db))->canView()) {
             return $this->forbidden($response);
         }
-        $organizationId = (new \App\Services\Organizations($this->db))->id();
+        $organizationId = $this->organizations->id();
         if (!$organizationId) {
             return $this->forbidden($response);
         }
@@ -576,12 +968,12 @@ class AdminController
             ]
         );
 
-        $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
-        $user     = $_SESSION['user'] ?? [];
-        $flashOk  = $query['ok']  ?? null;
+        $user = $_SESSION['user'] ?? [];
+        $flashOk = $query['ok'] ?? null;
         $flashErr = $query['err'] ?? null;
-        $csrf     = $_SESSION['csrf_token'] ?? '';
+        $csrf = $_SESSION['csrf_token'] ?? '';
 
         ob_start();
         include __DIR__ . '/../../templates/admin/stations.php';
@@ -615,10 +1007,8 @@ class AdminController
         }
 
         $station = $this->db->fetchOne(
-            'SELECT esr_code, station_name, latitude, longitude
-               FROM xx_rjd_stations
-              WHERE esr_code = :code',
-            ['code' => (string) ($args['code'] ?? '')]
+            'SELECT * FROM TABLE(xx_rjd_dislocation_new_pkg.station(:p_esr_code))',
+            ['p_esr_code' => (string) ($args['code'] ?? '')]
         );
         if (!$station) {
             return $this->redirect($response, '/directories/stations?err=' . urlencode('Станция не найдена'));
@@ -674,12 +1064,12 @@ class AdminController
             $params
         );
 
-        $appName  = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
-        $user     = $_SESSION['user'] ?? [];
-        $flashOk  = $query['ok']  ?? null;
+        $user = $_SESSION['user'] ?? [];
+        $flashOk = $query['ok'] ?? null;
         $flashErr = $query['err'] ?? null;
-        $csrf     = $_SESSION['csrf_token'] ?? '';
+        $csrf = $_SESSION['csrf_token'] ?? '';
 
         ob_start();
         include __DIR__ . '/../../templates/admin/organizations.php';
@@ -758,7 +1148,7 @@ class AdminController
             return $this->redirect($response, '/admin/users?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
-        $userId  = (int) ($body['user_id'] ?? 0);
+        $userId = (int) ($body['user_id'] ?? 0);
         $roleIds = array_map('intval', (array) ($body['role_ids'] ?? []));
         $roleIds = array_filter($roleIds, static fn(int $id) => $id > 0);
 
@@ -788,9 +1178,14 @@ class AdminController
             }
             $this->db->commit();
             (new AuditLog($this->db))->write('USER_ROLES_UPDATE', 'USER', $userId, 'Изменены роли пользователя');
-        } catch (\Throwable $e) {
+        } catch (\Throwable $error) {
             $this->db->rollback();
-            return $this->redirect($response, '/admin/users?err=' . urlencode('Не удалось обновить роли'));
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'saveUserRoles',
+                'params' => ['user_id' => $userId, 'role_ids' => $roleIds],
+            ], $request);
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Не удалось обновить роли. Код ошибки: ' . $errorId));
         }
 
         return $this->redirect($response, '/admin/users?ok=' . urlencode('Роли обновлены'));
@@ -853,7 +1248,16 @@ class AdminController
             (new AuditLog($this->db))->write('USER_ORGANIZATIONS_UPDATE', 'USER', $userId, 'Изменены организации пользователя');
         } catch (\Throwable $error) {
             $this->db->rollback();
-            return $this->redirect($response, '/admin/users?err=' . urlencode('Не удалось сохранить организации пользователя'));
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'saveUserOrganizations',
+                'params' => [
+                    'user_id' => $userId,
+                    'organization_id' => $organizationId,
+                    'organization_ids' => $extraIds,
+                ],
+            ], $request);
+            return $this->redirect($response, '/admin/users?err=' . urlencode('Не удалось сохранить организации пользователя. Код ошибки: ' . $errorId));
         }
 
         return $this->redirect($response, '/admin/users?ok=' . urlencode('Организации пользователя сохранены'));
@@ -907,15 +1311,17 @@ class AdminController
             return $this->redirect($response, '/admin/users?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
-        $username    = trim((string) ($body['username'] ?? ''));
+        $username = trim((string) ($body['username'] ?? ''));
         $displayName = trim((string) ($body['display_name'] ?? ''));
-        $email       = trim((string) ($body['email'] ?? ''));
-        $password    = (string) ($body['password'] ?? '');
+        $email = trim((string) ($body['email'] ?? ''));
+        $password = (string) ($body['password'] ?? '');
         $organizationId = (int) ($body['organization_id'] ?? 0);
         $isActive = (int) ($body['is_active'] ?? 0) === 1 ? 1 : 0;
-        $roleIds     = array_map('intval', (array) ($body['role_ids'] ?? []));
-        $roleIds     = array_filter($roleIds, static fn(int $id) => $id > 0);
-        $roleIds     = $this->allowedRoleIds($roleIds);
+        $accessGroupId = (int) ($body['access_group_id'] ?? 0);
+        $roleIds = $accessGroupId > 0 ? $this->accessGroupRoleIds($accessGroupId) : $this->allowedRoleIds((array) ($body['role_ids'] ?? []));
+        if ($roleIds === null) {
+            return $this->redirect($response, '/admin/users/new?err=' . urlencode('Выбранная группа доступа не найдена'));
+        }
         $extraOrganizationIds = array_values(array_unique(array_filter(
             array_map('intval', (array) ($body['organization_ids'] ?? [])),
             static fn(int $id): bool => $id > 0 && $id !== $organizationId
@@ -941,11 +1347,11 @@ class AdminController
                 'INSERT INTO xx_rjd_users (username, display_name, email, password_hash, is_active, organization_id)
                  VALUES (:username, :display_name, :email, :hash, :is_active, :organization_id)',
                 [
-                    'username'     => $username,
+                    'username' => $username,
                     'display_name' => $displayName,
-                    'email'        => $email !== '' ? $email : null,
-                    'hash'         => $hash,
-                    'is_active'    => $isActive,
+                    'email' => $email !== '' ? $email : null,
+                    'hash' => $hash,
+                    'is_active' => $isActive,
                     'organization_id' => $organizationId,
                 ]
             );
@@ -955,6 +1361,9 @@ class AdminController
                 ['username' => $username]
             );
             $newUserId = (int) ($newUser['id'] ?? 0);
+            if ($this->isSuper() || in_array('data-scopes', $_SESSION['user']['allowed_pages'] ?? [], true)) {
+                (new \App\Services\DataScopes($this->db))->saveUser($newUserId, (array) ($body['data_scope_ids'] ?? []));
+            }
             if (!empty($roleIds)) {
                 foreach ($roleIds as $roleId) {
                     $this->db->execute(
@@ -972,9 +1381,20 @@ class AdminController
             }
 
             $this->db->commit();
-        } catch (\Throwable $e) {
+        } catch (\Throwable $error) {
             $this->db->rollback();
-            return $this->redirect($response, '/admin/users/new?err=' . urlencode('Не удалось создать пользователя'));
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'createUser',
+                'params' => [
+                    'username' => $username,
+                    'display_name' => $displayName,
+                    'email' => $email,
+                    'organization_id' => $organizationId,
+                    'role_ids' => $roleIds,
+                ],
+            ], $request);
+            return $this->redirect($response, '/admin/users/new?err=' . urlencode('Не удалось создать пользователя. Код ошибки: ' . $errorId));
         }
 
         (new AuditLog($this->db))->write('USER_CREATE', 'USER', $newUserId, 'Создан пользователь ' . $username);
@@ -992,18 +1412,18 @@ class AdminController
             return $this->redirect($response, '/admin/users?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
-        $userId      = (int) ($body['user_id'] ?? 0);
-        $username    = trim((string) ($body['username'] ?? ''));
+        $userId = (int) ($body['user_id'] ?? 0);
+        $username = trim((string) ($body['username'] ?? ''));
         $displayName = trim((string) ($body['display_name'] ?? ''));
-        $email       = trim((string) ($body['email'] ?? ''));
-        $password    = (string) ($body['password'] ?? '');
-        $isActive    = (int) ($body['is_active'] ?? 0) === 1 ? 1 : 0;
+        $email = trim((string) ($body['email'] ?? ''));
+        $password = (string) ($body['password'] ?? '');
+        $isActive = (int) ($body['is_active'] ?? 0) === 1 ? 1 : 0;
         $organizationId = (int) ($body['organization_id'] ?? 0);
-        $roleIds = array_values(array_unique(array_filter(
-            array_map('intval', (array) ($body['role_ids'] ?? [])),
-            static fn(int $id): bool => $id > 0
-        )));
-        $roleIds = $this->allowedRoleIds($roleIds);
+        $accessGroupId = (int) ($body['access_group_id'] ?? 0);
+        $roleIds = $accessGroupId > 0 ? $this->accessGroupRoleIds($accessGroupId) : $this->allowedRoleIds((array) ($body['role_ids'] ?? []));
+        if ($roleIds === null) {
+            return $this->redirect($response, '/admin/users/' . $userId . '/edit?err=' . urlencode('Выбранная группа доступа не найдена'));
+        }
         $extraOrganizationIds = array_values(array_unique(array_filter(
             array_map('intval', (array) ($body['organization_ids'] ?? [])),
             static fn(int $id): bool => $id > 0 && $id !== $organizationId
@@ -1037,16 +1457,19 @@ class AdminController
         }
 
         $bindings = [
-            'username'     => $username,
+            'username' => $username,
             'display_name' => $displayName,
-            'email'        => $email !== '' ? $email : null,
-            'is_active'    => $isActive,
+            'email' => $email !== '' ? $email : null,
+            'is_active' => $isActive,
             'organization_id' => $organizationId,
-            'id'           => $userId,
+            'id' => $userId,
         ];
         $keepSuperRole = $this->userHasSuperRole($userId);
         $this->db->beginTransaction();
         try {
+            if ($this->isSuper() || in_array('data-scopes', $_SESSION['user']['allowed_pages'] ?? [], true)) {
+                (new \App\Services\DataScopes($this->db))->saveUser($userId, (array) ($body['data_scope_ids'] ?? []));
+            }
             if ($password !== '') {
                 $bindings['hash'] = password_hash($password, PASSWORD_BCRYPT);
                 $this->db->execute(
@@ -1098,7 +1521,19 @@ class AdminController
             $this->db->commit();
         } catch (\Throwable $error) {
             $this->db->rollback();
-            return $this->redirect($response, $editUrl . '?err=' . urlencode('Не удалось сохранить пользователя'));
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'saveUser',
+                'params' => [
+                    'user_id' => $userId,
+                    'username' => $username,
+                    'display_name' => $displayName,
+                    'email' => $email,
+                    'organization_id' => $organizationId,
+                    'role_ids' => $roleIds,
+                ],
+            ], $request);
+            return $this->redirect($response, $editUrl . '?err=' . urlencode('Не удалось сохранить пользователя. Код ошибки: ' . $errorId));
         }
 
         (new AuditLog($this->db))->write(
@@ -1121,7 +1556,7 @@ class AdminController
             return $this->redirect($response, '/admin/users?err=' . urlencode('Ошибка запроса, попробуйте снова'));
         }
 
-        $userId   = (int) ($body['user_id'] ?? 0);
+        $userId = (int) ($body['user_id'] ?? 0);
         $password = (string) ($body['password'] ?? '');
 
         if ($userId <= 0 || $password === '') {
@@ -1176,9 +1611,14 @@ class AdminController
             $row = $this->db->fetchOne('SELECT id FROM xx_rjd_roles WHERE code = :code', ['code' => $code]);
             $this->savePages((int) $row['id'], (array) ($body['pages'] ?? []));
             $this->db->commit();
-        } catch (\Throwable $e) {
+        } catch (\Throwable $error) {
             $this->db->rollback();
-            return $this->redirect($response, '/admin/roles/new?err=' . urlencode('Не удалось создать роль'));
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'createRole',
+                'params' => ['code' => $code, 'name' => $name, 'pages' => (array) ($body['pages'] ?? [])],
+            ], $request);
+            return $this->redirect($response, '/admin/roles/new?err=' . urlencode('Не удалось создать роль. Код ошибки: ' . $errorId));
         }
 
         (new AuditLog($this->db))->write('ROLE_CREATE', 'ROLE', (int) $row['id'], 'Создана роль ' . $code . ' — ' . $name);
@@ -1205,8 +1645,6 @@ class AdminController
         if (!$role) {
             return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
         }
-        $isAdminRole = ($role['code'] ?? '') === 'ADMIN';
-
         $name = trim((string) ($body['name'] ?? ''));
         $desc = trim((string) ($body['description'] ?? ''));
 
@@ -1218,14 +1656,17 @@ class AdminController
                     ['name' => $name, 'dsc' => $desc !== '' ? $desc : null, 'id' => $roleId]
                 );
             }
-            if (!$isAdminRole) {
-                $this->db->execute('DELETE FROM xx_rjd_role_pages WHERE role_id = :id', ['id' => $roleId]);
-                $this->savePages($roleId, (array) ($body['pages'] ?? []));
-            }
+            $this->db->execute('DELETE FROM xx_rjd_role_pages WHERE role_id = :id', ['id' => $roleId]);
+            $this->savePages($roleId, (array) ($body['pages'] ?? []));
             $this->db->commit();
-        } catch (\Throwable $e) {
+        } catch (\Throwable $error) {
             $this->db->rollback();
-            return $this->redirect($response, '/admin/roles/' . $roleId . '/edit?err=' . urlencode('Не удалось сохранить роль'));
+            $errorId = ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'saveRolePages',
+                'params' => ['role_id' => $roleId, 'name' => $name, 'pages' => (array) ($body['pages'] ?? [])],
+            ], $request);
+            return $this->redirect($response, '/admin/roles/' . $roleId . '/edit?err=' . urlencode('Не удалось сохранить роль. Код ошибки: ' . $errorId));
         }
 
         (new AuditLog($this->db))->write('ROLE_UPDATE', 'ROLE', $roleId, 'Роль изменена: ' . ($name !== '' ? $name : (string) $role['code']));
@@ -1328,6 +1769,236 @@ class AdminController
             $response,
             '/directories/stations/' . rawurlencode($esrCode) . '/edit?ok=' . urlencode($isNew ? 'Станция создана' : 'Станция сохранена')
         );
+    }
+
+    public function idleControlPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $access = new \App\Services\DirectoryAccess($this->db);
+        if (!$access->canView())
+            return $this->forbidden($response);
+        $query = $request->getQueryParams();
+        $rows = $this->db->fetchAll("SELECT id_control, car_number, TO_CHAR(start_date,'YYYY-MM-DD') start_date, TO_CHAR(end_date,'YYYY-MM-DD') end_date, idle_reasons_id, idle_reasons_name, note, is_excluded, created_name FROM xx_disl_idle_control_v ORDER BY id_control DESC");
+        $search = mb_strtolower(trim((string) ($query['q'] ?? '')));
+        if ($search !== '')
+            $rows = array_values(array_filter($rows, static fn(array $row): bool => str_contains(mb_strtolower(implode(' ', $row)), $search)));
+        $dateFrom = trim((string) ($query['date_from'] ?? ''));
+        $dateTo = trim((string) ($query['date_to'] ?? ''));
+        $validDate = static function (string $date): string {
+            $dateValue = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+            return $dateValue && $dateValue->format('Y-m-d') === $date ? $date : '';
+        };
+        $dateFrom = $validDate($dateFrom);
+        $dateTo = $validDate($dateTo);
+        if ($dateFrom !== '' || $dateTo !== '') {
+            $rows = array_values(array_filter($rows, static function (array $row) use ($dateFrom, $dateTo): bool {
+                if ($dateTo !== '' && (string) $row['start_date'] > $dateTo) {
+                    return false;
+                }
+                return $dateFrom === '' || empty($row['end_date']) || (string) $row['end_date'] >= $dateFrom;
+            }));
+        }
+        $perPage = 25;
+        $totalRows = count($rows);
+        $totalPages = max(1, (int) ceil($totalRows / $perPage));
+        $page = min(max(1, (int) ($query['page'] ?? 1)), $totalPages);
+        $rows = array_slice($rows, ($page - 1) * $perPage, $perPage);
+        $canEdit = $access->canEdit();
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user = $_SESSION['user'] ?? [];
+        $flashOk = $query['ok'] ?? null;
+        $flashErr = $query['err'] ?? null;
+        $csrf = $_SESSION['csrf_token'] ?? '';
+        ob_start();
+        include __DIR__ . '/../../templates/admin/idle-control.php';
+        $response->getBody()->write((string) ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function saveIdleControl(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+            return $this->forbidden($response);
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body))
+            return $this->redirect($response, '/directories/idle-control?err=' . urlencode('Ошибка запроса'));
+        $car = trim((string) ($body['car_number'] ?? ''));
+        $start = (string) ($body['start_date'] ?? '');
+        $reason = (int) ($body['idle_reasons_id'] ?? 0);
+        $id = (int) ($body['id_control'] ?? 0);
+        $formPath = $id > 0 ? '/directories/idle-control/' . $id . '/edit' : '/directories/idle-control/new';
+        if ($car === '' || $start === '' || $reason <= 0)
+            return $this->redirect($response, $formPath . '?err=' . urlencode('Заполните обязательные поля'));
+        try {
+            $this->db->execute("BEGIN xx_rjd_dislocation_new_pkg.save_idle_control(:id,:uid,:car,TO_DATE(:dt1,'YYYY-MM-DD'),TO_DATE(:dt2,'YYYY-MM-DD'),:note,:excluded,:reason); END;", [
+                'id' => $id ?: null,
+                'uid' => (int) ($_SESSION['user']['id'] ?? 0),
+                'car' => $car,
+                'dt1' => $start,
+                'dt2' => trim((string) ($body['end_date'] ?? '')) ?: null,
+                'note' => trim((string) ($body['note'] ?? '')) ?: null,
+                'excluded' => ($body['is_excluded'] ?? 'N') === 'Y' ? 'Y' : 'N',
+                'reason' => $reason,
+            ]);
+        } catch (\Throwable $error) {
+            $code = ErrorLogger::logThrowable($error, ['operation' => 'save_idle_control', 'id_control' => $id], $request);
+            return $this->redirect($response, $formPath . '?err=' . urlencode($this->cleanDbMessage($error) . '. Код ошибки: ' . $code));
+        }
+        return $this->redirect($response, '/directories/idle-control?ok=' . urlencode($id ? 'Запись сохранена' : 'Запись добавлена'));
+    }
+
+    public function idleControlCreatePage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        return $this->idleControlFormPage($request, $response, [
+            'id_control' => 0,
+            'car_number' => '',
+            'start_date' => (new \DateTimeImmutable('today'))->format('Y-m-d'),
+            'end_date' => '',
+            'idle_reasons_id' => 0,
+            'is_excluded' => 'N',
+            'note' => '',
+        ], true);
+    }
+
+    public function idleControlEditPage(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+            return $this->forbidden($response);
+        $row = $this->db->fetchOne("SELECT id_control, car_number, TO_CHAR(start_date,'YYYY-MM-DD') start_date, TO_CHAR(end_date,'YYYY-MM-DD') end_date, idle_reasons_id, note, is_excluded FROM xx_disl_idle_control_v WHERE id_control=:id", ['id' => (int) ($args['id'] ?? 0)]);
+        if (!$row)
+            return $this->redirect($response, '/directories/idle-control?err=' . urlencode('Запись не найдена'));
+        return $this->idleControlFormPage($request, $response, $row, false);
+    }
+
+    private function idleControlFormPage(ServerRequestInterface $request, ResponseInterface $response, array $edited, bool $isNew): ResponseInterface
+    {
+        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+            return $this->forbidden($response);
+        $reasons = $this->db->fetchAll('SELECT id,name FROM xx_disl_idle_reasons ORDER BY name');
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user = $_SESSION['user'] ?? [];
+        $csrf = $_SESSION['csrf_token'] ?? '';
+        $query = $request->getQueryParams();
+        $flashOk = $query['ok'] ?? null;
+        $flashErr = $query['err'] ?? null;
+        ob_start();
+        include __DIR__ . '/../../templates/admin/idle-control-edit.php';
+        $response->getBody()->write((string) ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function deleteIdleControl(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+            return $this->forbidden($response);
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body))
+            return $this->redirect($response, '/directories/idle-control?err=' . urlencode('Ошибка запроса'));
+        try {
+            $this->db->execute('BEGIN xx_rjd_dislocation_new_pkg.delete_idle_control(:id,:uid); END;', ['id' => (int) ($body['id_control'] ?? 0), 'uid' => (int) ($_SESSION['user']['id'] ?? 0)]);
+        } catch (\Throwable $error) {
+            $code = ErrorLogger::logThrowable($error, ['operation' => 'delete_idle_control'], $request);
+            return $this->redirect($response, '/directories/idle-control?err=' . urlencode('Не удалось удалить запись. Код ошибки: ' . $code));
+        }
+        return $this->redirect($response, '/directories/idle-control?ok=' . urlencode('Запись удалена'));
+    }
+
+    public function idleReasonsPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $access = new \App\Services\DirectoryAccess($this->db);
+        if (!$access->canView())
+            return $this->forbidden($response);
+        $query = $request->getQueryParams();
+        $rows = $this->db->fetchAll('SELECT id,name,descr FROM xx_disl_idle_reasons ORDER BY name');
+        $search = mb_strtolower(trim((string) ($query['q'] ?? '')));
+        if ($search !== '')
+            $rows = array_values(array_filter($rows, static fn(array $row): bool => str_contains(mb_strtolower(implode(' ', $row)), $search)));
+        $perPage = 25;
+        $totalRows = count($rows);
+        $totalPages = max(1, (int) ceil($totalRows / $perPage));
+        $page = min(max(1, (int) ($query['page'] ?? 1)), $totalPages);
+        $rows = array_slice($rows, ($page - 1) * $perPage, $perPage);
+        $canEdit = $access->canEdit();
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user = $_SESSION['user'] ?? [];
+        $csrf = $_SESSION['csrf_token'] ?? '';
+        $flashOk = $query['ok'] ?? null;
+        $flashErr = $query['err'] ?? null;
+        ob_start();
+        include __DIR__ . '/../../templates/admin/idle-reasons.php';
+        $response->getBody()->write((string) ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function saveIdleReason(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+            return $this->forbidden($response);
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body))
+            return $this->redirect($response, '/directories/idle-reasons?err=' . urlencode('Ошибка запроса'));
+        $id = (int) ($body['id'] ?? 0);
+        $name = trim((string) ($body['name'] ?? ''));
+        $formPath = $id > 0 ? '/directories/idle-reasons/' . $id . '/edit' : '/directories/idle-reasons/new';
+        if ($name === '')
+            return $this->redirect($response, $formPath . '?err=' . urlencode('Укажите название причины'));
+        try {
+            $this->db->execute('BEGIN xx_rjd_dislocation_new_pkg.save_idle_reason(:id,:name,:descr); END;', ['id' => $id ?: null, 'name' => $name, 'descr' => trim((string) ($body['descr'] ?? '')) ?: null]);
+        } catch (\Throwable $error) {
+            $code = ErrorLogger::logThrowable($error, ['operation' => 'save_idle_reason'], $request);
+            return $this->redirect($response, $formPath . '?err=' . urlencode($this->cleanDbMessage($error) . '. Код ошибки: ' . $code));
+        }
+        return $this->redirect($response, '/directories/idle-reasons?ok=' . urlencode('Причина сохранена'));
+    }
+
+    public function idleReasonCreatePage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        return $this->idleReasonFormPage($request, $response, ['id' => 0, 'name' => '', 'descr' => ''], true);
+    }
+
+    public function idleReasonEditPage(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+            return $this->forbidden($response);
+        $row = $this->db->fetchOne('SELECT id,name,descr FROM xx_disl_idle_reasons WHERE id=:id', ['id' => (int) ($args['id'] ?? 0)]);
+        if (!$row)
+            return $this->redirect($response, '/directories/idle-reasons?err=' . urlencode('Причина не найдена'));
+        return $this->idleReasonFormPage($request, $response, $row, false);
+    }
+
+    private function idleReasonFormPage(ServerRequestInterface $request, ResponseInterface $response, array $edited, bool $isNew): ResponseInterface
+    {
+        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+            return $this->forbidden($response);
+        $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
+        $basePath = $this->config['base_path'] ?? '';
+        $user = $_SESSION['user'] ?? [];
+        $csrf = $_SESSION['csrf_token'] ?? '';
+        $query = $request->getQueryParams();
+        $flashOk = $query['ok'] ?? null;
+        $flashErr = $query['err'] ?? null;
+        ob_start();
+        include __DIR__ . '/../../templates/admin/idle-reason-edit.php';
+        $response->getBody()->write((string) ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+    }
+
+    public function deleteIdleReason(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+            return $this->forbidden($response);
+        $body = (array) $request->getParsedBody();
+        if (!$this->checkCsrf($body))
+            return $this->redirect($response, '/directories/idle-reasons?err=' . urlencode('Ошибка запроса'));
+        try {
+            $this->db->execute('BEGIN xx_rjd_dislocation_new_pkg.delete_idle_reason(:id); END;', ['id' => (int) ($body['id'] ?? 0)]);
+        } catch (\Throwable $error) {
+            $code = ErrorLogger::logThrowable($error, ['operation' => 'delete_idle_reason'], $request);
+            return $this->redirect($response, '/directories/idle-reasons?err=' . urlencode($this->cleanDbMessage($error) . '. Код ошибки: ' . $code));
+        }
+        return $this->redirect($response, '/directories/idle-reasons?ok=' . urlencode('Причина удалена'));
     }
 
     public function deleteStation(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -1525,7 +2196,8 @@ class AdminController
     private function savePages(int $roleId, array $pages): void
     {
         foreach ($pages as $page) {
-            if (!isset(self::PAGES[$page])) {
+            $definition = \App\Services\PageRegistry::all()[$page] ?? null;
+            if ($definition === null || !empty($definition['derived']) || !empty($definition['role_hidden'])) {
                 continue;
             }
             $this->db->execute(
@@ -1576,6 +2248,10 @@ class AdminController
             );
             return (int) ($row['cnt'] ?? 0) === 3;
         } catch (\Throwable $error) {
+            ErrorLogger::logThrowable($error, [
+                'module' => self::class,
+                'function' => 'userDateColumnsAvailable',
+            ]);
             return false;
         }
     }
@@ -1583,7 +2259,7 @@ class AdminController
     private function isAdmin(): bool
     {
         $u = $_SESSION['user'] ?? [];
-        if ($u['is_admin'] ?? false) {
+        if (\App\Services\Authorization::isAdmin($u)) {
             return true;
         }
 
@@ -1596,13 +2272,17 @@ class AdminController
             );
             return (int) ($row['cnt'] ?? 0) === 0;
         } catch (\Throwable $e) {
+            ErrorLogger::logThrowable($e, [
+                'module' => self::class,
+                'function' => 'canBootstrapAdmin',
+            ]);
             return true;
         }
     }
 
     private function isSuper(): bool
     {
-        return !empty($_SESSION['user']['is_super']);
+        return \App\Services\Authorization::isSuper();
     }
 
     private function canManageUser(int $userId): bool

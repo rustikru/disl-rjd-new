@@ -16,11 +16,11 @@ final class KerberosAuth
 
     public function authenticate(ServerRequestInterface $request): ?array
     {
-        if (!(bool) ($this->config['kerberos_enabled'] ?? false)) {
+        if (!(bool) $this->config['kerberos_enabled']) {
             return null;
         }
 
-        $mode = (string) ($this->config['kerberos_mode'] ?? 'local');
+        $mode = (string) $this->config['kerberos_mode'];
         if ($mode === 'local') {
             return $this->authenticateLocal($request);
         }
@@ -30,7 +30,7 @@ final class KerberosAuth
         }
 
         $serverParams = $request->getServerParams();
-        $serverKey = (string) ($this->config['kerberos_server_key'] ?? 'REMOTE_USER');
+        $serverKey = (string) $this->config['kerberos_server_key'];
         $principal = trim((string) ($serverParams[$serverKey] ?? ''));
 
         return $this->identity($principal);
@@ -38,7 +38,7 @@ final class KerberosAuth
 
     private function authenticateLocal(ServerRequestInterface $request): ?array
     {
-        if (($this->config['app_env'] ?? 'production') !== 'development') {
+        if ($this->config['app_env'] !== 'development') {
             return null;
         }
 
@@ -47,7 +47,7 @@ final class KerberosAuth
             return null;
         }
 
-        return $this->identity((string) ($this->config['kerberos_local_username'] ?? ''));
+        return $this->identity((string) $this->config['kerberos_local_username']);
     }
 
     private function identity(string $principal): ?array
@@ -60,7 +60,7 @@ final class KerberosAuth
         if (str_contains($username, '\\')) {
             $username = substr($username, strrpos($username, '\\') + 1);
         }
-        if (($this->config['kerberos_strip_realm'] ?? true) && str_contains($username, '@')) {
+        if ($this->config['kerberos_strip_realm'] && str_contains($username, '@')) {
             $username = strstr($username, '@', true);
         }
         $username = trim($username);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Database\DbInterface;
+use App\Logging\ErrorLogger;
 use App\Reports\ReportConfig;
 use App\Services\Organizations;
 use App\Services\AuditLog;
@@ -16,11 +17,13 @@ final class MailingController
 {
     private DbInterface $db;
     private array $config;
+    private Organizations $organizations;
 
-    public function __construct(DbInterface $db, array $config = [])
+    public function __construct(DbInterface $db, array $config = [], ?Organizations $organizations = null)
     {
         $this->db = $db;
         $this->config = $config;
+        $this->organizations = $organizations ?? new Organizations($db);
     }
 
     public function settingsPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -77,7 +80,8 @@ final class MailingController
                 $editingMailing = $mailingFormDraft;
             }
         } catch (\Throwable $error) {
-            $flashErr = 'Хранилище рассылок ещё не подготовлено. Выполните db/20261026_report_mailings.sql';
+            $errorId = $this->logError($error, 'settingsPage', [], $request);
+            $flashErr = 'Не удалось загрузить рассылки. Код ошибки: ' . $errorId;
         }
         $showMailingSettings = $editingMailing !== null || (string) ($query['view'] ?? '') === 'settings';
 
@@ -91,7 +95,7 @@ final class MailingController
     public function adminRun(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $form = (array) $request->getParsedBody();
-        if (empty($_SESSION['user']['is_super']) || !$this->validCsrf($form)) {
+        if (!\App\Services\Authorization::isSuper() || !$this->validCsrf($form)) {
             return $this->adminRedirect($response, 'err', 'Недостаточно прав или сессия устарела');
         }
         $mailingService = new MailingService($this->db);
@@ -101,7 +105,7 @@ final class MailingController
         }
         $runId = $mailingService->startRun(
             (int) $mailing['id'],
-            (string) ($this->config['mail_mode'] ?? 'file'),
+            (string) $this->config['mail_mode'],
             (string) $mailing['recipients']
         );
         try {
@@ -117,16 +121,67 @@ final class MailingController
             );
             return $this->adminRedirect($response, 'ok', $runMessage);
         } catch (\Throwable $error) {
+            $errorId = $this->logError($error, 'adminRun', ['mailing_id' => (int) $mailing['id']], $request);
             $mailingService->recordRun((int) $mailing['id'], 'error', null, $error->getMessage());
             $mailingService->finishRun($runId, 'error', null, $error->getMessage());
-            return $this->adminRedirect($response, 'err', 'Ошибка запуска: ' . $this->shortError($error));
+            return $this->adminRedirect($response, 'err', 'Не удалось запустить рассылку. Код ошибки: ' . $errorId);
+        }
+    }
+
+    public function adminRunDue(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $form = (array) $request->getParsedBody();
+        if (!\App\Services\Authorization::isSuper() || !$this->validCsrf($form)) {
+            return $this->adminRedirect($response, 'err', 'Недостаточно прав или сессия устарела');
+        }
+
+        try {
+            $result = (new \App\Services\MailingScheduler($this->db, $this->config))->runDue();
+            $message = sprintf(
+                'Проверено: %d. Запущено: %d. Успешно: %d. Ошибок: %d. Пропущено: %d.',
+                $result['found'],
+                $result['started'],
+                $result['success'],
+                $result['errors'],
+                $result['skipped']
+            );
+            try {
+                (new AuditLog($this->db))->write('MAILING_SCHEDULE_RUN', 'MAILING', null, $message);
+            } catch (\Throwable $auditError) {
+                $this->logError($auditError, 'adminRunDueAudit', [], $request);
+            }
+            return $this->adminRedirect($response, $result['errors'] > 0 ? 'err' : 'ok', $message);
+        } catch (\Throwable $error) {
+            $errorId = $this->logError($error, 'adminRunDue', [], $request);
+            return $this->adminRedirect($response, 'err', 'Не удалось выполнить проверку расписания. Код ошибки: ' . $errorId);
+        }
+    }
+
+    public function apiRunDue(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $token = (string) ($this->config['mailing_scheduler_token'] ?? '');
+        $authorization = trim($request->getHeaderLine('Authorization'));
+        $providedToken = preg_match('/^Bearer\s+(.+)$/i', $authorization, $matches) ? trim($matches[1]) : '';
+        if ($token === '' || $providedToken === '' || !hash_equals($token, $providedToken)) {
+            $response->getBody()->write(json_encode(['status' => 'error', 'message' => 'Unauthorized'], JSON_UNESCAPED_UNICODE));
+            return $response->withStatus(401)->withHeader('Content-Type', 'application/json; charset=utf-8');
+        }
+
+        try {
+            $result = (new \App\Services\MailingScheduler($this->db, $this->config))->runDue();
+            $response->getBody()->write(json_encode(['status' => 'ok'] + $result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            return $response->withHeader('Content-Type', 'application/json; charset=utf-8');
+        } catch (\Throwable $error) {
+            $errorId = $this->logError($error, 'apiRunDue', [], $request);
+            $response->getBody()->write(json_encode(['status' => 'error', 'message' => 'Не удалось выполнить планировщик', 'error_id' => $errorId], JSON_UNESCAPED_UNICODE));
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json; charset=utf-8');
         }
     }
 
     public function adminSetActive(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $form = (array) $request->getParsedBody();
-        if (empty($_SESSION['user']['is_super']) || !$this->validCsrf($form)) {
+        if (!\App\Services\Authorization::isSuper() || !$this->validCsrf($form)) {
             return $this->adminRedirect($response, 'err', 'Недостаточно прав или сессия устарела');
         }
         $active = (int) ($form['is_active'] ?? 0) === 1;
@@ -146,13 +201,17 @@ final class MailingController
                 $changed ? ($active ? 'Рассылка включена' : 'Рассылка отключена') : 'Рассылка не найдена'
             );
         } catch (\Throwable $error) {
-            return $this->adminRedirect($response, 'err', 'Не удалось изменить рассылку: ' . $this->shortError($error));
+            $errorId = $this->logError($error, 'adminSetActive', [
+                'mailing_id' => (int) ($form['id'] ?? 0),
+                'is_active' => $active,
+            ], $request);
+            return $this->adminRedirect($response, 'err', 'Не удалось изменить рассылку. Код ошибки: ' . $errorId);
         }
     }
     // Отобразить страницу управления рассылками
     public function adminPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (empty($_SESSION['user']['is_super'])) {
+        if (!\App\Services\Authorization::isSuper()) {
             $response->getBody()->write('Недостаточно прав');
             return $response->withStatus(403);
         }
@@ -197,7 +256,7 @@ final class MailingController
             return $this->redirectToForm($response, $form, 'Сессия устарела. Обновите страницу');
         }
         $userId = (int) ($_SESSION['user']['id'] ?? 0);
-        $organizationId = (int) (new Organizations($this->db))->id();
+        $organizationId = (int) $this->organizations->id();
         if ($userId <= 0 || $organizationId <= 0) {
             return $this->redirectToForm($response, $form, 'Не выбрана организация');
         }
@@ -215,7 +274,8 @@ final class MailingController
         } catch (\InvalidArgumentException $error) {
             return $this->redirectToForm($response, $form, $error->getMessage());
         } catch (\Throwable $error) {
-            return $this->redirectToForm($response, $form, 'Не удалось сохранить рассылку: ' . $this->shortError($error));
+            $errorId = $this->logError($error, 'save', ['mailing_id' => (int) ($form['id'] ?? 0)], $request);
+            return $this->redirectToForm($response, $form, 'Не удалось сохранить рассылку. Код ошибки: ' . $errorId);
         }
     }
     // Включить или отключить рассылку
@@ -246,7 +306,11 @@ final class MailingController
                 $changed ? ($active ? 'Рассылка включена' : 'Рассылка отключена') : 'Рассылка не найдена'
             );
         } catch (\Throwable $error) {
-            return $this->redirect($response, 'err', 'Не удалось изменить рассылку: ' . $this->shortError($error));
+            $errorId = $this->logError($error, 'setActive', [
+                'mailing_id' => (int) ($form['id'] ?? 0),
+                'is_active' => $active,
+            ], $request);
+            return $this->redirect($response, 'err', 'Не удалось изменить рассылку. Код ошибки: ' . $errorId);
         }
     }
     // Удалить рассылку
@@ -266,7 +330,8 @@ final class MailingController
             }
             return $this->redirect($response, $deleted ? 'ok' : 'err', $deleted ? 'Рассылка удалена' : 'Рассылка не найдена');
         } catch (\Throwable $error) {
-            return $this->redirect($response, 'err', 'Не удалось удалить рассылку: ' . $this->shortError($error));
+            $errorId = $this->logError($error, 'delete', ['mailing_id' => (int) ($form['id'] ?? 0)], $request);
+            return $this->redirect($response, 'err', 'Не удалось удалить рассылку. Код ошибки: ' . $errorId);
         }
     }
     // Запустить рассылку
@@ -286,14 +351,14 @@ final class MailingController
         }
         $availableOrganizationIds = array_map(
             static fn(array $organization): int => (int) $organization['id'],
-            (new Organizations($this->db))->organizations()
+            $this->organizations->organizations()
         );
         if (!in_array((int) $mailing['organization_id'], $availableOrganizationIds, true)) {
             return $this->redirect($response, 'err', 'Организация этой рассылки больше недоступна пользователю');
         }
         $runId = $mailingService->startRun(
             (int) $mailing['id'],
-            (string) ($this->config['mail_mode'] ?? 'file'),
+            (string) $this->config['mail_mode'],
             (string) $mailing['recipients']
         );
         try {
@@ -316,10 +381,24 @@ final class MailingController
             }
             return $this->redirect($response, 'ok', $successMessage);
         } catch (\Throwable $error) {
+            $errorId = $this->logError($error, 'run', ['mailing_id' => (int) $mailing['id']], $request);
             $mailingService->recordRun((int) $mailing['id'], 'error', null, $error->getMessage());
             $mailingService->finishRun($runId, 'error', null, $error->getMessage());
-            return $this->redirect($response, 'err', 'Ошибка запуска: ' . $this->shortError($error));
+            return $this->redirect($response, 'err', 'Не удалось запустить рассылку. Код ошибки: ' . $errorId);
         }
+    }
+
+    private function logError(
+        \Throwable $error,
+        string $function,
+        array $params,
+        ServerRequestInterface $request
+    ): string {
+        return ErrorLogger::logThrowable($error, [
+            'module' => self::class,
+            'function' => $function,
+            'params' => $params,
+        ], $request);
     }
 
     private function validCsrf(array $form): bool

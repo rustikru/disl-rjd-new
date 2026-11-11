@@ -5,18 +5,61 @@ namespace App\Reports;
 
 final class ReportConfig
 {
+    public static function kpiDetail(string $code): ?array
+    {
+        if ($code === 'formed_trains') {
+            return self::trainGroups('formed', 'Сформированные поезда', 'Сформированных поездов нет');
+        }
+        if (in_array($code, ['abandoned_wagons', 'abandoned_trains'], true)) {
+            return self::trainGroups('abandoned', 'Брошенные поезда', 'Брошенных поездов нет');
+        }
+        return null;
+    }
+
+    public static function trainGroups(string $profile, string $title, string $empty): ?array
+    {
+        $profiles = [
+            'abandoned' => [
+                'template' => 'TRAIN_INDEX',
+                'fields' => ['train_no', 'oper_station', 'oper_road', 'oper_dt'],
+                'sections' => [
+                    ['label' => 'Гружёные', 'key' => 'loaded', 'filters' => ['cargo_state' => 'гр.']],
+                    ['label' => 'Порожние', 'key' => 'empty_count', 'filters' => ['cargo_state' => 'пор.']],
+                ],
+            ],
+            'formed' => [
+                'template' => 'TRAIN_NUMBER',
+                'fields' => ['train_index', 'oper_station', 'oper_road', 'oper_dt', 'operation', 'trip_start_dt'],
+                'sections' => [
+                    ['label' => 'Вагоны', 'key' => 'total', 'filters' => []],
+                ],
+            ],
+        ];
+        if (!isset($profiles[$profile])) {
+            return null;
+        }
+
+        $config = KpiGroupingTemplates::get($profiles[$profile]['template']);
+        if (!$config) {
+            return null;
+        }
+        $config['fields'] = array_values(array_filter(
+            $config['fields'],
+            static fn(array $field): bool => in_array($field['key'], $profiles[$profile]['fields'], true)
+        ));
+        $config['group_by'] = [$config['group_field']];
+
+        return array_merge($config, [
+            'code' => 'train-groups',
+            'profile' => $profile,
+            'title' => $title,
+            'empty_label' => $empty,
+            'sections' => $profiles[$profile]['sections'],
+        ]);
+    }
+
     public static function all(): array
     {
-        // Здесь собраны настройки всех отчётов. Обычная страница, экспорт и в будущем
-        // рассылка берут параметры отсюда, поэтому одинаковые настройки в других местах
-        // добавлять не нужно.
-        //
-        // Для отчёта указываются название, адреса API, фильтры, группировка строк
-        // и разбивка колонок. У фильтра задаются его ключ, подпись, тип поля, id поля
-        // на странице и ключ списка значений, если это выпадающий список.
-        //
-        // Если появился новый фильтр или поменялся старый — править нужно здесь.
-        // contexts определяет, где настройка доступна: page, mailing или export.
         $reports = [
             // Дислокация
             'dislocation' => self::report(
@@ -51,7 +94,7 @@ final class ReportConfig
                 [
                     self::filter('wagon_no', '№ вагона', 'text', 'fApproachWagonNo'),
                     self::filter('cargo', 'Груз', 'select', 'fApproachCargo', 'cargo'),
-                    self::filter('prev_cargo', 'Ранее выгружен', 'select', 'fApproachPrevCargo', 'prev_cargo', ['page']),
+                    self::filter('depart_station', 'Станция отправления', 'select', 'fDepartStation', 'depart_station', ['page', 'mailing']),
                 ],
                 [
                     self::dimension('oper_road', 'Дорога операции'),
@@ -126,7 +169,7 @@ final class ReportConfig
 
             // Техническое состояние
             'technical-state' => self::report(
-                'НСИ вагона',
+                'Тех.состояние',
                 '/api/technical-state/filters',
                 null,
                 '/api/technical-state/detail',
@@ -177,8 +220,7 @@ final class ReportConfig
                 null,
                 '/api/analysis/period/detail',
                 [
-                    self::filter('wagon_no', '№ вагона', 'text', 'fAnalysisPeriodWagonNo'),
-                    self::filter('cargo', 'Груз', 'select', 'fAnalysisPeriodCargo', 'cargo'),
+                    self::filter('wagon_no', '№ вагона', 'text', 'fAnalysisPeriodWagonNo', null, ['page', 'mailing'], true),
                     self::filter('date_from', 'Дата операции с', 'date', 'fAnalysisPeriodDateFrom', null, ['page', 'mailing'], true, [], 'month_start'),
                     self::filter('date_to', 'Дата операции по', 'date', 'fAnalysisPeriodDateTo', null, ['page', 'mailing'], false, [], 'today'),
                 ],
@@ -207,18 +249,31 @@ final class ReportConfig
             ),
 
             // Полные строки последней загруженной справки без условий экранных отчётов.
-            'source-approach' => self::mailingReport('Справка РЖД - Подход'),
-            'source-departure' => self::mailingReport('Справка РЖД - Отправка'),
+            'source-approach' => self::mailingReport('Справка РЖД - Подход', 'rjd-reference'),
+            'source-departure' => self::mailingReport('Справка РЖД - Отправка', 'rjd-reference'),
         ];
 
         $detailSettings = self::detailSettings();
         $pageSettings = self::pageSettings();
         $navigationSettings = self::navigationSettings();
         $mailingHandlers = self::mailingHandlers();
+        $apiHandlers = self::apiHandlers();
         foreach ($reports as $reportCode => &$reportDefinition) {
             $reportDefinition['page'] = $pageSettings[$reportCode] ?? [];
             $reportDefinition['navigation'] = $navigationSettings[$reportCode] ?? null;
+            foreach ($reportDefinition['filters'] as &$filter) {
+                $filter['multiple'] = $filter['value_type'] === 'select';
+            }
+            unset($filter);
             $reportDefinition['mailing_handler'] = $mailingHandlers[$reportCode] ?? null;
+            $reportDefinition['api_handlers'] = $apiHandlers[$reportCode] ?? [];
+            if (!empty($reportDefinition['filters_endpoint'])
+                && (!empty($reportDefinition['summary_endpoint']) || !empty($reportDefinition['detail_endpoint']))) {
+                $reportDefinition['initial_endpoint'] = '/api/' . $reportCode . '/initial';
+                $reportDefinition['api_handlers']['initial'] = 'reportInitial';
+            } else {
+                $reportDefinition['initial_endpoint'] = null;
+            }
             if (!isset($detailSettings[$reportCode])) {
                 continue;
             }
@@ -232,9 +287,36 @@ final class ReportConfig
         return $reports;
     }
 
+    /** Нормализует и проверяет фильтры по тому же описанию, из которого строится UI. */
+    public static function validateFilters(string $reportCode, array $values, bool $require = true): array
+    {
+        $definition = self::all()[$reportCode] ?? null;
+        if ($definition === null)
+            throw new \InvalidArgumentException('Неизвестный отчёт: ' . $reportCode);
+        $result = [];
+        foreach ((array) ($definition['filters'] ?? []) as $filter) {
+            $key = (string) $filter['key'];
+            $value = trim((string) ($values[$key] ?? ''));
+            if ($require && !empty($filter['required']) && $value === '')
+                throw new \InvalidArgumentException('Укажите поле «' . $filter['label'] . '»');
+            if ($value === '')
+                continue;
+            if (($filter['value_type'] ?? '') === 'date') {
+                $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+                if (!$date || $date->format('Y-m-d') !== $value)
+                    throw new \InvalidArgumentException('Некорректная дата в поле «' . $filter['label'] . '»');
+            }
+            $choices = (array) ($filter['choices'] ?? []);
+            if ($choices !== [] && !in_array($value, array_column($choices, 'value'), true))
+                throw new \InvalidArgumentException('Недопустимое значение поля «' . $filter['label'] . '»');
+            $result[$key] = $value;
+        }
+        return $result;
+    }
+
     private static function mailingHandlers(): array
     {
-        // Метод уже существующего API, который формирует строки отчёта для рассылки.
+        // Обработчики формирования строк отчёта для рассылки.
         return [
             'dislocation' => 'dislDetail',
             'approach' => 'approachDetail',
@@ -249,10 +331,24 @@ final class ReportConfig
             'source-departure' => 'sourceDeparture',
         ];
     }
-
+    private static function apiHandlers(): array
+    {
+        return [
+            'dislocation' => ['filters' => 'dislFilters', 'summary' => 'dislSummary', 'detail' => 'dislDetail'],
+            'approach' => ['filters' => 'approachFilters', 'summary' => 'approachSummary', 'detail' => 'approachDetail'],
+            'departure' => ['filters' => 'departureFilters', 'summary' => 'departureSummary', 'detail' => 'departureDetail'],
+            'loading' => ['filters' => 'loadingFilters', 'summary' => 'loadingSummary', 'detail' => 'loadingDetail'],
+            'downtime' => ['filters' => 'downtimeFilters', 'summary' => 'downtimeSummary', 'detail' => 'downtimeDetail'],
+            'technical-state' => ['filters' => 'technicalFilters', 'detail' => 'technicalDetail'],
+            'claims' => ['filters' => 'claimsFilters', 'summary' => 'claimsSummary', 'detail' => 'claimsDetail'],
+            'raw-material' => ['summary' => 'rawSummary', 'detail' => 'rawDetail'],
+            'analysis-period' => ['filters' => 'analysisFilters', 'detail' => 'analysisPeriod'],
+            'downtime-control' => ['detail' => 'downtimeControlDetail'],
+        ];
+    }
+    // Раздел меню и порядок отчёта.
     private static function navigationSettings(): array
     {
-        // определяется раздел меню и порядок отчётов внутри него.
         return [
             'dislocation' => ['group' => 'movement', 'order' => 10],
             'approach' => ['group' => 'movement', 'order' => 20],
@@ -266,10 +362,11 @@ final class ReportConfig
             'downtime-control' => ['group' => 'registry', 'order' => 10],
         ];
     }
-
+    // Настройки страницы отчёта, передаваемые в клиентскую часть.
     private static function pageSettings(): array
     {
         return [
+            // Дислокация
             'dislocation' => [
                 'summary_file' => 'дислокация',
                 'detail_file' => 'дислокация-расширенная',
@@ -285,6 +382,7 @@ final class ReportConfig
                 'apply_button_id' => 'btnDislocationApply',
                 'total_column_dimensions' => ['wagon_type_code'],
             ],
+            // Подход вагонов
             'approach' => [
                 'summary_file' => 'подход',
                 'detail_file' => 'подход-расширенная',
@@ -302,6 +400,7 @@ final class ReportConfig
                     'MTF' => ['pinned_row_label' => 'ст. Углеуральская', 'pinned_station_key' => 'УГЛЕУР', 'first_road_key' => 'СВЕРДЛ'],
                 ],
             ],
+            // Отправление вагонов
             'departure' => [
                 'summary_file' => 'отправление',
                 'detail_file' => 'отправление-расширенная',
@@ -317,6 +416,7 @@ final class ReportConfig
                 'total_column_dimensions' => ['wagon_type_code'],
                 'organization_overrides' => ['MTF' => ['total_text' => 'Всего отправлено со ст. Углеуральская']],
             ],
+            // Погрузка
             'loading' => [
                 'summary_file' => 'погрузка',
                 'detail_file' => 'погрузка-расширенная',
@@ -331,6 +431,7 @@ final class ReportConfig
                 'detail_loaded_key' => '_loadingDetLoaded',
                 'total_column_dimensions' => ['wagon_type_code'],
             ],
+            // Простои
             'downtime' => [
                 'summary_file' => 'простои',
                 'detail_file' => 'простои-расширенная',
@@ -346,6 +447,7 @@ final class ReportConfig
                 'apply_button_id' => 'btnDowntimeApply',
                 'total_column_dimensions' => ['m_wagon_type_code'],
             ],
+            // Контроль простоев
             'downtime-control' => [
                 'detail_file' => 'контроль-простоев',
                 'detail_table_id' => 'downtimeControlTable',
@@ -356,6 +458,7 @@ final class ReportConfig
                 'apply_button_id' => 'btnDowntimeControlApply',
                 'reset_button_id' => 'btnDowntimeControlReset',
             ],
+            // Техническое состояние
             'technical-state' => [
                 'detail_file' => 'техническое-состояние',
                 'detail_table_id' => 'technicalDetTable',
@@ -367,6 +470,7 @@ final class ReportConfig
                 'reset_button_id' => 'btnTechnicalReset',
                 'page_behavior' => 'technical_state',
             ],
+            // Претензии
             'claims' => [
                 'detail_file' => 'претензии-подробная',
                 'metrics_id' => 'claimsMetrics',
@@ -388,6 +492,7 @@ final class ReportConfig
                     ['key' => 'amount', 'label' => 'Сумма, ₽'],
                 ],
             ],
+            // Сырьё
             'raw-material' => [
                 'summary_file' => 'сырьё',
                 'detail_file' => 'сырьё-расширенная',
@@ -403,6 +508,7 @@ final class ReportConfig
                 'apply_button_id' => 'btnRawApply',
                 'reset_button_id' => 'btnRawReset',
             ],
+            // Анализ за период
             'analysis-period' => [
                 'detail_file' => 'анализ-за-период',
                 'detail_table_id' => 'analysisPeriodDetTable',
@@ -467,10 +573,11 @@ final class ReportConfig
         ];
     }
 
-    private static function mailingReport(string $name): array
+    private static function mailingReport(string $name, string $excelStyle = 'default'): array
     {
         return [
             'name' => $name,
+            'excel_style' => $excelStyle,
             'contexts' => ['mailing'],
             'mailing_selectable' => true,
             'organization_required' => true,
@@ -520,7 +627,7 @@ final class ReportConfig
     {
         return [['key' => 'main', 'name' => 'Основная информация'], ['key' => 'data-wagon', 'name' => 'Данные о вагоне'], ['key' => 'disl-wagon', 'name' => 'Дислокация вагона'], ['key' => 'techn-state-wagon', 'name' => 'Техн. состояние']];
     }
-
+    // Настройки детальной таблицы, передаваемые в клиентскую часть.
     private static function detailSettings(): array
     {
         $standardColumns = self::uniqueColumns(array_merge(self::baseColumns(), self::lesseeColumns()));
@@ -566,282 +673,12 @@ final class ReportConfig
         ];
     }
 
-    /**
-     * Поля полной справки в исходном порядке. Подписи дословно взяты из строки
-     * заголовков загружаемого файла РЖД и используются также при импорте.
-     */
+    /** Поля полной справки в исходном порядке;  */
     public static function sourceColumns(): array
     {
-        $fields = [
-            'wagon_no',
-            'waybill_no',
-            'wagon_type_code',
-            'owner_admin',
-            'trip_start_dt',
-            'depart_state',
-            'depart_road',
-            'depart_station',
-            'trip_end_dt',
-            'dest_state',
-            'dest_road',
-            'dest_station',
-            'consignor_tgnl',
-            'consignor',
-            'consignor_okpo',
-            'consignor_name',
-            'consignee_tgnl',
-            'consignee',
-            'consignee_okpo',
-            'consignee_name',
-            'cargo_name',
-            'cargo_gng',
-            'cargo_weight_kg',
-            'mileage_loaded_km',
-            'mileage_empty_km',
-            'mileage_total_km',
-            'mileage_norm_km',
-            'mileage_remain_km',
-            'mileage_sign',
-            'special_marks',
-            'prev_cargo',
-            'oper_station',
-            'oper_road',
-            'operation',
-            'oper_mnemonic',
-            'oper_dt',
-            'park_type',
-            'handover_road',
-            'receive_road',
-            'train_index',
-            'train_no',
-            'wagon_in_train',
-            'park_no',
-            'track_no',
-            'seals_count',
-            'loaded_containers',
-            'empty_containers',
-            'container_nos',
-            'norm_delivery_dt',
-            'dist_passed_km',
-            'dist_remain_km',
-            'dist_total_km',
-            'idle_time_hhmmss',
-            'idle_time_days',
-            'extra_waybill_no',
-            'extra_send_id',
-            'asoup_depart_dt',
-            'asoup_arrive_dt',
-            'send_id',
-            'waybill_id',
-            'wagon_no2',
-            'quality_sign',
-            'state_assign_dt',
-            'wagon_state',
-            'state_reason',
-            'state_station',
-            'reg_date',
-            'build_date',
-            'next_repair_dt',
-            'next_repair_type',
-            'factory_no',
-            'manufacturer',
-            'wagon_type_name',
-            'wagon_model',
-            'tare_weight',
-            'load_capacity',
-            'length_mm',
-            'last_cap_repair_depot',
-            'last_cap_repair_dt',
-            'last_dep_repair_depot',
-            'last_dep_repair_dt',
-            'home_road',
-            'home_depot',
-            'exclude_date',
-            'no_transit_reason',
-            'prev_wagon_no',
-            'owner',
-            'owner_okpo',
-            'owner_local_code',
-            'home_station',
-            'threshold_sign',
-            'lease_sign',
-            'life_ext_date',
-            'lessee',
-            'lessee_okpo',
-            'lessee_local_code',
-            'lease_home_station',
-            'lease_end_date',
-            'service_life',
-            'body_material_code',
-            'body_material_name',
-            'body_volume',
-            'clearance',
-            'air_dist_type',
-            'automode',
-            'auto_lever',
-            'brake_type',
-            'coupler_type',
-            'bogie_model',
-            'shock_absorber',
-            'life_ext_sign',
-            'boiler_caliber',
-            'drain_device',
-            'lever_gear',
-            'wagon_model_code',
-            'repair_by_mileage',
-            'proxy_operator',
-            'proxy_operator_okpo',
-            'wagon_type_code2',
-            'wagon_type_cond',
-            'axles_count',
-            'exclude_depot',
-            'exclude_reason',
-            'days_to_repair',
-            'days_no_oper',
-            'days_no_move',
-        ];
-
-        $labels = [
-            'Номер вагона',
-            'Номер накладной',
-            'Род вагона',
-            'Администрация собственника',
-            'Дата и время начала рейса',
-            'Государство отправления',
-            'Дорога отправления',
-            'Станция отправления',
-            'Дата и время окончания рейса',
-            'Государство назначения',
-            'Дорога назначения',
-            'Станция назначения',
-            'Грузоотправитель (ТГНЛ)',
-            'Грузоотправитель',
-            'Грузоотправитель (ОКПО)',
-            'Грузоотправитель (наим)',
-            'Грузополучатель (ТГНЛ)',
-            'Грузополучатель',
-            'Грузополучатель (ОКПО)',
-            'Грузополучатель (наим)',
-            'Наименование груза',
-            'Код груза ГНГ',
-            'Вес груза (кг)',
-            'Пробег в груженом состоянии (км)',
-            'Пробег в порожнем состоянии (км)',
-            'Пробег общий (км)',
-            'Норматив величины пробега (км)',
-            'Остаток пробега (км)',
-            'Признак пробега',
-            'Особые отметки',
-            'Ранее выгруженный груз',
-            'Станция операции',
-            'Дорога операции',
-            'Операция',
-            'Мнемокод операции',
-            'Дата и время операции',
-            'Тип парка',
-            'Дорога сдачи',
-            'Дорога приема',
-            'Индекс поезда',
-            'Номер поезда',
-            'Номер вагона в составе поезда',
-            'Номер парка',
-            'Номер пути',
-            'Количество пломб',
-            'Количество груженых контейнеров',
-            'Количество порожних контейнеров',
-            'Номера контейнеров на вагоне',
-            'Нормативный срок доставки',
-            'Расстояние пройденное (км)',
-            'Расстояние оставшееся (км)',
-            'Расстояние общее (км)',
-            'Время простоя под последней операцией (сутки:часы:минуты)',
-            'Время простоя под последней операцией (сутки)',
-            'Номер накладной по досылке',
-            'Уникальный номер отправки по досылке',
-            'Дата и время отправления (АСОУП) со станции приема груза к перевозке',
-            'Дата и время прибытия (АСОУП) на станцию назначения',
-            'Идентификатор отправки',
-            'Идентификатор накладной',
-            'Номер вагона',
-            'Признак качества',
-            'Дата и время назначения состояния',
-            'Состояние вагона',
-            'Причина назначения состояния',
-            'Станция назначения состояния',
-            'Дата регистрации',
-            'Дата постройки',
-            'Дата следующего планового ремонта',
-            'Вид следующего планового ремонта',
-            'Заводской номер',
-            'Завод-изготовитель',
-            'Тип вагона',
-            'Модель вагона',
-            'Тара вагона',
-            'Грузоподъемность вагона',
-            'Длина по осям автосцепки',
-            'Депо последнего кап. ремонта',
-            'Дата последнего кап. ремонта',
-            'Депо последнего деп. ремонта',
-            'Дата последнего деп. ремонта',
-            'Дорога приписки',
-            'Депо приписки',
-            'Дата исключения',
-            'Причина запрета на курсирование',
-            'Номер вагона до перенумерации',
-            'Собственник',
-            'Собственник (ОКПО)',
-            'Собственник (локальный код)',
-            'Станция приписки',
-            'Признак порога',
-            'Признак аренды',
-            'Утв. дата продления срока службы',
-            'Арендатор',
-            'Арендатор (ОКПО)',
-            'Арендатор (локальный код)',
-            'Станция приписки аренды',
-            'Дата окончания аренды',
-            'Срок службы вагона',
-            'Материал кузова (код)',
-            'Наименование материала кузова',
-            'Объём кузова',
-            'Габарит',
-            'Тип воздухораспределителя (код)',
-            'Авторежим',
-            'Авторегулятор рычажной передачи',
-            'Тип тормоза',
-            'Тип автосцепки',
-            'Модель тележки',
-            'Тип поглощающего аппарата',
-            'Признак продления срока службы вагона',
-            'Калибр котла',
-            'Наличие сливного прибора',
-            'Рычажная передача',
-            'Код модели вагона',
-            'Признак ремонта по пробегу',
-            'Оператор по доверенности',
-            'Оператор по доверенности (ОКПО)',
-            'Род вагона',
-            'Условный тип вагона',
-            'Количество осей вагона',
-            'Депо исключения вагона',
-            'Причина исключения вагона',
-            'Дней до следующего ремонта',
-            'Дней без операций',
-            'Дней без движения',
-        ];
-
-        return array_map(
-            static fn(string $field, string $label): array => [
-                'key' => $field,
-                'label' => $label,
-                'w' => 180,
-                'showInline' => true,
-            ],
-            $fields,
-            $labels
-        );
+        return require __DIR__ . '/source-columns.php';
     }
-
+    //
     private static function baseColumns(): array
     {
         return [
@@ -916,7 +753,7 @@ final class ReportConfig
             ['key' => 'lease_home_station', 'label' => 'Станция приписки арендатора', 'danger' => true, 'w' => 105, 'tab' => 'main', 'showInline' => true],
         ];
     }
-
+    // Дополнительные колонки для отчёта "Подход вагонов"
     private static function approachExtraColumns(): array
     {
         return [
@@ -998,7 +835,7 @@ final class ReportConfig
             ['key' => 'created_name', 'label' => 'Создал', 'meta' => true],
         ];
     }
-
+    // Колонки для отчёта "Претензии"
     private static function claimsColumns(): array
     {
         return [

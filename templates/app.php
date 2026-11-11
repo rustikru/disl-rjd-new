@@ -15,6 +15,7 @@ foreach ($_SESSION['organizations'] ?? [] as $organization) {
   }
 }
 $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
+$reportElementId = static fn(string $report,string $key,string $fallback): string => htmlspecialchars((string)($reportDefinitions[$report]['page'][$key]??$fallback));
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -24,24 +25,24 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= htmlspecialchars($appName) ?> — Дислокация</title>
   <link rel="icon" type="image/x-icon" href="<?= htmlspecialchars($basePath) ?>/assets/img/favicon.ico">
-  <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
+  <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css?v=<?= (int) @filemtime(__DIR__ . '/../public/assets/css/app.css') ?>">
   <script>
     window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
-    window.APP_IS_ADMIN = <?= !empty($user['is_admin']) ? 'true' : 'false' ?>;
+    window.APP_CSRF = '<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES) ?>';
     window.APP_ALLOWED_PAGES = <?= json_encode($allowedPages ?? [], JSON_UNESCAPED_UNICODE) ?>;
     window.APP_DISABLED_PAGES = <?= json_encode($disabledPages ?? [], JSON_UNESCAPED_UNICODE) ?>;
     window.APP_NAV_CONFIG = <?= json_encode($navConfig ?? [], JSON_UNESCAPED_UNICODE) ?>;
     window.APP_ORGANIZATION_CODE = <?= json_encode($activeOrganizationCode, JSON_UNESCAPED_UNICODE) ?>;
     window.APP_REPORT_DEFINITIONS = <?= json_encode($reportDefinitions ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.APP_KPI_TYPES = <?= json_encode($kpiTypes ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+    window.APP_USER_KPI_MANAGEMENT_ENABLED = <?= !empty($userKpiManagementEnabled) ? 'true' : 'false' ?>;
     window.DISLOCATION_STALE_HOURS = <?= (int) ($dislocationStaleHours ?? 8) ?>;
-    window.APP_TIMEZONE_OFFSET_SECONDS = <?= (new DateTimeImmutable('now'))->getOffset() ?>;
   </script>
 </head>
 
 <body>
 
   <?php
-  $headerName = $activeOrganizationName !== '' ? $activeOrganizationName : $appName;
   $headerSub = '<div id="brandDateSub" class="brand-date-sub"></div>';
   $headerRight = '';
   include __DIR__ . '/partials/header.php';
@@ -66,8 +67,8 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-actions" style="flex-basis:100%">
-              <button class="btn btn-primary btn-sm" id="btnDislocationApply">Применить</button>
-              <button class="btn btn-ghost btn-sm" id="btnDislocationReset">Сбросить</button>
+              <button class="btn btn-primary btn-sm" id="<?= $reportElementId('dislocation','apply_button_id','btnDislocationApply') ?>">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="<?= $reportElementId('dislocation','reset_button_id','btnDislocationReset') ?>">Сбросить</button>
             </div>
           </div>
         </div>
@@ -87,7 +88,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
               </div>
             </div>
             <div class="table-scroll">
-              <table class="data-table" id="mainTable"></table>
+              <table class="data-table" id="<?= $reportElementId('dislocation','summary_table_id','mainTable') ?>"></table>
             </div>
           </section>
         </div>
@@ -99,15 +100,17 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
                   id="dislDetSub"></span></div>
               <div class="table-acts"></div>
             </div>
-            <div id="dislExtTable"></div>
+            <div id="<?= $reportElementId('dislocation','detail_table_id','dislExtTable') ?>"></div>
           </section>
         </div>
       </div>
 
       <!-- Подход -->
       <div id="panel-approach" class="tab-panel">
-
-        <div class="kpi-grid" id="approachMetrics" style="margin-bottom:16px"></div>
+        <div class="kpi-board-wrap">
+          <?php if (!empty($userKpiManagementEnabled)): ?><div class="kpi-settings-link"><a class="kpi-hidden-open" href="<?= htmlspecialchars($basePath) ?>/kpi/hidden" aria-label="Скрытые KPI" title="Скрытые KPI"><img src="<?= htmlspecialchars($basePath) ?>/assets/img/icon/icon-hide.svg" class="user-menu-item-icon""></a></div><?php endif; ?>
+          <div class="kpi-grid" id="approachMetrics" style="margin-bottom:16px"></div>
+        </div>
 
         <!-- Внутренние вкладки -->
         <div class="inner-tabs">
@@ -119,8 +122,8 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-actions" style="flex-basis:100%">
-              <button class="btn btn-primary btn-sm" id="btnApproachApply">Применить</button>
-              <button class="btn btn-ghost btn-sm" id="btnApproachReset">Сбросить</button>
+              <button class="btn btn-primary btn-sm" id="<?= $reportElementId('approach','apply_button_id','btnApproachApply') ?>">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="<?= $reportElementId('approach','reset_button_id','btnApproachReset') ?>">Сбросить</button>
             </div>
           </div>
         </div>
@@ -138,7 +141,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
               </div>
             </div>
             <div class="table-scroll">
-              <table class="data-table" id="approachSumTable"></table>
+              <table class="data-table" id="<?= $reportElementId('approach','summary_table_id','approachSumTable') ?>"></table>
             </div>
           </section>
         </div>
@@ -152,7 +155,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
               </div>
               <div class="table-acts"></div>
             </div>
-            <div id="approachDetTable"></div>
+            <div id="<?= $reportElementId('approach','detail_table_id','approachDetTable') ?>"></div>
           </section>
         </div>
 
@@ -160,7 +163,10 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
 
       <!-- Отправление вагонов -->
       <div id="panel-departure" class="tab-panel">
-        <div class="kpi-grid" id="departureMetrics" style="margin-bottom:16px"></div>
+        <div class="kpi-board-wrap">
+          <?php if (!empty($userKpiManagementEnabled)): ?><div class="kpi-settings-link"><a class="kpi-hidden-open" href="<?= htmlspecialchars($basePath) ?>/kpi/hidden" aria-label="Скрытые KPI" title="Скрытые KPI"><img src="<?= htmlspecialchars($basePath) ?>/assets/img/icon/icon-hide.svg" class="user-menu-item-icon""></a></div><?php endif; ?>
+          <div class="kpi-grid" id="departureMetrics" style="margin-bottom:16px"></div>
+        </div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="departure-summary">Сводная</button>
           <button class="inner-tab" data-inner="departure-detail">Подробная</button>
@@ -168,8 +174,8 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-actions" style="flex-basis:100%">
-              <button class="btn btn-primary btn-sm" id="btnDepartureApply">Применить</button>
-              <button class="btn btn-ghost btn-sm" id="btnDepartureReset">Сбросить</button>
+              <button class="btn btn-primary btn-sm" id="<?= $reportElementId('departure','apply_button_id','btnDepartureApply') ?>">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="<?= $reportElementId('departure','reset_button_id','btnDepartureReset') ?>">Сбросить</button>
             </div>
           </div>
         </div>
@@ -186,7 +192,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
               </div>
             </div>
             <div class="table-scroll">
-              <table class="data-table" id="departureSumTable"></table>
+              <table class="data-table" id="<?= $reportElementId('departure','summary_table_id','departureSumTable') ?>"></table>
             </div>
           </section>
         </div>
@@ -199,10 +205,21 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
               </div>
               <div class="table-acts"></div>
             </div>
-            <div id="departureDetTable"></div>
+            <div id="<?= $reportElementId('departure','detail_table_id','departureDetTable') ?>"></div>
           </section>
         </div>
       </div>
+
+      <?php if (!empty($userKpiManagementEnabled)): ?><dialog class="kpi-hidden-dialog" id="kpiHiddenDialog" aria-labelledby="kpiHiddenTitle">
+        <div class="kpi-hidden-head"><h2 id="kpiHiddenTitle">Скрытые KPI</h2><button type="button" class="kpi-hidden-close" aria-label="Закрыть">×</button></div>
+        <div class="kpi-hidden-list" id="kpiHiddenList">Загрузка…</div>
+      </dialog>
+
+      <dialog class="kpi-form-dialog" id="kpiFormDialog" aria-label="Создание KPI">
+        <button type="button" class="kpi-form-close" aria-label="Закрыть">×</button>
+        <iframe id="kpiFormFrame" title="Создание KPI"></iframe>
+      </dialog>
+      <?php endif; ?>
 
       <!-- Погрузка -->
       <div id="panel-loading" class="tab-panel">
@@ -214,8 +231,8 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-actions" style="flex-basis:100%">
-              <button class="btn btn-primary btn-sm" id="btnLoadingApply">Применить</button>
-              <button class="btn btn-ghost btn-sm" id="btnLoadingReset">Сбросить</button>
+              <button class="btn btn-primary btn-sm" id="<?= $reportElementId('loading','apply_button_id','btnLoadingApply') ?>">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="<?= $reportElementId('loading','reset_button_id','btnLoadingReset') ?>">Сбросить</button>
             </div>
           </div>
         </div>
@@ -231,7 +248,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
               </div>
             </div>
             <div class="table-scroll">
-              <table class="data-table" id="loadingSumTable"></table>
+              <table class="data-table" id="<?= $reportElementId('loading','summary_table_id','loadingSumTable') ?>"></table>
             </div>
           </section>
         </div>
@@ -244,7 +261,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
               </div>
               <div class="table-acts"></div>
             </div>
-            <div id="loadingDetTable"></div>
+            <div id="<?= $reportElementId('loading','detail_table_id','loadingDetTable') ?>"></div>
           </section>
         </div>
       </div>
@@ -258,7 +275,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-actions" style="flex-basis:100%">
-              <button class="btn btn-primary btn-sm" id="btnDowntimeApply">Применить</button>
+              <button class="btn btn-primary btn-sm" id="<?= $reportElementId('downtime','apply_button_id','btnDowntimeApply') ?>">Применить</button>
             </div>
           </div>
         </div>
@@ -274,7 +291,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
               </div>
             </div>
             <div class="table-scroll">
-              <table class="data-table" id="downtimeSumTable"></table>
+              <table class="data-table" id="<?= $reportElementId('downtime','summary_table_id','downtimeSumTable') ?>"></table>
             </div>
           </section>
         </div>
@@ -287,7 +304,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
               </div>
               <div class="table-acts"></div>
             </div>
-            <div id="downtimeDetTable"></div>
+            <div id="<?= $reportElementId('downtime','detail_table_id','downtimeDetTable') ?>"></div>
           </section>
         </div>
       </div>
@@ -296,8 +313,8 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-actions" style="flex-basis:100%">
-              <button class="btn btn-primary btn-sm" id="btnTechnicalApply">Применить</button>
-              <button class="btn btn-ghost btn-sm" id="btnTechnicalReset">Сбросить</button>
+              <button class="btn btn-primary btn-sm" id="<?= $reportElementId('technical-state','apply_button_id','btnTechnicalApply') ?>">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="<?= $reportElementId('technical-state','reset_button_id','btnTechnicalReset') ?>">Сбросить</button>
             </div>
           </div>
         </div>
@@ -307,7 +324,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
                 id="technicalDetSub"></span></div>
             <div class="table-acts"></div>
           </div>
-          <div id="technicalDetTable"></div>
+          <div id="<?= $reportElementId('technical-state','detail_table_id','technicalDetTable') ?>"></div>
         </section>
       </div>
 
@@ -320,8 +337,8 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-actions" style="flex-basis:100%">
-              <button class="btn btn-primary btn-sm" id="btnClaimsApply">Применить</button>
-              <button class="btn btn-ghost btn-sm" id="btnClaimsReset">Сбросить</button>
+              <button class="btn btn-primary btn-sm" id="<?= $reportElementId('claims','apply_button_id','btnClaimsApply') ?>">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="<?= $reportElementId('claims','reset_button_id','btnClaimsReset') ?>">Сбросить</button>
             </div>
           </div>
         </div>
@@ -337,7 +354,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
                   Excel</button></div>
             </div>
             <div class="table-scroll">
-              <table class="data-table" id="claimsSumTable"></table>
+              <table class="data-table" id="<?= $reportElementId('claims','summary_table_id','claimsSumTable') ?>"></table>
             </div>
           </section>
         </div>
@@ -348,7 +365,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
                   id="claimsDetSub"></span></div>
               <div class="table-acts"></div>
             </div>
-            <div id="claimsDetTable"></div>
+            <div id="<?= $reportElementId('claims','detail_table_id','claimsDetTable') ?>"></div>
           </section>
         </div>
       </div>
@@ -362,8 +379,8 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-actions" style="flex-basis:100%">
-              <button class="btn btn-primary btn-sm" id="btnRawApply">Применить</button>
-              <button class="btn btn-ghost btn-sm" id="btnRawReset">Сбросить</button>
+              <button class="btn btn-primary btn-sm" id="<?= $reportElementId('raw-material','apply_button_id','btnRawApply') ?>">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="<?= $reportElementId('raw-material','reset_button_id','btnRawReset') ?>">Сбросить</button>
             </div>
           </div>
         </div>
@@ -379,7 +396,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
               </div>
             </div>
             <div class="table-scroll">
-              <table class="data-table" id="rawSumTable"></table>
+              <table class="data-table" id="<?= $reportElementId('raw-material','summary_table_id','rawSumTable') ?>"></table>
             </div>
           </section>
         </div>
@@ -392,7 +409,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
               </div>
               <div class="table-acts"></div>
             </div>
-            <div id="rawDetTable"></div>
+            <div id="<?= $reportElementId('raw-material','detail_table_id','rawDetTable') ?>"></div>
           </section>
         </div>
       </div>
@@ -402,8 +419,8 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         <div class="filters-bar">
           <div class="filters-inner" style="flex-wrap:wrap;gap:8px 16px">
             <div class="filter-actions" style="flex-basis:100%">
-              <button class="btn btn-primary btn-sm" id="btnAnalysisPeriodApply">Применить</button>
-              <button class="btn btn-ghost btn-sm" id="btnAnalysisPeriodReset">Сбросить</button>
+              <button class="btn btn-primary btn-sm" id="<?= $reportElementId('analysis-period','apply_button_id','btnAnalysisPeriodApply') ?>">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="<?= $reportElementId('analysis-period','reset_button_id','btnAnalysisPeriodReset') ?>">Сбросить</button>
             </div>
           </div>
         </div>
@@ -416,7 +433,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
               </div>
               <div class="table-acts"></div>
             </div>
-            <div id="analysisPeriodDetTable"></div>
+            <div id="<?= $reportElementId('analysis-period','detail_table_id','analysisPeriodDetTable') ?>"></div>
           </section>
         </div>
       </div>
@@ -426,8 +443,8 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
         <div class="filters-bar">
           <div class="filters-inner">
             <div class="filter-actions" style="flex-basis:100%">
-              <button class="btn btn-primary btn-sm" id="btnDowntimeControlApply">Применить</button>
-              <button class="btn btn-ghost btn-sm" id="btnDowntimeControlReset">Сбросить</button>
+              <button class="btn btn-primary btn-sm" id="<?= $reportElementId('downtime-control','apply_button_id','btnDowntimeControlApply') ?>">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="<?= $reportElementId('downtime-control','reset_button_id','btnDowntimeControlReset') ?>">Сбросить</button>
             </div>
           </div>
         </div>
@@ -439,7 +456,7 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
             </div>
             <div class="table-acts"></div>
           </div>
-          <div id="downtimeControlTable"></div>
+          <div id="<?= $reportElementId('downtime-control','detail_table_id','downtimeControlTable') ?>"></div>
         </section>
       </div>
     </main>
@@ -450,8 +467,10 @@ $isMtf = strtoupper($activeOrganizationCode) === 'MTF';
     src="<?= htmlspecialchars($basePath) ?>/assets/js/detail-contexts.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/detail-contexts.js') ?>"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/csv-export.js"></script>
   <script src="<?= htmlspecialchars($basePath) ?>/assets/js/excel-export.js"></script>
+  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/sortable.min.js"></script>
   <script
     src="<?= htmlspecialchars($basePath) ?>/assets/js/app.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/app.js') ?>"></script>
+  <script src="<?= htmlspecialchars($basePath) ?>/assets/js/user-kpi.js?v=<?= filemtime(__DIR__ . '/../public/assets/js/user-kpi.js') ?>"></script>
 </body>
 
 </html>

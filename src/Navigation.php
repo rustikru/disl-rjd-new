@@ -1,80 +1,14 @@
 <?php
 declare(strict_types=1);
-//
-$reportGroups = [
-    'movement' => ['name' => 'Движение вагонов', 'order' => 10],
-    'analytics' => ['name' => 'Аналитика', 'order' => 20],
-    'downtime' => ['name' => 'Простои и оборот', 'order' => 30],
-    'registry' => ['name' => 'Реестр', 'order' => 40],
-];
-// Формируем навигацию по группам отчётов
-$navigationGroups = [];
-foreach ($reportGroups as $groupCode => $groupDefinition) {
-    $navigationGroups[$groupCode] = [
-        'group' => $groupDefinition['name'],
-        'order' => $groupDefinition['order'],
-        'items' => [],
-    ];
+use App\Services\PageRegistry;
+$groups=[];
+foreach(PageRegistry::groups() as $code=>$definition) $groups[$code]=['group'=>$definition['label'],'order'=>$definition['order'],'items'=>[]];
+foreach(PageRegistry::all() as $code=>$page){
+    $nav=$page['navigation']??null; if(!$nav || !isset($groups[$nav['group']??''])) continue;
+    $item=['id'=>$code,'label'=>$nav['label']??$page['label'],'page'=>$code,'order'=>(int)($nav['order']??0)];
+    foreach(['url','target'] as $key) if(isset($nav[$key])) $item[$key]=$nav[$key];
+    $groups[$nav['group']]['items'][]=$item;
 }
-// Формируем навигацию по отчётам
-foreach (\App\Reports\ReportConfig::all() as $reportCode => $reportDefinition) {
-    $navigation = $reportDefinition['navigation'] ?? null;
-    $groupCode = $navigation['group'] ?? '';
-    if (!isset($navigationGroups[$groupCode])) {
-        continue;
-    }
-    $navigationGroups[$groupCode]['items'][] = [
-        'id' => $reportCode,
-        'label' => $reportDefinition['name'],
-        'page' => 'dashboard',
-        'order' => (int) ($navigation['order'] ?? 0),
-    ];
-}
-// Сортируем группы и элементы навигации по порядку
-foreach ($navigationGroups as &$navigationGroup) {
-    usort(
-        $navigationGroup['items'],
-        static fn(array $leftItem, array $rightItem): int => $leftItem['order'] <=> $rightItem['order']
-    );
-    foreach ($navigationGroup['items'] as &$navigationItem) {
-        unset($navigationItem['order']);
-    }
-    unset($navigationItem);
-}
-unset($navigationGroup);
-
-// Обычные страницы не являются отчётами и остаются здесь.
-$navigationGroups['analytics']['items'][] = [
-    'id' => 'maps',
-    'label' => 'Карта',
-    'page' => 'maps',
-    'url' => '/maps',
-    'target' => '_blank',
-];
-
-$navigation = array_values($navigationGroups);
-usort(
-    $navigation,
-    static fn(array $leftGroup, array $rightGroup): int => $leftGroup['order'] <=> $rightGroup['order']
-);
-foreach ($navigation as &$navigationGroup) {
-    unset($navigationGroup['order']);
-}
-unset($navigationGroup);
-// Добавляем дополнительные страницы, которые не относятся к отчётам
-$navigation = array_merge($navigation, [
-    [
-        'group' => '',
-        'items' => [
-            ['id' => 'directories', 'label' => 'Справочники', 'page' => 'directories', 'url' => '/directories/'],
-        ],
-    ],
-    [
-        'group' => 'Импорт',
-        'items' => [
-            ['id' => 'import', 'label' => 'Загрузка справки РЖД', 'page' => 'import', 'url' => '/import'],
-        ],
-    ],
-]);
-
+foreach($groups as &$group){usort($group['items'],static fn($a,$b)=>$a['order']<=>$b['order']);foreach($group['items'] as &$item)unset($item['order']);unset($item);}unset($group);
+$navigation=array_values(array_filter($groups,static fn($group)=>$group['items']!==[]));usort($navigation,static fn($a,$b)=>$a['order']<=>$b['order']);foreach($navigation as &$group)unset($group['order']);unset($group);
 return $navigation;

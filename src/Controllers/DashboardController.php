@@ -5,6 +5,8 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Reports\ReportConfig;
+use App\Reports\WagonConfig;
+use App\Reports\KpiTypeRegistry;
 use App\Services\PageAvailability;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -17,27 +19,36 @@ class DashboardController
     public function __construct(array $config, ?DbInterface $db = null)
     {
         $this->config = $config;
-        $this->db     = $db;
+        $this->db = $db;
     }
 
     /** GET / */
     public function index(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $appName  = $this->config['app_name'];
+        $appName = $this->config['app_name'];
         $basePath = $this->config['base_path'] ?? '';
-        $user     = $_SESSION['user'];
+        $user = $_SESSION['user'];
 
         $allowedPages = $this->resolveAllowedPages($user);
-        $navConfig    = require __DIR__ . '/../Navigation.php';
+        $navConfig = require __DIR__ . '/../Navigation.php';
         $reportDefinitions = ReportConfig::forContext('page');
+        $kpiTypes = KpiTypeRegistry::clientConfig();
+        $userKpiManagementEnabled = (bool) $this->config['user_kpi_management_enabled'];
+        $disabledPages = (array) (\App\Services\ConfigSchema::current()['disabled_pages'] ?? []);
         $pageAvailability = new PageAvailability(
-            (array) ($this->config['disabled_pages'] ?? []),
+            $disabledPages,
             (string) ($this->config['base_path'] ?? '')
         );
-        $disabledPages = (array) ($this->config['disabled_pages'] ?? []);
-        $dislocationStaleHours = max(1, (int) ($this->config['dislocation_stale_hours'] ?? 8));
-        $navConfig = $pageAvailability->filterNavigation($navConfig);
-        $reportDefinitions = $pageAvailability->filterReports($reportDefinitions);
+        $dislocationStaleHours = (int) $this->config['dislocation_stale_hours'];
+        $navConfig = \App\Services\PageRegistry::filterNavigation(
+            $navConfig,
+            $allowedPages,
+            $user,
+            $pageAvailability
+        );
+        if (!\App\Services\Authorization::isSuper($user)) {
+            $reportDefinitions = $pageAvailability->filterReports($reportDefinitions);
+        }
 
         ob_start();
         require __DIR__ . '/../../templates/app.php';
@@ -53,6 +64,7 @@ class DashboardController
         $appName = $this->config['app_name'] ?? 'Дислокация';
         $user = $_SESSION['user'] ?? [];
         $number = trim((string) ($request->getQueryParams()['wagon_no'] ?? ''));
+        $wagonConfig = WagonConfig::all();
         ob_start();
         include __DIR__ . '/../../templates/wagon.php';
         $response->getBody()->write((string) ob_get_clean());
@@ -61,14 +73,14 @@ class DashboardController
 
     /**
      * Возвращает список страниц, доступных текущему пользователю.
-     * Администратор и режим первичной настройки — все страницы.
+     * SUPER получает весь каталог, остальные пользователи — права своих ролей.
+     * При первичной настройке сохраняется прежний открытый режим.
      */
     private function resolveAllowedPages(array $user): array
     {
-        $allPages = array_keys(AdminController::PAGES);
+        $allPages = array_keys(\App\Services\PageRegistry::labels());
 
-        // Администратор видит всё
-        if ($user['is_admin'] ?? false) {
+        if (\App\Services\Authorization::isSuper($user)) {
             return $allPages;
         }
 
@@ -98,9 +110,8 @@ class DashboardController
                 }
             }
 
-            return \App\Services\DirectoryAccess::expandPages($pages);
+            return \App\Services\PageRegistry::forUser($pages, $user);
         } catch (\Throwable $e) {
-            // Инфраструктура ролей ещё не развёрнута
             return $allPages;
         }
     }

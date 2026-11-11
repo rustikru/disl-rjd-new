@@ -48,9 +48,6 @@ function saveCSVfromVT(tableId, filename) {
   saveCSVFromData(vt.cols, vt.filtered, filename)
 }
 
-// Экспорт данных виртуальной таблицы в Excel
-function saveExcelFromVT(tableId, filename, tableType) {
-  // Проверяем, существует ли глобальный объект с данными виртуальных таблиц
 function saveCSV(tableId, filename) {
   var table = document.getElementById(tableId)
   if (!table) return

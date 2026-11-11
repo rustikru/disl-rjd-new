@@ -45,6 +45,9 @@ class OracleDb implements DbInterface
         $stmt = oci_parse($this->connection, $sql);
         if (!$stmt) {
             $err = oci_error($this->connection);
+            if ($t0 > 0.0) {
+                QueryLogger::log('Oracle', 'fetchAll', $sql, $params, (microtime(true) - $t0) * 1000, $err);
+            }
             throw $this->oracleException('Oracle oci_parse', $err);
         }
         $binds = $params;
@@ -63,6 +66,9 @@ class OracleDb implements DbInterface
         $ok = @oci_execute($stmt, OCI_DEFAULT);
         if (!$ok) {
             $err = oci_error($stmt);
+            if ($t0 > 0.0) {
+                QueryLogger::log('Oracle', 'fetchAll', $sql, $params, (microtime(true) - $t0) * 1000, $err);
+            }
             oci_free_statement($stmt);
             throw $this->oracleException('Oracle fetchAll', $err);
         }
@@ -89,12 +95,38 @@ class OracleDb implements DbInterface
         return $rows[0] ?? null;
     }
 
+    public function page(string $sql, array $params, int $offset, int $limit): array
+    {
+        $offset = max(0, $offset);
+        $limit = max(1, $limit);
+        $params['page_end'] = $offset + $limit;
+        $params['page_offset'] = $offset;
+        $rows = $this->fetchAll(
+            "SELECT *
+               FROM (
+                    SELECT page_data.*, ROWNUM AS page_row
+                      FROM ($sql) page_data
+                     WHERE ROWNUM <= :page_end
+               )
+              WHERE page_row > :page_offset",
+            $params
+        );
+        foreach ($rows as &$row) {
+            unset($row['page_row']);
+        }
+        unset($row);
+        return $rows;
+    }
+
     public function execute(string $sql, array $params = []): int
     {
         $t0   = QueryLogger::isEnabled() ? microtime(true) : 0.0;
         $stmt = oci_parse($this->connection, $sql);
         if (!$stmt) {
             $err = oci_error($this->connection);
+            if ($t0 > 0.0) {
+                QueryLogger::log('Oracle', 'execute', $sql, $params, (microtime(true) - $t0) * 1000, $err);
+            }
             throw $this->oracleException('Oracle oci_parse', $err);
         }
         $binds = $params;
@@ -114,6 +146,9 @@ class OracleDb implements DbInterface
         $ok = @oci_execute($stmt, $mode);
         if (!$ok) {
             $err = oci_error($stmt);
+            if ($t0 > 0.0) {
+                QueryLogger::log('Oracle', 'execute', $sql, $params, (microtime(true) - $t0) * 1000, $err);
+            }
             oci_free_statement($stmt);
             throw $this->oracleException('Oracle execute', $err);
         }
@@ -142,11 +177,6 @@ class OracleDb implements DbInterface
     {
         oci_rollback($this->connection);
         $this->inTransaction = false;
-    }
-
-    public function limit(int $n): string
-    {
-        return "FETCH FIRST $n ROWS ONLY";
     }
 
     private function oracleException(string $operation, array|false $error): \RuntimeException

@@ -129,13 +129,18 @@ final class Claims
         }
         $where = '1=1';
         $bindings = $source['bindings'];
-        $station = trim((string) ($params['station_code'] ?? ''));
-        if ($station !== '') {
-            if (!preg_match('/^\d{6}$/D', $station)) {
-                throw new \InvalidArgumentException('Выберите станцию');
+        $stations = $this->filterValues($params['station_code'] ?? null);
+        if ($stations !== []) {
+            $placeholders = [];
+            foreach ($stations as $index => $station) {
+                if (!preg_match('/^\d{6}$/D', $station)) {
+                    throw new \InvalidArgumentException('Выберите станцию');
+                }
+                $key = 'claim_station_' . $index;
+                $placeholders[] = ':' . $key;
+                $bindings[$key] = $station;
             }
-            $where .= ' AND station_code = :station_code';
-            $bindings['station_code'] = $station;
+            $where .= ' AND station_code IN (' . implode(', ', $placeholders) . ')';
         }
         if (!$source['from']) {
             return [];
@@ -155,12 +160,13 @@ final class Claims
         $data = $this->db->fetchAll("SELECT * FROM {$source['from']} WHERE $where", $bindings);
         $norms = (new ClaimNorms($this->db, (int) $this->organizations->id()))->list();
         $rows = [];
+        $wagonTypes = $this->filterValues($params['wagon_type'] ?? null);
         foreach ($data as $row) {
             if ($this->organizations->isCurrentOrganizationName((string) ($row['owner'] ?? ''))) {
                 continue;
             }
             $row = $this->calculate($row, $norms);
-            if (($params['wagon_type'] ?? '') !== '' && $row['wagon_type_code'] !== $params['wagon_type']) {
+            if ($wagonTypes !== [] && !in_array((string) $row['wagon_type_code'], $wagonTypes, true)) {
                 continue;
             }
             if ($status === 'payable' && (int) ($row['payable_days'] ?? 0) <= 0) {
@@ -179,7 +185,7 @@ final class Claims
 
     public function calculate(array $row, array $norms): array
     {
-        $report = new \DateTimeImmutable($row['report_dt'], new \DateTimeZone('Europe/Moscow'));
+        $report = new \DateTimeImmutable($row['report_dt']);
         $arrived = $row['trip_end_dt'] ?: ($row['asoup_arrive_dt'] ?? null);
         $norm = null;
         $fields = [
@@ -231,7 +237,7 @@ final class Claims
             return $result;
         }
         try {
-            $arrival = new \DateTimeImmutable($arrived, new \DateTimeZone('Europe/Moscow'));
+            $arrival = new \DateTimeImmutable($arrived);
         } catch (\Exception $error) {
             return $result;
         }
@@ -257,6 +263,25 @@ final class Claims
     private function key(string $value): string
     {
         return str_replace('Ё', 'Е', mb_strtoupper(preg_replace('/\s+/u', ' ', trim($value))));
+    }
+
+    private function filterValues(mixed $value): array
+    {
+        if (is_string($value) && trim($value) !== '') {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : [$value];
+        }
+        if (!is_array($value)) {
+            return [];
+        }
+        $values = array_values(array_unique(array_filter(
+            array_map(static fn($item): string => trim((string) $item), $value),
+            static fn(string $item): bool => $item !== ''
+        )));
+        if (count($values) > 200) {
+            throw new \InvalidArgumentException('Выбрано слишком много значений фильтра');
+        }
+        return $values;
     }
 
     private function source(array $params): array

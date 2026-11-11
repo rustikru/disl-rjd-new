@@ -11,6 +11,9 @@ interface DbInterface
     /** Выполнить SELECT, вернуть первую строку или null. */
     public function fetchOne(string $sql, array $params = []): ?array;
 
+    /** Выполнить SELECT с пагинацией. */
+    public function page(string $sql, array $params, int $offset, int $limit): array;
+
     /** Выполнить INSERT / UPDATE / DELETE, вернуть количество затронутых строк. */
     public function execute(string $sql, array $params = []): int;
 
@@ -23,6 +26,4 @@ interface DbInterface
     /** Откатить транзакцию. */
     public function rollback(): void;
 
-    /** Вернуть Oracle SQL-фрагмент ограничения количества строк. */
-    public function limit(int $n): string;
 }

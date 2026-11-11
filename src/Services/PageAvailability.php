@@ -5,7 +5,7 @@ namespace App\Services;
 
 use Psr\Http\Message\ServerRequestInterface;
 
-/** Временно скрывает и блокирует разделы, перечисленные в конфигурации. */
+/** Скрывает и блокирует глобально отключённые разделы. */
 final class PageAvailability
 {
     private array $disabledPages;
@@ -27,7 +27,18 @@ final class PageAvailability
 
     public function isDisabled(string $page): bool
     {
-        return in_array(strtolower(trim($page)), $this->disabledPages, true);
+        $page = strtolower(trim($page));
+        if (in_array($page, $this->disabledPages, true)) {
+            return true;
+        }
+        if (isset(PageRegistry::all()[$page])) {
+            foreach (PageRegistry::availabilityKeys($page) as $key) {
+                if (in_array(strtolower(trim((string) $key)), $this->disabledPages, true)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** Убирает отключённые отчёты из настроек клиентской части. */
@@ -35,33 +46,9 @@ final class PageAvailability
     {
         return array_filter(
             $reports,
-            fn(array $definition, string $code): bool => !$this->isDisabled($code),
+            fn(array $definition, string $code): bool => !$this->anyDisabled(PageRegistry::availabilityKeys($code)),
             ARRAY_FILTER_USE_BOTH
         );
-    }
-
-    /** Убирает отключённые пункты и опустевшие группы из бокового меню. */
-    public function filterNavigation(array $groups): array
-    {
-        foreach ($groups as &$group) {
-            $group['items'] = array_values(array_filter(
-                (array) ($group['items'] ?? []),
-                function (array $item): bool {
-                    $keys = [
-                        (string) ($item['id'] ?? ''),
-                        (string) ($item['page'] ?? ''),
-                        (string) ($item['url'] ?? ''),
-                    ];
-                    return !$this->anyDisabled($keys);
-                }
-            ));
-        }
-        unset($group);
-
-        return array_values(array_filter(
-            $groups,
-            static fn(array $group): bool => ($group['items'] ?? []) !== []
-        ));
     }
 
     /** Возвращает код отключённой страницы для текущего запроса. */
@@ -87,7 +74,16 @@ final class PageAvailability
             }
         }
 
-        $keys = $this->keysForPath($path, $request->getQueryParams());
+        $query = $request->getQueryParams();
+        if (in_array($path, ['/detail', '/api/dislocation/detail'], true) && array_key_exists('kpi_id', $query)) {
+            $sourcePage = trim((string) ($query['source_page'] ?? ''));
+            if (!PageRegistry::isKpiSourcePage($sourcePage)) {
+                return null;
+            }
+            return $this->isDisabled($sourcePage) ? $sourcePage : null;
+        }
+
+        $keys = PageRegistry::availabilityKeysForPath($path, $query);
         foreach ($keys as $key) {
             if ($this->isDisabled($key)) {
                 return $key;
@@ -95,71 +91,6 @@ final class PageAvailability
         }
 
         return null;
-    }
-
-    private function keysForPath(string $path, array $query): array
-    {
-        if ($path === '/detail') {
-            return [(string) ($query['ctx'] ?? '')];
-        }
-
-        $apiReports = [
-            '/api/downtime-control' => 'downtime-control',
-            '/api/technical-state' => 'technical-state',
-            '/api/raw-material' => 'raw-material',
-            '/api/dislocation' => 'dislocation',
-            '/api/approach' => 'approach',
-            '/api/departure' => 'departure',
-            '/api/loading' => 'loading',
-            '/api/downtime' => 'downtime',
-            '/api/claims' => 'claims',
-            '/api/analysis' => 'analysis-period',
-        ];
-        foreach ($apiReports as $prefix => $reportCode) {
-            if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
-                return [$reportCode, 'dashboard'];
-            }
-        }
-
-        if ($path === '/api/dashboard' || str_starts_with($path, '/api/kpi')) {
-            return ['dashboard'];
-        }
-
-        if (str_starts_with($path, '/profile/report-mailings')) {
-            return ['report-mailings'];
-        }
-        if ($path === '/profile' || str_starts_with($path, '/profile/')) {
-            return ['profile'];
-        }
-        if (str_starts_with($path, '/admin/report-mailings')) {
-            return ['report-mailings', 'admin'];
-        }
-        if (str_starts_with($path, '/admin/users')) {
-            return ['users', 'admin'];
-        }
-        if (str_starts_with($path, '/admin/roles')) {
-            return ['roles', 'admin'];
-        }
-        if (str_starts_with($path, '/admin/audit')) {
-            return ['audit', 'admin'];
-        }
-        if (str_starts_with($path, '/admin/directories/organizations')) {
-            return ['organizations', 'admin'];
-        }
-        if (str_starts_with($path, '/admin')) {
-            return ['admin'];
-        }
-        if (str_starts_with($path, '/directories')) {
-            return ['directories'];
-        }
-        if (str_starts_with($path, '/maps')) {
-            return ['maps'];
-        }
-        if (str_starts_with($path, '/import') || str_starts_with($path, '/api/import')) {
-            return ['import'];
-        }
-
-        return [];
     }
 
     private function anyDisabled(array $keys): bool

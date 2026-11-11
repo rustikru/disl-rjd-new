@@ -1,4 +1,4 @@
-// Колонки и вкладки ищ ReportConfig.php.
+// Колонки и вкладки
 var DETAIL_TABS = []
 var DETAIL_CONTEXTS = {}
 
