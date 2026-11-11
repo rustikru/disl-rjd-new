@@ -232,7 +232,6 @@ $basePath = $basePath ?? '';
         ];
         if (config.profile === 'abandoned') {
           summaryItems.unshift({ label: 'Брошенные поезда', value: summary.trains || 0, filter: '' });
-          summaryItems.push({ label: 'Станций', value: summary.stations || 0, filter: '' });
         }
         var mapHref = detailMapUrl(config);
         var html = '<div class="train-groups-layout user-kpi-groups-layout"><aside class="train-summary-panel">';
@@ -247,7 +246,7 @@ $basePath = $basePath ?? '';
         });
         html += '</div>';
         html += '</aside><section class="train-groups-panel">';
-        html += '<div class="train-section-heading"><strong>' + esc(config.title || 'Группы') + '</strong><span>' + rows.length.toLocaleString('ru-RU') + ' групп</span></div>';
+        html += '<div class="train-section-heading"><strong>' + esc(config.title || 'Группы') + '</strong></div>';
         if (config.profile === 'abandoned') {
           var filterOptions = data.filter_options || {};
           var selectedSource = params.get('abandoned_source') || '';
