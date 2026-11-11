@@ -67,7 +67,17 @@ as
         trend_dir      varchar2 (10),
         trend_period   varchar2 (20),
         order_by       number,
-        is_error       varchar2 (1)
+        is_error       varchar2 (1),
+        is_system      varchar2 (1),
+        owner_id       number,
+        visibility     varchar2 (20),
+        where_config   varchar2 (4000),
+        detail_type    varchar2 (20),
+        detail_profile varchar2 (50),
+        group_title    varchar2 (200),
+        count_label    varchar2 (100),
+        empty_label    varchar2 (200),
+        report_dt      varchar2 (20)
     );
 
     type page_kpi_tab is table of page_kpi_rec;

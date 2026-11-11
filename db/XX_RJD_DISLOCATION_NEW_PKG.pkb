@@ -617,7 +617,142 @@ as
         return;
     end get_kpi_row;
 
-    -- Возвращает системные KPI выбранного раздела одним вызовом из приложения.
+    -- Собирает условие ранее проверенного пользовательского KPI.
+    function get_user_kpi_where (p_kpi_type     in varchar2,
+                                 p_where_config in clob)
+        return varchar2
+    is
+        l_join        varchar2 (3);
+        l_sql         varchar2 (4000);
+        l_part        varchar2 (1200);
+        l_field_type  varchar2 (10);
+        l_value       varchar2 (800);
+        l_count       pls_integer := 0;
+        l_date        date;
+    begin
+        select UPPER (JSON_VALUE (p_where_config, '$.operator'))
+          into l_join
+          from dual;
+        if l_join not in ('AND', 'OR')
+        then
+            raise_application_error (-20001, 'Некорректная конфигурация KPI.');
+        end if;
+
+        for r in (select LOWER (field_name) field_name,
+                         UPPER (condition_operator) condition_operator,
+                         condition_value
+                    from JSON_TABLE (
+                             p_where_config,
+                             '$.conditions[*]'
+                             columns
+                             (
+                                 field_name varchar2 (50) path '$.field',
+                                 condition_operator varchar2 (20) path '$.operator',
+                                 condition_value varchar2 (800) path '$.value'
+                             )))
+        loop
+            l_count := l_count + 1;
+            if l_count > 10
+            then
+                raise_application_error (-20001, 'Слишком много условий KPI.');
+            end if;
+
+            if r.field_name in ('wagon_no', 'depart_station', 'dest_station',
+                                'oper_station', 'cargo_name', 'wagon_type_code',
+                                'wagon_state', 'train_index', 'train_no')
+            then
+                l_field_type := 'string';
+            elsif r.field_name = 'cargo_weight_kg'
+            then
+                l_field_type := 'number';
+            elsif r.field_name = 'oper_dt'
+                  or (r.field_name = 'norm_delivery_dt'
+                      and TRIM (p_kpi_type) = 'approach_kpi')
+            then
+                l_field_type := 'date';
+            else
+                raise_application_error (-20001, 'Выбрано недоступное поле KPI.');
+            end if;
+
+            if TRIM (p_kpi_type) not in ('approach_kpi', 'departue_kpi')
+            then
+                raise_application_error (-20001, 'Для раздела нельзя создавать KPI.');
+            end if;
+
+            l_value := r.condition_value;
+            if l_value is null
+            then
+                raise_application_error (-20001, 'Не задано значение условия KPI.');
+            end if;
+
+            if l_field_type = 'string'
+            then
+                if r.condition_operator not in ('=', '!=', 'LIKE', 'NOT LIKE')
+                then
+                    raise_application_error (-20001, 'Недопустимый оператор KPI.');
+                end if;
+                if r.condition_operator in ('LIKE', 'NOT LIKE')
+                then
+                    l_value := '%' || REPLACE (l_value, '\', '\\') || '%';
+                    l_part := 'UPPER(' || UPPER (r.field_name) || ') '
+                              || r.condition_operator || ' UPPER('
+                              || DBMS_ASSERT.ENQUOTE_LITERAL (l_value)
+                              || ') ESCAPE ''\''';
+                else
+                    l_part := UPPER (r.field_name) || ' ' || r.condition_operator
+                              || ' ' || DBMS_ASSERT.ENQUOTE_LITERAL (l_value);
+                end if;
+            elsif l_field_type = 'number'
+            then
+                if r.condition_operator not in ('=', '!=', '>', '<', '>=', '<=')
+                   or not REGEXP_LIKE (l_value, '^[+-]?([0-9]+([.,][0-9]*)?|[.,][0-9]+)$')
+                then
+                    raise_application_error (-20001, 'Некорректное числовое условие KPI.');
+                end if;
+                l_part := UPPER (r.field_name) || ' ' || r.condition_operator
+                          || ' ' || REPLACE (l_value, ',', '.');
+            else
+                if r.condition_operator not in ('=', '!=', '>', '<', '>=', '<=')
+                   or not REGEXP_LIKE (l_value, '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+                then
+                    raise_application_error (-20001, 'Некорректное условие даты KPI.');
+                end if;
+                begin
+                    l_date := TO_DATE (l_value, 'YYYY-MM-DD');
+                exception
+                    when others
+                    then
+                        raise_application_error (-20001, 'Некорректная дата KPI.');
+                end;
+                l_part := UPPER (r.field_name) || ' ' || r.condition_operator
+                          || ' TO_DATE('
+                          || DBMS_ASSERT.ENQUOTE_LITERAL (l_value)
+                          || ', ''YYYY-MM-DD'')';
+            end if;
+
+            if l_sql is not null
+            then
+                l_sql := l_sql || ' ' || l_join || ' ';
+            end if;
+            l_sql := l_sql || l_part;
+        end loop;
+
+        if l_count = 0
+        then
+            raise_application_error (-20001, 'В KPI нет условий.');
+        end if;
+        return '(' || l_sql || ')';
+    exception
+        when others
+        then
+            if SQLCODE = -20001
+            then
+                raise;
+            end if;
+            raise_application_error (-20001, 'Некорректная конфигурация KPI.');
+    end get_user_kpi_where;
+
+    -- Возвращает весь блок KPI выбранного раздела одним вызовом.
     function get_page_kpi (p_kpi_type in varchar2, p_user_id in number)
         return page_kpi_tab
         pipelined
@@ -630,7 +765,16 @@ as
             label          varchar2 (500),
             trend_period   varchar2 (20),
             order_by       number,
-            has_error      varchar2 (1)
+            has_error      varchar2 (1),
+            is_system      varchar2 (1),
+            owner_id       number,
+            visibility     varchar2 (20),
+            where_config   varchar2 (4000),
+            detail_type    varchar2 (20),
+            detail_profile varchar2 (50),
+            group_title    varchar2 (200),
+            count_label    varchar2 (100),
+            empty_label    varchar2 (200)
         );
         type card_tab is table of card_rec index by pls_integer;
         type value_tab is table of number index by pls_integer;
@@ -648,17 +792,34 @@ as
         l_trend_pct   varchar2 (100);
         l_trend_dir   varchar2 (10);
         l_row         page_kpi_rec;
+        l_report_dt   varchar2 (20);
     begin
         for r in (select k.id,
                          k.code,
                          k.type,
                          k.label,
                          k.trend_period,
-                         k.order_by
+                         k.order_by,
+                         k.is_system,
+                         k.owner_id,
+                         k.visibility,
+                         DBMS_LOB.SUBSTR (k.where_config, 4000, 1) where_config,
+                         d.detail_type,
+                         d.detail_profile,
+                         d.group_title,
+                         d.count_label,
+                         d.empty_label
                     from xx_rjd_kpi_tbl k
-                   where k.is_system = 'Y'
-                     and k.is_active = 'Y'
+                         left join xx_rjd_kpi_detail_cfg d
+                           on d.kpi_id = k.id
+                          and d.is_active = 'Y'
+                   where k.is_active = 'Y'
                      and k.type = TRIM (p_kpi_type)
+                     and (k.is_system = 'Y'
+                          or (k.is_system = 'N'
+                              and ((k.owner_id = p_user_id
+                                    and k.visibility = 'PRIVATE')
+                                   or k.visibility = 'GLOBAL')))
                      and not exists
                              (select 1
                                 from xx_rjd_kpi_hidden h
@@ -674,9 +835,23 @@ as
             l_cards (l_count).trend_period := r.trend_period;
             l_cards (l_count).order_by := r.order_by;
             l_cards (l_count).has_error := 'N';
+            l_cards (l_count).is_system := r.is_system;
+            l_cards (l_count).owner_id := r.owner_id;
+            l_cards (l_count).visibility := r.visibility;
+            l_cards (l_count).where_config := r.where_config;
+            l_cards (l_count).detail_type := r.detail_type;
+            l_cards (l_count).detail_profile := r.detail_profile;
+            l_cards (l_count).group_title := r.group_title;
+            l_cards (l_count).count_label := r.count_label;
+            l_cards (l_count).empty_label := r.empty_label;
 
             begin
-                l_condition := get_kpi_where (r.id);
+                if r.is_system = 'Y'
+                then
+                    l_condition := get_kpi_where (r.id);
+                else
+                    l_condition := get_user_kpi_where (r.type, r.where_config);
+                end if;
             exception
                 when others
                 then
@@ -712,6 +887,11 @@ as
         then
             return;
         end if;
+
+        select TO_CHAR (MAX (report_dt), 'DD.MM.YYYY HH24:MI')
+          into l_report_dt
+          from xx_dislocation_rjd
+         where organization_id = GET_ORGANIZATION_ID ();
 
         if TRIM (p_kpi_type) = 'approach_kpi'
         then
@@ -786,7 +966,8 @@ as
             l_trend_pct := null;
             l_trend_dir := null;
 
-            if l_cards (i).has_error = 'N'
+            if l_cards (i).is_system = 'Y'
+               and l_cards (i).has_error = 'N'
                and TRIM (l_cards (i).trend_period) is not null
             then
                 calculate_kpi_trend (l_cards (i).id,
@@ -809,6 +990,16 @@ as
             l_row.trend_period := l_cards (i).trend_period;
             l_row.order_by := l_cards (i).order_by;
             l_row.is_error := l_cards (i).has_error;
+            l_row.is_system := l_cards (i).is_system;
+            l_row.owner_id := l_cards (i).owner_id;
+            l_row.visibility := l_cards (i).visibility;
+            l_row.where_config := l_cards (i).where_config;
+            l_row.detail_type := l_cards (i).detail_type;
+            l_row.detail_profile := l_cards (i).detail_profile;
+            l_row.group_title := l_cards (i).group_title;
+            l_row.count_label := l_cards (i).count_label;
+            l_row.empty_label := l_cards (i).empty_label;
+            l_row.report_dt := l_report_dt;
             pipe row (l_row);
         end loop;
 

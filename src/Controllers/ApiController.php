@@ -146,23 +146,9 @@ class ApiController
             return $this->json($response->withStatus(400), ['error' => 'Некорректный запрос KPI']);
         }
 
-        $filter = $this->organizations->filter();
-        $dtRow = $this->db->fetchAll(
-            "SELECT MAX(report_dt) AS latest_dt
-               FROM xx_dislocation_rjd
-              WHERE {$filter['sql']}",
-            $filter['params']
-        );
-        $latestDt = $dtRow[0]['latest_dt'] ?? null;
-        try {
-            $updatedAt = $latestDt ? (new \DateTime($latestDt))->format('d.m.Y H:i') : null;
-        } catch (\Exception $e) {
-            $updatedAt = $latestDt;
-        }
-
         if (!$this->organizations->isMtf()) {
             return $this->json($response, [
-                'updated_at' => $updatedAt,
+                'updated_at' => null,
                 'sections' => [['values' => []]],
             ]);
         }
@@ -189,68 +175,16 @@ class ApiController
             ]);
         }
 
-        if (KpiTypeRegistry::isUserCreatable($kpiType)) {
-            try {
-                $userId = (int) ($_SESSION['user']['id'] ?? 0);
-                $userCards = $this->db->fetchAll(
-                    "SELECT k.id, k.code, k.type, k.label, k.owner_id, k.visibility,
-                            DBMS_LOB.SUBSTR(k.where_config, 3500, 1) AS where_config
-                       FROM XX_ETW.XX_RJD_KPI_TBL k
-                      WHERE k.is_system = 'N' AND k.is_active = 'Y' AND k.type = :type
-                        AND (k.owner_id = :owner_id AND k.visibility = 'PRIVATE' OR k.visibility = 'GLOBAL')
-                        AND NOT EXISTS (
-                            SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h
-                             WHERE h.user_id = :hidden_user_id AND h.kpi_id = k.id
-                        )
-                      ORDER BY order_by, id",
-                    ['owner_id' => $userId, 'hidden_user_id' => $userId, 'type' => $kpiType]
-                );
-                if ($userCards !== []) {
-                    $source = $this->dislFrom([]);
-                    foreach ($userCards as $card) {
-                        $condition = KpiCondition::compile($kpiType, (string) ($card['where_config'] ?? ''));
-                        $count = 0;
-                        if ($source['from'] !== '') {
-                            $countRow = $this->db->fetchOne(
-                                "SELECT COUNT(*) AS total FROM {$source['from']} xdr WHERE 1=1 AND type_reference = :kpi_type_reference AND {$condition['sql']}",
-                                array_merge($source['bindings'], $condition['params'], [
-                                    'kpi_type_reference' => KpiTypeRegistry::referenceType($kpiType),
-                                ])
-                            );
-                            $count = (int) ($countRow['total'] ?? 0);
-                        }
-                        $rows[] = [
-                            'id' => $card['id'], 'code' => $card['code'], 'type' => $card['type'],
-                            'x_label' => $card['label'], 'x_value' => $count,
-                            'trend_pct' => null, 'trend_dir' => null, 'is_user' => 'Y',
-                            'is_global' => $card['visibility'] === 'GLOBAL' ? 'Y' : 'N',
-                            'can_edit' => (($card['visibility'] === 'PRIVATE' && (int) $card['owner_id'] === $userId)
-                                || ($card['visibility'] === 'GLOBAL' && \App\Services\Authorization::isSuper())) ? 'Y' : 'N',
-                            'config' => json_decode((string) ($card['where_config'] ?? ''), true),
-                        ];
-                    }
-                }
-            } catch (\Throwable $error) {
-                $code = ErrorLogger::logThrowable($error, ['operation' => 'load_user_kpi_summary', 'user_id' => (int) ($_SESSION['user']['id'] ?? 0)]);
-                return $this->json($response->withStatus(500), ['error' => 'Не удалось загрузить пользовательские KPI', 'code' => $code]);
-            }
-        }
-
-        $detailConfigs = [];
-        $configRows = $this->db->fetchAll(
-            "SELECT kpi_id, detail_type, detail_profile, group_title, count_label, empty_label
-               FROM XX_ETW.XX_RJD_KPI_DETAIL_CFG
-              WHERE is_active = 'Y'"
-        );
-        foreach ($configRows as $configRow) {
-            $detailConfigs[(int) $configRow['kpi_id']] = $configRow;
-        }
+        $updatedAt = $rows[0]['report_dt'] ?? null;
 
         $values = [];
+        $userId = (int) ($_SESSION['user']['id'] ?? 0);
         foreach ($rows as $r) {
             $code = (string) ($r['code'] ?? '');
-            $kpiId = (int) ($r['id'] ?? 0);
-            $detailConfig = $detailConfigs[$kpiId] ?? null;
+            $isUser = ($r['is_system'] ?? 'Y') !== 'Y';
+            $visibility = (string) ($r['visibility'] ?? 'PRIVATE');
+            $config = $isUser ? json_decode((string) ($r['where_config'] ?? ''), true) : null;
+            $detailConfig = !empty($r['detail_type']) ? $r : null;
             $detail = ReportConfig::kpiDetail($code);
 
             if ($detailConfig) {
@@ -270,8 +204,8 @@ class ApiController
             }
 
             $detailParams = ['kpi_id' => $r['id']];
-            if (($r['is_user'] ?? 'N') === 'Y') {
-                $userDetail = is_array($r['config']['detail'] ?? null) ? $r['config']['detail'] : [];
+            if ($isUser) {
+                $userDetail = is_array($config['detail'] ?? null) ? $config['detail'] : [];
                 if (strtoupper((string) ($userDetail['type'] ?? 'TABLE')) === 'GROUPED' && KpiGroupingTemplates::fromDetail($userDetail)) {
                     $detailParams['kpi_view'] = 'GROUPED';
                     $detailParams['kpi_type'] = (string) ($r['type'] ?? '');
@@ -296,12 +230,13 @@ class ApiController
                 'detail' => $cardDetail,
                 'trend' => $r['trend_dir'] ?? '',
                 'change' => $r['trend_pct'] ?? '',
-                'is_user' => $r['is_user'] ?? 'N',
-                'is_global' => $r['is_global'] ?? 'N',
-                'can_edit' => $r['can_edit'] ?? 'N',
+                'is_user' => $isUser ? 'Y' : 'N',
+                'is_global' => $isUser && $visibility === 'GLOBAL' ? 'Y' : 'N',
+                'can_edit' => $isUser && (($visibility === 'PRIVATE' && (int) ($r['owner_id'] ?? 0) === $userId)
+                    || ($visibility === 'GLOBAL' && \App\Services\Authorization::isSuper())) ? 'Y' : 'N',
                 'can_hide' => 'Y',
                 'is_error' => $r['is_error'] ?? 'N',
-                'config' => $r['config'] ?? null,
+                'config' => $config,
             ];
         }
 
