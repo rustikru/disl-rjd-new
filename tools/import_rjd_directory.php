@@ -47,8 +47,11 @@ foreach ($files as $file) {
         $state = $result['current_updated']
             ? 'обновлена текущая справка'
             : 'добавлено только в архив';
+        if (!unlink($file)) {
+            throw new RuntimeException('Справка загружена, но не удалось удалить файл');
+        }
         printf(
-            "OK  %s: %s, %s, строк %d; %s%s",
+            "OK  %s: %s, %s, строк %d; %s; файл удалён%s",
             basename($file),
             $result['type'],
             $result['report_dt'],

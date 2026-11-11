@@ -3,9 +3,10 @@
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 try:
@@ -24,8 +25,8 @@ MAIL_SENDER = "cargolk@gvc.rzd.ru"
 OUTPUT_DIRECTORY = "tmp/mf/rjd"
 
 
-def two_months_ago(today: date) -> date:
-    month = today.month - 2
+def months_ago(today: date, count: int) -> date:
+    month = today.month - count
     year = today.year
     while month < 1:
         month += 12
@@ -33,6 +34,46 @@ def two_months_ago(today: date) -> date:
     days = [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28,
             31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     return date(year, month, min(today.day, days[month - 1]))
+
+
+def positive_number(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError("Укажите число больше нуля")
+    return number
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Скачать XLSX-вложения РЖД из Exchange."
+    )
+    period = parser.add_mutually_exclusive_group()
+    period.add_argument(
+        "--today",
+        action="store_true",
+        help="скачать письма только за текущий день",
+    )
+    period.add_argument(
+        "--days",
+        type=positive_number,
+        metavar="N",
+        help="скачать письма за последние N дней, включая сегодня",
+    )
+    period.add_argument(
+        "--months",
+        type=positive_number,
+        metavar="N",
+        help="скачать письма за последние N месяцев",
+    )
+    return parser.parse_args()
+
+
+def period_start(args: argparse.Namespace, today: date) -> date:
+    if args.today:
+        return today
+    if args.days is not None:
+        return today - timedelta(days=args.days - 1)
+    return months_ago(today, args.months if args.months is not None else 2)
 
 
 def safe_name(value: str, message_id: str) -> str:
@@ -52,9 +93,12 @@ def save_attachment(folder: Path, name: str, message_id: str, content: bytes) ->
 
 
 def main() -> int:
+    args = parse_args()
     output = Path(OUTPUT_DIRECTORY).resolve()
     output.mkdir(parents=True, exist_ok=True)
-    since = two_months_ago(date.today())
+    today = date.today()
+    since = period_start(args, today)
+    print(f"Период: с {since.strftime('%d.%m.%Y')} по {today.strftime('%d.%m.%Y')}")
 
     credentials = Credentials(username=EXCHANGE_LOGIN, password=EXCHANGE_PASSWORD)
     config = Configuration(
