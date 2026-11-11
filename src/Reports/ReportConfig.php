@@ -220,8 +220,7 @@ final class ReportConfig
                 null,
                 '/api/analysis/period/detail',
                 [
-                    self::filter('wagon_no', '№ вагона', 'text', 'fAnalysisPeriodWagonNo'),
-                    self::filter('cargo', 'Груз', 'select', 'fAnalysisPeriodCargo', 'cargo'),
+                    self::filter('wagon_no', '№ вагона', 'text', 'fAnalysisPeriodWagonNo', null, ['page', 'mailing'], true),
                     self::filter('date_from', 'Дата операции с', 'date', 'fAnalysisPeriodDateFrom', null, ['page', 'mailing'], true, [], 'month_start'),
                     self::filter('date_to', 'Дата операции по', 'date', 'fAnalysisPeriodDateTo', null, ['page', 'mailing'], false, [], 'today'),
                 ],

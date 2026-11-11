@@ -1,6 +1,9 @@
 # Только сегодня
 python3 tools/download_rjd_mail.py --today
 
+# Последние 2 часа
+python3 tools/download_rjd_mail.py --hours 2
+
 # Последние 3 дня, включая сегодня
 python3 tools/download_rjd_mail.py --days 3
 

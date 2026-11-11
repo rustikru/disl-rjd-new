@@ -37,6 +37,7 @@ class ApiController
     private DbInterface $db;
     private Organizations $organizations;
     private array $reportDtCache = [];
+    private array $latestDtsCache = [];
 
     public function __construct(DbInterface $db, ?Organizations $organizations = null)
     {
@@ -275,39 +276,13 @@ class ApiController
     /** GET /api/dislocation/filters */
     public function dislFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $filter = $this->organizations->filter();
-        $rows = $this->db->fetchAll(
-            'SELECT TRUNC(report_dt) AS report_date, type_reference, COUNT(*) AS cnt
-             FROM xx_dislocation_rjd
-             WHERE ' . $filter['sql'] . '
-             GROUP BY TRUNC(report_dt), type_reference
-             ORDER BY TRUNC(report_dt) DESC, type_reference',
-            $filter['params']
-        );
-
         $source = $this->dislFrom([]);
         $cargo = $source['reportDt'] ? $this->db->fetchAll(
             "SELECT DISTINCT cargo_name FROM {$source['from']} WHERE cargo_name IS NOT NULL ORDER BY cargo_name",
             $source['bindings']
         ) : [];
 
-        $reports = array_map(function (array $r) {
-            $dt = (string) ($r['report_date'] ?? '');
-            try {
-                $label = (new \DateTime($dt))->format('d.m.Y');
-            } catch (\Exception $e) {
-                $label = $dt;
-            }
-            return [
-                'report_dt' => $dt,
-                'type_reference' => (string) ($r['type_reference'] ?? ''),
-                'label' => $label . ($r['type_reference'] ? ' (' . $r['type_reference'] . ')' : ''),
-                'cnt' => (int) $r['cnt'],
-            ];
-        }, $rows);
-
         return $this->json($response, [
-            'reports' => $reports,
             'cargo' => array_column($cargo, 'cargo_name')
         ]);
     }
@@ -319,13 +294,19 @@ class ApiController
         $source = $this->dislFrom($params);
 
         if (!$source['reportDt']) {
-            return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
+            return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0, 'updated_at' => null]);
         }
 
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state', 'dest_road']);
         $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
+        $data = $this->summaryReport($source, $rowDims, $colDefs);
+        try {
+            $data['updated_at'] = (new \DateTimeImmutable($source['reportDt']))->format('d.m.Y H:i');
+        } catch (\Exception $error) {
+            $data['updated_at'] = $source['reportDt'];
+        }
 
-        return $this->json($response, $this->summaryReport($source, $rowDims, $colDefs));
+        return $this->json($response, $data);
     }
 
     /** GET /api/dislocation/detail */
@@ -348,64 +329,60 @@ class ApiController
         }
         if ($kpiId !== '') {
             $userId = (int) ($_SESSION['user']['id'] ?? 0);
-            $userKpi = $this->db->fetchOne(
-                "SELECT k.id, k.type, k.code, k.label, DBMS_LOB.SUBSTR(k.where_config, 3500, 1) AS where_config FROM XX_ETW.XX_RJD_KPI_TBL k
-                  WHERE k.id = :kpi_id AND k.is_system = 'N' AND k.is_active = 'Y'
-                    AND (k.owner_id = :owner_id AND k.visibility = 'PRIVATE' OR k.visibility = 'GLOBAL')
-                    AND NOT EXISTS (
-                        SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h
-                         WHERE h.user_id = :hidden_user_id AND h.kpi_id = k.id
-                    )",
-                ['kpi_id' => (int) $kpiId, 'owner_id' => $userId, 'hidden_user_id' => $userId]
-            );
-            if ($userKpi) {
-                if (!KpiTypeRegistry::isUserCreatable((string) $userKpi['type'])) {
+            try {
+                $kpiRow = $this->db->fetchOne(
+                    "SELECT k.id, k.type, k.code, k.label, k.is_system, k.owner_id, k.visibility,
+                            DBMS_LOB.SUBSTR(k.where_config, 3500, 1) AS where_config,
+                            CASE WHEN k.is_system = 'Y'
+                                 THEN XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.get_kpi_where(k.id)
+                            END AS kpi_condition,
+                            d.detail_type, d.detail_profile, d.group_title, d.count_label, d.empty_label
+                       FROM XX_ETW.XX_RJD_KPI_TBL k
+                       LEFT JOIN XX_ETW.XX_RJD_KPI_DETAIL_CFG d
+                         ON d.kpi_id = k.id AND d.is_active = 'Y'
+                      WHERE k.id = :kpi_id
+                        AND k.is_active = 'Y'
+                        AND (k.is_system = 'Y'
+                             OR (k.is_system = 'N'
+                                 AND ((k.owner_id = :owner_id AND k.visibility = 'PRIVATE')
+                                      OR k.visibility = 'GLOBAL')))
+                        AND NOT EXISTS (
+                            SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h
+                             WHERE h.user_id = :hidden_user_id AND h.kpi_id = k.id
+                        )",
+                    ['kpi_id' => (int) $kpiId, 'owner_id' => $userId, 'hidden_user_id' => $userId]
+                );
+            } catch (\Throwable $error) {
+                if (strpos($error->getMessage(), 'ORA-20001') !== false) {
+                    return $this->json($response->withStatus(422), ['error' => 'Условие для KPI не определено.']);
+                }
+                $code = ErrorLogger::logThrowable($error, ['operation' => 'load_kpi_detail', 'kpi_id' => (int) $kpiId]);
+                return $this->json($response->withStatus(500), ['error' => 'Не удалось открыть детализацию KPI', 'code' => $code]);
+            }
+            if (!$kpiRow) {
+                return $this->json($response->withStatus(404), ['error' => 'Карточка KPI не найдена']);
+            }
+
+            $kpi = ['code' => $kpiRow['code'], 'label' => $kpiRow['label']];
+            $userKpi = null;
+            $userCondition = null;
+            if (($kpiRow['is_system'] ?? 'Y') !== 'Y') {
+                $userKpi = $kpiRow;
+                if (!KpiTypeRegistry::isUserCreatable((string) $kpiRow['type'])) {
                     return $this->json($response->withStatus(404), ['error' => 'Карточка KPI не найдена']);
                 }
-                $kpi = ['code' => $userKpi['code'], 'label' => $userKpi['label']];
-                $userConfig = json_decode((string) ($userKpi['where_config'] ?? ''), true);
+                $userConfig = json_decode((string) ($kpiRow['where_config'] ?? ''), true);
                 $userDetailConfig = is_array($userConfig['detail'] ?? null) ? $userConfig['detail'] : null;
                 try {
-                    $userCondition = KpiCondition::compile((string) $userKpi['type'], (string) $userKpi['where_config']);
+                    $userCondition = KpiCondition::compile((string) $kpiRow['type'], (string) $kpiRow['where_config']);
                 } catch (\InvalidArgumentException $error) {
                     return $this->json($response->withStatus(422), ['error' => 'Настройки KPI повреждены']);
                 } catch (\Throwable $error) {
                     $code = ErrorLogger::logThrowable($error, ['operation' => 'load_user_kpi_detail', 'kpi_id' => (int) $kpiId]);
                     return $this->json($response->withStatus(500), ['error' => 'Не удалось открыть детализацию KPI', 'code' => $code]);
                 }
-            } else {
-                try {
-                    $kpi = $this->db->fetchOne(
-                        "SELECT k.code, k.label, XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.get_kpi_where(k.id) AS kpi_condition
-                           FROM XX_ETW.XX_RJD_KPI_TBL k
-                          WHERE k.id = :kpi_id AND k.is_system = 'Y' AND k.is_active = 'Y'
-                            AND NOT EXISTS (
-                                SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h
-                                 WHERE h.user_id = :hidden_user_id AND h.kpi_id = k.id
-                            )",
-                        ['kpi_id' => (int) $kpiId, 'hidden_user_id' => $userId]
-                    );
-                } catch (\Throwable $error) {
-                    if (strpos($error->getMessage(), 'ORA-20001') !== false) {
-                        return $this->json($response->withStatus(422), ['error' => 'Условие для KPI не определено.']);
-                    }
-                    $code = ErrorLogger::logThrowable($error, ['operation' => 'load_system_kpi_detail', 'kpi_id' => (int) $kpiId]);
-                    return $this->json($response->withStatus(500), ['error' => 'Не удалось открыть детализацию KPI', 'code' => $code]);
-                }
-                $userCondition = null;
             }
-            if (!$kpi) {
-                return $this->json($response->withStatus(404), ['error' => 'Карточка KPI не найдена']);
-            }
-            $detailConfig = null;
-            if ($userCondition === null) {
-                $detailConfig = $this->db->fetchOne(
-                    "SELECT detail_type, detail_profile, group_title, count_label, empty_label
-                       FROM XX_ETW.XX_RJD_KPI_DETAIL_CFG
-                      WHERE kpi_id = :kpi_id AND is_active = 'Y'",
-                    ['kpi_id' => (int) $kpiId]
-                );
-            }
+            $detailConfig = $userCondition === null && !empty($kpiRow['detail_type']) ? $kpiRow : null;
 
             if ($userCondition !== null) {
                 $detail = null;
@@ -430,7 +407,7 @@ class ApiController
                     'kpi_type_reference' => KpiTypeRegistry::referenceType((string) $userKpi['type']),
                 ]);
             } else {
-                $condition = trim((string) ($kpi['kpi_condition'] ?? '')) ?: '1=0';
+                $condition = trim((string) ($kpiRow['kpi_condition'] ?? '')) ?: '1=0';
                 $whereCond .= ' AND (' . $condition . ')';
             }
         }
@@ -452,6 +429,9 @@ class ApiController
                 'COUNT(*) AS "total"',
                 "SUM(CASE WHEN " . self::WAG_STATE . " = 'гр.' THEN 1 ELSE 0 END) AS \"loaded\"",
                 "SUM(CASE WHEN " . self::WAG_STATE . " = 'пор.' THEN 1 ELSE 0 END) AS \"empty_count\"",
+                'SUM(COUNT(*)) OVER () AS "summary_total"',
+                "SUM(SUM(CASE WHEN " . self::WAG_STATE . " = 'гр.' THEN 1 ELSE 0 END)) OVER () AS \"summary_loaded\"",
+                "SUM(SUM(CASE WHEN " . self::WAG_STATE . " = 'пор.' THEN 1 ELSE 0 END)) OVER () AS \"summary_empty\"",
             ];
             foreach ($detail['route_fields'] as $field) {
                 $key = $field['key'];
@@ -480,23 +460,15 @@ class ApiController
                 $bindings
             );
             $rows = $this->addTrainIndexGroups($rows, $detail, $groupField, $source['from'], $whereCond, $bindings);
-
-            $summary = $this->db->fetchOne(
-                "SELECT COUNT(*) AS total,
-                        SUM(CASE WHEN " . self::WAG_STATE . " = 'гр.' THEN 1 ELSE 0 END) AS loaded,
-                        SUM(CASE WHEN " . self::WAG_STATE . " = 'пор.' THEN 1 ELSE 0 END) AS empty_count
-                   FROM {$source['from']} xdr
-                  WHERE 1=1 $whereCond",
-                $bindings
-            ) ?? ['total' => 0, 'loaded' => 0, 'empty' => 0];
+            $summary = $rows[0] ?? [];
 
             return $this->json($response, [
                 'rows' => $rows,
                 'group_config' => $detail,
                 'summary' => [
-                    'total' => (int) ($summary['total'] ?? 0),
-                    'loaded' => (int) ($summary['loaded'] ?? 0),
-                    'empty' => (int) ($summary['empty_count'] ?? 0),
+                    'total' => (int) ($summary['summary_total'] ?? 0),
+                    'loaded' => (int) ($summary['summary_loaded'] ?? 0),
+                    'empty' => (int) ($summary['summary_empty'] ?? 0),
                 ],
             ]);
         }
@@ -550,6 +522,9 @@ class ApiController
                 'COUNT(*) AS "total"',
                 "SUM(CASE WHEN " . self::WAG_STATE . " = 'гр.' THEN 1 ELSE 0 END) AS \"loaded\"",
                 "SUM(CASE WHEN " . self::WAG_STATE . " = 'пор.' THEN 1 ELSE 0 END) AS \"empty_count\"",
+                'SUM(COUNT(*)) OVER () AS "summary_total"',
+                "SUM(SUM(CASE WHEN " . self::WAG_STATE . " = 'гр.' THEN 1 ELSE 0 END)) OVER () AS \"summary_loaded\"",
+                "SUM(SUM(CASE WHEN " . self::WAG_STATE . " = 'пор.' THEN 1 ELSE 0 END)) OVER () AS \"summary_empty\"",
             ];
             foreach ($template['route_fields'] as $field) {
                 $key = $field['key'];
@@ -574,14 +549,7 @@ class ApiController
                 $bindings
             );
             $rows = $this->addTrainIndexGroups($rows, $template, strtoupper($groupField), $source['from'], $whereCond, $bindings);
-            $summary = $this->db->fetchOne(
-                "SELECT COUNT(*) AS total,
-                        SUM(CASE WHEN " . self::WAG_STATE . " = 'гр.' THEN 1 ELSE 0 END) AS loaded,
-                        SUM(CASE WHEN " . self::WAG_STATE . " = 'пор.' THEN 1 ELSE 0 END) AS empty_count
-                   FROM {$source['from']} xdr
-                  WHERE 1=1 $whereCond",
-                $bindings
-            ) ?? ['total' => 0, 'loaded' => 0, 'empty_count' => 0];
+            $summary = $rows[0] ?? [];
 
             foreach ($rows as &$row) {
                 $row['loaded'] = (int) ($row['loaded'] ?? 0);
@@ -593,9 +561,9 @@ class ApiController
                 'rows' => $rows,
                 'label' => (string) ($kpi['label'] ?? 'Детализация KPI'),
                 'summary' => [
-                    'total' => (int) ($summary['total'] ?? 0),
-                    'loaded' => (int) ($summary['loaded'] ?? 0),
-                    'empty' => (int) ($summary['empty_count'] ?? 0),
+                    'total' => (int) ($summary['summary_total'] ?? 0),
+                    'loaded' => (int) ($summary['summary_loaded'] ?? 0),
+                    'empty' => (int) ($summary['summary_empty'] ?? 0),
                 ],
                 'group_config' => $template,
             ]);
@@ -1181,17 +1149,7 @@ class ApiController
             $bindings['date_to'] = $dateTo;
         }
 
-        $cargo = $this->db->fetchAll(
-            "SELECT DISTINCT cargo_name
-             FROM xx_rjd_dislocation_archive
-             WHERE $whereCond
-             ORDER BY cargo_name",
-            $bindings
-        );
-
-        return $this->json($response, [
-            'cargo' => array_column($cargo, 'cargo_name'),
-        ]);
+        return $this->json($response, []);
     }
     /** GET /api/analysis/period/detail */
     public function analysisPeriod(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
@@ -1202,9 +1160,10 @@ class ApiController
         $this->organizations->addFilter($whereCond, $bindings);
 
         $wagonNo = trim($params['wagon_no'] ?? '');
-        if ($wagonNo !== '') {
-            $whereCond .= ' AND wagon_no IN (' . $this->parserInValues($wagonNo, ';', 'wagon_no', $bindings) . ')';
+        if ($wagonNo === '') {
+            return $this->json($response->withStatus(422), ['error' => 'Укажите номер вагона']);
         }
+        $whereCond .= ' AND wagon_no IN (' . $this->parserInValues($wagonNo, ';', 'wagon_no', $bindings) . ')';
 
         $dateFrom = $params['date_from'] ?? '';
         if ($dateFrom !== '') {
@@ -1219,12 +1178,10 @@ class ApiController
         $whereCond .= " AND TRUNC(oper_dt) <= TO_DATE(:date_to, 'YYYY-MM-DD')";
         $bindings['date_to'] = $dateTo;
 
-        $whereCond .= $this->multiValueCondition('cargo_name', $params['cargo'] ?? null, 'analysis_cargo', $bindings);
-
         $selectCols = $this->selectFields($params['fields'] ?? '');
 
         $rows = $this->db->fetchAll(
-            "SELECT DISTINCT $selectCols
+            "SELECT $selectCols
              FROM xx_rjd_dislocation_archive
              WHERE $whereCond
              ORDER BY oper_dt DESC, wagon_no",
@@ -1767,7 +1724,17 @@ class ApiController
     /** [type_reference => MAX(report_dt)] для указанных типов справок. */
     public function getLatestDtsByType(?string $dt = null, ?array $types = null): array
     {
-        return (new \App\Services\ReportService($this->db, $this->organizations))->getLatestDtsByType($dt, $types);
+        $types ??= ['Подход', 'Отправка'];
+        $types = array_values(array_unique($types));
+        $cacheKey = json_encode([$dt, $types], JSON_UNESCAPED_UNICODE);
+        if (isset($this->latestDtsCache[$cacheKey])) {
+            return $this->latestDtsCache[$cacheKey];
+        }
+        $this->latestDtsCache[$cacheKey] = (new \App\Services\ReportService(
+            $this->db,
+            $this->organizations
+        ))->getLatestDtsByType($dt, $types);
+        return $this->latestDtsCache[$cacheKey];
     }
 
     /** Условие отбора актуальных справок с ограничением по организации. */

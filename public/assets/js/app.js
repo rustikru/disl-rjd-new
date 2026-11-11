@@ -881,6 +881,10 @@ function loadSummary(cfg) {
         cfg.initialDataLoaded = true
         data = data.data
       }
+      if (data.updated_at) {
+        showDislocationDate(data.updated_at)
+        $('#headerDate').text(data.updated_at)
+      }
       if (cfg.metricsId) {
         var items = cfg.kpi
           ? cfg.kpi(data)

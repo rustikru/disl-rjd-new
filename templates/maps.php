@@ -519,6 +519,45 @@ $canOpenDetail = \App\Services\Authorization::isSuper($user)
         var LEASESTATIONS = <?= $leaseStationsJson ?? '[]' ?>;
         var STATIONS_WITHOUT_COORDINATES = <?= $stationsWithoutCoordinatesJson ?>;
 
+        function applyDetailFilter(done) {
+            var params = new URLSearchParams(window.location.search);
+            if (params.get('map_detail') !== 'Y') {
+                done();
+                return;
+            }
+
+            var endpoint = params.get('_endpoint') || '/api/dislocation/detail';
+            params.delete('map_detail');
+            params.delete('ctx');
+            params.delete('_bcpath');
+            params.delete('_endpoint');
+            params.delete('train_groups');
+            params.delete('kpi_view');
+            params.delete('group_by');
+            params.set('kpi_table', 'Y');
+            params.set('fields', 'wagon_no');
+
+            $.getJSON((window.APP_BASE || '') + endpoint + '?' + params.toString())
+                .done(function (data) {
+                    var wagonNos = new Set((data.rows || []).map(function (row) {
+                        return String(row.wagon_no == null ? '' : row.wagon_no).trim();
+                    }).filter(Boolean));
+                    STATIONS = STATIONS.map(function (station) {
+                        station.wagons = station.wagons.filter(function (wagon) {
+                            return wagonNos.has(String(wagon.wagon_num).trim());
+                        });
+                        station.count = station.wagons.length;
+                        return station;
+                    }).filter(function (station) { return station.count > 0; });
+                    STATIONS_WITHOUT_COORDINATES = [];
+                })
+                .fail(function () {
+                    STATIONS = [];
+                    STATIONS_WITHOUT_COORDINATES = [];
+                })
+                .always(done);
+        }
+
         var activeFilter = 'all', activeStation = null, markerGroup = null;
 
         // Конфигурация связанных селектов
@@ -884,8 +923,10 @@ $canOpenDetail = \App\Services\Authorization::isSuper($user)
         });
 
         // Первичное применение фильтров.
-        renderStationsWithoutCoordinates();
-        updateAll();
+        applyDetailFilter(function () {
+            renderStationsWithoutCoordinates();
+            updateAll();
+        });
     </script>
 </body>
 

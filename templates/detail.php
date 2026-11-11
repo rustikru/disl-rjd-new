@@ -16,6 +16,7 @@ $basePath = $basePath ?? '';
   <script>
     window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
     window.APP_CAN_OPEN_WAGON = <?= \App\Services\Authorization::isSuper($user) || in_array('wagon-card', (array) ($user['allowed_pages'] ?? []), true) ? 'true' : 'false' ?>;
+    window.APP_CAN_OPEN_MAP = <?= \App\Services\Authorization::isSuper($user) || in_array('maps', (array) ($user['allowed_pages'] ?? []), true) ? 'true' : 'false' ?>;
     window.APP_CSRF = '<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES) ?>';
     window.APP_REPORT_DEFINITIONS = <?= json_encode($reportDefinitions ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
   </script>
@@ -34,6 +35,38 @@ $basePath = $basePath ?? '';
       gap: 2px;
       border-bottom: 2px solid var(--border);
       margin-bottom: 12px;
+    }
+
+    .detail-map-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    .detail-map-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 54px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+
+    .detail-map-link:hover {
+      border-color: var(--accent);
+      background: var(--hover-green);
+    }
+
+    .detail-map-link img {
+      width: 34px;
+      height: 34px;
+      object-fit: contain;
     }
 
     .detail-tab-btn {
@@ -197,13 +230,19 @@ $basePath = $basePath ?? '';
           { label: 'Гружёные', value: summary.loaded, filter: 'гр.' },
           { label: 'Порожние', value: summary.empty, filter: 'пор.' }
         ];
+        var mapHref = detailMapUrl(config);
         var html = '<div class="train-groups-layout user-kpi-groups-layout"><aside class="train-summary-panel">';
-        html += '<div class="train-section-heading"><strong>Итоги</strong><span>' + Number(summary.total || 0).toLocaleString('ru-RU') + ' вагонов</span></div><div class="train-summary">';
+        html += '<div class="train-section-heading"><strong>Итоги</strong><span>' + Number(summary.total || 0).toLocaleString('ru-RU') + ' вагонов</span></div>';
+        if (mapHref) {
+          html += '<div class="detail-map-actions"><a class="detail-map-link" href="' + esc(mapHref) + '" target="_blank" rel="noopener noreferrer" title="Показать на карте" aria-label="Показать на карте"><img src="' + esc(BASE + '/assets/img/map-route.png') + '" alt=""></a></div>';
+        }
+        html += '<div class="train-summary">';
         summaryItems.forEach(function (item) {
           var href = countLinks(null, { label: item.label, key: item.filter ? (item.filter === 'гр.' ? 'loaded' : 'empty_count') : 'total', filters: item.filter ? { cargo_state: item.filter } : {} });
           html += '<a class="train-summary-card" href="' + esc(href) + '"><span class="train-summary-label">' + esc(item.label) + '</span><strong class="train-summary-value">' + Number(item.value || 0).toLocaleString('ru-RU') + '</strong><span class="train-summary-action">Открыть</span></a>';
         });
-        html += '</div></aside><section class="train-groups-panel">';
+        html += '</div>';
+        html += '</aside><section class="train-groups-panel">';
         html += '<div class="train-section-heading"><strong>' + esc(config.title || 'Группы') + '</strong><span>' + rows.length.toLocaleString('ru-RU') + ' групп</span></div>';
         html += '<div class="user-kpi-index-list">';
         rows.forEach(function (row, index) {
@@ -273,6 +312,17 @@ $basePath = $basePath ?? '';
           $content.prop('hidden', isOpen);
           $(this).attr('aria-expanded', isOpen ? 'false' : 'true').toggleClass('is-open', !isOpen);
         });
+      }
+
+      function detailMapUrl(config) {
+        var groupField = String(config.group_field || '').toLowerCase();
+        if (!window.APP_CAN_OPEN_MAP || ['train_no', 'train_index'].indexOf(groupField) < 0) return '';
+        var query = new URLSearchParams(params);
+        query.delete('train_groups');
+        query.delete('kpi_view');
+        query.delete('group_by');
+        query.set('map_detail', 'Y');
+        return BASE + '/maps?' + query.toString();
       }
 
       var userKpiId = params.get('kpi_id') || '';
@@ -414,7 +464,9 @@ $basePath = $basePath ?? '';
 
       $('#detailSub').text('Загрузка...');
 
-      loadTableLayout(ctx).always(function () {
+      var groupedRequest = ['train-groups', 'abandoned-trains', 'formed-trains'].indexOf(params.get('train_groups')) >= 0;
+      var layoutRequest = groupedRequest ? $.when() : loadTableLayout(ctx);
+      layoutRequest.always(function () {
       $.getJSON(ctxDef.endpoint + (apiParams.toString() ? '?' + apiParams.toString() : ''))
         .done(function (data) {
           if (data.group_config) {

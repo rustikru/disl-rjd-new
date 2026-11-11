@@ -54,6 +54,12 @@ def parse_args() -> argparse.Namespace:
         help="скачать письма только за текущий день",
     )
     period.add_argument(
+        "--hours",
+        type=positive_number,
+        metavar="N",
+        help="скачать письма за последние N часов",
+    )
+    period.add_argument(
         "--days",
         type=positive_number,
         metavar="N",
@@ -97,8 +103,6 @@ def main() -> int:
     output = Path(OUTPUT_DIRECTORY).resolve()
     output.mkdir(parents=True, exist_ok=True)
     today = date.today()
-    since = period_start(args, today)
-    print(f"Период: с {since.strftime('%d.%m.%Y')} по {today.strftime('%d.%m.%Y')}")
 
     credentials = Credentials(username=EXCHANGE_LOGIN, password=EXCHANGE_PASSWORD)
     config = Configuration(
@@ -113,10 +117,21 @@ def main() -> int:
         access_type=DELEGATE,
     )
 
-    messages = account.inbox.filter(
-        datetime_received__gte=EWSDateTime(
-            since.year, since.month, since.day, tzinfo=account.default_timezone
+    if args.hours is not None:
+        since = EWSDateTime.now(tz=account.default_timezone) - timedelta(hours=args.hours)
+        print(f"Период: последние {args.hours} ч., с {since.strftime('%d.%m.%Y %H:%M')}")
+    else:
+        since_date = period_start(args, today)
+        since = EWSDateTime(
+            since_date.year,
+            since_date.month,
+            since_date.day,
+            tzinfo=account.default_timezone,
         )
+        print(f"Период: с {since_date.strftime('%d.%m.%Y')} по {today.strftime('%d.%m.%Y')}")
+
+    messages = account.inbox.filter(
+        datetime_received__gte=since
     ).only(
         "sender", "datetime_received", "subject", "attachments", "message_id"
     ).order_by("datetime_received")
