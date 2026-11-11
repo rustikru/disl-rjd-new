@@ -617,56 +617,168 @@ as
         return;
     end get_kpi_row;
 
-    -- Собирает условие ранее проверенного пользовательского KPI.
-    function get_user_kpi_where (p_kpi_type     in varchar2,
-                                 p_where_config in clob)
+    -- Читает строковое значение из сохранённой JSON-конфигурации.
+    function get_json_text (p_json       in varchar2,
+                            p_key        in varchar2,
+                            p_occurrence in pls_integer)
         return varchar2
     is
-        l_join        varchar2 (3);
-        l_sql         varchar2 (4000);
-        l_part        varchar2 (1200);
-        l_field_type  varchar2 (10);
-        l_value       varchar2 (800);
+        l_pattern varchar2 (4000) := '"' || p_key || '"';
+        l_pos     pls_integer := 1;
+        l_end     pls_integer;
+        l_char    varchar2 (50);
+        l_next    varchar2 (50);
+        l_value   varchar2 (32767);
+    begin
+        for i in 1 .. p_occurrence
+        loop
+            l_pos := INSTR (p_json, l_pattern, l_pos);
+            if l_pos = 0
+            then
+                return null;
+            end if;
+            l_pos := l_pos + LENGTH (l_pattern);
+        end loop;
+
+        while SUBSTR (p_json, l_pos, 1) in (' ', CHR (9), CHR (10), CHR (13))
+        loop
+            l_pos := l_pos + 1;
+        end loop;
+        if SUBSTR (p_json, l_pos, 1) != ':'
+        then
+            raise_application_error (-20001, 'Некорректная конфигурация KPI.');
+        end if;
+        l_pos := l_pos + 1;
+        while SUBSTR (p_json, l_pos, 1) in (' ', CHR (9), CHR (10), CHR (13))
+        loop
+            l_pos := l_pos + 1;
+        end loop;
+
+        if SUBSTR (p_json, l_pos, 1) != '"'
+        then
+            l_end := INSTR (p_json, ',', l_pos);
+            if l_end = 0
+            then
+                l_end := INSTR (p_json, '}', l_pos);
+            end if;
+            if l_end = 0
+            then
+                raise_application_error (-20001, 'Некорректная конфигурация KPI.');
+            end if;
+            return TRIM (SUBSTR (p_json, l_pos, l_end - l_pos));
+        end if;
+
+        l_pos := l_pos + 1;
+        loop
+            if l_pos > LENGTH (p_json)
+            then
+                raise_application_error (-20001, 'Некорректная конфигурация KPI.');
+            end if;
+            l_char := SUBSTR (p_json, l_pos, 1);
+            if l_char = '"'
+            then
+                return l_value;
+            elsif l_char = '\'
+            then
+                l_pos := l_pos + 1;
+                l_next := SUBSTR (p_json, l_pos, 1);
+                if l_next in ('"', '\', '/')
+                then
+                    l_value := l_value || l_next;
+                elsif l_next = 'b'
+                then
+                    l_value := l_value || CHR (8);
+                elsif l_next = 'f'
+                then
+                    l_value := l_value || CHR (12);
+                elsif l_next = 'n'
+                then
+                    l_value := l_value || CHR (10);
+                elsif l_next = 'r'
+                then
+                    l_value := l_value || CHR (13);
+                elsif l_next = 't'
+                then
+                    l_value := l_value || CHR (9);
+                else
+                    raise_application_error (-20001, 'Неподдерживаемое экранирование KPI.');
+                end if;
+            else
+                l_value := l_value || l_char;
+            end if;
+            l_pos := l_pos + 1;
+        end loop;
+    end get_json_text;
+
+    -- Собирает условие ранее проверенного пользовательского KPI.
+    function get_user_kpi_where (p_kpi_type     in varchar2,
+                                 p_where_config in varchar2)
+        return varchar2
+    is
+        l_join        varchar2 (4000);
+        l_sql         varchar2 (32767);
+        l_part        varchar2 (32767);
+        l_field_type  varchar2 (4000);
+        l_field       varchar2 (4000);
+        l_operator    varchar2 (4000);
+        l_value       varchar2 (4000);
+        l_config      varchar2 (32767);
         l_count       pls_integer := 0;
+        l_operator_pos pls_integer;
+        l_operator_count pls_integer;
+        l_candidate   varchar2 (4000);
         l_date        date;
     begin
-        select UPPER (JSON_VALUE (p_where_config, '$.operator'))
-          into l_join
-          from dual;
-        if l_join not in ('AND', 'OR')
+        l_config := p_where_config;
+        l_operator_pos := 0;
+        loop
+            l_operator_pos := l_operator_pos + 1;
+            l_candidate := UPPER (get_json_text (l_config, 'operator', l_operator_pos));
+            exit when l_candidate is null or l_candidate in ('AND', 'OR');
+        end loop;
+        l_join := l_candidate;
+        if l_join is null or l_join not in ('AND', 'OR')
         then
             raise_application_error (-20001, 'Некорректная конфигурация KPI.');
         end if;
 
-        for r in (select LOWER (field_name) field_name,
-                         UPPER (condition_operator) condition_operator,
-                         condition_value
-                    from JSON_TABLE (
-                             p_where_config,
-                             '$.conditions[*]'
-                             columns
-                             (
-                                 field_name varchar2 (50) path '$.field',
-                                 condition_operator varchar2 (20) path '$.operator',
-                                 condition_value varchar2 (800) path '$.value'
-                             )))
         loop
+            l_field := LOWER (get_json_text (l_config, 'field', l_count + 1));
+            exit when l_field is null;
+            l_operator_pos := 0;
+            l_operator_count := 0;
+            l_operator := null;
+            loop
+                l_operator_pos := l_operator_pos + 1;
+                l_candidate := UPPER (get_json_text (l_config, 'operator', l_operator_pos));
+                exit when l_candidate is null;
+                if l_candidate not in ('AND', 'OR')
+                then
+                    l_operator_count := l_operator_count + 1;
+                    if l_operator_count = l_count + 1
+                    then
+                        l_operator := l_candidate;
+                        exit;
+                    end if;
+                end if;
+            end loop;
+            l_value := get_json_text (l_config, 'value', l_count + 1);
             l_count := l_count + 1;
             if l_count > 10
             then
                 raise_application_error (-20001, 'Слишком много условий KPI.');
             end if;
 
-            if r.field_name in ('wagon_no', 'depart_station', 'dest_station',
-                                'oper_station', 'cargo_name', 'wagon_type_code',
-                                'wagon_state', 'train_index', 'train_no')
+            if l_field in ('wagon_no', 'depart_station', 'dest_station',
+                           'oper_station', 'cargo_name', 'wagon_type_code',
+                           'wagon_state', 'train_index', 'train_no')
             then
                 l_field_type := 'string';
-            elsif r.field_name = 'cargo_weight_kg'
+            elsif l_field = 'cargo_weight_kg'
             then
                 l_field_type := 'number';
-            elsif r.field_name = 'oper_dt'
-                  or (r.field_name = 'norm_delivery_dt'
+            elsif l_field = 'oper_dt'
+                  or (l_field = 'norm_delivery_dt'
                       and TRIM (p_kpi_type) = 'approach_kpi')
             then
                 l_field_type := 'date';
@@ -679,7 +791,6 @@ as
                 raise_application_error (-20001, 'Для раздела нельзя создавать KPI.');
             end if;
 
-            l_value := r.condition_value;
             if l_value is null
             then
                 raise_application_error (-20001, 'Не задано значение условия KPI.');
@@ -687,32 +798,35 @@ as
 
             if l_field_type = 'string'
             then
-                if r.condition_operator not in ('=', '!=', 'LIKE', 'NOT LIKE')
+                if l_operator is null
+                   or l_operator not in ('=', '!=', 'LIKE', 'NOT LIKE')
                 then
                     raise_application_error (-20001, 'Недопустимый оператор KPI.');
                 end if;
-                if r.condition_operator in ('LIKE', 'NOT LIKE')
+                if l_operator in ('LIKE', 'NOT LIKE')
                 then
                     l_value := '%' || REPLACE (l_value, '\', '\\') || '%';
-                    l_part := 'UPPER(' || UPPER (r.field_name) || ') '
-                              || r.condition_operator || ' UPPER('
+                    l_part := 'UPPER(' || UPPER (l_field) || ') '
+                              || l_operator || ' UPPER('
                               || DBMS_ASSERT.ENQUOTE_LITERAL (l_value)
                               || ') ESCAPE ''\''';
                 else
-                    l_part := UPPER (r.field_name) || ' ' || r.condition_operator
+                    l_part := UPPER (l_field) || ' ' || l_operator
                               || ' ' || DBMS_ASSERT.ENQUOTE_LITERAL (l_value);
                 end if;
             elsif l_field_type = 'number'
             then
-                if r.condition_operator not in ('=', '!=', '>', '<', '>=', '<=')
+                if l_operator is null
+                   or l_operator not in ('=', '!=', '>', '<', '>=', '<=')
                    or not REGEXP_LIKE (l_value, '^[+-]?([0-9]+([.,][0-9]*)?|[.,][0-9]+)$')
                 then
                     raise_application_error (-20001, 'Некорректное числовое условие KPI.');
                 end if;
-                l_part := UPPER (r.field_name) || ' ' || r.condition_operator
+                l_part := UPPER (l_field) || ' ' || l_operator
                           || ' ' || REPLACE (l_value, ',', '.');
             else
-                if r.condition_operator not in ('=', '!=', '>', '<', '>=', '<=')
+                if l_operator is null
+                   or l_operator not in ('=', '!=', '>', '<', '>=', '<=')
                    or not REGEXP_LIKE (l_value, '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
                 then
                     raise_application_error (-20001, 'Некорректное условие даты KPI.');
@@ -724,7 +838,7 @@ as
                     then
                         raise_application_error (-20001, 'Некорректная дата KPI.');
                 end;
-                l_part := UPPER (r.field_name) || ' ' || r.condition_operator
+                l_part := UPPER (l_field) || ' ' || l_operator
                           || ' TO_DATE('
                           || DBMS_ASSERT.ENQUOTE_LITERAL (l_value)
                           || ', ''YYYY-MM-DD'')';
@@ -749,7 +863,10 @@ as
             then
                 raise;
             end if;
-            raise_application_error (-20001, 'Некорректная конфигурация KPI.');
+            raise_application_error (
+                -20001,
+                'Ошибка разбора KPI: '
+                || SUBSTR (SQLERRM || ' ' || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE, 1, 600));
     end get_user_kpi_where;
 
     -- Возвращает весь блок KPI выбранного раздела одним вызовом.
@@ -766,6 +883,7 @@ as
             trend_period   varchar2 (20),
             order_by       number,
             has_error      varchar2 (1),
+            error_text     varchar2 (2000),
             is_system      varchar2 (1),
             owner_id       number,
             visibility     varchar2 (20),
@@ -835,6 +953,7 @@ as
             l_cards (l_count).trend_period := r.trend_period;
             l_cards (l_count).order_by := r.order_by;
             l_cards (l_count).has_error := 'N';
+            l_cards (l_count).error_text := null;
             l_cards (l_count).is_system := r.is_system;
             l_cards (l_count).owner_id := r.owner_id;
             l_cards (l_count).visibility := r.visibility;
@@ -858,6 +977,8 @@ as
                     if SQLCODE = -20001
                     then
                         l_cards (l_count).has_error := 'Y';
+                        l_cards (l_count).error_text :=
+                            'KPI ' || r.code || ': ' || SUBSTR (SQLERRM, 1, 1800);
                         l_condition := '1=0';
                     else
                         raise;
@@ -982,7 +1103,7 @@ as
             l_row.x_label := l_cards (i).label;
             l_row.x_value := case
                                  when l_cards (i).has_error = 'Y'
-                                 then 'Условие для KPI не определено.'
+                                 then l_cards (i).error_text
                                  else l_value
                              end;
             l_row.trend_pct := l_trend_pct;
