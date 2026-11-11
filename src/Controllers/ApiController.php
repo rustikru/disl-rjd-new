@@ -165,6 +165,27 @@ class ApiController
                     'user_id' => (int) ($_SESSION['user']['id'] ?? 0),
                 ]
             );
+            if (in_array($kpiType, ['approach_kpi', 'departue_kpi'], true)) {
+                $otherType = $kpiType === 'approach_kpi' ? 'departue_kpi' : 'approach_kpi';
+                $otherRows = $this->db->fetchAll(
+                    'SELECT * FROM TABLE(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.GET_PAGE_KPI(:kpi_type, :user_id))',
+                    ['kpi_type' => $otherType, 'user_id' => (int) ($_SESSION['user']['id'] ?? 0)]
+                );
+                $abandoned = [];
+                foreach (array_merge($rows, $otherRows) as $row) {
+                    if (in_array((string) ($row['code'] ?? ''), ['abandoned_trains', 'abandoned_wagons'], true)) {
+                        $abandoned[] = (int) ($row['x_value'] ?? 0);
+                    }
+                }
+                if ($abandoned) {
+                    foreach ($rows as &$row) {
+                        if (in_array((string) ($row['code'] ?? ''), ['abandoned_trains', 'abandoned_wagons'], true)) {
+                            $row['x_value'] = (string) (count(array_unique($abandoned)) === 1 ? $abandoned[0] : array_sum($abandoned));
+                        }
+                    }
+                    unset($row);
+                }
+            }
         } catch (\Throwable $error) {
             $code = ErrorLogger::logThrowable($error, [
                 'operation' => 'load_system_kpi',
@@ -416,6 +437,9 @@ class ApiController
             ? $detail['group_by']
             : $this->parseGroupBy($params['group_by'] ?? '', ['dest_state']);
         $whereCond .= $this->applyDetailFilters($rowDims, $params, $bindings);
+        if ($detail && ($detail['profile'] ?? '') === 'abandoned') {
+            $whereCond .= $this->applyAbandonedFilters($params, $bindings);
+        }
 
         $trainGroups = in_array(
             (string) ($params['train_groups'] ?? ''),
@@ -441,15 +465,9 @@ class ApiController
             }
             foreach ($detail['fields'] as $field) {
                 $key = $field['key'];
-                $column = strtoupper($key);
-                if (in_array($key, ['oper_dt', 'trip_start_dt'], true)) {
-                    $select[] = "TO_CHAR(MIN($column), 'DD.MM.YYYY HH24:MI') AS \"$key\"";
-                } else {
-                    $select[] = "MIN($column) AS \"$key\"";
-                }
-                if (!in_array($key, ['oper_dt', 'trip_start_dt'], true)) {
-                    $select[] = "COUNT(DISTINCT $column) AS \"{$key}_count\"";
-                }
+                [$expression, $withCount] = $this->detailFieldExpression($key);
+                $select[] = $expression;
+                if ($withCount) $select[] = $withCount;
             }
             $rows = $this->db->fetchAll(
                 "SELECT " . implode(', ', $select) . "
@@ -462,6 +480,26 @@ class ApiController
             $rows = $this->addTrainIndexGroups($rows, $detail, $groupField, $source['from'], $whereCond, $bindings);
             $summary = $rows[0] ?? [];
 
+            $filterOptions = [];
+            if (($detail['profile'] ?? '') === 'abandoned') {
+                $optionRows = $this->db->fetchAll(
+                    "SELECT DISTINCT TRIM(oper_station) AS \"station\"
+                       FROM {$source['from']} xdr
+                      WHERE 1=1 $whereCond AND oper_station IS NOT NULL
+                      ORDER BY TRIM(oper_station)",
+                    $bindings
+                );
+                $filterOptions = array_values(array_filter(array_map(
+                    static fn(array $row): string => trim((string) ($row['station'] ?? '')),
+                    $optionRows
+                )));
+                $summary['trains'] = count($rows);
+                $summary['stations'] = (int) ($this->db->fetchOne(
+                    "SELECT COUNT(DISTINCT TRIM(oper_station)) AS \"cnt\" FROM {$source['from']} xdr WHERE 1=1 $whereCond AND oper_station IS NOT NULL",
+                    $bindings
+                )['cnt'] ?? 0);
+            }
+
             return $this->json($response, [
                 'rows' => $rows,
                 'group_config' => $detail,
@@ -469,7 +507,10 @@ class ApiController
                     'total' => (int) ($summary['summary_total'] ?? 0),
                     'loaded' => (int) ($summary['summary_loaded'] ?? 0),
                     'empty' => (int) ($summary['summary_empty'] ?? 0),
+                    'trains' => (int) ($summary['trains'] ?? 0),
+                    'stations' => (int) ($summary['stations'] ?? 0),
                 ],
+                'filter_options' => ['stations' => $filterOptions],
             ]);
         }
 
@@ -534,15 +575,9 @@ class ApiController
             }
             foreach ($template['fields'] as $field) {
                 $key = $field['key'];
-                $column = strtoupper($key);
-                if (in_array($key, ['oper_dt', 'trip_start_dt'], true)) {
-                    $select[] = "TO_CHAR(MIN($column), 'DD.MM.YYYY HH24:MI') AS \"$key\"";
-                } else {
-                    $select[] = "MIN($column) AS \"$key\"";
-                }
-                if (!in_array($key, ['oper_dt', 'trip_start_dt'], true)) {
-                    $select[] = "COUNT(DISTINCT $column) AS \"{$key}_count\"";
-                }
+                [$expression, $withCount] = $this->detailFieldExpression($key);
+                $select[] = $expression;
+                if ($withCount) $select[] = $withCount;
             }
             $rows = $this->db->fetchAll(
                 "SELECT " . implode(', ', $select) . " FROM {$source['from']} xdr WHERE 1=1 $whereCond GROUP BY " . strtoupper($groupField) . " ORDER BY " . strtoupper($groupField) . " ASC",
@@ -625,8 +660,10 @@ class ApiController
             if ($key === 'train_index') {
                 continue;
             }
-            $column = strtoupper($key);
+            $column = $key === 'abandon_dt' ? 'OPER_DT' : strtoupper($key);
             if (in_array($key, ['oper_dt', 'trip_start_dt'], true)) {
+                $select[] = "TO_CHAR(MIN($column), 'DD.MM.YYYY HH24:MI') AS \"$key\"";
+            } elseif ($key === 'abandon_dt') {
                 $select[] = "TO_CHAR(MIN($column), 'DD.MM.YYYY HH24:MI') AS \"$key\"";
             } else {
                 $select[] = "MIN($column) AS \"$key\"";
@@ -1134,7 +1171,8 @@ class ApiController
 
         $wagonNo = trim($params['wagon_no'] ?? '');
         if ($wagonNo !== '') {
-            $whereCond .= ' AND wagon_no IN (' . $this->parserInValues($wagonNo, ';', 'wagon_no', $bindings) . ')';
+            $in = $this->parserInValues($wagonNo, ',', 'wagon_no', $bindings);
+            if ($in !== '') $whereCond .= ' AND TRIM(wagon_no) IN (' . $in . ')';
         }
 
         $dateFrom = $params['date_from'] ?? '';
@@ -1163,7 +1201,8 @@ class ApiController
         if ($wagonNo === '') {
             return $this->json($response->withStatus(422), ['error' => 'Укажите номер вагона']);
         }
-        $whereCond .= ' AND wagon_no IN (' . $this->parserInValues($wagonNo, ';', 'wagon_no', $bindings) . ')';
+        $in = $this->parserInValues($wagonNo, ',', 'wagon_no', $bindings);
+        if ($in !== '') $whereCond .= ' AND TRIM(wagon_no) IN (' . $in . ')';
 
         $dateFrom = $params['date_from'] ?? '';
         if ($dateFrom !== '') {
@@ -1527,6 +1566,82 @@ class ApiController
         return $whereCond;
     }
 
+    /** Фильтры карточек брошенных поездов. */
+    private function applyAbandonedFilters(array $params, array &$bindings): string
+    {
+        $where = '';
+        $source = trim((string) ($params['abandoned_source'] ?? ''));
+        if (in_array($source, ['Подход', 'Отправка'], true)) {
+            $where .= ' AND type_reference = :abandoned_source';
+            $bindings['abandoned_source'] = $source;
+        }
+
+        $stationValue = $params['abandoned_station'] ?? '';
+        $stations = is_array($stationValue) ? $stationValue : json_decode((string) $stationValue, true);
+        if (!is_array($stations)) $stations = $stationValue !== '' ? [$stationValue] : [];
+        $stations = array_values(array_unique(array_filter(array_map(static fn($value): string => trim((string) $value), $stations))));
+        if (count($stations) <= 50 && $stations !== []) {
+            $parts = [];
+            foreach ($stations as $index => $station) {
+                if ($station === '' || mb_strlen($station) > 200) continue;
+                $bind = 'abandoned_station_' . $index;
+                $parts[] = 'UPPER(TRIM(oper_station)) = :' . $bind;
+                $bindings[$bind] = mb_strtoupper($station);
+            }
+            if ($parts) $where .= ' AND (' . implode(' OR ', $parts) . ')';
+        }
+
+        $idle = trim((string) ($params['abandoned_idle_days'] ?? ''));
+        if ($idle !== '' && ctype_digit($idle)) {
+            $days = (int) $idle;
+            if ($days <= 3650) {
+                $where .= " AND TRUNC(report_dt) - TRUNC(oper_dt) >= :abandoned_idle_days";
+                $bindings['abandoned_idle_days'] = $days;
+            }
+        }
+
+        $search = trim((string) ($params['abandoned_search'] ?? ''));
+        if ($search !== '' && mb_strlen($search) <= 200) {
+            $where .= " AND (UPPER(TRIM(TO_CHAR(train_no))) LIKE :abandoned_search
+                         OR UPPER(TRIM(train_index)) LIKE :abandoned_search
+                         OR TRIM(wagon_no) LIKE :abandoned_search)";
+            $bindings['abandoned_search'] = '%' . mb_strtoupper($search) . '%';
+        }
+        return $where;
+    }
+
+    /** Возвращает SELECT и необязательный счётчик отличающихся значений поля. */
+    private function detailFieldExpression(string $key): array
+    {
+        if ($key === 'idle_duration') {
+            return ["MIN(IDLE_TIME_HHMMSS) AS \"$key\"", null];
+        }
+        if ($key === 'loaded_count') {
+            return ["SUM(CASE WHEN " . self::WAG_STATE . " = 'гр.' THEN 1 ELSE 0 END) AS \"$key\"", null];
+        }
+        if ($key === 'empty_count') {
+            return ["SUM(CASE WHEN " . self::WAG_STATE . " = 'пор.' THEN 1 ELSE 0 END) AS \"$key\"", null];
+        }
+        if ($key === 'source') {
+            return ["MIN(TYPE_REFERENCE) AS \"$key\"", null];
+        }
+        if ($key === 'data_received_dt') {
+            return ["TO_CHAR(MIN(REPORT_DT), 'DD.MM.YYYY HH24:MI') AS \"$key\"", null];
+        }
+        if ($key === 'station_count') {
+            return ["COUNT(DISTINCT TRIM(OPER_STATION)) AS \"$key\"", null];
+        }
+
+        $column = $key === 'abandon_dt' ? 'OPER_DT' : strtoupper($key);
+        $value = in_array($key, ['oper_dt', 'trip_start_dt', 'abandon_dt'], true)
+            ? "TO_CHAR(MIN($column), 'DD.MM.YYYY HH24:MI')"
+            : "MIN($column)";
+        $count = in_array($key, ['oper_dt', 'trip_start_dt'], true)
+            ? null
+            : "COUNT(DISTINCT $column) AS \"{$key}_count\"";
+        return [$value . " AS \"$key\"", $count];
+    }
+
     /** Добавляет безопасный IN-фильтр для одиночного или множественного значения. */
     private function multiValueCondition(
         string $field,
@@ -1658,19 +1773,21 @@ class ApiController
         return $parts ? implode(', ', $parts) : $default;
     }
 
-    /** Добавляет фильтр wagon_no IN (...) если передан параметр wagon_no (через ';'). */
+    /** Добавляет фильтр wagon_no IN (...) из списка, скопированного из таблицы или Excel. */
     private function wagonNoCond(array $params, array &$bindings): string
     {
         $wagonNo = trim($params['wagon_no'] ?? '');
         if ($wagonNo === '')
             return '';
-        return ' AND wagon_no IN (' . $this->parserInValues($wagonNo, ';', 'wagon_no', $bindings) . ')';
+        $in = $this->parserInValues($wagonNo, ',', 'wagon_no', $bindings);
+        return $in === '' ? '' : ' AND TRIM(wagon_no) IN (' . $in . ')';
     }
 
     /** Строит плейсхолдеры для SQL IN из строки с разделителем. */
     private function parserInValues(string $raw, string $delimiter, string $paramPrefix, array &$bindings): string
     {
-        $items = array_filter(array_map('trim', explode($delimiter, $raw)));
+        $items = preg_split('/[;,|\s]+/u', trim($raw), -1, PREG_SPLIT_NO_EMPTY);
+        $items = array_values(array_filter($items, static fn(string $value): bool => preg_match('/^\d{8}$/', $value) === 1));
         if (empty($items)) {
             return '';
         }

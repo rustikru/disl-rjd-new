@@ -21,7 +21,7 @@ final class ReportConfig
         $profiles = [
             'abandoned' => [
                 'template' => 'TRAIN_INDEX',
-                'fields' => ['train_no', 'oper_station', 'oper_road', 'oper_dt'],
+                'fields' => ['train_no', 'oper_station', 'oper_road', 'station_count', 'abandon_dt', 'data_received_dt', 'idle_duration', 'loaded_count', 'empty_count', 'source'],
                 'sections' => [
                     ['label' => 'Гружёные', 'key' => 'loaded', 'filters' => ['cargo_state' => 'гр.']],
                     ['label' => 'Порожние', 'key' => 'empty_count', 'filters' => ['cargo_state' => 'пор.']],
@@ -47,6 +47,15 @@ final class ReportConfig
             $config['fields'],
             static fn(array $field): bool => in_array($field['key'], $profiles[$profile]['fields'], true)
         ));
+        if ($profile === 'abandoned') {
+            $config['fields'][] = ['key' => 'abandon_dt', 'label' => 'Дата операции'];
+            $config['fields'][] = ['key' => 'data_received_dt', 'label' => 'Дата получения данных'];
+            $config['fields'][] = ['key' => 'idle_duration', 'label' => 'Продолжительность простоя'];
+            $config['fields'][] = ['key' => 'loaded_count', 'label' => 'Гружёные, шт.'];
+            $config['fields'][] = ['key' => 'empty_count', 'label' => 'Порожние, шт.'];
+            $config['fields'][] = ['key' => 'station_count', 'label' => 'Станций, шт.'];
+            $config['fields'][] = ['key' => 'source', 'label' => 'Источник'];
+        }
         $config['group_by'] = [$config['group_field']];
 
         return array_merge($config, [

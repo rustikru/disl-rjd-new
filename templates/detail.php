@@ -230,6 +230,10 @@ $basePath = $basePath ?? '';
           { label: 'Гружёные', value: summary.loaded, filter: 'гр.' },
           { label: 'Порожние', value: summary.empty, filter: 'пор.' }
         ];
+        if (config.profile === 'abandoned') {
+          summaryItems.unshift({ label: 'Брошенные поезда', value: summary.trains || 0, filter: '' });
+          summaryItems.push({ label: 'Станций', value: summary.stations || 0, filter: '' });
+        }
         var mapHref = detailMapUrl(config);
         var html = '<div class="train-groups-layout user-kpi-groups-layout"><aside class="train-summary-panel">';
         html += '<div class="train-section-heading"><strong>Итоги</strong><span>' + Number(summary.total || 0).toLocaleString('ru-RU') + ' вагонов</span></div>';
@@ -244,6 +248,26 @@ $basePath = $basePath ?? '';
         html += '</div>';
         html += '</aside><section class="train-groups-panel">';
         html += '<div class="train-section-heading"><strong>' + esc(config.title || 'Группы') + '</strong><span>' + rows.length.toLocaleString('ru-RU') + ' групп</span></div>';
+        if (config.profile === 'abandoned') {
+          var filterOptions = data.filter_options || {};
+          var selectedSource = params.get('abandoned_source') || '';
+          var selectedStations = [];
+          try { selectedStations = JSON.parse(params.get('abandoned_station') || '[]'); } catch (e) { selectedStations = []; }
+          if (!Array.isArray(selectedStations)) selectedStations = [];
+          var selectedIdle = params.get('abandoned_idle_days') || '';
+          var selectedSearch = params.get('abandoned_search') || '';
+          html += '<form class="filters-bar user-kpi-detail-filters" id="abandonedFilters"><div class="filters-inner">';
+          html += '<div class="filter-item filter-item--multi"><span class="filter-label">Станция</span><select name="abandoned_station" multiple>';
+          (filterOptions.stations || []).forEach(function (station) {
+            html += '<option value="' + esc(station) + '"' + (selectedStations.indexOf(station) >= 0 ? ' selected' : '') + '>' + esc(station) + '</option>';
+          });
+          html += '</select></div>';
+          html += '<div class="filter-item"><span class="filter-label">Источник</span><select class="filter-select" name="abandoned_source"><option value="">Подход и отправление</option><option value="Подход"' + (selectedSource === 'Подход' ? ' selected' : '') + '>Подход</option><option value="Отправка"' + (selectedSource === 'Отправка' ? ' selected' : '') + '>Отправление</option></select></div>';
+          html += '<div class="filter-item"><span class="filter-label">Простой не менее, сут.</span><input class="filter-input" name="abandoned_idle_days" type="number" min="0" max="3650" value="' + esc(selectedIdle) + '"></div>';
+          html += '<div class="filter-item filter-item--wagon"><span class="filter-label">Поезд или вагон</span><input class="filter-input" name="abandoned_search" type="text" value="' + esc(selectedSearch) + '" placeholder="Индекс, номер поезда или вагона"></div>';
+          html += '<div class="filter-actions"><button class="btn btn-primary btn-sm" type="submit">Применить</button><a class="btn btn-ghost btn-sm" href="' + esc(window.location.pathname + '?' + (function(){var q=new URLSearchParams(params); ['abandoned_source','abandoned_station','abandoned_idle_days','abandoned_search'].forEach(function(k){q.delete(k);}); return q.toString();})()) + '">Сбросить</a></div></div></form>';
+          html += '<div class="train-groups-toggle-row"><button type="button" class="btn btn-ghost btn-sm js-train-groups-toggle">Отобразить все</button></div>';
+        }
         html += '<div class="user-kpi-index-list">';
         rows.forEach(function (row, index) {
           var value = row.group_value == null || row.group_value === '' ? 'Не указано' : row.group_value;
@@ -253,21 +277,22 @@ $basePath = $basePath ?? '';
           var route = routeFrom && routeTo ? 'Маршрут: ' + routeFrom + ' → ' + routeTo : '';
           var sections = config.sections || [{ label: config.count_label || 'вагонов', key: 'total', filters: {} }];
           html += '<article class="user-kpi-index-card"><div class="user-kpi-index-top">';
-          html += '<button type="button" class="user-kpi-index-info" data-index="' + index + '" aria-expanded="false">';
+          var detailsOpen = false;
+          html += '<button type="button" class="user-kpi-index-info' + (detailsOpen ? ' is-open' : '') + '" data-index="' + index + '" aria-expanded="' + (detailsOpen ? 'true' : 'false') + '">';
           html += '<span class="user-kpi-index-title">' + esc(groupTitle) + '</span><span class="user-kpi-index-route">' + esc(route) + '</span></button>';
           html += '<div class="user-kpi-system-counts">';
           sections.forEach(function (section) {
             var count = Number(row[section.key] || 0);
             html += '<a class="user-kpi-index-count" href="' + esc(countLinks(row, section)) + '" title="Открыть детализацию"><strong>' + count.toLocaleString('ru-RU') + '</strong><span>' + esc(section.label) + '</span></a>';
           });
-          html += '</div></div><div class="user-kpi-index-details" data-index="' + index + '" hidden>';
+          html += '</div></div><div class="user-kpi-index-details" data-index="' + index + '"' + (detailsOpen ? '' : ' hidden') + '>';
           var indexGroups = Array.isArray(row.train_index_groups) ? row.train_index_groups : [];
           if (indexGroups.length > 1) {
             html += '<div class="user-kpi-train-indexes"><span class="user-kpi-train-indexes-label">Группы по индексу поезда</span><div class="user-kpi-train-index-list">';
             indexGroups.forEach(function (group, groupIndex) {
               var indexValue = group.value == null || group.value === '' ? 'Не указан' : group.value;
-              html += '<section class="user-kpi-train-index"><button type="button" class="user-kpi-train-index-toggle is-open" data-card-index="' + index + '" data-group-index="' + groupIndex + '" aria-expanded="true"><strong>' + esc(indexValue) + '</strong><span>' + Number(group.total || 0).toLocaleString('ru-RU') + ' ваг.</span></button>';
-              html += '<div class="user-kpi-train-index-details" data-card-index="' + index + '" data-group-index="' + groupIndex + '"><div class="user-kpi-group-wagon-grid">';
+              html += '<section class="user-kpi-train-index"><button type="button" class="user-kpi-train-index-toggle" data-card-index="' + index + '" data-group-index="' + groupIndex + '" aria-expanded="false"><strong>' + esc(indexValue) + '</strong><span>' + Number(group.total || 0).toLocaleString('ru-RU') + ' ваг.</span></button>';
+              html += '<div class="user-kpi-train-index-details" data-card-index="' + index + '" data-group-index="' + groupIndex + '" hidden><div class="user-kpi-group-wagon-grid">';
               (config.fields || []).forEach(function (field) {
                 if (field.key === 'train_index') return;
                 var multiple = Number(group[field.key + '_count'] || 0) > 1;
@@ -297,6 +322,45 @@ $basePath = $basePath ?? '';
         if (!rows.length) html += '<div class="user-kpi-detail-empty">' + esc(config.empty_label || 'Нет данных') + '</div>';
         html += '</div></section></div>';
         $('#detailTable').html(html);
+        $('#detailTable .js-train-groups-toggle').on('click', function () {
+          var isCollapsed = $(this).text() === 'Отобразить все';
+          $('#detailTable .user-kpi-index-details, #detailTable .user-kpi-train-index-details').prop('hidden', !isCollapsed);
+          $('#detailTable .user-kpi-index-info, #detailTable .user-kpi-train-index-toggle').attr('aria-expanded', isCollapsed ? 'true' : 'false').toggleClass('is-open', isCollapsed);
+          $(this).text(isCollapsed ? 'Свернуть все' : 'Отобразить все');
+        });
+        if (config.profile === 'abandoned') {
+          var $station = $('#abandonedFilters select[name="abandoned_station"]');
+          var $widget = $('<div class="filter-multiselect"><button type="button" class="filter-multiselect-button">— Все —</button><div class="filter-multiselect-options" hidden><input class="filter-multiselect-search" type="search" placeholder="Поиск..."><div class="filter-multiselect-list"></div></div></div>');
+          var $list = $widget.find('.filter-multiselect-list');
+          $station.find('option').each(function () {
+            var option = this;
+            var $label = $('<label><input type="checkbox"> <span></span></label>');
+            $label.find('input').val(option.value).prop('checked', option.selected);
+            $label.find('span').text(option.text);
+            $list.append($label);
+          });
+          $station.after($widget).hide();
+          var updateStationLabel = function () {
+            var values = $list.find('input:checked').map(function () { return this.value; }).get();
+            $station.val(values);
+            $widget.find('.filter-multiselect-button').text(values.length ? 'Выбрано: ' + values.length : '— Все —');
+          };
+          $widget.find('.filter-multiselect-button').on('click', function () { $widget.find('.filter-multiselect-options').prop('hidden', !$widget.find('.filter-multiselect-options').prop('hidden')); });
+          $widget.find('input[type="checkbox"]').on('change', updateStationLabel);
+          $widget.find('.filter-multiselect-search').on('input', function () { var q = this.value.toLocaleLowerCase('ru-RU'); $list.children('label').each(function () { this.hidden = q && this.textContent.toLocaleLowerCase('ru-RU').indexOf(q) < 0; }); });
+          updateStationLabel();
+        }
+        $('#abandonedFilters').on('submit', function (event) {
+          event.preventDefault();
+          var query = new URLSearchParams(params);
+          var stationValues = $(this).find('select[name="abandoned_station"]').val() || [];
+          new FormData(this).forEach(function (value, key) {
+            if (key === 'abandoned_station') return;
+            if (String(value).trim()) query.set(key, String(value).trim()); else query.delete(key);
+          });
+          if (stationValues.length) query.set('abandoned_station', JSON.stringify(stationValues)); else query.delete('abandoned_station');
+          window.location.search = query.toString();
+        });
         $('#detailTable').off('click.groupedKpi').on('click.groupedKpi', '.user-kpi-index-info', function () {
           var index = Number($(this).attr('data-index'));
           var $content = $('#detailTable .user-kpi-index-details[data-index="' + index + '"]');

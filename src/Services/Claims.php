@@ -147,7 +147,10 @@ final class Claims
         }
         $wagonText = trim((string) ($params['wagon_no'] ?? ''));
         if ($wagonText !== '') {
-            $wagons = array_values(array_filter(array_map('trim', explode(';', $wagonText))));
+            $wagons = array_values(array_filter(
+                preg_split('/[;,|\s]+/u', $wagonText, -1, PREG_SPLIT_NO_EMPTY),
+                static fn(string $wagon): bool => preg_match('/^\d{8}$/', $wagon) === 1
+            ));
             $placeholders = [];
             foreach ($wagons as $i => $wagon) {
                 $placeholders[] = ':claim_wagon_' . $i;

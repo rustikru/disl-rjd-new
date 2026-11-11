@@ -72,7 +72,10 @@ final class ReportService
 
         $wagonNo = trim((string) ($filters['wagon_no'] ?? ''));
         if ($wagonNo !== '') {
-            $wagons = array_values(array_filter(array_map('trim', explode(';', $wagonNo))));
+            $wagons = array_values(array_filter(
+                preg_split('/[;,|\s]+/u', $wagonNo, -1, PREG_SPLIT_NO_EMPTY),
+                static fn(string $wagon): bool => preg_match('/^\d{8}$/', $wagon) === 1
+            ));
             if ($wagons) {
                 $placeholders = [];
                 foreach ($wagons as $index => $wagon) {
@@ -80,7 +83,7 @@ final class ReportService
                     $placeholders[] = ':' . $key;
                     $bindings[$key] = $wagon;
                 }
-                $whereCond .= ' AND car_number IN (' . implode(', ', $placeholders) . ')';
+                $whereCond .= ' AND TRIM(car_number) IN (' . implode(', ', $placeholders) . ')';
             }
         }
 

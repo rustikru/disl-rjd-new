@@ -252,6 +252,9 @@ return function (App $app, array $config): void {
         $group->get('/admin/system', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\AdminController($getDb(), $config))->systemPage($req, $res);
         });
+        $group->map(['GET', 'POST'], '/admin/logs', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\AdminController($getDb(), $config))->logsPage($req, $res);
+        });
         $group->get('/admin/kpi', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\KpiController($getDb(), $config))->page($req, $res);
         });

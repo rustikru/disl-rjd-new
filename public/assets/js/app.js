@@ -923,29 +923,39 @@ function loadSummary(cfg) {
         var pinVals = []
         var pinTotal = 0
         var pinName = ''
+        var hasOtherStation = false
         data.roads.forEach(function (road) {
-          var kept = []
           ;(road.stations || []).forEach(function (st) {
-            if ((st[stationField] || '').toUpperCase().indexOf(pinKey) !== -1) {
-              if (!pinName) pinName = st[stationField] || ''
-              ;(st.v || []).forEach(function (val, i) {
-                pinVals[i] = (pinVals[i] || 0) + (val || 0)
-              })
-              var stSum = (st.v || []).reduce(function (a, b) {
-                return a + (b || 0)
-              }, 0)
-              pinTotal += stSum
-              ;(st.v || []).forEach(function (val, i) {
-                road.total[i] = (road.total[i] || 0) - (val || 0)
-              })
-              road.grand_total = (road.grand_total || 0) - stSum
-            } else {
-              kept.push(st)
+            if ((st[stationField] || '').toUpperCase().indexOf(pinKey) === -1) {
+              hasOtherStation = true
             }
           })
-          road.stations = kept
         })
-        if (pinTotal > 0) {
+        if (hasOtherStation) {
+          data.roads.forEach(function (road) {
+            var kept = []
+            ;(road.stations || []).forEach(function (st) {
+              if ((st[stationField] || '').toUpperCase().indexOf(pinKey) !== -1) {
+                if (!pinName) pinName = st[stationField] || ''
+                ;(st.v || []).forEach(function (val, i) {
+                  pinVals[i] = (pinVals[i] || 0) + (val || 0)
+                })
+                var stSum = (st.v || []).reduce(function (a, b) {
+                  return a + (b || 0)
+                }, 0)
+                pinTotal += stSum
+                ;(st.v || []).forEach(function (val, i) {
+                  road.total[i] = (road.total[i] || 0) - (val || 0)
+                })
+                road.grand_total = (road.grand_total || 0) - stSum
+              } else {
+                kept.push(st)
+              }
+            })
+            road.stations = kept
+          })
+        }
+        if (pinTotal > 0 && hasOtherStation) {
           pinnedStation = { v: pinVals, grand_total: pinTotal, name: pinName }
           var totalBeforePin = data.total || 0
           data.total = totalBeforePin - pinTotal

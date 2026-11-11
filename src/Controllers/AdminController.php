@@ -219,6 +219,44 @@ class AdminController
         return $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 
+    public function logsPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        if (!$this->isSuper()) return $this->forbidden($response);
+
+        $root = dirname(__DIR__, 2);
+        $tab = (string) ($request->getQueryParams()['tab'] ?? 'errors');
+        if (!in_array($tab, ['errors', 'sql'], true)) $tab = 'errors';
+        $errorFile = $root . '/tmp/log/errors/' . date('Y-m-d') . '.log';
+        $sqlFile = $root . '/tmp/log/sql_debug.log';
+        $files = ['errors' => $errorFile, 'sql' => $sqlFile];
+        $message = null;
+        if ($request->getMethod() === 'POST') {
+            $body = (array) $request->getParsedBody();
+            $postedTab = (string) ($body['tab'] ?? $tab);
+            if (!in_array($postedTab, ['errors', 'sql'], true)) $postedTab = 'errors';
+            if (!hash_equals((string) ($_SESSION['csrf_token'] ?? ''), (string) ($body['csrf_token'] ?? ''))) {
+                return $response->withStatus(403);
+            }
+            $target = $files[$postedTab];
+            if (@file_put_contents($target, '') === false) {
+                $message = 'Не удалось очистить выбранный журнал.';
+            } else {
+                $message = 'Журнал очищен.';
+            }
+            $tab = $postedTab;
+        }
+
+        $path = $files[$tab];
+        $logText = is_readable($path) ? (string) file_get_contents($path) : '';
+        $appName = (string) ($this->config['app_name'] ?? 'Дислокация');
+        $basePath = (string) ($this->config['base_path'] ?? '');
+        $user = $_SESSION['user'] ?? [];
+        ob_start();
+        include __DIR__ . '/../../templates/admin/logs.php';
+        $response->getBody()->write((string) ob_get_clean());
+        return $response->withHeader('Content-Type', 'text/html; charset=utf-8')->withHeader('Cache-Control', 'no-store');
+    }
+
     public function usersPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         if (!$this->isAdmin()) {

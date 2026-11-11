@@ -341,7 +341,7 @@ as
                 return 'UPPER(dest_station) LIKE UPPER(''%Лужская%'')';
             elsif l_kpi.code = 'abandoned_trains'
             then
-                return 'type_reference = ''Отправка'' AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
+                return 'type_reference IN (''Подход'', ''Отправка'') AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
             elsif l_kpi.code = 'departed-today'
             then
                 return 'type_reference = ''Отправка'' AND asoup_depart_dt IS NOT NULL AND UPPER(TRIM(depart_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(asoup_depart_dt) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
@@ -388,7 +388,7 @@ as
                 return 'type_reference = ''Подход'' AND TRUNC(report_dt) > TRUNC(norm_delivery_dt) AND trip_end_dt IS NULL AND UPPER(oper_station) NOT LIKE UPPER(''%Угле%'')';
             elsif l_kpi.code = 'abandoned_wagons'
             then
-                return 'type_reference = ''Подход'' AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
+                return 'type_reference IN (''Подход'', ''Отправка'') AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
             elsif l_kpi.code = 'formed_trains'
             then
                 return 'type_reference = ''Подход'' AND (REGEXP_SUBSTR(TRIM(train_index), ''^[0-9]+'') LIKE ''%68207'' OR UPPER(train_index) LIKE ''%УГЛЕУРАЛЬСКАЯ%'' OR UPPER(train_index) LIKE ''%БЕРЕЗНИКИ%'' OR UPPER(train_index) LIKE ''%КИЗЕЛ%'' OR UPPER(train_index) LIKE ''%ЗАЯЧЬЯ ГОРКА%'')';
