@@ -19,21 +19,20 @@ final class SessionsController
         if ($request->getMethod() === 'POST') {
             $body = (array) $request->getParsedBody();
             if (empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], (string) ($body['csrf_token'] ?? ''))) return $response->withStatus(403);
-            $ids = $body['users'] ?? [];
-            if (!is_array($ids) || array_filter($ids, static fn($id) => !is_string($id))) return $response->withStatus(400);
-            $registry->revokeUsers($ids);
+            $keys = $body['sessions'] ?? [];
+            if (!is_array($keys) || array_filter($keys, static fn($key) => !is_string($key))) return $response->withStatus(400);
+            $registry->revokeKeys($keys);
             return $response->withHeader('Location', $basePath . '/admin/sessions')->withStatus(303);
         }
         $rows = $registry->active();
         $current = hash('sha256', session_id());
         $users = [];
         foreach ($rows as $key => $row) {
-            $id = $row['user_id'];
-            if (!isset($users[$id])) $users[$id] = $row + ['sessions' => 0, 'ips' => [], 'current' => false, 'entries' => []];
-            $users[$id]['entries'][] = $row;
-            $users[$id]['sessions']++;
-            $users[$id]['ips'][$row['ip']] = true;
-            $users[$id]['current'] = $users[$id]['current'] || $key === $current;
+            $group = (string) $row['user_id'] . '|' . (string) $row['ip'];
+            if (!isset($users[$group])) $users[$group] = $row + ['sessions' => 0, 'current' => false, 'entries' => []];
+            $users[$group]['entries'][] = $row + ['session_key' => $key];
+            $users[$group]['sessions']++;
+            $users[$group]['current'] = $users[$group]['current'] || $key === $current;
         }
         $appName = $this->config['app_name'] ?? '';
         $user = $_SESSION['user'];

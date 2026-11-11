@@ -51,7 +51,7 @@ final class SettingsController
                     $this->save($file, $updated);
                 }
                 $values = $updated;
-                $success = 'Настройки сохранены. Изменения применяются со следующего запроса.';
+                $success = 'Настройки сохранены. ';
             } catch (\InvalidArgumentException $exception) {
                 $error = $exception->getMessage();
             } catch (\Throwable $exception) {

@@ -52,4 +52,15 @@ final class SessionRegistry
     {
         $this->db->execute('UPDATE xx_rjd_sessions SET revoked = 1 WHERE session_key = :sid', ['sid'=>$key]);
     }
+
+    public function revokeKeys(array $keys): void
+    {
+        $keys = array_values(array_unique(array_filter($keys, static fn($key): bool => is_string($key) && preg_match('/^[a-f0-9]{64}$/', $key))));
+        if (!$keys) return;
+        $params = [];
+        $holders = [];
+        foreach ($keys as $i => $key) { $params['s'.$i] = $key; $holders[] = ':s'.$i; }
+        $this->db->execute('UPDATE xx_rjd_sessions SET revoked = 1 WHERE session_key IN ('.implode(',', $holders).')', $params);
+    }
+
 }

@@ -2208,6 +2208,14 @@ button.app-pagination__link {
   text-decoration: none;
 }
 .ui-table-link:hover { text-decoration: underline; }
+
+.report-filter-hint {
+  padding: 60px;
+  color: var(--text-2);
+  font-size: 15px;
+  font-weight: 500;
+  text-align: center;
+}
 .ui-table-actions {
   display: flex;
   align-items: center;

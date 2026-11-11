@@ -703,7 +703,9 @@ function connectReportDefinitions() {
           )
         },
       )
-      return missingFilter ? 'Укажите поле «' + missingFilter.label + '»' : null
+      return missingFilter
+        ? 'Для просмотра данных укажите «' + missingFilter.label + '»'
+        : null
     }
   })
 }
@@ -822,7 +824,7 @@ function initTab(cfg) {
     if (initHint) {
       loadFilters(cfg)
       $('#' + cfg.detTableId).html(
-        '<div style="text-align:center;padding:60px;color:#E8392A;font-size:15px;font-weight:600">' +
+        '<div class="report-filter-hint">' +
           esc(initHint) +
           '</div>',
       )
@@ -2831,7 +2833,7 @@ $(function () {
       var applyHint = cfg.validate ? cfg.validate() : null
       if (applyHint) {
         $('#' + cfg.detTableId).html(
-          '<div style="text-align:center;padding:60px;color:#E8392A;font-size:15px;font-weight:600">' +
+          '<div class="report-filter-hint">' +
             esc(applyHint) +
             '</div>',
         )

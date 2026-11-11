@@ -448,7 +448,7 @@ $editingWeekDays = array_filter(explode(',', (string) ($editingMailing['week_day
       layoutInput.name = 'reports[' + reportCode + '][layout_mode]'
       layoutInput.value = 'U'
       layoutInput.checked = MAILING_EDIT_LAYOUT_MODES[reportCode] === 'U'
-      layoutLabel.append(layoutInput, document.createTextNode('Мой порядок колонок'))
+      //layoutLabel.append(layoutInput, document.createTextNode('Мой порядок колонок'))
       var remove = document.createElement('button')
       remove.type = 'button'
       remove.className = 'selected-report-remove'
@@ -458,7 +458,7 @@ $editingWeekDays = array_filter(explode(',', (string) ($editingMailing['week_day
         document.querySelector('[data-report-code="' + reportCode + '"]').checked = false
         showSelectedReports()
       })
-      head.append(name, layoutLabel, remove)
+      //head.append(name, layoutLabel, remove)
       var filters = document.createElement('div')
       filters.className = 'selected-report-filters'
       reportDefinition.filters.forEach(function (filterDefinition) { filters.append(buildMailingFilter(reportCode, filterDefinition)) })
