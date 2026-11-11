@@ -266,7 +266,9 @@
               cell.textContent =
                 field.key === 'oper_dt'
                   ? formatDate(item[field.key], false)
-                  : item[field.key] || '—'
+                  : field.key === 'idle_days'
+                    ? (item[field.key] === null || item[field.key] === undefined ? '—' : String(item[field.key]))
+                    : item[field.key] || '—'
             })
           })
           tableContainer.append(table)

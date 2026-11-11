@@ -49,7 +49,7 @@ final class WagonConfig
     ];
 
     private const HISTORY = [
-        'oper_dt', 'operation', 'oper_station', 'oper_road', 'train_no', 'waybill_no',
+        'oper_dt', 'idle_days', 'operation', 'oper_station', 'oper_road', 'train_no', 'waybill_no',
     ];
 
     private const ROUTE = [
@@ -123,6 +123,7 @@ final class WagonConfig
         $labels = [];
         foreach (ReportConfig::sourceColumns() as $column)
             $labels[(string) $column['key']] = (string) $column['label'];
+        $labels['idle_days'] = 'Простой, сут';
         return $labels;
     }
 

@@ -38,9 +38,16 @@ final class WagonMovement
             return ['rows' => [], 'message' => 'Не удалось определить текущий рейс: отсутствуют дата начала и номер накладной.'];
         }
 
-        $fields = implode(', ', WagonConfig::historyFields());
+        $fields = implode(', ', array_filter([
+            'oper_dt',
+            'operation',
+            'oper_station',
+            'oper_road',
+            'train_no',
+            'waybill_no',
+        ]));
         $sourceFields = implode(', ', array_unique(array_merge(
-            WagonConfig::historyFields(),
+            array_diff(WagonConfig::historyFields(), ['idle_days']),
             ['oper_mnemonic', 'oper_station_esr_code', 'report_dt', 'id']
         )));
 
@@ -85,13 +92,21 @@ final class WagonMovement
         $offset = ($page - 1) * $perPage;
 
         $rows = $this->db->fetchAll(
-            "SELECT $fields
+            "SELECT movement_rows.*,
+                    CASE WHEN next_oper_dt IS NULL THEN NULL
+                         ELSE TRUNC(next_oper_dt) - TRUNC(oper_dt)
+                    END AS idle_days
                FROM (SELECT movement_rows.*,
+                            LEAD(oper_dt) OVER (
+                                ORDER BY oper_dt, oper_station, operation, page_station_code,
+                                         oper_road, train_no, waybill_no
+                            ) AS next_oper_dt,
                             ROW_NUMBER() OVER (
                                 ORDER BY oper_dt, oper_station, operation, page_station_code,
                                          oper_road, train_no, waybill_no
                             ) AS page_row
-                       FROM ($deduplicatedSql) movement_rows)
+                       FROM ($deduplicatedSql) movement_rows
+              ) movement_rows
               WHERE page_row > :page_offset AND page_row <= :page_limit
               ORDER BY page_row",
             $params + ['page_offset' => $offset, 'page_limit' => $offset + $perPage]
