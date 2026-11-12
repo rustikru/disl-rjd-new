@@ -249,6 +249,20 @@ as
             return 'неопр.';
     end;
 
+    function fnc_get_approach_cargo_state (
+        p_oper_station      in varchar2,
+        p_railcar_id        in varchar2,
+        p_wagon_type_code   in varchar2,
+        p_weight             in number
+    ) return varchar2
+    is
+    begin
+        if upper(nvl(p_oper_station, ' ')) like '%УГЛЕУРАЛ%' then
+            return fnc_get_pn_cargo_state(p_railcar_id);
+        end if;
+        return fnc_get_cargo_state(p_wagon_type_code, p_weight);
+    end;
+
     -- вынесена на уровень пакета, чтобы использовать в тренде
     procedure calculate_change (
         p_yesterday_value   in     number,

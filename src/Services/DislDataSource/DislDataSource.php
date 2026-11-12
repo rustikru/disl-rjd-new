@@ -92,18 +92,12 @@ final class DislDataSource
                 report_rows.*,
                 pn.pn_car_type AS pn_car_type,
                 pn.pn_weight_net AS pn_weight_net,
-                CASE
-                    WHEN UPPER(NVL(report_rows.oper_station, ' ')) NOT LIKE '%УГЛЕУРАЛ%'
-                        THEN XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_GET_CARGO_STATE(
-                            report_rows.wagon_type_code,
-                            report_rows.cargo_weight_kg
-                        )
-                    WHEN pn.pn_weight_net IS NULL THEN 'неопр.'
-                    ELSE XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_GET_CARGO_STATE(
-                        pn.pn_car_type,
-                        pn.pn_weight_net
-                    )
-                END AS pn_cargo_state
+                XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_GET_APPROACH_CARGO_STATE(
+                    report_rows.oper_station,
+                    report_rows.wagon_no,
+                    report_rows.wagon_type_code,
+                    report_rows.cargo_weight_kg
+                ) AS pn_cargo_state
             FROM report_rows
             LEFT JOIN pn
                 ON pn.railcar_id = report_rows.wagon_no

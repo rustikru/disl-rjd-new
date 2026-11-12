@@ -43,6 +43,13 @@ as
     function fnc_get_pn_cargo_state (p_railcar_id in varchar2)
         return varchar2;
 
+    function fnc_get_approach_cargo_state (
+        p_oper_station      in varchar2,
+        p_railcar_id        in varchar2,
+        p_wagon_type_code   in varchar2,
+        p_weight             in number
+    ) return varchar2;
+
     function set_kpi_label (p_kpi_id in number, p_date in date default null)
         return varchar2;
 
