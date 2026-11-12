@@ -738,7 +738,7 @@ class ApiController
 
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_road', 'dest_station']);
         $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type'], $source['cargoStateExpression'] ?? null);
-        $data = $this->summaryReport($source, $rowDims, $colDefs);
+        $data = $this->summaryReport($source, $rowDims, $colDefs, null, true);
         return $this->json($response, $data);
     }
 
@@ -1512,7 +1512,13 @@ class ApiController
      * $rowDims  — поля строк сводной (GROUP BY строки)
      * $colDefs  — колонки сводной: [['alias' => ..., 'expr' => ...], ...]
      */
-    private function summaryReport(array $source, array $rowDims, array $colDefs, ?string $rowOrder = null): array
+    private function summaryReport(
+        array $source,
+        array $rowDims,
+        array $colDefs,
+        ?string $rowOrder = null,
+        bool $sparseColumns = false
+    ): array
     {
         $selectRow = implode(', ', $rowDims);
         $rowOrder ??= $this->summaryRowOrder($rowDims);
@@ -1529,7 +1535,7 @@ class ApiController
             $source['bindings']
         );
 
-        return $this->roadTable($rows, $rowDims, $colAliases);
+        return $this->roadTable($rows, $rowDims, $colAliases, $sparseColumns);
     }
 
     /** Задаёт приоритет для основных значений назначения в сводной таблице. */
@@ -1901,27 +1907,58 @@ class ApiController
      * $rowDims   — поля строк (groupKeys[0] = верхний уровень, последний = нижний)
      * $colAliases — алиасы колонок в порядке, соответствующем flat-индексу
      */
-    private function roadTable(array $rows, array $rowDims, array $colAliases): array
+    private function roadTable(
+        array $rows,
+        array $rowDims,
+        array $colAliases,
+        bool $sparseColumns = false
+    ): array
     {
         $topKey = $rowDims[0];
         $subKeys = array_slice($rowDims, 1);
         $nColLevels = count($colAliases);
 
-        // Уникальные значения для каждого уровня колонок.
+        // Сохраняем только сочетания колонок, которые действительно есть в данных.
+        $colPaths = [];
+        $colIndex = [];
         $colValues = array_fill(0, $nColLevels, []);
-        $colIndex = array_fill(0, $nColLevels, []);
+        $colValueIndex = array_fill(0, $nColLevels, []);
         foreach ($rows as $r) {
-            foreach ($colAliases as $k => $alias) {
-                $v = (string) ($r[$alias] ?? '');
-                if ($v !== '' && !isset($colIndex[$k][$v])) {
-                    $colIndex[$k][$v] = count($colValues[$k]);
-                    $colValues[$k][] = $v;
+            $path = array_map(static fn(string $alias): string => (string) ($r[$alias] ?? ''), $colAliases);
+            if (in_array('', $path, true)) {
+                continue;
+            }
+            foreach ($path as $level => $value) {
+                if (!isset($colValueIndex[$level][$value])) {
+                    $colValueIndex[$level][$value] = true;
+                    $colValues[$level][] = $value;
                 }
+            }
+            $key = implode("\0", $path);
+            if (!isset($colIndex[$key])) {
+                $colIndex[$key] = count($colPaths);
+                $colPaths[] = $path;
             }
         }
 
-        $colDims = array_map(fn($vals) => max(1, count($vals)), $colValues);
-        $nFlat = (int) array_product($colDims);
+        if (!$sparseColumns && $nColLevels > 1) {
+            $colPaths = [[]];
+            foreach ($colValues as $values) {
+                $nextPaths = [];
+                foreach ($colPaths as $path) {
+                    foreach ($values as $value) {
+                        $nextPaths[] = array_merge($path, [$value]);
+                    }
+                }
+                $colPaths = $nextPaths;
+            }
+            $colIndex = [];
+            foreach ($colPaths as $index => $path) {
+                $colIndex[implode("\0", $path)] = $index;
+            }
+        }
+
+        $nFlat = max(1, count($colPaths));
         $roads = [];
 
         foreach ($rows as $r) {
@@ -1940,16 +1977,12 @@ class ApiController
                 $roads[$topVal]['stations'][$subComposite] = $stData;
             }
 
-            $firstColVal = (string) ($r[$colAliases[0]] ?? '');
-            if ($firstColVal === '' || !isset($colIndex[0][$firstColVal])) {
+            $path = array_map(static fn(string $alias): string => (string) ($r[$alias] ?? ''), $colAliases);
+            $pathKey = implode("\0", $path);
+            if (!isset($colIndex[$pathKey])) {
                 continue;
             }
-
-            $flatIdx = 0;
-            foreach ($colAliases as $k => $alias) {
-                $v = (string) ($r[$alias] ?? '');
-                $flatIdx = $flatIdx * $colDims[$k] + ($colIndex[$k][$v] ?? 0);
-            }
+            $flatIdx = $colIndex[$pathKey];
 
             $roads[$topVal]['stations'][$subComposite]['v'][$flatIdx] += $cnt;
             $roads[$topVal]['total'][$flatIdx] += $cnt;
@@ -1966,19 +1999,24 @@ class ApiController
         $grandTotal = array_sum(array_column($metrics, 'total'));
 
         if ($nColLevels <= 1) {
-            return ['cols' => $colValues[0], 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
+            return ['cols' => array_column($colPaths, 0), 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
         }
 
-        $buildColTree = function (int $level) use (&$buildColTree, $colValues, $nColLevels) {
-            $isLeaf = $level === $nColLevels - 1;
+        $buildColTree = function (array $paths, int $level) use (&$buildColTree, $nColLevels): array {
             $out = [];
-            foreach ($colValues[$level] as $v) {
-                $out[] = $isLeaf ? $v : ['label' => $v, 'subs' => $buildColTree($level + 1)];
+            $groups = [];
+            foreach ($paths as $path) {
+                $groups[$path[$level]][] = $path;
+            }
+            foreach ($groups as $label => $groupPaths) {
+                $out[] = $level === $nColLevels - 1
+                    ? $label
+                    : ['label' => $label, 'subs' => $buildColTree($groupPaths, $level + 1)];
             }
             return $out;
         };
 
-        return ['col_groups' => $buildColTree(0), 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
+        return ['col_groups' => $buildColTree($colPaths, 0), 'roads' => $roadList, 'metrics' => array_slice($metrics, 0, 20), 'total' => $grandTotal];
     }
 
     /**

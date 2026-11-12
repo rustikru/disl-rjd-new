@@ -1910,8 +1910,16 @@ function drawSummary(
   if (hasSubtotals) {
     // Prepend an 'Итого' group at the left that sums across all top-level groups,
     // keeping the sub-column breakdown (e.g. гр./пор. per cargo state)
-    var subColCount = levels[subtotalDepth][0].span
-    var topGroupCount = levels[subtotalDepth].length
+    var subtotalLabels = []
+    var subtotalIndex = {}
+    flatCells.forEach(function (cell) {
+      var label = cell.subs[subtotalDepth] || ''
+      if (!Object.prototype.hasOwnProperty.call(subtotalIndex, label)) {
+        subtotalIndex[label] = subtotalLabels.length
+        subtotalLabels.push(label)
+      }
+    })
+    var subColCount = subtotalLabels.length
     var dlvl
 
     for (dlvl = 0; dlvl < depth; dlvl++) {
@@ -1928,10 +1936,10 @@ function drawSummary(
       displayLevels[subtotalDepth].push(g)
     })
 
-    // Level subtotalDepth+1: prepend sub-column labels from first group, then all original
+    // В «Итого» выводим объединённый список реально существующих подколонок.
     for (var j = 0; j < subColCount; j++) {
       displayLevels[subtotalDepth + 1].push({
-        label: levels[subtotalDepth + 1][j].label,
+        label: subtotalLabels[j],
         span: 1,
         isSubtotal: true,
       })
@@ -1940,13 +1948,16 @@ function drawSummary(
       displayLevels[subtotalDepth + 1].push(c)
     })
 
-    // displayCells: subtotal entries (one per sub-column position), then regular cells
+    // Суммируем одинаковые подколонки, даже если наборы внутри групп отличаются.
     for (var si = 0; si < subColCount; si++) {
       var idxs = []
-      for (var gi = 0; gi < topGroupCount; gi++) {
-        idxs.push(gi * subColCount + si)
-      }
-      var stSubs = flatCells[si].subs.slice()
+      flatCells.forEach(function (cell, index) {
+        if ((cell.subs[subtotalDepth] || '') === subtotalLabels[si]) {
+          idxs.push(index)
+        }
+      })
+      var stSubs = []
+      stSubs[subtotalDepth] = subtotalLabels[si]
       if (subtotalDepth > 0) stSubs[subtotalDepth - 1] = ''
       displayCells.push({
         isSubtotal: true,
