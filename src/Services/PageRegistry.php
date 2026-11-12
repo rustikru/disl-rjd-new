@@ -76,8 +76,8 @@ final class PageRegistry
         'admin-report-mailings' => ['label' => 'Управление рассылками', 'routes' => ['/admin/report-mailings'], 'visibility_group' => 'Администрирование', 'legacy_visibility' => ['report-mailings'], 'super_only' => true],
         'sessions' => ['label' => 'Активные сессии', 'routes' => ['/admin/sessions'], 'visibility_group' => 'Администрирование', 'super_only' => true],
         'audit' => ['label' => 'Журнал действий', 'routes' => ['/admin/audit'], 'visibility_group' => 'Администрирование', 'super_only' => true],
-        'system' => ['label' => 'О системе', 'routes' => ['/admin/system'], 'visibility_group' => 'Администрирование', 'super_only' => true],
         'logs' => ['label' => 'Журналы ошибок и SQL', 'routes' => ['/admin/logs'], 'visibility_group' => 'Администрирование', 'super_only' => true],
+        'system' => ['label' => 'О системе', 'routes' => ['/admin/system'], 'visibility_group' => 'Администрирование', 'super_only' => true],
         'kpi' => ['label' => 'Управление KPI', 'routes' => ['/admin/kpi'], 'visibility_group' => 'Администрирование', 'super_only' => true],
     ];
 
@@ -93,8 +93,8 @@ final class PageRegistry
         'admin-report-mailings' => ['group' => 'Рассылки', 'order' => 10, 'url' => '/admin/report-mailings'],
         'sessions' => ['group' => 'Мониторинг', 'order' => 10, 'url' => '/admin/sessions'],
         'audit' => ['group' => 'Мониторинг', 'order' => 20, 'url' => '/admin/audit'],
-        'system' => ['group' => 'Мониторинг', 'order' => 30, 'url' => '/admin/system'],
-        'logs' => ['group' => 'Мониторинг', 'order' => 40, 'url' => '/admin/logs'],
+        'logs' => ['group' => 'Мониторинг', 'order' => 30, 'url' => '/admin/logs'],
+        'system' => ['group' => 'Мониторинг', 'order' => 40, 'url' => '/admin/system'],
         'kpi' => ['group' => 'Настройки системы', 'order' => 40, 'url' => '/admin/kpi'],
     ];
 
