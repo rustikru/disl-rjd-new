@@ -9,6 +9,7 @@ use App\Reports\KpiCondition;
 use App\Reports\KpiGroupingTemplates;
 use App\Reports\KpiTypeRegistry;
 use App\Services\Claims;
+use App\Services\DislDataSource\DislDataSource;
 use App\Services\Organizations;
 use App\Services\ReportService;
 use App\Services\WagonCargoState;
@@ -36,6 +37,7 @@ class ApiController
 
     private DbInterface $db;
     private Organizations $organizations;
+    private DislDataSource $dislDataSource;
     private array $reportDtCache = [];
     private array $latestDtsCache = [];
 
@@ -43,6 +45,7 @@ class ApiController
     {
         $this->db = $db;
         $this->organizations = $organizations ?? new Organizations($db);
+        $this->dislDataSource = new DislDataSource();
     }
 
     // =========================================================================
@@ -319,7 +322,7 @@ class ApiController
         }
 
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state', 'dest_road']);
-        $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
+        $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type'], $source['cargoStateExpression'] ?? null);
         $data = $this->summaryReport($source, $rowDims, $colDefs);
         try {
             $data['updated_at'] = (new \DateTimeImmutable($source['reportDt']))->format('d.m.Y H:i');
@@ -713,7 +716,7 @@ class ApiController
     public function approachFilters(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $source = $this->approachFrom(['report_dt' => $params['report_dt'] ?? null]);
+        $source = $this->approachFrom(['report_dt' => $params['report_dt'] ?? null], false);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['cargo' => [], 'depart_station' => []]);
@@ -726,14 +729,14 @@ class ApiController
     public function approachSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $params = $request->getQueryParams();
-        $source = $this->approachFrom($params);
+        $source = $this->approachFrom($params, true);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_road', 'dest_station']);
-        $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type']);
+        $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type'], $source['cargoStateExpression'] ?? null);
         $data = $this->summaryReport($source, $rowDims, $colDefs);
         return $this->json($response, $data);
     }
@@ -743,14 +746,14 @@ class ApiController
     {
         $params = $request->getQueryParams();
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_road', 'dest_station']);
-        $source = $this->approachFrom($params);
+        $source = $this->approachFrom($params, true);
 
         if (!$source['reportDt']) {
             return $this->json($response, ['rows' => []]);
         }
 
         $bindings = $source['bindings'];
-        $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings);
+        $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings, $source['cargoStateExpression'] ?? null);
 
         $excl = $params['exclude_station'] ?? null;
         if ($excl) {
@@ -1276,7 +1279,7 @@ class ApiController
     }
 
     /** Подход: вагоны станция назначения УГЛ  (type_reference='Подход'). */
-    private function approachFrom(array $params): array
+    private function approachFrom(array $params, bool $withPn = false): array
     {
         $reportDt = $this->getReportDt($params['report_dt'] ?? null, 'Подход');
         if (!$reportDt) {
@@ -1300,7 +1303,18 @@ class ApiController
         // Фильтр по реестру исключений временно отключён.
         // $whereCond .= $this->excludedWagonsCondition();
 
-        return ['from' => "(SELECT * FROM xx_dislocation_rjd WHERE $whereCond)", 'bindings' => $bindings, 'reportDt' => $reportDt];
+        if ($withPn) {
+            $from = $this->dislDataSource->approachSource($whereCond);
+        } else {
+            $from = "(SELECT d.* FROM xx_dislocation_rjd d WHERE $whereCond)";
+        }
+
+        return [
+            'from' => $from,
+            'bindings' => $bindings,
+            'reportDt' => $reportDt,
+            'cargoStateExpression' => $withPn ? 'pn_cargo_state' : null,
+        ];
     }
 
     /** Возвращает все загруженные строки и поля справки без условий экранных отчётов. */
@@ -1554,7 +1568,7 @@ class ApiController
      * $params  — все URL-параметры запроса
      * $bindings — биндинги, пополняются по ссылке
      */
-    private function applyDetailFilters(array $rowDims, array $params, array &$bindings): string
+    private function applyDetailFilters(array $rowDims, array $params, array &$bindings, ?string $cargoStateExpression = null): string
     {
         // Фильтр по строкам: пустой JSON-массив от select не является значением строки.
         $whereCond = '';
@@ -1566,7 +1580,7 @@ class ApiController
         }
 
         // Фильтр по колонкам: берёт выражения из единого реестра colDimRegistry
-        foreach ($this->colDimRegistry() as $alias => $def) {
+        foreach ($this->colDimRegistry($cargoStateExpression) as $alias => $def) {
             $value = $params[$def['param']] ?? null;
             if ($value !== null && $value !== '') {
                 $bind = 'col_' . $alias;
@@ -1704,11 +1718,11 @@ class ApiController
      * Добавить новую вычисляемую колонку
      * param должен совпадать с colDims[].paramName в app.js.
      */
-    private function colDimRegistry(): array
+    private function colDimRegistry(?string $cargoStateExpression = null): array
     {
         return [
             'wagon_type_code' => ['expr' => self::WAG_TYPE_EXPR, 'param' => 'wagon_type'],
-            'cargo_w_type' => ['expr' => self::WAG_STATE, 'param' => 'cargo_state'],
+            'cargo_w_type' => ['expr' => $cargoStateExpression ?: self::WAG_STATE, 'param' => 'cargo_state'],
         ];
     }
 
@@ -1716,9 +1730,9 @@ class ApiController
      * Раскрывает col_by (алиасы через запятую) в определения колонок для summaryReport.
      * Возвращает [['alias' => ..., 'expr' => ...], ...].
      */
-    private function resolveColDims(string $colBy, array $defaultAliases): array
+    private function resolveColDims(string $colBy, array $defaultAliases, ?string $cargoStateExpression = null): array
     {
-        $registry = $this->colDimRegistry();
+        $registry = $this->colDimRegistry($cargoStateExpression);
         $aliases = $this->parseGroupBy($colBy, $defaultAliases);
         return array_values(array_filter(
             array_map(
