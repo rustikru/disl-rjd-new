@@ -271,9 +271,12 @@ $basePath = $basePath ?? '';
         rows.forEach(function (row, index) {
           var value = row.group_value == null || row.group_value === '' ? 'Не указано' : row.group_value;
           var groupTitle = (config.group_prefix || '') + value;
-          var routeFrom = Number(row.route_depart_station_count || 0) > 1 ? 'Несколько станций' : (row.route_depart_station || '');
-          var routeTo = Number(row.route_dest_station_count || 0) > 1 ? 'Несколько станций' : (row.route_dest_station || '');
+          var routeFrom = Number(row.route_depart_station_count || 0) > 1 ? 'Несколько записей' : (row.route_depart_station || '');
+          var routeTo = Number(row.route_dest_station_count || 0) > 1 ? 'Несколько записей' : (row.route_dest_station || '');
           var route = routeFrom && routeTo ? 'Маршрут: ' + routeFrom + ' → ' + routeTo : '';
+          if (String(config.group_field || '').toLowerCase() === 'train_no' && row.group_index) {
+            groupTitle += ' (' + row.group_index + ')';
+          }
           var sections = config.sections || [{ label: config.count_label || 'вагонов', key: 'total', filters: {} }];
           html += '<article class="user-kpi-index-card"><div class="user-kpi-index-top">';
           var detailsOpen = false;
@@ -300,7 +303,7 @@ $basePath = $basePath ?? '';
               (config.fields || []).forEach(function (field) {
                 if (field.key === 'train_index') return;
                 var multiple = Number(group[field.key + '_count'] || 0) > 1;
-                var fieldValue = multiple ? 'Несколько значений' : group[field.key];
+                var fieldValue = multiple ? 'Несколько записей' : group[field.key];
                 html += '<div class="user-kpi-group-wagon-field"><span>' + esc(field.label) + '</span><strong>' + esc(fieldValue == null || fieldValue === '' ? '—' : fieldValue) + '</strong></div>';
               });
               html += '</div></div></section>';
@@ -315,7 +318,7 @@ $basePath = $basePath ?? '';
                 fieldValue = detailRow.value;
               } else {
                 var multiple = Number(detailRow[field.key + '_count'] || 0) > 1;
-                fieldValue = multiple ? 'Несколько значений' : detailRow[field.key];
+                fieldValue = multiple ? 'Несколько записей' : detailRow[field.key];
               }
               html += '<div class="user-kpi-group-wagon-field"><span>' + esc(field.label) + '</span><strong>' + esc(fieldValue == null || fieldValue === '' ? '—' : fieldValue) + '</strong></div>';
             });

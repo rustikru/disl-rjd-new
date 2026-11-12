@@ -2243,7 +2243,7 @@ button.app-pagination__link {
 .logs-tabs a:hover, .logs-tabs a.is-active { color:var(--accent); background:var(--accent-lt); }
 .logs-head { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:14px 18px; border-bottom:1px solid var(--border); }
 .logs-head strong { color:var(--text-1); font-size:14px; }
-.logs-text { display:block; width:100%; min-height:560px; padding:14px 18px; border:0; resize:vertical; background:var(--surface); color:var(--text-1); font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace; outline:0; }
+.logs-text { display:block; width:100%; min-height:560px; padding:14px 18px; border:0; resize:vertical; background:var(--surface); color:var(--text-1); font:8px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace; outline:0; }
 
 .report-filter-hint {
   padding: 60px;

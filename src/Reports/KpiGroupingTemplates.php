@@ -13,6 +13,10 @@ final class KpiGroupingTemplates
             'title' => 'Группы поездов по номеру',
             'fields' => ['train_index', 'oper_station', 'oper_road', 'operation', 'oper_dt', 'trip_start_dt'],
             'route_fields' => ['depart_station', 'dest_station'],
+            'sections' => [
+                ['label' => 'Гружёные', 'key' => 'loaded', 'filters' => ['cargo_state' => 'гр.']],
+                ['label' => 'Порожние', 'key' => 'empty_count', 'filters' => ['cargo_state' => 'пор.']],
+            ],
         ],
         'TRAIN_INDEX' => [
             'label' => 'По индексу поезда',
@@ -65,6 +69,7 @@ final class KpiGroupingTemplates
             'title' => $template['title'],
             'fields' => $fields,
             'route_fields' => $route,
+            'sections' => $template['sections'] ?? [],
             'count_label' => 'вагонов',
             'empty_label' => 'Нет данных',
         ];

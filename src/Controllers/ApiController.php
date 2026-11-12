@@ -448,6 +448,7 @@ class ApiController
         );
         if ($detail && $trainGroups && $detail['code'] === 'train-groups') {
             $groupField = strtoupper($detail['group_field']);
+            $isFormed = $groupField === 'TRAIN_NO';
             $select = [
                 $groupField . ' AS "group_value"',
                 'COUNT(*) AS "total"',
@@ -457,6 +458,9 @@ class ApiController
                 "SUM(SUM(CASE WHEN " . self::WAG_STATE . " = 'гр.' THEN 1 ELSE 0 END)) OVER () AS \"summary_loaded\"",
                 "SUM(SUM(CASE WHEN " . self::WAG_STATE . " = 'пор.' THEN 1 ELSE 0 END)) OVER () AS \"summary_empty\"",
             ];
+            if ($isFormed) {
+                $select[] = 'TRAIN_INDEX AS "group_index"';
+            }
             foreach ($detail['route_fields'] as $field) {
                 $key = $field['key'];
                 $column = strtoupper($key);
@@ -473,11 +477,13 @@ class ApiController
                 "SELECT " . implode(', ', $select) . "
                    FROM {$source['from']} xdr
                   WHERE 1=1 $whereCond
-                  GROUP BY $groupField
-                  ORDER BY $groupField",
+                  GROUP BY " . ($isFormed ? "$groupField, TRAIN_INDEX" : $groupField) . "
+                  ORDER BY " . ($isFormed ? "$groupField, TRAIN_INDEX" : $groupField),
                 $bindings
             );
-            $rows = $this->addTrainIndexGroups($rows, $detail, $groupField, $source['from'], $whereCond, $bindings);
+            if (!$isFormed) {
+                $rows = $this->addTrainIndexGroups($rows, $detail, $groupField, $source['from'], $whereCond, $bindings);
+            }
             $summary = $rows[0] ?? [];
 
             $filterOptions = [];
@@ -567,6 +573,10 @@ class ApiController
                 "SUM(SUM(CASE WHEN " . self::WAG_STATE . " = 'гр.' THEN 1 ELSE 0 END)) OVER () AS \"summary_loaded\"",
                 "SUM(SUM(CASE WHEN " . self::WAG_STATE . " = 'пор.' THEN 1 ELSE 0 END)) OVER () AS \"summary_empty\"",
             ];
+            $isTrainNumber = strtoupper($groupField) === 'TRAIN_NO';
+            if ($isTrainNumber) {
+                $select[] = 'TRAIN_INDEX AS "group_index"';
+            }
             foreach ($template['route_fields'] as $field) {
                 $key = $field['key'];
                 $column = strtoupper($key);
@@ -580,10 +590,12 @@ class ApiController
                 if ($withCount) $select[] = $withCount;
             }
             $rows = $this->db->fetchAll(
-                "SELECT " . implode(', ', $select) . " FROM {$source['from']} xdr WHERE 1=1 $whereCond GROUP BY " . strtoupper($groupField) . " ORDER BY " . strtoupper($groupField) . " ASC",
+                "SELECT " . implode(', ', $select) . " FROM {$source['from']} xdr WHERE 1=1 $whereCond GROUP BY " . ($isTrainNumber ? strtoupper($groupField) . ', TRAIN_INDEX' : strtoupper($groupField)) . " ORDER BY " . ($isTrainNumber ? strtoupper($groupField) . ', TRAIN_INDEX' : strtoupper($groupField)) . " ASC",
                 $bindings
             );
-            $rows = $this->addTrainIndexGroups($rows, $template, strtoupper($groupField), $source['from'], $whereCond, $bindings);
+            if (!$isTrainNumber) {
+                $rows = $this->addTrainIndexGroups($rows, $template, strtoupper($groupField), $source['from'], $whereCond, $bindings);
+            }
             $summary = $rows[0] ?? [];
 
             foreach ($rows as &$row) {

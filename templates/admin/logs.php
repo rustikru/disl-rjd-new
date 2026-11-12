@@ -9,7 +9,30 @@
     <a class="<?= $tab === 'errors' ? 'is-active' : '' ?>" href="<?= htmlspecialchars($basePath) ?>/admin/logs?tab=errors">Ошибки</a>
     <a class="<?= $tab === 'sql' ? 'is-active' : '' ?>" href="<?= htmlspecialchars($basePath) ?>/admin/logs?tab=sql">SQL-запросы</a>
   </div>
-  <div class="logs-head"><div><strong><?= $tab === 'errors' ? 'Журнал ошибок' : 'Журнал SQL-запросов' ?></strong><div class="ui-help"><?= htmlspecialchars($path) ?></div></div><form method="post" onsubmit="return confirm('Очистить выбранный журнал?')"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>"><input type="hidden" name="tab" value="<?= htmlspecialchars($tab) ?>"><button class="btn btn-secondary" type="submit">Очистить журнал</button></form></div>
+  <div class="logs-head"><div><strong><?= $tab === 'errors' ? 'Журнал ошибок' : 'Журнал SQL-запросов' ?></strong><div class="ui-help"><?= htmlspecialchars($path) ?></div></div><div class="ui-form-actions"><button class="btn btn-secondary js-log-refresh" type="button">Обновить</button><form method="post" onsubmit="return confirm('Очистить выбранный журнал?')"><input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>"><input type="hidden" name="tab" value="<?= htmlspecialchars($tab) ?>"><button class="btn btn-secondary" type="submit">Очистить журнал</button></form></div></div>
   <textarea class="logs-text" readonly aria-label="Содержимое журнала"><?= htmlspecialchars($logText) ?></textarea>
 </section>
-</main></div></body></html>
+</main></div>
+<script>
+  document.querySelector('.js-log-refresh')?.addEventListener('click', async function () {
+    var button = this;
+    var textarea = document.querySelector('.logs-text');
+    button.disabled = true;
+    try {
+      var url = new URL(window.location.href);
+      url.searchParams.set('tab', <?= json_encode($tab, JSON_UNESCAPED_UNICODE) ?>);
+      url.searchParams.set('_', Date.now().toString());
+      var response = await fetch(url.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' }, cache: 'no-store' });
+      if (!response.ok) throw new Error('refresh failed');
+      var html = await response.text();
+      var doc = new DOMParser().parseFromString(html, 'text/html');
+      var fresh = doc.querySelector('.logs-text');
+      if (fresh && textarea) textarea.value = fresh.value;
+    } catch (error) {
+      window.alert('Не удалось обновить журнал.');
+    } finally {
+      button.disabled = false;
+    }
+  });
+</script>
+</body></html>
