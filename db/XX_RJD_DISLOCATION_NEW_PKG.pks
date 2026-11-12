@@ -99,6 +99,10 @@ as
     function get_kpi_where (p_kpi_id in number)
         return varchar2;
 
+    function get_report_where (p_page in varchar2,
+                               p_alias in varchar2 default null)
+        return varchar2;
+
     procedure archive_rjd_movement (p_report_dt        in date,
                                     p_type_reference   in varchar2);
 

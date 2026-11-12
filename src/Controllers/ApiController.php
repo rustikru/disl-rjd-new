@@ -40,6 +40,7 @@ class ApiController
     private DislDataSource $dislDataSource;
     private array $reportDtCache = [];
     private array $latestDtsCache = [];
+    private array $reportWhereCache = [];
 
     public function __construct(DbInterface $db, ?Organizations $organizations = null)
     {
@@ -1138,9 +1139,7 @@ class ApiController
                 ORDER BY oper_dt DESC NULLS LAST, report_dt DESC,
                          CASE WHEN type_reference = 'Отправка' THEN 0 ELSE 1 END, id DESC
             ) AS technical_row FROM {$source['from']} xdr
-        ) WHERE technical_row = 1 AND TRIM(wagon_no) NOT LIKE '0%'
-            AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), '[[:space:]]+', ' ')), ' ')
-                NOT LIKE '%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%')";
+        ) WHERE technical_row = 1)";
         return $source;
     }
 
@@ -1259,7 +1258,7 @@ class ApiController
         }
         $cond = $this->latestDtCondition($dtsByType);
         $bindings = $cond['params'];
-        $whereCond = $cond['sql'];
+        $whereCond = $this->reportWhere('dislocation') . ' AND ' . $cond['sql'];
 
         $whereCond .= $this->multiValueCondition(
             "UPPER(REPLACE(COALESCE(cargo_name,''), 'Ё', 'Е'))",
@@ -1287,13 +1286,10 @@ class ApiController
         }
 
         $bindings = ['report_dt' => $reportDt];
-        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Подход'";
+        $whereCond = $this->reportWhere('approach', 'd')
+            . " AND report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')";
         if ($this->organizations->isMtf()) {
             $whereCond .= " AND UPPER(dest_station) LIKE '%УГЛ%'";
-            // Не учитывать служебные номера и вагоны, исключённые из модели дороги.
-            $whereCond .= " AND TRIM(wagon_no) NOT LIKE '0%'";
-            $whereCond .= " AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), '[[:space:]]+', ' ')), ' ')
-                               NOT LIKE '%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%'";
         }
         $this->organizations->addFilter($whereCond, $bindings);
 
@@ -1338,10 +1334,9 @@ class ApiController
 
         $bindings = [
             'report_dt' => $reportDt,
-            'type_reference' => $typeReference,
         ];
-        $where = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')"
-            . ' AND type_reference = :type_reference';
+        $where = $this->reportWhere($typeReference === 'Подход' ? 'approach' : 'departure')
+            . " AND report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')";
         $this->organizations->addFilter($where, $bindings);
 
         $rows = $this->db->fetchAll(
@@ -1369,13 +1364,11 @@ class ApiController
         }
 
         $bindings = ['report_dt' => $reportDt];
-        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS') AND type_reference = 'Отправка'";
+        $whereCond = $this->reportWhere('departure')
+            . " AND report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')";
         if ($this->organizations->isMtf()) {
             $whereCond .= " AND REGEXP_LIKE(UPPER(TRIM(depart_station)), '^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)')";
             $whereCond .= " AND dist_remain_km > 0";
-            $whereCond .= " AND TRIM(wagon_no) NOT LIKE '0%'";
-            $whereCond .= " AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), '[[:space:]]+', ' ')), ' ')
-                               NOT LIKE '%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%'";
         }
         $this->organizations->addFilter($whereCond, $bindings);
 
@@ -1396,12 +1389,9 @@ class ApiController
         }
 
         $bindings = ['report_dt' => $reportDt];
-        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')"
-            . " AND type_reference = 'Отправка'"
-            . " AND trip_start_dt IS NOT NULL"
-            . " AND TRIM(wagon_no) NOT LIKE '0%'"
-            . " AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), '[[:space:]]+', ' ')), ' ')
-                   NOT LIKE '%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%'";
+        $whereCond = $this->reportWhere('loading')
+            . " AND report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')"
+            . " AND trip_start_dt IS NOT NULL";
         if ($this->organizations->isMtf()) {
             $whereCond .= " AND REGEXP_LIKE(UPPER(TRIM(depart_station)), '^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)')";
         }
@@ -1428,14 +1418,11 @@ class ApiController
         }
 
         $bindings = ['report_dt' => $reportDt];
-        $whereCond = "report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')"
-            . " AND type_reference = 'Подход'"
+        $whereCond = $this->reportWhere('raw-material')
+            . " AND report_dt = TO_DATE(:report_dt, 'YYYY-MM-DD HH24:MI:SS')"
             . " AND dist_remain_km = 0"
             . " AND cargo_weight_kg > 12000"
-            . " AND trip_end_dt IS NOT NULL AND TRUNC(trip_end_dt) <= TRUNC(report_dt)"
-            . " AND TRIM(wagon_no) NOT LIKE '0%'"
-            . " AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), '[[:space:]]+', ' ')), ' ')
-                   NOT LIKE '%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%'";
+            . " AND trip_end_dt IS NOT NULL AND TRUNC(trip_end_dt) <= TRUNC(report_dt)";
         if ($this->organizations->isMtf()) {
             $whereCond .= " AND REGEXP_LIKE(UPPER(TRIM(dest_station)), '^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)')"
                 . " AND REGEXP_LIKE(UPPER(TRIM(oper_station)), '^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)')";
@@ -1466,7 +1453,8 @@ class ApiController
         }
         $cond = $this->latestDtCondition($dtsByType);
         $bindings = $cond['params'];
-        $baseCond = $cond['sql'] . $this->wagonNoCond($params, $bindings);
+        $baseCond = $this->reportWhere('downtime') . ' AND ' . $cond['sql']
+            . $this->wagonNoCond($params, $bindings);
         // Фильтр по реестру исключений временно отключён.
         // $baseCond .= $this->excludedWagonsCondition();
         $source = [
@@ -1474,9 +1462,6 @@ class ApiController
             'reportDt' => max($dtsByType),
         ];
         $whereCond = "dist_remain_km = 0 AND UPPER(TRIM(oper_station)) = UPPER(TRIM(dest_station))";
-        $whereCond .= " AND TRIM(wagon_no) NOT LIKE '0%'"
-            . " AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), '[[:space:]]+', ' ')), ' ')
-                   NOT LIKE '%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%'";
         $whereCond .= $this->multiValueCondition(
             'dest_station',
             $params['dest_station'] ?? null,
@@ -1830,6 +1815,24 @@ class ApiController
     private static function isSafeField(string $f): bool
     {
         return $f !== '' && (bool) preg_match('/^[a-z_][a-z0-9_]*$/iD', $f);
+    }
+
+    private function reportWhere(string $page, string $alias = ''): string
+    {
+        $key = strtolower($page) . '|' . $alias;
+        if (array_key_exists($key, $this->reportWhereCache)) {
+            return $this->reportWhereCache[$key];
+        }
+
+        $row = $this->db->fetchOne(
+            'SELECT XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.GET_REPORT_WHERE(:page, :alias) AS where_sql FROM dual',
+            ['page' => $page, 'alias' => $alias !== '' ? $alias : null]
+        );
+        $where = trim((string) ($row['WHERE_SQL'] ?? $row['where_sql'] ?? ''));
+        if ($where === '') {
+            throw new \RuntimeException('Не удалось получить базовое условие отчёта.');
+        }
+        return $this->reportWhereCache[$key] = $where;
     }
 
     private function excludedWagonsCondition(): string
