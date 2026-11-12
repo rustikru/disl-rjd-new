@@ -23,6 +23,7 @@ final class ReportConfig
                 'template' => 'TRAIN_INDEX',
                 'fields' => ['train_no', 'oper_station', 'oper_road', 'station_count', 'abandon_dt', 'data_received_dt', 'idle_duration', 'loaded_count', 'empty_count', 'source'],
                 'sections' => [
+                    ['label' => 'Продолж. простоя', 'key' => 'idle_duration', 'value' => true],
                     ['label' => 'Гружёные', 'key' => 'loaded', 'filters' => ['cargo_state' => 'гр.']],
                     ['label' => 'Порожние', 'key' => 'empty_count', 'filters' => ['cargo_state' => 'пор.']],
                 ],
@@ -31,7 +32,8 @@ final class ReportConfig
                 'template' => 'TRAIN_NUMBER',
                 'fields' => ['train_index', 'oper_station', 'oper_road', 'oper_dt', 'operation', 'trip_start_dt'],
                 'sections' => [
-                    ['label' => 'Вагоны', 'key' => 'total', 'filters' => []],
+                    ['label' => 'Гружёные', 'key' => 'loaded', 'filters' => ['cargo_state' => 'гр.']],
+                    ['label' => 'Порожние', 'key' => 'empty_count', 'filters' => ['cargo_state' => 'пор.']],
                 ],
             ],
         ];

@@ -281,6 +281,11 @@ $basePath = $basePath ?? '';
           html += '<span class="user-kpi-index-title">' + esc(groupTitle) + '</span><span class="user-kpi-index-route">' + esc(route) + '</span></button>';
           html += '<div class="user-kpi-system-counts">';
           sections.forEach(function (section) {
+            if (section.value) {
+              var value = row[section.key] == null || row[section.key] === '' ? '—' : row[section.key];
+              html += '<div class="user-kpi-index-count"><strong>' + esc(value) + '</strong><span>' + esc(section.label) + '</span></div>';
+              return;
+            }
             var count = Number(row[section.key] || 0);
             html += '<a class="user-kpi-index-count" href="' + esc(countLinks(row, section)) + '" title="Открыть детализацию"><strong>' + count.toLocaleString('ru-RU') + '</strong><span>' + esc(section.label) + '</span></a>';
           });
