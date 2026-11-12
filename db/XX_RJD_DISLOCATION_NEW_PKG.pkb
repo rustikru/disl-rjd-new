@@ -366,7 +366,7 @@ as
         then
             return '1=0';
         end if;
-
+        
         select *
           into l_kpi
           from xx_rjd_kpi_tbl_v
@@ -378,19 +378,19 @@ as
             -- Брошенные поезда
             if l_kpi.code = 'abandoned_trains'
             then
-                return 'type_reference IN (''Подход'', ''Отправка'') AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
+                return 'trim(wagon_no) not like ''0%'' and type_reference IN (''Подход'', ''Отправка'') AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
             -- Отправлено  сегодня
             elsif l_kpi.code = 'departed-today'
             then
-                return 'type_reference = ''Отправка'' AND asoup_depart_dt IS NOT NULL AND UPPER(TRIM(depart_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(asoup_depart_dt) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
+                return 'trim(wagon_no) not like ''0%'' and type_reference = ''Отправка'' AND asoup_depart_dt IS NOT NULL AND UPPER(TRIM(depart_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(asoup_depart_dt) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
             -- Отправлено вчера
             elsif l_kpi.code = 'departed-yesterday'
             then
-                return 'type_reference = ''Отправка'' AND asoup_depart_dt IS NOT NULL AND UPPER(TRIM(depart_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(asoup_depart_dt) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1';
+                return 'trim(wagon_no) not like ''0%'' and type_reference = ''Отправка'' AND asoup_depart_dt IS NOT NULL AND UPPER(TRIM(depart_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(asoup_depart_dt) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1';
             -- Груженые вагоны
             elsif l_kpi.code = 'loaded-wagons'
             then
-                return 'type_reference = ''Отправка'' AND UPPER(TRIM(depart_station)) LIKE ''%УГЛ%768207%'' AND dist_remain_km > 0 AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_GET_CARGO_STATE(wagon_type_code, cargo_weight_kg) = ''гр.''';
+                return 'trim(wagon_no) not like ''0%'' and type_reference = ''Отправка'' AND UPPER(TRIM(depart_station)) LIKE ''%УГЛ%768207%'' AND dist_remain_km > 0 AND XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_GET_CARGO_STATE(wagon_type_code, cargo_weight_kg) = ''гр.''';
             end if;
         -- KPI для страницы "Подход вагонов"
         elsif l_kpi.TYPE = 'approach_kpi'
@@ -398,19 +398,23 @@ as
             -- Брошенные вагоны
             if l_kpi.code = 'abandoned_wagons'
             then
-                return 'type_reference IN (''Подход'', ''Отправка'') AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
+                return 'trim(wagon_no) not like ''0%'' and type_reference IN (''Подход'', ''Отправка'') AND (UPPER(NVL(operation, '' '')) LIKE ''%БРОСАНИЕ ПОЕЗДА НА СТАНЦИИ%'' OR (TRIM(operation) IS NULL AND UPPER(NVL(wagon_state, '' '')) LIKE ''%БРОШЕН%''))';
             -- Сформированные поезда
             elsif l_kpi.code = 'formed_trains'
             then
-                return 'type_reference = ''Подход'' and upper(oper_station) not like ''%УГЛЕУРАЛЬСКАЯ%'' AND (REGEXP_SUBSTR(TRIM(train_index), ''^[0-9]+'') LIKE ''%68207'' OR UPPER(train_index) LIKE ''%УГЛЕУРАЛЬСКАЯ%'' OR UPPER(train_index) LIKE ''%БЕРЕЗНИКИ%'' OR UPPER(train_index) LIKE ''%КИЗЕЛ%'' OR UPPER(train_index) LIKE ''%ЗАЯЧЬЯ ГОРКА%'')';
+                return 'trim(wagon_no) not like ''0%'' and type_reference = ''Подход'' and upper(oper_station) not like ''%УГЛЕУРАЛЬСКАЯ%'' AND (REGEXP_SUBSTR(TRIM(train_index), ''^[0-9]+'') LIKE ''%68207'' OR UPPER(train_index) LIKE ''%УГЛЕУРАЛЬСКАЯ%'' OR UPPER(train_index) LIKE ''%БЕРЕЗНИКИ%'' OR UPPER(train_index) LIKE ''%КИЗЕЛ%'' OR UPPER(train_index) LIKE ''%ЗАЯЧЬЯ ГОРКА%'')';
             -- прибыло сегодня
             elsif l_kpi.code = 'arrived-today'
             then
-                return 'type_reference = ''Подход'' and upper(oper_station) like ''%УГЛЕУРАЛЬСКАЯ%'' AND NVL(asoup_arrive_dt, trip_end_dt) IS NOT NULL AND UPPER(TRIM(dest_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(NVL(asoup_arrive_dt, trip_end_dt)) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
+                return 'trim(wagon_no) not like ''0%'' and type_reference = ''Подход'' and upper(oper_station) like ''%УГЛЕУРАЛЬСКАЯ%'' AND NVL(asoup_arrive_dt, trip_end_dt) IS NOT NULL AND UPPER(TRIM(dest_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(NVL(asoup_arrive_dt, trip_end_dt)) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
             -- прибыло вчера
             elsif l_kpi.code = 'arrived-yesterday'
             then
-                return 'type_reference = ''Подход'' and upper(oper_station) like ''%УГЛЕУРАЛЬСКАЯ%'' AND NVL(asoup_arrive_dt, trip_end_dt) IS NOT NULL AND UPPER(TRIM(dest_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(NVL(asoup_arrive_dt, trip_end_dt)) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1';
+                return 'trim(wagon_no) not like ''0%'' and type_reference = ''Подход'' and upper(oper_station) like ''%УГЛЕУРАЛЬСКАЯ%'' AND NVL(asoup_arrive_dt, trip_end_dt) IS NOT NULL AND UPPER(TRIM(dest_station)) LIKE ''%УГЛ%768207%'' AND TRUNC(NVL(asoup_arrive_dt, trip_end_dt)) = TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1';
+            -- Нарушен срок достаки
+            elsif l_kpi.code = 'delivery_time'
+            then
+                return 'trim(wagon_no) not like ''0%'' and type_reference = ''Подход'' and upper(oper_station) not like ''%УГЛЕУРАЛЬСКАЯ%'' AND TRUNC(report_dt)>TRUNC(norm_delivery_dt) and trip_end_dt is not null';
             end if;
         -- KPI для страницы "Погрузка"
         elsif l_kpi.TYPE = 'loading_kpi'
@@ -418,15 +422,15 @@ as
             -- Погрузка сегодня
             if l_kpi.code = 'loading_today'
             then
-                return 'type_reference = ''Отправка'' AND REGEXP_LIKE(UPPER(TRIM(depart_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRIM(wagon_no) NOT LIKE ''0%'' AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), ''[[:space:]]+'', '' '')), '' '') NOT LIKE ''%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%'' AND trip_start_dt >= TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) AND trip_start_dt < TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) + 1';
+                return 'trim(wagon_no) not like ''0%'' and type_reference = ''Отправка'' AND REGEXP_LIKE(UPPER(TRIM(depart_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRIM(wagon_no) NOT LIKE ''0%'' AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), ''[[:space:]]+'', '' '')), '' '') NOT LIKE ''%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%'' AND trip_start_dt >= TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) AND trip_start_dt < TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) + 1';
             -- Погрузка вчера
             elsif l_kpi.code = 'loading_yesterday'
             then
-                return 'type_reference = ''Отправка'' AND REGEXP_LIKE(UPPER(TRIM(depart_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRIM(wagon_no) NOT LIKE ''0%'' AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), ''[[:space:]]+'', '' '')), '' '') NOT LIKE ''%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%'' AND trip_start_dt >= TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1 AND trip_start_dt < TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
+                return 'trim(wagon_no) not like ''0%'' and type_reference = ''Отправка'' AND REGEXP_LIKE(UPPER(TRIM(depart_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRIM(wagon_no) NOT LIKE ''0%'' AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), ''[[:space:]]+'', '' '')), '' '') NOT LIKE ''%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%'' AND trip_start_dt >= TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) - 1 AND trip_start_dt < TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE))';
             -- Погрузка за месяц
             elsif l_kpi.code = 'loading_month'
             then
-                return 'type_reference = ''Отправка'' AND REGEXP_LIKE(UPPER(TRIM(depart_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRIM(wagon_no) NOT LIKE ''0%'' AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), ''[[:space:]]+'', '' '')), '' '') NOT LIKE ''%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%'' AND trip_start_dt >= TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE), ''MM'') AND trip_start_dt < TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) + 1';
+                return 'trim(wagon_no) not like ''0%'' and type_reference = ''Отправка'' AND REGEXP_LIKE(UPPER(TRIM(depart_station)), ''^УГЛЕУРАЛЬ?СКАЯ([[:space:]]|$)'') AND TRIM(wagon_no) NOT LIKE ''0%'' AND NVL(UPPER(REGEXP_REPLACE(TRIM(operation), ''[[:space:]]+'', '' '')), '' '') NOT LIKE ''%ИСКЛЮЧЕНИЕ ВАГОНА ИЗ ВАГОННОЙ МОДЕЛИ ДОРОГИ%'' AND trip_start_dt >= TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE), ''MM'') AND trip_start_dt < TRUNC(CAST(SYSTIMESTAMP AT TIME ZONE ''Europe/Moscow'' AS DATE)) + 1';
             end if;
         end if;
 
