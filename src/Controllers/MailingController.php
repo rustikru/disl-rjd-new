@@ -404,7 +404,7 @@ final class MailingController
     private function validCsrf(array $form): bool
     {
         $csrf = (string) ($form['csrf_token'] ?? '');
-        return $csrf !== '' && hash_equals((string) ($_SESSION['csrf_token'] ?? ''), $csrf);
+        return \App\Services\Csrf::valid($csrf);
     }
 
     private function redirect(ResponseInterface $response, string $kind, string $message): ResponseInterface

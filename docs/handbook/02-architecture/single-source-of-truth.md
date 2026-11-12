@@ -134,3 +134,8 @@ composer check:registry
 
 Проверяются уникальность endpoints, существование API handlers, панелей/HTML ID,
 корректность страниц, типы KPI и схема defaults.
+Рефакторинг общих проверок:
+
+- наличие ролей `ADMIN`/`SUPER` проверяется методом `Authorization::hasAdministrators()`;
+- базовая проверка CSRF-токена вынесена в `Services\Csrf::valid()`;
+- действующая панель рассылок находится в `templates/admin/report-mailing-dashboard.php`, устаревшая копия из `src/Services` удалена.

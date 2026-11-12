@@ -135,12 +135,7 @@ class PageAccessMiddleware implements MiddlewareInterface
     private function noAdminYet(): bool
     {
         try {
-            $row = ($this->dbResolver)()->fetchOne(
-                "SELECT COUNT(*) AS cnt FROM xx_rjd_user_roles ur
-                  JOIN xx_rjd_roles r ON r.id = ur.role_id
-                 WHERE r.code IN ('ADMIN', 'SUPER')"
-            );
-            return (int) ($row['cnt'] ?? 0) === 0;
+            return !\App\Services\Authorization::hasAdministrators(($this->dbResolver)());
         } catch (\Throwable $e) {
             ErrorLogger::logThrowable($e, [
                 'module' => self::class,

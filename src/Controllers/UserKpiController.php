@@ -329,7 +329,7 @@ final class UserKpiController
 
     private function validCsrf(string $csrf): bool
     {
-        return $csrf !== '' && hash_equals((string) ($_SESSION['csrf_token'] ?? ''), $csrf);
+        return \App\Services\Csrf::valid($csrf);
     }
 
     private function managementEnabled(): bool

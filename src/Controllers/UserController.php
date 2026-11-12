@@ -211,7 +211,7 @@ final class UserController
 
     private function validCsrf(string $csrf): bool
     {
-        return $csrf !== '' && hash_equals((string) ($_SESSION['csrf_token'] ?? ''), $csrf);
+        return \App\Services\Csrf::valid($csrf);
     }
 
     private function redirect(ResponseInterface $response, string $path): ResponseInterface
