@@ -1304,7 +1304,7 @@ class ApiController
         // $whereCond .= $this->excludedWagonsCondition();
 
         if ($withPn) {
-            $from = $this->dislDataSource->approachSource($whereCond);
+            $from = $this->dislDataSource->approachSource($whereCond, $bindings);
         } else {
             $from = "(SELECT d.* FROM xx_dislocation_rjd d WHERE $whereCond)";
         }
