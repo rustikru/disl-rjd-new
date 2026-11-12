@@ -85,7 +85,7 @@ include __DIR__ . '/../partials/header.php';
               </div>
             </div>
           </section>
-        <?php if (\App\Services\Authorization::isSuper($user) || in_array('data-scopes', $user['allowed_pages'] ?? [], true)): ?>
+        <?php if (\App\Services\Auth\Authorization::isSuper($user) || in_array('data-scopes', $user['allowed_pages'] ?? [], true)): ?>
           <section class="ui-card">
             <div class="ui-card-head">Области данных</div>
             <div class="ui-card-body">

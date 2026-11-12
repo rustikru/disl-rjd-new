@@ -28,7 +28,7 @@ return function (App $app, array $config): void {
     };
 
     $getOrganizations = function () use (&$organizations, $getDb) {
-        return $organizations ??= new \App\Services\Organizations($getDb());
+        return $organizations ??= new \App\Services\Data\Organizations($getDb());
     };
 
     // Публичные маршруты
@@ -37,7 +37,7 @@ return function (App $app, array $config): void {
     });
     // Публичные маршруты
     $app->get('/tmp/admin-mockup.html', function ($req, $res) use ($config) {
-        if (empty($config['app_debug']) || !\App\Services\Authorization::isSuper()) {
+        if (empty($config['app_debug']) || !\App\Services\Auth\Authorization::isSuper()) {
             return $res->withStatus(404);
         }
         $file = __DIR__ . '/../tmp/admin-mockup.html';
@@ -78,7 +78,7 @@ return function (App $app, array $config): void {
             return $res->withHeader('Location', ($config['base_path'] ?? '') . '/')->withStatus(302);
         }
         $currentUser = (array) ($_SESSION['user'] ?? []);
-        (new \App\Services\AuditLog($getDb()))->write(
+        (new \App\Services\Logging\AuditLog($getDb()))->write(
             'LOGOUT',
             'USER',
             isset($currentUser['id']) ? (int) $currentUser['id'] : null,
@@ -86,7 +86,7 @@ return function (App $app, array $config): void {
             isset($currentUser['id']) ? (int) $currentUser['id'] : null,
             (string) ($currentUser['username'] ?? '')
         );
-        (new \App\Services\SessionRegistry($getDb(), (int)$config['session_lifetime_seconds']))->revoke(hash('sha256', session_id()));
+        (new \App\Services\Auth\SessionRegistry($getDb(), (int)$config['session_lifetime_seconds']))->revoke(hash('sha256', session_id()));
         session_destroy();
         return $res->withHeader('Location', ($config['base_path'] ?? '') . '/login')->withStatus(302);
     });

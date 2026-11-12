@@ -4,7 +4,7 @@ namespace App\Controllers;
 
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use App\Services\SessionRegistry;
+use App\Services\Auth\SessionRegistry;
 
 final class SessionsController
 {
@@ -12,7 +12,7 @@ final class SessionsController
 
     public function page(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!\App\Services\Authorization::isSuper()) return $response->withStatus(403);
+        if (!\App\Services\Auth\Authorization::isSuper()) return $response->withStatus(403);
         $sessionLifetime = (int)$this->config['session_lifetime_seconds'];
         $registry = new SessionRegistry($this->db, $sessionLifetime);
         $basePath = $this->config['base_path'] ?? '';

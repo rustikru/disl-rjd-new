@@ -1,9 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Logging;
 
 use App\Database\DbInterface;
+use App\Services\Data\Organizations;
 
 final class ReportService
 {

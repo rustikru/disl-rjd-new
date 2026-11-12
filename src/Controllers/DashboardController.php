@@ -7,7 +7,7 @@ use App\Database\DbInterface;
 use App\Reports\ReportConfig;
 use App\Reports\WagonConfig;
 use App\Reports\KpiTypeRegistry;
-use App\Services\PageAvailability;
+use App\Services\Navigation\PageAvailability;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -34,19 +34,19 @@ class DashboardController
         $reportDefinitions = ReportConfig::forContext('page');
         $kpiTypes = KpiTypeRegistry::clientConfig();
         $userKpiManagementEnabled = (bool) $this->config['user_kpi_management_enabled'];
-        $disabledPages = (array) (\App\Services\ConfigSchema::current()['disabled_pages'] ?? []);
+        $disabledPages = (array) (\App\Services\Config\ConfigSchema::current()['disabled_pages'] ?? []);
         $pageAvailability = new PageAvailability(
             $disabledPages,
             (string) ($this->config['base_path'] ?? '')
         );
         $dislocationStaleHours = (int) $this->config['dislocation_stale_hours'];
-        $navConfig = \App\Services\PageRegistry::filterNavigation(
+        $navConfig = \App\Services\Navigation\PageRegistry::filterNavigation(
             $navConfig,
             $allowedPages,
             $user,
             $pageAvailability
         );
-        if (!\App\Services\Authorization::isSuper($user)) {
+        if (!\App\Services\Auth\Authorization::isSuper($user)) {
             $reportDefinitions = $pageAvailability->filterReports($reportDefinitions);
         }
 
@@ -78,9 +78,9 @@ class DashboardController
      */
     private function resolveAllowedPages(array $user): array
     {
-        $allPages = array_keys(\App\Services\PageRegistry::labels());
+        $allPages = array_keys(\App\Services\Navigation\PageRegistry::labels());
 
-        if (\App\Services\Authorization::isSuper($user)) {
+        if (\App\Services\Auth\Authorization::isSuper($user)) {
             return $allPages;
         }
 
@@ -110,7 +110,7 @@ class DashboardController
                 }
             }
 
-            return \App\Services\PageRegistry::forUser($pages, $user);
+            return \App\Services\Navigation\PageRegistry::forUser($pages, $user);
         } catch (\Throwable $e) {
             return $allPages;
         }

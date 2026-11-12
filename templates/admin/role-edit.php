@@ -1,7 +1,7 @@
 <?php
 $basePath = $basePath ?? '';
 require_once __DIR__ . '/../partials/ui.php';
-$isAdminRole = ($editedRole['code'] ?? '') === \App\Services\Authorization::ADMIN;
+$isAdminRole = ($editedRole['code'] ?? '') === \App\Services\Auth\Authorization::ADMIN;
 $canDelete = !$isViewOnly && !$isNewRole && (int) ($editedRole['is_system'] ?? 0) !== 1 && !$isAdminRole;
 ?>
 <!DOCTYPE html>
@@ -139,8 +139,8 @@ $canDelete = !$isViewOnly && !$isNewRole && (int) ($editedRole['is_system'] ?? 0
             <div class="section-label" style="margin-top:12px">Доступные разделы</div>
             <?php
             $rolePageGroups = [];
-            $onlySelected = $isViewOnly && !\App\Services\Authorization::isSuper($user);
-            foreach (\App\Services\PageRegistry::all() as $pageCode => $definition) {
+            $onlySelected = $isViewOnly && !\App\Services\Auth\Authorization::isSuper($user);
+            foreach (\App\Services\Navigation\PageRegistry::all() as $pageCode => $definition) {
               if (!isset($pages[$pageCode]))
                 continue;
               if (!empty($definition['super_only']))
@@ -149,7 +149,7 @@ $canDelete = !$isViewOnly && !$isNewRole && (int) ($editedRole['is_system'] ?? 0
                 continue;
               if (!empty($definition['role_hidden']))
                 continue;
-              if (!empty($definition['admin_only']) && ($editedRole['code'] ?? '') !== \App\Services\Authorization::ADMIN)
+              if (!empty($definition['admin_only']) && ($editedRole['code'] ?? '') !== \App\Services\Auth\Authorization::ADMIN)
                 continue;
               if ($onlySelected && !in_array($pageCode, $selectedPages, true))
                 continue;

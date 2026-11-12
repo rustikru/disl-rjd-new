@@ -1,7 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Mail;
+
+use App\Services\Data\Organizations;
+use App\Services\Mail\OracleMail;
 
 use App\Controllers\ApiController;
 use App\Database\DbInterface;

@@ -1,9 +1,10 @@
 <?php
 declare(strict_types=1);
-namespace App\Services;
+namespace App\Services\Navigation;
 
 use App\Reports\ReportConfig;
 use App\Reports\KpiTypeRegistry;
+use App\Services\Auth\Authorization;
 
 /** каталог страниц, маршрутов, прав, видимости и меню. */
 final class PageRegistry

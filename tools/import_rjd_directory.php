@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 use App\Controllers\ImportController;
 use App\Database\DbFactory;
-use App\Services\Organizations;
+use App\Services\Data\Organizations;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 

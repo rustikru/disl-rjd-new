@@ -4,8 +4,8 @@ declare(strict_types=1);
 namespace App\Middleware;
 
 use App\Logging\ErrorLogger;
-use App\Services\PageAvailability;
-use App\Services\PageVisibility;
+use App\Services\Navigation\PageAvailability;
+use App\Services\Navigation\PageVisibility;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -37,15 +37,15 @@ class PageAccessMiddleware implements MiddlewareInterface
         }
 
         $disabledPages = (new PageVisibility(($this->dbResolver)()))->disabledPages();
-        $currentConfig = \App\Services\ConfigSchema::current();
+        $currentConfig = \App\Services\Config\ConfigSchema::current();
         $currentConfig['disabled_pages'] = $disabledPages;
-        \App\Services\ConfigSchema::setCurrent($currentConfig);
+        \App\Services\Config\ConfigSchema::setCurrent($currentConfig);
         $pageAvailability = new PageAvailability(
             $disabledPages,
             $this->basePath
         );
 
-        if (\App\Services\Authorization::isSuper($user)) {
+        if (\App\Services\Auth\Authorization::isSuper($user)) {
             return $handler->handle($request);
         }
         $disabledPage = $pageAvailability->disabledPageForRequest($request);
@@ -80,15 +80,15 @@ class PageAccessMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        $definition = \App\Services\PageRegistry::all()[$page] ?? [];
-        if (!empty($definition['super_only']) && !\App\Services\Authorization::isSuper($user)) {
+        $definition = \App\Services\Navigation\PageRegistry::all()[$page] ?? [];
+        if (!empty($definition['super_only']) && !\App\Services\Auth\Authorization::isSuper($user)) {
             return $this->deny($request, $page);
         }
-        if (!empty($definition['admin_only']) && !\App\Services\Authorization::isAdmin($user)) {
+        if (!empty($definition['admin_only']) && !\App\Services\Auth\Authorization::isAdmin($user)) {
             return $this->deny($request, $page);
         }
 
-        $accessPages = \App\Services\PageRegistry::accessPages(
+        $accessPages = \App\Services\Navigation\PageRegistry::accessPages(
             $this->path($request->getUri()->getPath()),
             $request->getQueryParams()
         );
@@ -106,7 +106,7 @@ class PageAccessMiddleware implements MiddlewareInterface
 
     private function resolvePage(string $path, array $query = []): ?string
     {
-        return \App\Services\PageRegistry::pageForPath($this->path($path), $query);
+        return \App\Services\Navigation\PageRegistry::pageForPath($this->path($path), $query);
     }
 
     private function path(string $path): string
@@ -126,7 +126,7 @@ class PageAccessMiddleware implements MiddlewareInterface
               WHERE ur.user_id = :id',
             ['id' => $userId]
         );
-        return \App\Services\PageRegistry::forUser(
+        return \App\Services\Navigation\PageRegistry::forUser(
             array_map(static fn($r) => $r['page'], $rows),
             (array) ($_SESSION['user'] ?? [])
         );
@@ -135,7 +135,7 @@ class PageAccessMiddleware implements MiddlewareInterface
     private function noAdminYet(): bool
     {
         try {
-            return !\App\Services\Authorization::hasAdministrators(($this->dbResolver)());
+            return !\App\Services\Auth\Authorization::hasAdministrators(($this->dbResolver)());
         } catch (\Throwable $e) {
             ErrorLogger::logThrowable($e, [
                 'module' => self::class,

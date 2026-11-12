@@ -1,10 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Wagon;
 
 use App\Database\DbInterface;
 use App\Reports\WagonConfig;
+use App\Services\Data\Organizations;
+use App\Services\Logging\ReportService;
 
 final class WagonMovement
 {

@@ -1,9 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Data;
 
 use App\Database\DbInterface;
+use App\Services\Auth\Authorization;
+use App\Services\Navigation\PageRegistry;
 
 final class DirectoryAccess
 {

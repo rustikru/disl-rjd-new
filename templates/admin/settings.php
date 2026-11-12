@@ -17,9 +17,9 @@
 <section class="ui-card"><div class="ui-card-body">
 <?php if ($visibility): ?>
 <?php
-$visibilityAvailability = new \App\Services\PageAvailability((array) ($values['disabled_pages'] ?? []));
+$visibilityAvailability = new \App\Services\Navigation\PageAvailability((array) ($values['disabled_pages'] ?? []));
 $pageGroups = [];
-foreach (\App\Services\PageRegistry::all() as $key => $definition) {
+foreach (\App\Services\Navigation\PageRegistry::all() as $key => $definition) {
     $pageGroups[$definition['visibility_group'] ?? 'Дополнительно'][$key] = $definition;
 }
 foreach ($pageGroups as &$groupPages) {
@@ -29,12 +29,12 @@ foreach ($pageGroups as &$groupPages) {
 }
 unset($groupPages);
 $enabledCount = 0;
-foreach (array_keys(\App\Services\PageRegistry::labels()) as $key) {
+foreach (array_keys(\App\Services\Navigation\PageRegistry::labels()) as $key) {
     if (!$visibilityAvailability->isDisabled($key)) $enabledCount++;
 }
 ?>
 <div class="visibility-tools">
-  <div><strong id="visibilityTotal" data-total="<?= count(\App\Services\PageRegistry::labels()) ?>"><?= $enabledCount ?> из <?= count(\App\Services\PageRegistry::labels()) ?></strong> страниц доступно</div>
+  <div><strong id="visibilityTotal" data-total="<?= count(\App\Services\Navigation\PageRegistry::labels()) ?>"><?= $enabledCount ?> из <?= count(\App\Services\Navigation\PageRegistry::labels()) ?></strong> страниц доступно</div>
   <label class="visibility-search"><input type="search" id="visibilitySearch" aria-label="Найти страницу" placeholder="Найти страницу…" autocomplete="off"></label>
 </div>
 <p class="visibility-help">Отмеченные страницы доступны. Отключённые скрыты и заблокированы для всех, кроме SUPER.</p>
@@ -54,7 +54,7 @@ foreach (array_keys(\App\Services\PageRegistry::labels()) as $key) {
   </details>
 <?php endforeach; ?>
 </div>
-<details class="visibility-custom"><summary>Дополнительные пути</summary><div class="ui-field"><label>По одному пути на строку</label><textarea name="custom"><?= htmlspecialchars(implode("\n", array_diff($values['disabled_pages'] ?? [], array_keys(\App\Services\PageRegistry::labels()), \App\Services\PageRegistry::legacyVisibilityAliases()))) ?></textarea></div></details>
+<details class="visibility-custom"><summary>Дополнительные пути</summary><div class="ui-field"><label>По одному пути на строку</label><textarea name="custom"><?= htmlspecialchars(implode("\n", array_diff($values['disabled_pages'] ?? [], array_keys(\App\Services\Navigation\PageRegistry::labels()), \App\Services\Navigation\PageRegistry::legacyVisibilityAliases()))) ?></textarea></div></details>
 <?php else:
 $grouped = [];
 foreach ($definitions as $key => $definition) {

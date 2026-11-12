@@ -8,9 +8,9 @@ use App\Logging\ErrorLogger;
 use App\Reports\KpiCondition;
 use App\Reports\KpiGroupingTemplates;
 use App\Reports\KpiTypeRegistry;
-use App\Services\Authorization;
-use App\Services\Organizations;
-use App\Services\PageRegistry;
+use App\Services\Auth\Authorization;
+use App\Services\Data\Organizations;
+use App\Services\Navigation\PageRegistry;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -35,7 +35,7 @@ final class UserKpiController
         $type = trim((string) ($request->getQueryParams()['kpi_type'] ?? ''));
         $id = (int) ($request->getQueryParams()['id'] ?? 0);
         $modalForm = ($request->getQueryParams()['modal'] ?? '') === '1';
-        $isAdminEdit = ($request->getQueryParams()['admin'] ?? '') === '1' && \App\Services\Authorization::isSuper();
+        $isAdminEdit = ($request->getQueryParams()['admin'] ?? '') === '1' && \App\Services\Auth\Authorization::isSuper();
         if (!$this->organizations->isMtf() || !KpiTypeRegistry::isUserCreatable($type)) {
             return $response->withStatus(404);
         }
@@ -69,7 +69,7 @@ final class UserKpiController
         $appName = $this->config['app_name'] ?? 'Дислокация';
         $csrf = $_SESSION['csrf_token'] ?? '';
         $user = $_SESSION['user'] ?? [];
-        $canSetGlobal = \App\Services\Authorization::isSuper();
+        $canSetGlobal = \App\Services\Auth\Authorization::isSuper();
         $adminEdit = $isAdminEdit;
         ob_start();
         include __DIR__ . '/../../templates/user-kpi-form.php';
@@ -329,7 +329,7 @@ final class UserKpiController
 
     private function validCsrf(string $csrf): bool
     {
-        return \App\Services\Csrf::valid($csrf);
+        return \App\Services\Security\Csrf::valid($csrf);
     }
 
     private function managementEnabled(): bool

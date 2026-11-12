@@ -14,7 +14,7 @@ $rawConfig = require $configFile;
 if (!is_array($rawConfig)) {
     throw new RuntimeException('Файл rjd_config.php должен возвращать массив');
 }
-$config = \App\Services\ConfigSchema::normalize($rawConfig);
+$config = \App\Services\Config\ConfigSchema::normalize($rawConfig);
 
-\App\Services\ConfigSchema::setCurrent($config);
+\App\Services\Config\ConfigSchema::setCurrent($config);
 return $config;

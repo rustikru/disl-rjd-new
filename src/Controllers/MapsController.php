@@ -5,7 +5,7 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Controllers\ApiController;
-use App\Services\Organizations;
+use App\Services\Data\Organizations;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 

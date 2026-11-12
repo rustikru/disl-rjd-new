@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace App\Auth;
 
 use App\Database\DbInterface;
-use App\Services\AuditLog;
+use App\Services\Logging\AuditLog;
 
 // AD → fallback на локальный пароль
 class AuthService
@@ -109,7 +109,7 @@ class AuthService
     {
         $codes=array_column($roles,'code');
         return array_merge(['id'=>$user['id']??null,'username'=>$user['username']??'','display_name'=>$user['display_name']??'','email'=>$user['email']??'',
-            'auth_source'=>$source,'role_codes'=>$codes,'role_names'=>array_column($roles,'name')],\App\Services\Authorization::flags($codes));
+            'auth_source'=>$source,'role_codes'=>$codes,'role_names'=>array_column($roles,'name')],\App\Services\Auth\Authorization::flags($codes));
     }
 
 

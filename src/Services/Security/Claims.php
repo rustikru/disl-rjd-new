@@ -1,9 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Security;
 
 use App\Database\DbInterface;
+use App\Services\Data\Organizations;
+use App\Services\Logging\ReportService;
+use App\Services\Security\ClaimNorms;
 
 final class Claims
 {

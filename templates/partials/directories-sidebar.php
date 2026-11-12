@@ -1,12 +1,12 @@
 <?php
 $activeAdminPage = $activeAdminPage ?? '';
 $directoryUser = $user ?? ($_SESSION['user'] ?? []);
-$directoryAvailability = new \App\Services\PageAvailability((array)(\App\Services\ConfigSchema::current()['disabled_pages']??[]));
+$directoryAvailability = new \App\Services\Navigation\PageAvailability((array)(\App\Services\Config\ConfigSchema::current()['disabled_pages']??[]));
 $directoryNavItems = [];
 $directoryPages = (array) ($directoryUser['allowed_pages'] ?? []);
-$canShowDirectories = \App\Services\PageRegistry::canShowInMenu('directories', $directoryPages, $directoryUser, $directoryAvailability);
-foreach (\App\Services\PageRegistry::all() as $pageCode => $definition) {
-    if (!$canShowDirectories || !\App\Services\PageRegistry::canShowInMenu($pageCode, $directoryPages, $directoryUser, $directoryAvailability)) continue;
+$canShowDirectories = \App\Services\Navigation\PageRegistry::canShowInMenu('directories', $directoryPages, $directoryUser, $directoryAvailability);
+foreach (\App\Services\Navigation\PageRegistry::all() as $pageCode => $definition) {
+    if (!$canShowDirectories || !\App\Services\Navigation\PageRegistry::canShowInMenu($pageCode, $directoryPages, $directoryUser, $directoryAvailability)) continue;
     foreach ((array) ($definition['directory_navigation'] ?? []) as $item) {
         $directoryNavItems[] = $item + ['label' => $definition['label'], 'page' => $pageCode];
     }

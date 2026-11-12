@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
-use App\Services\Authorization;
-use App\Services\Maintenance;
+use App\Services\Auth\Authorization;
+use App\Services\Config\Maintenance;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;

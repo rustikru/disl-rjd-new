@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-use App\Services\PageRegistry;
+use App\Services\Navigation\PageRegistry;
 $groups=[];
 foreach(PageRegistry::groups() as $code=>$definition) $groups[$code]=['group'=>$definition['label'],'order'=>$definition['order'],'items'=>[]];
 foreach(PageRegistry::all() as $code=>$page){

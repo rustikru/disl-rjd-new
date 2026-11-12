@@ -6,8 +6,8 @@ use App\Controllers\ApiController;
 use App\Reports\ReportConfig;
 use App\Reports\KpiTypeRegistry;
 use App\Reports\WagonConfig;
-use App\Services\ConfigSchema;
-use App\Services\PageRegistry;
+use App\Services\Config\ConfigSchema;
+use App\Services\Navigation\PageRegistry;
 
 $errors=[]; $endpoints=[]; $template=(string)file_get_contents(dirname(__DIR__).'/templates/app.php');
 $legacyReferences=[];

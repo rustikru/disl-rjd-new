@@ -6,10 +6,10 @@ namespace App\Controllers;
 use App\Database\DbInterface;
 use App\Logging\ErrorLogger;
 use App\Reports\ReportConfig;
-use App\Services\Organizations;
-use App\Services\AuditLog;
-use App\Services\MailingRun;
-use App\Services\MailingService;
+use App\Services\Data\Organizations;
+use App\Services\Logging\AuditLog;
+use App\Services\Mail\MailingRun;
+use App\Services\Mail\MailingService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -95,7 +95,7 @@ final class MailingController
     public function adminRun(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $form = (array) $request->getParsedBody();
-        if (!\App\Services\Authorization::isSuper() || !$this->validCsrf($form)) {
+        if (!\App\Services\Auth\Authorization::isSuper() || !$this->validCsrf($form)) {
             return $this->adminRedirect($response, 'err', 'Недостаточно прав или сессия устарела');
         }
         $mailingService = new MailingService($this->db);
@@ -131,12 +131,12 @@ final class MailingController
     public function adminRunDue(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $form = (array) $request->getParsedBody();
-        if (!\App\Services\Authorization::isSuper() || !$this->validCsrf($form)) {
+        if (!\App\Services\Auth\Authorization::isSuper() || !$this->validCsrf($form)) {
             return $this->adminRedirect($response, 'err', 'Недостаточно прав или сессия устарела');
         }
 
         try {
-            $result = (new \App\Services\MailingScheduler($this->db, $this->config))->runDue();
+            $result = (new \App\Services\Mail\MailingScheduler($this->db, $this->config))->runDue();
             $message = sprintf(
                 'Проверено: %d. Запущено: %d. Успешно: %d. Ошибок: %d. Пропущено: %d.',
                 $result['found'],
@@ -168,7 +168,7 @@ final class MailingController
         }
 
         try {
-            $result = (new \App\Services\MailingScheduler($this->db, $this->config))->runDue();
+            $result = (new \App\Services\Mail\MailingScheduler($this->db, $this->config))->runDue();
             $response->getBody()->write(json_encode(['status' => 'ok'] + $result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
             return $response->withHeader('Content-Type', 'application/json; charset=utf-8');
         } catch (\Throwable $error) {
@@ -181,7 +181,7 @@ final class MailingController
     public function adminSetActive(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $form = (array) $request->getParsedBody();
-        if (!\App\Services\Authorization::isSuper() || !$this->validCsrf($form)) {
+        if (!\App\Services\Auth\Authorization::isSuper() || !$this->validCsrf($form)) {
             return $this->adminRedirect($response, 'err', 'Недостаточно прав или сессия устарела');
         }
         $active = (int) ($form['is_active'] ?? 0) === 1;
@@ -211,7 +211,7 @@ final class MailingController
     // Отобразить страницу управления рассылками
     public function adminPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!\App\Services\Authorization::isSuper()) {
+        if (!\App\Services\Auth\Authorization::isSuper()) {
             $response->getBody()->write('Недостаточно прав');
             return $response->withStatus(403);
         }
@@ -404,7 +404,7 @@ final class MailingController
     private function validCsrf(array $form): bool
     {
         $csrf = (string) ($form['csrf_token'] ?? '');
-        return \App\Services\Csrf::valid($csrf);
+        return \App\Services\Security\Csrf::valid($csrf);
     }
 
     private function redirect(ResponseInterface $response, string $kind, string $message): ResponseInterface

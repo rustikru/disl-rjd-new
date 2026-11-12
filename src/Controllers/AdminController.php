@@ -5,8 +5,8 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Logging\ErrorLogger;
-use App\Services\AuditLog;
-use App\Services\Organizations;
+use App\Services\Logging\AuditLog;
+use App\Services\Data\Organizations;
 use DateTimeImmutable;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -19,7 +19,7 @@ class AdminController
 
     public function directoriesPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canView()) {
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canView()) {
             return $this->forbidden($response);
         }
 
@@ -43,10 +43,10 @@ class AdminController
     public function index(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $user = $_SESSION['user'] ?? [];
-        $pages = \App\Services\Authorization::isSuper($user)
-            ? array_keys(\App\Services\PageRegistry::labels())
+        $pages = \App\Services\Auth\Authorization::isSuper($user)
+            ? array_keys(\App\Services\Navigation\PageRegistry::labels())
             : (array) ($user['allowed_pages'] ?? []);
-        foreach (\App\Services\PageRegistry::all() as $code => $definition) {
+        foreach (\App\Services\Navigation\PageRegistry::all() as $code => $definition) {
             $item = $definition['admin_navigation'] ?? null;
             if ($item && in_array($code, $pages, true)) {
                 return $this->redirect($response, (string) $item['url']);
@@ -371,7 +371,7 @@ class AdminController
             return $this->forbidden($response);
         }
         $isNewUser = false;
-        $scopeService = new \App\Services\DataScopes($this->db);
+        $scopeService = new \App\Services\Data\DataScopes($this->db);
         $dataScopes = $scopeService->options();
         $selectedScopeIds = $scopeService->userIds($userId);
 
@@ -438,7 +438,7 @@ class AdminController
             'last_login_at' => null,
         ];
         $isNewUser = true;
-        $dataScopes = (new \App\Services\DataScopes($this->db))->options();
+        $dataScopes = (new \App\Services\Data\DataScopes($this->db))->options();
         $selectedScopeIds = [];
         $roles = $this->db->fetchAll("SELECT id, code, name FROM xx_rjd_roles WHERE code <> 'SUPER' ORDER BY id");
         $organizations = $this->db->fetchAll(
@@ -718,7 +718,7 @@ class AdminController
             $rolePages[(int) $rp['role_id']][$rp['page']] = true;
         }
 
-        $pages = \App\Services\PageRegistry::labels();
+        $pages = \App\Services\Navigation\PageRegistry::labels();
 
         $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
@@ -769,7 +769,7 @@ class AdminController
         if (!$role) {
             return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
         }
-        $selectedPages = \App\Services\PageRegistry::expandPermissions(array_column($this->db->fetchAll(
+        $selectedPages = \App\Services\Navigation\PageRegistry::expandPermissions(array_column($this->db->fetchAll(
             'SELECT page FROM xx_rjd_role_pages WHERE role_id = :id',
             ['id' => (int) $role['id']]
         ), 'page'));
@@ -791,7 +791,7 @@ class AdminController
         if (!$role) {
             return $this->redirect($response, '/admin/roles?err=' . urlencode('Роль не найдена'));
         }
-        $selectedPages = \App\Services\PageRegistry::expandPermissions(array_column($this->db->fetchAll(
+        $selectedPages = \App\Services\Navigation\PageRegistry::expandPermissions(array_column($this->db->fetchAll(
             'SELECT page FROM xx_rjd_role_pages WHERE role_id = :id',
             ['id' => (int) $role['id']]
         ), 'page'));
@@ -806,7 +806,7 @@ class AdminController
         bool $isNewRole,
         bool $isViewOnly
     ): ResponseInterface {
-        $pages = \App\Services\PageRegistry::labels();
+        $pages = \App\Services\Navigation\PageRegistry::labels();
         $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
         $user = $_SESSION['user'] ?? [];
@@ -823,20 +823,20 @@ class AdminController
 
     public function normsPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canView()) {
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canView()) {
             return $this->forbidden($response);
         }
         $organizationId = $this->organizations->id();
         if (!$organizationId) {
             return $this->forbidden($response);
         }
-        $service = new \App\Services\ClaimNorms($this->db, $organizationId);
-        $canEdit = (new \App\Services\DirectoryAccess($this->db))->canEdit();
+        $service = new \App\Services\Security\ClaimNorms($this->db, $organizationId);
+        $canEdit = (new \App\Services\Data\DirectoryAccess($this->db))->canEdit();
         $query = $request->getQueryParams();
         $filterType = (string) ($query['type'] ?? '');
         $filterDate = (string) ($query['date'] ?? '');
         $filterStation = (string) ($query['station'] ?? '');
-        $types = \App\Services\ClaimNorms::TYPES;
+        $types = \App\Services\Security\ClaimNorms::TYPES;
         $flashOk = $query['ok'] ?? null;
         $flashErr = $request->getAttribute('norm_error');
         try {
@@ -886,7 +886,7 @@ class AdminController
 
     public function saveNorm(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit()) {
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canEdit()) {
             return $this->forbidden($response);
         }
         $body = (array) $request->getParsedBody();
@@ -898,7 +898,7 @@ class AdminController
             return $this->forbidden($response);
         }
         try {
-            (new \App\Services\ClaimNorms($this->db, $organizationId))->save(
+            (new \App\Services\Security\ClaimNorms($this->db, $organizationId))->save(
                 $body,
                 (int) ($_SESSION['user']['id'] ?? 0)
             );
@@ -917,7 +917,7 @@ class AdminController
     /** POST /directories/norms/delete */
     public function deleteNorm(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit()) {
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canEdit()) {
             return $this->forbidden($response);
         }
         $body = (array) $request->getParsedBody();
@@ -940,7 +940,7 @@ class AdminController
 
     public function normValues(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canView()) {
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canView()) {
             return $this->forbidden($response);
         }
         $organizationId = $this->organizations->id();
@@ -949,7 +949,7 @@ class AdminController
         }
         $params = $request->getQueryParams();
         try {
-            $values = (new \App\Services\ClaimNorms($this->db, $organizationId))->values(
+            $values = (new \App\Services\Security\ClaimNorms($this->db, $organizationId))->values(
                 (string) ($params['type'] ?? ''),
                 mb_substr((string) ($params['q'] ?? ''), 0, 100)
             );
@@ -961,7 +961,7 @@ class AdminController
 
     public function normStations(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canView()) {
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canView()) {
             return $this->forbidden($response);
         }
         $organizationId = $this->organizations->id();
@@ -969,7 +969,7 @@ class AdminController
             return $this->forbidden($response);
         }
         $params = $request->getQueryParams();
-        $stations = (new \App\Services\ClaimNorms($this->db, $organizationId))->stations(
+        $stations = (new \App\Services\Security\ClaimNorms($this->db, $organizationId))->stations(
             mb_substr((string) ($params['q'] ?? ''), 0, 100)
         );
         return $this->json($response, ['stations' => $stations]);
@@ -977,11 +977,11 @@ class AdminController
 
     public function stationsPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canView()) {
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canView()) {
             return $this->forbidden($response);
         }
 
-        $canEdit = (new \App\Services\DirectoryAccess($this->db))->canEdit();
+        $canEdit = (new \App\Services\Data\DirectoryAccess($this->db))->canEdit();
         $query = $request->getQueryParams();
         $search = trim((string) ($query['q'] ?? ''));
         $perPage = 50;
@@ -1023,7 +1023,7 @@ class AdminController
 
     public function stationCreatePage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit()) {
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canEdit()) {
             return $this->forbidden($response);
         }
 
@@ -1040,7 +1040,7 @@ class AdminController
         ResponseInterface $response,
         array $args
     ): ResponseInterface {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit()) {
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canEdit()) {
             return $this->forbidden($response);
         }
 
@@ -1400,7 +1400,7 @@ class AdminController
             );
             $newUserId = (int) ($newUser['id'] ?? 0);
             if ($this->isSuper() || in_array('data-scopes', $_SESSION['user']['allowed_pages'] ?? [], true)) {
-                (new \App\Services\DataScopes($this->db))->saveUser($newUserId, (array) ($body['data_scope_ids'] ?? []));
+                (new \App\Services\Data\DataScopes($this->db))->saveUser($newUserId, (array) ($body['data_scope_ids'] ?? []));
             }
             if (!empty($roleIds)) {
                 foreach ($roleIds as $roleId) {
@@ -1506,7 +1506,7 @@ class AdminController
         $this->db->beginTransaction();
         try {
             if ($this->isSuper() || in_array('data-scopes', $_SESSION['user']['allowed_pages'] ?? [], true)) {
-                (new \App\Services\DataScopes($this->db))->saveUser($userId, (array) ($body['data_scope_ids'] ?? []));
+                (new \App\Services\Data\DataScopes($this->db))->saveUser($userId, (array) ($body['data_scope_ids'] ?? []));
             }
             if ($password !== '') {
                 $bindings['hash'] = password_hash($password, PASSWORD_BCRYPT);
@@ -1747,7 +1747,7 @@ class AdminController
 
     public function saveStation(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit()) {
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canEdit()) {
             return $this->forbidden($response);
         }
 
@@ -1811,7 +1811,7 @@ class AdminController
 
     public function idleControlPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $access = new \App\Services\DirectoryAccess($this->db);
+        $access = new \App\Services\Data\DirectoryAccess($this->db);
         if (!$access->canView())
             return $this->forbidden($response);
         $query = $request->getQueryParams();
@@ -1855,7 +1855,7 @@ class AdminController
 
     public function saveIdleControl(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canEdit())
             return $this->forbidden($response);
         $body = (array) $request->getParsedBody();
         if (!$this->checkCsrf($body))
@@ -1900,7 +1900,7 @@ class AdminController
 
     public function idleControlEditPage(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canEdit())
             return $this->forbidden($response);
         $row = $this->db->fetchOne("SELECT id_control, car_number, TO_CHAR(start_date,'YYYY-MM-DD') start_date, TO_CHAR(end_date,'YYYY-MM-DD') end_date, idle_reasons_id, note, is_excluded FROM xx_disl_idle_control_v WHERE id_control=:id", ['id' => (int) ($args['id'] ?? 0)]);
         if (!$row)
@@ -1910,7 +1910,7 @@ class AdminController
 
     private function idleControlFormPage(ServerRequestInterface $request, ResponseInterface $response, array $edited, bool $isNew): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canEdit())
             return $this->forbidden($response);
         $reasons = $this->db->fetchAll('SELECT id,name FROM xx_disl_idle_reasons ORDER BY name');
         $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
@@ -1928,7 +1928,7 @@ class AdminController
 
     public function deleteIdleControl(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canEdit())
             return $this->forbidden($response);
         $body = (array) $request->getParsedBody();
         if (!$this->checkCsrf($body))
@@ -1944,7 +1944,7 @@ class AdminController
 
     public function idleReasonsPage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $access = new \App\Services\DirectoryAccess($this->db);
+        $access = new \App\Services\Data\DirectoryAccess($this->db);
         if (!$access->canView())
             return $this->forbidden($response);
         $query = $request->getQueryParams();
@@ -1972,7 +1972,7 @@ class AdminController
 
     public function saveIdleReason(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canEdit())
             return $this->forbidden($response);
         $body = (array) $request->getParsedBody();
         if (!$this->checkCsrf($body))
@@ -1998,7 +1998,7 @@ class AdminController
 
     public function idleReasonEditPage(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canEdit())
             return $this->forbidden($response);
         $row = $this->db->fetchOne('SELECT id,name,descr FROM xx_disl_idle_reasons WHERE id=:id', ['id' => (int) ($args['id'] ?? 0)]);
         if (!$row)
@@ -2008,7 +2008,7 @@ class AdminController
 
     private function idleReasonFormPage(ServerRequestInterface $request, ResponseInterface $response, array $edited, bool $isNew): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canEdit())
             return $this->forbidden($response);
         $appName = $this->config['app_name'] ?? 'Дислокация РЖД';
         $basePath = $this->config['base_path'] ?? '';
@@ -2025,7 +2025,7 @@ class AdminController
 
     public function deleteIdleReason(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit())
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canEdit())
             return $this->forbidden($response);
         $body = (array) $request->getParsedBody();
         if (!$this->checkCsrf($body))
@@ -2041,7 +2041,7 @@ class AdminController
 
     public function deleteStation(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!(new \App\Services\DirectoryAccess($this->db))->canEdit()) {
+        if (!(new \App\Services\Data\DirectoryAccess($this->db))->canEdit()) {
             return $this->forbidden($response);
         }
 
@@ -2234,7 +2234,7 @@ class AdminController
     private function savePages(int $roleId, array $pages): void
     {
         foreach ($pages as $page) {
-            $definition = \App\Services\PageRegistry::all()[$page] ?? null;
+            $definition = \App\Services\Navigation\PageRegistry::all()[$page] ?? null;
             if ($definition === null || !empty($definition['derived']) || !empty($definition['role_hidden'])) {
                 continue;
             }
@@ -2297,13 +2297,13 @@ class AdminController
     private function isAdmin(): bool
     {
         $u = $_SESSION['user'] ?? [];
-        if (\App\Services\Authorization::isAdmin($u)) {
+        if (\App\Services\Auth\Authorization::isAdmin($u)) {
             return true;
         }
 
         // Если администраторов ещё нет, разрешаем назначить первого.
         try {
-            return !\App\Services\Authorization::hasAdministrators($this->db);
+            return !\App\Services\Auth\Authorization::hasAdministrators($this->db);
         } catch (\Throwable $e) {
             ErrorLogger::logThrowable($e, [
                 'module' => self::class,
@@ -2315,7 +2315,7 @@ class AdminController
 
     private function isSuper(): bool
     {
-        return \App\Services\Authorization::isSuper();
+        return \App\Services\Auth\Authorization::isSuper();
     }
 
     private function canManageUser(int $userId): bool

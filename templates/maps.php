@@ -6,7 +6,7 @@ $user = $user ?? ['display_name' => 'Пользователь'];
 $reportDtLabel = $reportDtLabel ?? '';
 $reportIsStale = $reportIsStale ?? false;
 $stationsWithoutCoordinatesJson = $stationsWithoutCoordinatesJson ?? '[]';
-$canOpenDetail = \App\Services\Authorization::isSuper($user)
+$canOpenDetail = \App\Services\Auth\Authorization::isSuper($user)
     || in_array('wagon-detail', (array) ($user['allowed_pages'] ?? $_SESSION['user']['allowed_pages'] ?? []), true);
 ?>
 <!DOCTYPE html>

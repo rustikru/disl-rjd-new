@@ -8,13 +8,13 @@ use App\Reports\ReportConfig;
 use App\Reports\KpiCondition;
 use App\Reports\KpiGroupingTemplates;
 use App\Reports\KpiTypeRegistry;
-use App\Services\Claims;
+use App\Services\Security\Claims;
 use App\Services\DislDataSource\DislDataSource;
-use App\Services\Organizations;
-use App\Services\ReportService;
-use App\Services\WagonCargoState;
-use App\Services\WagonMovement;
-use App\Services\TableLayoutService;
+use App\Services\Data\Organizations;
+use App\Services\Logging\ReportService;
+use App\Services\Wagon\WagonCargoState;
+use App\Services\Wagon\WagonMovement;
+use App\Services\Reports\TableLayoutService;
 use App\Logging\ErrorLogger;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -258,7 +258,7 @@ class ApiController
                 'is_user' => $isUser ? 'Y' : 'N',
                 'is_global' => $isUser && $visibility === 'GLOBAL' ? 'Y' : 'N',
                 'can_edit' => $isUser && (($visibility === 'PRIVATE' && (int) ($r['owner_id'] ?? 0) === $userId)
-                    || ($visibility === 'GLOBAL' && \App\Services\Authorization::isSuper())) ? 'Y' : 'N',
+                    || ($visibility === 'GLOBAL' && \App\Services\Auth\Authorization::isSuper())) ? 'Y' : 'N',
                 'can_hide' => 'Y',
                 'is_error' => $r['is_error'] ?? 'N',
                 'config' => $config,
@@ -1873,7 +1873,7 @@ class ApiController
         if (isset($this->latestDtsCache[$cacheKey])) {
             return $this->latestDtsCache[$cacheKey];
         }
-        $this->latestDtsCache[$cacheKey] = (new \App\Services\ReportService(
+        $this->latestDtsCache[$cacheKey] = (new \App\Services\Logging\ReportService(
             $this->db,
             $this->organizations
         ))->getLatestDtsByType($dt, $types);
@@ -1883,7 +1883,7 @@ class ApiController
     /** Условие отбора актуальных справок с ограничением по организации. */
     public function latestDtCondition(array $dtsByType, string $alias = ''): array
     {
-        return (new \App\Services\ReportService($this->db, $this->organizations))->latestDtCondition($dtsByType, $alias);
+        return (new \App\Services\Logging\ReportService($this->db, $this->organizations))->latestDtCondition($dtsByType, $alias);
     }
 
     // =========================================================================

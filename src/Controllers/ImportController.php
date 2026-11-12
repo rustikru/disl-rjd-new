@@ -4,11 +4,11 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Logging\ErrorLogger;
-use App\Services\AuditLog;
+use App\Services\Logging\AuditLog;
 use App\Database\DbInterface;
 use App\Reports\ReportConfig;
-use App\Services\Authorization;
-use App\Services\Organizations;
+use App\Services\Auth\Authorization;
+use App\Services\Data\Organizations;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Psr\Http\Message\ResponseInterface;

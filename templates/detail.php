@@ -15,8 +15,8 @@ $basePath = $basePath ?? '';
   <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>/assets/css/app.css">
   <script>
     window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
-    window.APP_CAN_OPEN_WAGON = <?= \App\Services\Authorization::isSuper($user) || in_array('wagon-card', (array) ($user['allowed_pages'] ?? []), true) ? 'true' : 'false' ?>;
-    window.APP_CAN_OPEN_MAP = <?= \App\Services\Authorization::isSuper($user) || in_array('maps', (array) ($user['allowed_pages'] ?? []), true) ? 'true' : 'false' ?>;
+    window.APP_CAN_OPEN_WAGON = <?= \App\Services\Auth\Authorization::isSuper($user) || in_array('wagon-card', (array) ($user['allowed_pages'] ?? []), true) ? 'true' : 'false' ?>;
+    window.APP_CAN_OPEN_MAP = <?= \App\Services\Auth\Authorization::isSuper($user) || in_array('maps', (array) ($user['allowed_pages'] ?? []), true) ? 'true' : 'false' ?>;
     window.APP_CSRF = '<?= htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES) ?>';
     window.APP_REPORT_DEFINITIONS = <?= json_encode($reportDefinitions ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
   </script>

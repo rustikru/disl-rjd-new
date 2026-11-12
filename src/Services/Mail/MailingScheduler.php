@@ -1,7 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Mail;
+
+use App\Services\Mail\MailingRun;
+use App\Services\Mail\MailingService;
 
 use App\Database\DbInterface;
 use App\Logging\ErrorLogger;

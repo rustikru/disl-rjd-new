@@ -4,8 +4,8 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Database\DbInterface;
-use App\Services\Organizations;
-use App\Services\PasswordReset;
+use App\Services\Data\Organizations;
+use App\Services\Auth\PasswordReset;
 use App\Logging\ErrorLogger;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -211,7 +211,7 @@ final class UserController
 
     private function validCsrf(string $csrf): bool
     {
-        return \App\Services\Csrf::valid($csrf);
+        return \App\Services\Security\Csrf::valid($csrf);
     }
 
     private function redirect(ResponseInterface $response, string $path): ResponseInterface

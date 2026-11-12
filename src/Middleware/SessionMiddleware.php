@@ -51,7 +51,7 @@ class SessionMiddleware implements MiddlewareInterface
             if (session_status() !== PHP_SESSION_ACTIVE || empty($_SESSION['user'])) return;
             $lastCheck = (int) ($_SESSION['registry_checked_at'] ?? 0);
             if (!$force && $lastCheck > time() - self::REGISTRY_TOUCH_INTERVAL) return;
-            $registry = new \App\Services\SessionRegistry(($this->getDb)(), $this->lifetime);
+            $registry = new \App\Services\Auth\SessionRegistry(($this->getDb)(), $this->lifetime);
             if (!$registry->touch(session_id(), $_SESSION['user'], (string) ($request->getServerParams()['REMOTE_ADDR'] ?? ''), $request->getHeaderLine('User-Agent'))) {
                 $_SESSION = [];
                 session_regenerate_id(true);

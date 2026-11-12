@@ -1,7 +1,9 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Services;
+namespace App\Services\Navigation;
+
+use App\Services\Auth\Authorization;
 
 use Psr\Http\Message\ServerRequestInterface;
 

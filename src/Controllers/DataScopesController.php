@@ -5,8 +5,8 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Logging\ErrorLogger;
-use App\Services\Authorization;
-use App\Services\AuditLog;
+use App\Services\Auth\Authorization;
+use App\Services\Logging\AuditLog;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 

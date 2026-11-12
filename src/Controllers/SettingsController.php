@@ -6,9 +6,9 @@ use App\Logging\ErrorLogger;
 use App\Database\DbInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use App\Services\PageRegistry;
-use App\Services\PageVisibility;
-use App\Services\AuditLog;
+use App\Services\Navigation\PageRegistry;
+use App\Services\Navigation\PageVisibility;
+use App\Services\Logging\AuditLog;
 
 final class SettingsController
 {
@@ -16,7 +16,7 @@ final class SettingsController
 
     public function page(ServerRequestInterface $request, ResponseInterface $response, bool $visibility = false): ResponseInterface
     {
-        if (!\App\Services\Authorization::isSuper()) {
+        if (!\App\Services\Auth\Authorization::isSuper()) {
             return $response->withStatus(403);
         }
         [$file, $definitions, $values] = $this->load();
@@ -47,7 +47,7 @@ final class SettingsController
                         'Изменена глобальная видимость страниц; отключено: ' . count($updated['disabled_pages'])
                     );
                 } else {
-                    $updated = \App\Services\ConfigSchema::normalizeForStorage((array)($body['settings'] ?? []), $values);
+                    $updated = \App\Services\Config\ConfigSchema::normalizeForStorage((array)($body['settings'] ?? []), $values);
                     $this->save($file, $updated);
                 }
                 $values = $updated;
@@ -74,7 +74,7 @@ final class SettingsController
 
     public function maintenancePage(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        if (!\App\Services\Authorization::isSuper()) {
+        if (!\App\Services\Auth\Authorization::isSuper()) {
             return $response->withStatus(403);
         }
         [$file, $definitions, $values] = $this->load();
@@ -89,7 +89,7 @@ final class SettingsController
                     'maintenance_title', 'maintenance_message',
                 ];
                 $settings = array_intersect_key((array) ($body['settings'] ?? []), array_flip($keys));
-                $updated = \App\Services\ConfigSchema::normalizeForStorage($settings, $values);
+                $updated = \App\Services\Config\ConfigSchema::normalizeForStorage($settings, $values);
                 if ($updated['maintenance_title'] === '' || $updated['maintenance_message'] === '') {
                     throw new \InvalidArgumentException('Укажите заголовок и текст сообщения.');
                 }
@@ -109,7 +109,7 @@ final class SettingsController
         $basePath = $this->config['base_path'] ?? '';
         $appName = $this->config['app_name'] ?? '';
         $user = $_SESSION['user'];
-        $maintenanceStatus = \App\Services\Maintenance::status($values);
+        $maintenanceStatus = \App\Services\Config\Maintenance::status($values);
         ob_start();
         include dirname(__DIR__, 2) . '/templates/admin/maintenance.php';
         $response->getBody()->write((string) ob_get_clean());
@@ -121,8 +121,8 @@ final class SettingsController
         $file = dirname(__DIR__, 2) . '/rjd_config.php';
         $storedValues = require $file;
         if (!is_array($storedValues)) throw new \RuntimeException('Файл настроек должен возвращать массив.');
-        $definitions = \App\Services\ConfigSchema::definitions();
-        $values = \App\Services\ConfigSchema::normalize($storedValues, false);
+        $definitions = \App\Services\Config\ConfigSchema::definitions();
+        $values = \App\Services\Config\ConfigSchema::normalize($storedValues, false);
         return [$file, $definitions, $values];
     }
 
