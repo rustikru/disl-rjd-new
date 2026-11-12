@@ -219,6 +219,36 @@ as
         end if;
     end;
 
+    function fnc_get_pn_cargo_state (p_railcar_id in varchar2)
+        return varchar2
+    is
+        l_car_type varchar2 (4000);
+        l_weight number;
+    begin
+        select max(rai.car_type),
+               sum(nvl(dcai.weight_net, rai.weight_net))
+          into l_car_type, l_weight
+          from xx_etw.xx_disl_round dr
+               left join xx_etw.xx_disl_railcar_add_info rai
+                   on dr.round_id = rai.round_id and rai.last_record = 'Y'
+               left join xx_etw.xx_disl_cont_history dch
+                   on dch.place_id = dr.round_id and dch.place_type = 'railcar'
+               left join xx_etw.xx_disl_cont_round dcr
+                   on dcr.cont_round_id = dch.cont_round_id
+               left join xx_etw.xx_disl_cont_add_info dcai
+                   on dcai.cont_round_id = dcr.cont_round_id and dcai.last_record = 'Y'
+         where dr.railcar_id = p_railcar_id
+           and dr.station_hist_id_out is null;
+
+        if l_weight is null then
+            return 'неопр.';
+        end if;
+        return fnc_get_cargo_state(l_car_type, l_weight);
+    exception
+        when no_data_found then
+            return 'неопр.';
+    end;
+
     -- вынесена на уровень пакета, чтобы использовать в тренде
     procedure calculate_change (
         p_yesterday_value   in     number,

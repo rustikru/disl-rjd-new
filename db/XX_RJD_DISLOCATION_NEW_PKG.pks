@@ -40,6 +40,9 @@ as
                                   p_weight             in number)
         return varchar2 deterministic;
 
+    function fnc_get_pn_cargo_state (p_railcar_id in varchar2)
+        return varchar2;
+
     function set_kpi_label (p_kpi_id in number, p_date in date default null)
         return varchar2;
 
