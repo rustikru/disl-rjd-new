@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Services\DislDataSource;
 
+use App\Database\QueryLogger;
+
 /** Общие источники дополнительных данных для отчётов дислокации. */
 final class DislDataSource
 {
@@ -88,7 +90,17 @@ final class DislDataSource
 
         foreach ((array) ($config['computed'] ?? []) as $name => $expression) {
             $this->assertIdentifier((string) $name, 'вычисляемого поля');
-            if (!is_string($expression) || trim($expression) === '' || !preg_match('/^[A-Za-z0-9_ .(),:+*\/%\'"=<>-]+$/', $expression)) {
+            if (!is_string($expression) || trim($expression) === '' || !preg_match('/^[\p{L}0-9_ .(),:+*\/%\'"=<>-]+$/u', $expression)) {
+                if (QueryLogger::isEnabled()) {
+                    QueryLogger::log(
+                        'Oracle',
+                        'build',
+                        $baseSql,
+                        $bindings,
+                        0.0,
+                        ['code' => 0, 'message' => 'Недопустимое вычисляемое выражение ' . (string) $name]
+                    );
+                }
                 throw new \InvalidArgumentException('Недопустимое вычисляемое выражение');
             }
             if (isset($outputFields[$name])) throw new \InvalidArgumentException('Повторяющееся выходное поле: ' . $name);
@@ -138,7 +150,7 @@ final class DislDataSource
             ]],
             // Вычисляемое поле, которое определяет состояние груза в подходе.
             'computed' => [
-                'pn_cargo_state' => "XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_GET_APPROACH_CARGO_STATE(d.oper_station, d.wagon_no, d.wagon_type_code, d.cargo_weight_kg)",
+                'pn_cargo_state' => "CASE WHEN UPPER(NVL(d.oper_station, ' ')) LIKE '%УГЛЕУРАЛ%' THEN CASE WHEN pn.pn_weight_net IS NULL THEN 'неопр.' ELSE XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_GET_CARGO_STATE(pn.pn_car_type, pn.pn_weight_net) END ELSE XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_GET_CARGO_STATE(d.wagon_type_code, d.cargo_weight_kg) END",
             ],
         ], $bindings);
     }
