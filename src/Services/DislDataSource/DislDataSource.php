@@ -150,6 +150,7 @@ final class DislDataSource
             ]],
             // Вычисляемое поле, которое определяет состояние груза в подходе.
             'computed' => [
+                'report_wagon_type' => "XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_MAPPING_WAG_TYPE(d.wagon_type_code)",
                 'pn_cargo_state' => "CASE WHEN UPPER(NVL(d.oper_station, ' ')) LIKE '%УГЛЕУРАЛ%' THEN CASE WHEN pn.pn_weight_net IS NULL THEN 'неопр.' ELSE XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_GET_CARGO_STATE(pn.pn_car_type, pn.pn_weight_net) END ELSE XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.FNC_GET_CARGO_STATE(d.wagon_type_code, d.cargo_weight_kg) END",
             ],
         ], $bindings);

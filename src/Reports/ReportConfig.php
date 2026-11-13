@@ -768,6 +768,8 @@ final class ReportConfig
     private static function approachExtraColumns(): array
     {
         return [
+            ['key' => 'report_wagon_type', 'label' => 'Род вагона', 'meta' => true, 'w' => 120, 'tab' => 'main', 'showInline' => true],
+            ['key' => 'pn_cargo_state', 'label' => 'Состояние груза', 'meta' => true, 'w' => 120, 'tab' => 'main', 'showInline' => true],
             ['key' => 'days_no_move', 'label' => 'Дней без движ.', 'right' => true, 'w' => 110, 'tab' => 'techn-state-wagon', 'showInline' => false],
             ['key' => 'owner', 'label' => 'Собственник', 'meta' => true, 'w' => 160, 'tab' => 'techn-state-wagon', 'showInline' => false],
             ['key' => 'owner_okpo', 'label' => 'ОКПО собственника', 'meta' => true, 'w' => 130, 'tab' => 'techn-state-wagon', 'showInline' => false],

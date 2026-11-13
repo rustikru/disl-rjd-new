@@ -323,7 +323,12 @@ class ApiController
         }
 
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_state', 'dest_road']);
-        $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type'], $source['cargoStateExpression'] ?? null);
+        $colDefs = $this->resolveColDims(
+            $params['col_by'] ?? '',
+            ['wagon_type_code', 'cargo_w_type'],
+            $source['cargoStateExpression'] ?? null,
+            $source['wagonTypeExpression'] ?? null
+        );
         $data = $this->summaryReport($source, $rowDims, $colDefs);
         try {
             $data['updated_at'] = (new \DateTimeImmutable($source['reportDt']))->format('d.m.Y H:i');
@@ -737,7 +742,12 @@ class ApiController
         }
 
         $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['dest_road', 'dest_station']);
-        $colDefs = $this->resolveColDims($params['col_by'] ?? '', ['wagon_type_code', 'cargo_w_type'], $source['cargoStateExpression'] ?? null);
+        $colDefs = $this->resolveColDims(
+            $params['col_by'] ?? '',
+            ['wagon_type_code', 'cargo_w_type'],
+            $source['cargoStateExpression'] ?? null,
+            $source['wagonTypeExpression'] ?? null
+        );
         $data = $this->summaryReport($source, $rowDims, $colDefs, null, true);
         return $this->json($response, $data);
     }
@@ -754,7 +764,13 @@ class ApiController
         }
 
         $bindings = $source['bindings'];
-        $whereCond = $this->applyDetailFilters($rowDims, $params, $bindings, $source['cargoStateExpression'] ?? null);
+        $whereCond = $this->applyDetailFilters(
+            $rowDims,
+            $params,
+            $bindings,
+            $source['cargoStateExpression'] ?? null,
+            $source['wagonTypeExpression'] ?? null
+        );
 
         $excl = $params['exclude_station'] ?? null;
         if ($excl) {
@@ -1310,6 +1326,7 @@ class ApiController
             'bindings' => $bindings,
             'reportDt' => $reportDt,
             'cargoStateExpression' => $withPn ? 'pn_cargo_state' : null,
+            'wagonTypeExpression' => $withPn ? 'report_wagon_type' : null,
         ];
     }
 
@@ -1559,7 +1576,13 @@ class ApiController
      * $params  — все URL-параметры запроса
      * $bindings — биндинги, пополняются по ссылке
      */
-    private function applyDetailFilters(array $rowDims, array $params, array &$bindings, ?string $cargoStateExpression = null): string
+    private function applyDetailFilters(
+        array $rowDims,
+        array $params,
+        array &$bindings,
+        ?string $cargoStateExpression = null,
+        ?string $wagonTypeExpression = null
+    ): string
     {
         // Фильтр по строкам: пустой JSON-массив от select не является значением строки.
         $whereCond = '';
@@ -1571,7 +1594,7 @@ class ApiController
         }
 
         // Фильтр по колонкам: берёт выражения из единого реестра colDimRegistry
-        foreach ($this->colDimRegistry($cargoStateExpression) as $alias => $def) {
+        foreach ($this->colDimRegistry($cargoStateExpression, $wagonTypeExpression) as $alias => $def) {
             $value = $params[$def['param']] ?? null;
             if ($value !== null && $value !== '') {
                 $bind = 'col_' . $alias;
@@ -1709,10 +1732,13 @@ class ApiController
      * Добавить новую вычисляемую колонку
      * param должен совпадать с colDims[].paramName в app.js.
      */
-    private function colDimRegistry(?string $cargoStateExpression = null): array
+    private function colDimRegistry(
+        ?string $cargoStateExpression = null,
+        ?string $wagonTypeExpression = null
+    ): array
     {
         return [
-            'wagon_type_code' => ['expr' => self::WAG_TYPE_EXPR, 'param' => 'wagon_type'],
+            'wagon_type_code' => ['expr' => $wagonTypeExpression ?: self::WAG_TYPE_EXPR, 'param' => 'wagon_type'],
             'cargo_w_type' => ['expr' => $cargoStateExpression ?: self::WAG_STATE, 'param' => 'cargo_state'],
         ];
     }
@@ -1721,9 +1747,14 @@ class ApiController
      * Раскрывает col_by (алиасы через запятую) в определения колонок для summaryReport.
      * Возвращает [['alias' => ..., 'expr' => ...], ...].
      */
-    private function resolveColDims(string $colBy, array $defaultAliases, ?string $cargoStateExpression = null): array
+    private function resolveColDims(
+        string $colBy,
+        array $defaultAliases,
+        ?string $cargoStateExpression = null,
+        ?string $wagonTypeExpression = null
+    ): array
     {
-        $registry = $this->colDimRegistry($cargoStateExpression);
+        $registry = $this->colDimRegistry($cargoStateExpression, $wagonTypeExpression);
         $aliases = $this->parseGroupBy($colBy, $defaultAliases);
         return array_values(array_filter(
             array_map(
@@ -1930,7 +1961,7 @@ class ApiController
             }
             foreach ($path as $level => $value) {
                 if (!isset($colValueIndex[$level][$value])) {
-                    $colValueIndex[$level][$value] = true;
+                    $colValueIndex[$level][$value] = count($colValues[$level]);
                     $colValues[$level][] = $value;
                 }
             }
@@ -1941,7 +1972,18 @@ class ApiController
             }
         }
 
-        if (!$sparseColumns && $nColLevels > 1) {
+        if ($sparseColumns && $nColLevels > 1) {
+            usort($colPaths, static function (array $left, array $right) use ($colValueIndex): int {
+                foreach ($left as $level => $value) {
+                    $result = ($colValueIndex[$level][$value] ?? 0)
+                        <=> ($colValueIndex[$level][$right[$level]] ?? 0);
+                    if ($result !== 0) {
+                        return $result;
+                    }
+                }
+                return 0;
+            });
+        } elseif ($nColLevels > 1) {
             $colPaths = [[]];
             foreach ($colValues as $values) {
                 $nextPaths = [];
@@ -1952,10 +1994,10 @@ class ApiController
                 }
                 $colPaths = $nextPaths;
             }
-            $colIndex = [];
-            foreach ($colPaths as $index => $path) {
-                $colIndex[implode("\0", $path)] = $index;
-            }
+        }
+        $colIndex = [];
+        foreach ($colPaths as $index => $path) {
+            $colIndex[implode("\0", $path)] = $index;
         }
 
         $nFlat = max(1, count($colPaths));
