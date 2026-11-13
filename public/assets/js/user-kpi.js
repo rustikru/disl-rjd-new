@@ -93,7 +93,7 @@
       event.stopPropagation()
       var $button = $(this)
       var $card = $button.closest('.kpi-card')
-      var $grid = $card.closest('#approachMetrics, #departureMetrics')
+      var $grid = $card.closest('.kpi-grid')
       var board = boards.find(function (item) {
         return item.id === $grid.attr('id')
       })

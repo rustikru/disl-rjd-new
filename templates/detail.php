@@ -387,7 +387,7 @@ $basePath = $basePath ?? '';
 
       function detailMapUrl(config) {
         var groupField = String(config.group_field || '').toLowerCase();
-        if (!window.APP_CAN_OPEN_MAP || ['train_no', 'train_index'].indexOf(groupField) < 0) return '';
+        if (!window.APP_CAN_OPEN_MAP || ['train_no', 'train_index', 'wagon_type_code'].indexOf(groupField) < 0) return '';
         var query = new URLSearchParams(params);
         query.delete('train_groups');
         query.delete('kpi_view');

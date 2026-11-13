@@ -163,7 +163,7 @@ final class ReportConfig
             ),
 
             // Простои
-            'downtime' => self::report(
+            'downtime' => array_merge(self::report(
                 'Простои',
                 '/api/downtime/filters',
                 '/api/downtime/summary',
@@ -171,6 +171,7 @@ final class ReportConfig
                 [
                     self::filter('wagon_no', '№ вагона', 'text', 'fDowntimeWagonNo'),
                     self::filter('dest_station', 'Станция назначения', 'select', 'fDowntimeDestStation', 'dest_station'),
+                    self::filter('min_days', 'Простой не менее, сут.', 'number', 'fDowntimeMinDays'),
                 ],
                 [
                     self::dimension('cargo_name', 'Груз'),
@@ -180,7 +181,37 @@ final class ReportConfig
                     self::columnDimension('m_wagon_type_code', 'wagon_type'),
                     self::columnDimension('m_wag_state', 'cargo_state'),
                 ]
-            ),
+            ), [
+                'default_summary_view' => 'cargo',
+                'summary_views' => [
+                    'cargo' => [
+                        'label' => 'По грузу',
+                        'row_dimensions' => [
+                            self::dimension('cargo_name', 'Груз'),
+                            self::dimension('idle_time_name', 'Простой'),
+                        ],
+                    ],
+                    'idle-period' => [
+                        'label' => 'По интервалу',
+                        'row_dimensions' => [self::dimension('idle_time_name', 'Интервал простоя')],
+                    ],
+                    'destination-station' => [
+                        'label' => 'По станции назначения',
+                        'row_dimensions' => [
+                            self::dimension('dest_station', 'Станция назначения'),
+                            self::dimension('cargo_name', 'Груз'),
+                            self::dimension('idle_time_name', 'Интервал простоя'),
+                        ],
+                    ],
+                    'ugleuralskaya' => [
+                        'label' => 'На Углеуральской',
+                        'row_dimensions' => [
+                            self::dimension('cargo_name', 'Груз'),
+                            self::dimension('idle_time_name', 'Интервал простоя'),
+                        ],
+                    ],
+                ],
+            ]),
 
             // Техническое состояние
             'technical-state' => self::report(
@@ -321,6 +352,8 @@ final class ReportConfig
                 if (!$date || $date->format('Y-m-d') !== $value)
                     throw new \InvalidArgumentException('Некорректная дата в поле «' . $filter['label'] . '»');
             }
+            if (($filter['value_type'] ?? '') === 'number' && (!ctype_digit($value) || (int) $value < 0))
+                throw new \InvalidArgumentException('Укажите неотрицательное целое число в поле «' . $filter['label'] . '»');
             $choices = (array) ($filter['choices'] ?? []);
             if ($choices !== [] && !in_array($value, array_column($choices, 'value'), true))
                 throw new \InvalidArgumentException('Недопустимое значение поля «' . $filter['label'] . '»');
@@ -460,6 +493,7 @@ final class ReportConfig
                 'summary_loaded_key' => '_downtimeLoaded',
                 'detail_loaded_key' => '_downtimeDetLoaded',
                 'apply_button_id' => 'btnDowntimeApply',
+                'reset_button_id' => 'btnDowntimeReset',
                 'total_column_dimensions' => ['m_wagon_type_code'],
             ],
             // Контроль простоев

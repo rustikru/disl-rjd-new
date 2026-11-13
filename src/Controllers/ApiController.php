@@ -159,6 +159,9 @@ class ApiController
         }
 
         try {
+            if ($kpiType === 'downtime_kpi') {
+                return $this->downtimeKpiSummary($request, $response);
+            }
             $rows = $this->db->fetchAll(
                 'SELECT *
                    FROM TABLE(XX_ETW.XX_RJD_DISLOCATION_NEW_PKG.GET_PAGE_KPI(
@@ -272,6 +275,48 @@ class ApiController
         ]);
     }
 
+    /** Пользовательские KPI простоев считаются без фильтров экрана и без Oracle GET_PAGE_KPI. */
+    private function downtimeKpiSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $userId = (int) ($_SESSION['user']['id'] ?? 0);
+        $source = $this->downtimeFrom([]);
+        $rows = $this->db->fetchAll(
+            "SELECT k.id, k.type, k.label, k.owner_id, k.visibility,
+                    DBMS_LOB.SUBSTR(k.where_config, 3500, 1) AS where_config
+               FROM XX_ETW.XX_RJD_KPI_TBL k
+              WHERE k.type = :kpi_type AND k.is_system = 'N' AND k.is_active = 'Y'
+                AND (k.owner_id = :owner_id AND k.visibility = 'PRIVATE' OR k.visibility = 'GLOBAL')
+                AND NOT EXISTS (SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h WHERE h.user_id = :hidden_id AND h.kpi_id = k.id)
+              ORDER BY k.order_by, k.id",
+            ['kpi_type' => 'downtime_kpi', 'owner_id' => $userId, 'hidden_id' => $userId]
+        );
+        $values = [];
+        foreach ($rows as $row) {
+            try {
+                $condition = KpiCondition::compile('downtime_kpi', (string) $row['where_config']);
+                $bindings = array_merge($source['bindings'], $condition['params']);
+                $stats = $this->db->fetchOne(
+                    "SELECT COUNT(*) AS total, MAX(station_idle_days) AS max_days, MIN(station_idle_days) AS min_days, AVG(station_idle_days) AS avg_days
+                       FROM {$source['from']} xdr WHERE 1=1 AND {$condition['sql']}",
+                    $bindings
+                ) ?: [];
+                $value = (int) ($stats['TOTAL'] ?? $stats['total'] ?? 0);
+                $values[] = [
+                    'id' => $row['id'], 'type' => 'downtime_kpi', 'value' => (string) $value,
+                    'label' => $row['label'], 'is_user' => 'Y',
+                    'is_global' => ($row['visibility'] ?? '') === 'GLOBAL' ? 'Y' : 'N',
+                    'can_edit' => (($row['visibility'] ?? '') === 'GLOBAL' || (int) $row['owner_id'] === $userId) ? 'Y' : 'N',
+                    'can_hide' => 'Y', 'detail' => ['ctx' => 'dislocation', 'params' => ['kpi_id' => $row['id'], 'kpi_view' => 'GROUPED', 'kpi_type' => 'downtime_kpi']],
+                    'config' => json_decode((string) $row['where_config'], true),
+                    'metrics' => ['max_days' => (float) ($stats['MAX_DAYS'] ?? $stats['max_days'] ?? 0), 'min_days' => (float) ($stats['MIN_DAYS'] ?? $stats['min_days'] ?? 0), 'avg_days' => (float) ($stats['AVG_DAYS'] ?? $stats['avg_days'] ?? 0)],
+                ];
+            } catch (\InvalidArgumentException $error) {
+                continue;
+            }
+        }
+        return $this->json($response, ['updated_at' => $source['reportDt'], 'sections' => [['values' => $values]]]);
+    }
+
     /** Условие отбора по периоду погрузки. */
     private function loadingPeriodCondition(string $period, array &$bindings, string $prefix = 'loading'): string
     {
@@ -345,7 +390,7 @@ class ApiController
         $params = $request->getQueryParams();
         $source = $this->dislFrom($params);
 
-        if (!$source['reportDt']) {
+        if (!$source['reportDt'] && trim((string) ($params['kpi_id'] ?? '')) === '') {
             return $this->json($response, ['rows' => []]);
         }
 
@@ -353,6 +398,7 @@ class ApiController
         $whereCond = '';
         $detail = null;
         $userDetailConfig = null;
+        $isDowntimeKpi = false;
         $kpiId = trim((string) ($params['kpi_id'] ?? ''));
         if ($kpiId !== '' && (!ctype_digit($kpiId) || (int) $kpiId < 1)) {
             return $this->json($response->withStatus(422), ['error' => 'Некорректный идентификатор KPI']);
@@ -391,6 +437,13 @@ class ApiController
             }
             if (!$kpiRow) {
                 return $this->json($response->withStatus(404), ['error' => 'Карточка KPI не найдена']);
+            }
+
+            if ((string) ($kpiRow['type'] ?? '') === 'downtime_kpi') {
+                // KPI простоев всегда использует объединённые последние справки без фильтров экрана.
+                $source = $this->downtimeFrom([]);
+                $bindings = $source['bindings'];
+                $isDowntimeKpi = true;
             }
 
             $kpi = ['code' => $kpiRow['code'], 'label' => $kpiRow['label']];
@@ -432,9 +485,12 @@ class ApiController
             }
 
             if ($userCondition !== null) {
-                $whereCond .= ' AND type_reference = :kpi_type_reference AND ' . $userCondition['sql'];
+                if (($userKpi['type'] ?? '') !== 'downtime_kpi') {
+                    $whereCond .= ' AND type_reference = :kpi_type_reference';
+                    $bindings['kpi_type_reference'] = KpiTypeRegistry::referenceType((string) $userKpi['type']);
+                }
+                $whereCond .= ' AND ' . $userCondition['sql'];
                 $bindings = array_merge($bindings, $userCondition['params'], [
-                    'kpi_type_reference' => KpiTypeRegistry::referenceType((string) $userKpi['type']),
                 ]);
             } else {
                 $condition = trim((string) ($kpiRow['kpi_condition'] ?? '')) ?: '1=0';
@@ -445,7 +501,12 @@ class ApiController
         $rowDims = $detail
             ? $detail['group_by']
             : $this->parseGroupBy($params['group_by'] ?? '', ['dest_state']);
-        $whereCond .= $this->applyDetailFilters($rowDims, $params, $bindings);
+        if (!$isDowntimeKpi) {
+            $whereCond .= $this->applyDetailFilters($rowDims, $params, $bindings);
+        } elseif (in_array((string) ($params['cargo_state'] ?? ''), ['гр.', 'пор.'], true)) {
+            $whereCond .= ' AND ' . self::WAG_STATE . ' = :kpi_cargo_state';
+            $bindings['kpi_cargo_state'] = (string) $params['cargo_state'];
+        }
         if ($detail && ($detail['profile'] ?? '') === 'abandoned') {
             $whereCond .= $this->applyAbandonedFilters($params, $bindings);
         }
@@ -987,18 +1048,31 @@ class ApiController
             return $this->json($response, ['cols' => [], 'roads' => [], 'metrics' => [], 'total' => 0]);
         }
 
-        // Простои используют колонки из подзапроса (downtimeFrom)
-        $rowDims = $this->parseGroupBy($params['group_by'] ?? '', ['oper_road', 'oper_station']);
+        // Вариант представления меняет только группировку строк.
+        $report = ReportConfig::find('downtime') ?? [];
+        $views = (array) ($report['summary_views'] ?? []);
+        $viewCode = trim((string) ($params['summary_view'] ?? ($report['default_summary_view'] ?? '')));
+        $view = $views[$viewCode] ?? $views[$report['default_summary_view'] ?? ''] ?? null;
+        $rowDims = $view
+            ? array_column((array) ($view['row_dimensions'] ?? []), 'key')
+            : $this->parseGroupBy($params['group_by'] ?? '', ['cargo_name', 'idle_time_name']);
         $colAliases = $this->parseGroupBy($params['col_by'] ?? '', ['fixed_col_label', 'm_wagon_type_code']);
         $selectRow = implode(', ', $rowDims);
         $selectCols = implode(', ', $colAliases);
+        $orderBy = "idle_time_order_by ASC, $selectRow";
+        $bindings = $source['bindings'];
+        if ($viewCode === 'destination-station') {
+            $bindings['first_dest_station'] = 'УГЛЕУРАЛЬСКАЯ';
+            $orderBy = "CASE WHEN INSTR(UPPER(dest_station), :first_dest_station) > 0 THEN 0 ELSE 1 END,
+                        dest_station, idle_time_order_by ASC, cargo_name";
+        }
 
         $rows = $this->db->fetchAll(
             "SELECT $selectRow, $selectCols, COUNT(*) AS cnt
              FROM {$source['from']}
              GROUP BY idle_time_order_by, $selectRow, $selectCols
-             ORDER BY idle_time_order_by ASC, $selectRow",
-            $source['bindings']
+             ORDER BY $orderBy",
+            $bindings
         );
 
         return $this->json($response, $this->roadTable($rows, $rowDims, $colAliases));
@@ -1473,6 +1547,10 @@ class ApiController
         $bindings = $cond['params'];
         $baseCond = $this->reportWhere('downtime') . ' AND ' . $cond['sql']
             . $this->wagonNoCond($params, $bindings);
+        if (($params['summary_view'] ?? '') === 'ugleuralskaya') {
+            $baseCond .= " AND UPPER(dest_station) LIKE :ugleuralskaya_station";
+            $bindings['ugleuralskaya_station'] = '%УГЛЕУРАЛЬСКАЯ%';
+        }
         // Фильтр по реестру исключений временно отключён.
         // $baseCond .= $this->excludedWagonsCondition();
         $source = [

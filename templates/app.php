@@ -268,6 +268,10 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
 
       <!-- Простои -->
       <div id="panel-downtime" class="tab-panel">
+        <div class="kpi-board-wrap">
+          <?php if (!empty($userKpiManagementEnabled)): ?><div class="kpi-settings-link"><a class="kpi-hidden-open" href="<?= htmlspecialchars($basePath) ?>/kpi/hidden" aria-label="Скрытые KPI" title="Скрытые KPI"><img src="<?= htmlspecialchars($basePath) ?>/assets/img/icon/icon-hide.svg" class="user-menu-item-icon""></a></div><?php endif; ?>
+          <div class="kpi-grid" id="downtimeMetrics" style="margin-bottom:16px"></div>
+        </div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="downtime-summary">Сводная</button>
           <button class="inner-tab" data-inner="downtime-detail">Подробная</button>
@@ -276,6 +280,7 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
           <div class="filters-inner">
             <div class="filter-actions" style="flex-basis:100%">
               <button class="btn btn-primary btn-sm" id="<?= $reportElementId('downtime','apply_button_id','btnDowntimeApply') ?>">Применить</button>
+              <button class="btn btn-ghost btn-sm" id="<?= $reportElementId('downtime','reset_button_id','btnDowntimeReset') ?>">Сбросить</button>
             </div>
           </div>
         </div>

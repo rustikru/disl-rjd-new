@@ -65,6 +65,20 @@ final class KpiTypeRegistry
             'reference_type' => 'Отправка',
             'fields' => [],
         ],
+        'downtime_kpi' => [
+            'page' => 'downtime',
+            'tab' => 'downtime',
+            'label' => 'Простои вагонов',
+            'container_id' => 'downtimeMetrics',
+            'user_creatable' => true,
+            'reference_type' => 'Подход',
+            'fields' => [
+                'wagon_no' => 'string', 'cargo_name' => 'string',
+                'dest_station' => 'string', 'oper_station' => 'string',
+                'wagon_type_code' => 'string', 'wagon_state' => 'string',
+                'idle_time_days' => 'number', 'idle_time_hhmmss' => 'string',
+            ],
+        ],
     ];
 
     private const FIELD_LABELS = [
@@ -82,6 +96,8 @@ final class KpiTypeRegistry
         'cargo_weight_kg' => 'Вес груза, кг',
         'oper_dt' => 'Дата операции',
         'norm_delivery_dt' => 'Нормативная дата доставки',
+        'idle_time_days' => 'Простой, сут.',
+        'idle_time_hhmmss' => 'Простой (ЧЧ:ММ:СС)',
     ];
 
     public static function all(): array

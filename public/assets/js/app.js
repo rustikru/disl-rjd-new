@@ -577,6 +577,29 @@ function buildReportFilterFields(reportCode, reportDefinition) {
   var $filterActions = $filterFields.find('.filter-actions').first()
   var $dateRange = null
 
+  var summaryViews = reportDefinition.summary_views || {}
+  if (Object.keys(summaryViews).length) {
+    var viewId = 'summaryView-' + reportCode
+    var $viewItem = $('<div>').addClass('filter-item').attr('data-summary-view', reportCode)
+    var $viewLabel = $('<label>').addClass('filter-label').attr('for', viewId).text('Представление')
+    var $viewField = $('<select>').addClass('filter-input').attr('id', viewId)
+    Object.keys(summaryViews).forEach(function (code) {
+      $viewField.append($('<option>').val(code).text(summaryViews[code].label || code))
+    })
+    $viewField.val(reportDefinition.default_summary_view || Object.keys(summaryViews)[0])
+    $viewField.on('change', function () {
+      var cfg = WAGON_TABS[reportCode]
+      var view = summaryViews[this.value]
+      if (!cfg || !view) return
+      cfg.summaryView = this.value
+      cfg.groupCols = view.row_dimensions || []
+      loadSummary(cfg)
+    })
+    $viewItem.append($viewLabel, $viewField)
+    if ($filterActions.length) $viewItem.insertBefore($filterActions)
+    else $filterFields.append($viewItem)
+  }
+
   ;(reportDefinition.filters || []).forEach(function (filterDefinition) {
     var $filterItem = $('<div>').addClass('filter-item')
     if (filterDefinition.multiple) $filterItem.addClass('filter-item--multi')
@@ -600,7 +623,11 @@ function buildReportFilterFields(reportCode, reportDefinition) {
     } else {
       $field = $('<input>').attr(
         'type',
-        filterDefinition.value_type === 'date' ? 'date' : 'text',
+        filterDefinition.value_type === 'date'
+          ? 'date'
+          : filterDefinition.value_type === 'number'
+            ? 'number'
+            : 'text',
       )
       if (filterDefinition.key === 'wagon_no') {
         $field.attr('placeholder', 'Вагон1; Вагон2; …')
@@ -686,6 +713,11 @@ function connectReportDefinitions() {
       ? BASE + reportDefinition.initial_endpoint
       : null
     tabSettings.groupCols = reportDefinition.row_dimensions || []
+    tabSettings.summaryViews = reportDefinition.summary_views || {}
+    tabSettings.summaryView = reportDefinition.default_summary_view || ''
+    if (tabSettings.summaryView && tabSettings.summaryViews[tabSettings.summaryView]) {
+      tabSettings.groupCols = tabSettings.summaryViews[tabSettings.summaryView].row_dimensions || []
+    }
     tabSettings.colDims = (reportDefinition.column_dimensions || []).map(
       function (columnDimension) {
         return {
@@ -863,6 +895,7 @@ function loadSummary(cfg) {
     '<tbody><tr><td colspan="5" style="text-align:center;padding:40px;color:#9DA5B0">Загрузка...</td></tr></tbody>',
   )
   var summaryParams = Object.assign({}, cfg.getParams())
+  if (cfg.summaryView) summaryParams.summary_view = cfg.summaryView
   var gby = (cfg.groupCols || [])
     .map(function (g) {
       return g.key

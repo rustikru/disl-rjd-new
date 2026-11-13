@@ -54,7 +54,9 @@ final class KpiCondition
                 $value = $date->format('Y-m-d');
             }
             $name = 'user_kpi_' . $index;
-            $column = strtoupper($field);
+            $column = ($type === 'downtime_kpi' && $field === 'idle_time_days')
+                ? 'STATION_IDLE_DAYS'
+                : strtoupper($field);
             if (in_array($operator, ['LIKE', 'NOT LIKE'], true)) {
                 // % и _ пользователь может использовать как шаблоны поиска.
                 $value = '%' . str_replace('\\', '\\\\', (string) $value) . '%';

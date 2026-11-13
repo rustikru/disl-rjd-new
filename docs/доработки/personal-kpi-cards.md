@@ -2,7 +2,11 @@
 
 ## Назначение
 
-Пользователь может создавать личные карточки только на страницах «Подход вагонов» (`approach_kpi`) и «Отправление вагонов» (`departue_kpi`). Карточки доступны только создавшему их пользователю. `SUPER` может создать на этих же страницах общую карточку, доступную всем пользователям. Системные KPI сохраняют отдельную PL/SQL-логику.
+Пользовательские карточки включаются отдельно для каждого типа в
+`src/Reports/KpiTypeRegistry.php`. Сейчас это «Подход вагонов» (`approach_kpi`),
+«Отправление вагонов» (`departue_kpi`) и «Простои» (`downtime_kpi`). Карточки
+доступны создавшему их пользователю; `SUPER` может создавать общие карточки.
+Системные KPI сохраняют отдельную PL/SQL-логику.
 
 ## Хранение
 
@@ -51,8 +55,95 @@ HTML-форма и API-действия пользовательских KPI с�
 
 ## Детализация
 
-Для `TABLE` открывается стандартная детализация. Для группировки доступны фиксированные шаблоны `TRAIN_NUMBER` и `TRAIN_INDEX`, определённые в `src/Reports/KpiGroupingTemplates.php`. Системные KPI не переводятся на JSON и сохраняют PL/SQL-логику.
+Для `TABLE` открывается стандартная детализация. Для группировки доступны
+фиксированные шаблоны `TRAIN_NUMBER`, `TRAIN_INDEX` и `WAGON_TYPE`, определённые
+в `src/Reports/KpiGroupingTemplates.php`. Системные KPI не переводятся на JSON и
+сохраняют PL/SQL-логику.
 
 ## Изменения БД
 
-Для описанных изменений правка схемы Oracle не требуется. Признак `IS_ACTIVE` должен быть предварительно добавлен миграцией `db/kpi/2026-11-06-kpi-admin-active.sql`; применение миграции в целевой БД этим изменением не выполняется.
+Для работы административного статуса признак `IS_ACTIVE` должен быть добавлен
+миграцией `db/kpi/2026-11-06-kpi-admin-active.sql`. Для страницы «Простои»
+ограничение `XX_RJD_KPI_TBL_PAGE_CK` расширяется миграцией
+`db/kpi/2026-11-13-allow-downtime-user-kpi.sql`. Миграции кодом приложения не
+выполняются; их состояние в целевой БД нужно проверять отдельно.
+
+## Добавление пользовательских KPI на новую страницу
+
+Новая страница включается через реестры и общий обработчик. Отдельный экран
+конструктора и отдельный JavaScript-список создавать не нужно.
+
+### Порядок работ
+
+1. В `src/Reports/KpiTypeRegistry.php` добавить тип с `page`, `tab`, уникальным
+   `container_id`, `user_creatable = true` и списком `fields`. Подписи полей
+   добавить в `FIELD_LABELS`; типы — `string`, `number` или `date`.
+2. В `templates/app.php` добавить контейнер `.kpi-grid` с тем же id, что и
+   `container_id`. `public/assets/js/user-kpi.js` автоматически добавит кнопку
+   «+» и откроет общий `/kpi/create?kpi_type=...`; отдельную форму создавать нельзя.
+3. Для отчёта проверить `src/Reports/ReportConfig.php`; для самостоятельной
+   страницы добавить её в `src/Services/PageRegistry.php` и `src/routes.php`.
+   Серверное право страницы обязательно.
+4. Проверить `PageRegistry::kpiSourcePage()` для детализации. `app.js` обычно не
+   меняется: `KPI_BOARDS` строится из `window.APP_KPI_TYPES`.
+5. В `ApiController::kpiSummary()` использовать `GET_PAGE_KPI()` только если
+   новый тип уже поддержан PL/SQL. Для особого источника добавить отдельный
+   расчёт: выбрать доступные активные KPI, проверить `PRIVATE`/`GLOBAL`, получить
+   источник без фильтров страницы, вызвать `KpiCondition::compile()`, выполнить
+   агрегаты bind-параметрами и вернуть карточки. Ошибки логировать через
+   `ErrorLogger::logThrowable()`.
+6. В `ApiController::dislDetail()` повторно проверить `kpi_id`, владельца, тип,
+   visibility и active, применить те же условия и источник, а `group_value`
+   передавать только bind-параметром. Шаблоны группировки добавляются в
+   `src/Reports/KpiGroupingTemplates.php`; вычисляемые поля дополнительно
+   обрабатываются в `detailFieldExpression()`.
+7. Кнопка карты формируется в `templates/detail.php` через `detailMapUrl()`.
+   Для нового `group_field` явно проверить право `maps`, передачу `kpi_id`,
+   `kpi_table=Y` и условий на `/maps`.
+8. Если Oracle ограничивает `PAGE_CODE`, добавить новый код в DDL-миграцию
+   `db/kpi/*.sql` и применить её до теста сохранения:
+
+```sql
+ALTER TABLE XX_ETW.XX_RJD_KPI_TBL DROP CONSTRAINT XX_RJD_KPI_TBL_PAGE_CK;
+ALTER TABLE XX_ETW.XX_RJD_KPI_TBL ADD CONSTRAINT XX_RJD_KPI_TBL_PAGE_CK
+CHECK (IS_SYSTEM = 'Y' OR PAGE_CODE IN ('approach', 'departure', 'downtime', 'new-page'));
+```
+
+Нельзя подменять новый `PAGE_CODE` на существующую чужую страницу.
+
+### Проверки
+
+```bash
+php -l src/Reports/KpiTypeRegistry.php
+php -l src/Reports/KpiGroupingTemplates.php
+php -l src/Controllers/ApiController.php
+php -l src/Controllers/UserKpiController.php
+php -l templates/app.php
+node --check public/assets/js/app.js
+node --check public/assets/js/user-kpi.js
+node --check public/assets/js/user-kpi-form.js
+composer check:registry
+git diff --check
+```
+
+Пройти цепочку «+» → создание → сохранение → карточка → детализация →
+группировка → счётчик группы → дополнительная детализация → карта. Проверить
+пустой результат, `AND/OR`, обычного пользователя, `SUPER`, GLOBAL/PRIVATE,
+чужую PRIVATE-карточку, CSRF, отключённую страницу и отказ без права.
+
+### Типовые ошибки
+
+| Ошибка | Причина | Проверка |
+|---|---|---|
+| Нет кнопки «+» | `user_creatable = false`, неверный `container_id`, отсутствует контейнер или выключен `user_kpi_management_enabled` | Реестр, `templates/app.php`, конфигурация и права |
+| Некорректный запрос KPI | `source_page` не совпадает с `KpiTypeRegistry::page()` | `/api/kpi/summary` и `APP_KPI_TYPES` |
+| Шаблон недоступен | `KpiGroupingTemplates::get()` вернул `null` | Поля исходные или разрешённые вычисляемые |
+| ORA-02290 `PAGE_CK` | Constraint не знает новый `PAGE_CODE` | Применить DDL-миграцию |
+| ORA-00918 | Дублируется alias в `SELECT *` | Убрать повторное имя или использовать отдельное выражение |
+| Карточка пустая | Нет дат, доступа организации, KPI скрыт/неактивен или условие не совпало | Даты, `Organizations`, hidden, `WHERE_CONFIG` |
+| Не работают условия | Поле/оператор не зарегистрирован или неверный тип | `KpiTypeRegistry::fields()` и `KpiCondition::compile()` |
+| В KPI попали фильтры страницы | Источник собран из query-параметров экрана | Создавать источник без экранных параметров |
+| Неверная группа | `group_value` склеен в SQL или не применён `group_field` | Шаблон и bind `:user_group_value` |
+| Нет карты | Нет права `maps` или `group_field` не разрешён в `detailMapUrl()` | Права, `/maps`, `kpi_id`, `kpi_table=Y` |
+| Видны SQL/stack trace | Исключение возвращено напрямую | `ErrorLogger::logThrowable()` и безопасный ответ |
+| Сохранение проходит, расчёт падает | Источник или SQL не соответствуют справке | Источник, aliases, ограничения организации и DDL |

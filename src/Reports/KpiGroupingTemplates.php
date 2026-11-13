@@ -5,6 +5,12 @@ namespace App\Reports;
 
 final class KpiGroupingTemplates
 {
+    private const COMPUTED_FIELDS = [
+        'idle_duration' => 'Простой (ЧЧ:ММ:СС)',
+        'loaded_count' => 'Гружёные',
+        'empty_count' => 'Порожние',
+    ];
+
     private const TEMPLATES = [
         'TRAIN_NUMBER' => [
             'label' => 'По номеру поезда',
@@ -25,6 +31,18 @@ final class KpiGroupingTemplates
             'title' => 'Группы поездов по индексу',
             'fields' => ['train_no', 'oper_station', 'oper_road', 'operation', 'oper_dt', 'trip_start_dt'],
             'route_fields' => ['depart_station', 'dest_station'],
+        ],
+        'WAGON_TYPE' => [
+            'label' => 'По типу вагона',
+            'group_field' => 'wagon_type_code',
+            'group_prefix' => '',
+            'title' => 'Вагоны по типу',
+            'fields' => ['idle_duration', 'loaded_count', 'empty_count'],
+            'route_fields' => [],
+            'sections' => [
+                ['label' => 'Гружёные', 'key' => 'loaded', 'filters' => ['cargo_state' => 'гр.']],
+                ['label' => 'Порожние', 'key' => 'empty_count', 'filters' => ['cargo_state' => 'пор.']],
+            ],
         ],
     ];
 
@@ -47,10 +65,13 @@ final class KpiGroupingTemplates
         $source = array_column(ReportConfig::sourceColumns(), null, 'key');
         $fields = [];
         foreach ($template['fields'] as $key) {
-            if (!isset($source[$key])) {
+            if (!isset($source[$key]) && !isset(self::COMPUTED_FIELDS[$key])) {
                 return null;
             }
-            $fields[] = ['key' => $key, 'label' => $source[$key]['label']];
+            $fields[] = [
+                'key' => $key,
+                'label' => $source[$key]['label'] ?? self::COMPUTED_FIELDS[$key],
+            ];
         }
 
         $route = [];
