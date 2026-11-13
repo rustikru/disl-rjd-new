@@ -264,6 +264,9 @@ return function (App $app, array $config): void {
         $group->post('/admin/kpi/delete', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\KpiController($getDb(), $config))->deleteUser($req, $res);
         });
+        $group->post('/admin/kpi/pages/save', function ($req, $res) use ($getDb, $config) {
+            return (new \App\Controllers\KpiController($getDb(), $config))->savePageSettings($req, $res);
+        });
         $group->post('/admin/report-mailings/run', function ($req, $res) use ($getDb, $config) {
             return (new \App\Controllers\MailingController($getDb(), $config))->adminRun($req, $res);
         });

@@ -5,7 +5,7 @@
 
   var kpiTypes = window.APP_KPI_TYPES || {}
   var boards = Object.keys(kpiTypes).filter(function (type) {
-    return kpiTypes[type].user_creatable
+    return kpiTypes[type].user_creatable && kpiTypes[type].user_kpi_enabled !== false
   }).map(function (type) {
     return { id: kpiTypes[type].container_id, type: type }
   })

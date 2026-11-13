@@ -8,6 +8,7 @@ use App\Logging\ErrorLogger;
 use App\Reports\KpiCondition;
 use App\Reports\KpiGroupingTemplates;
 use App\Reports\KpiTypeRegistry;
+use App\Reports\UserKpiPageSettings;
 use App\Services\Auth\Authorization;
 use App\Services\Data\Organizations;
 use App\Services\Navigation\PageRegistry;
@@ -36,7 +37,8 @@ final class UserKpiController
         $id = (int) ($request->getQueryParams()['id'] ?? 0);
         $modalForm = ($request->getQueryParams()['modal'] ?? '') === '1';
         $isAdminEdit = ($request->getQueryParams()['admin'] ?? '') === '1' && \App\Services\Auth\Authorization::isSuper();
-        if (!$this->organizations->isMtf() || !KpiTypeRegistry::isUserCreatable($type)) {
+        if (!$this->organizations->isMtf() || !KpiTypeRegistry::isUserCreatable($type)
+            || !UserKpiPageSettings::isEnabled($this->db, (string) KpiTypeRegistry::page($type))) {
             return $response->withStatus(404);
         }
         
@@ -83,7 +85,8 @@ final class UserKpiController
             return $this->json($response->withStatus(403), ['error' => 'Управление KPI временно отключено']);
         }
         $type = trim((string) ($request->getQueryParams()['kpi_type'] ?? ''));
-        if (!KpiTypeRegistry::isUserCreatable($type) || !$this->organizations->isMtf()) {
+        if (!KpiTypeRegistry::isUserCreatable($type) || !$this->organizations->isMtf()
+            || !UserKpiPageSettings::isEnabled($this->db, (string) KpiTypeRegistry::page($type))) {
             return $this->json($response->withStatus(403), ['error' => 'Недоступно']);
         }
         return $this->json($response, [
@@ -108,7 +111,8 @@ final class UserKpiController
         $visibility = $isSuper && strtoupper(trim((string) ($body['visibility'] ?? 'PRIVATE'))) === 'GLOBAL'
             ? 'GLOBAL'
             : 'PRIVATE';
-        if (!$this->organizations->isMtf() || $userId < 1 || !KpiTypeRegistry::isUserCreatable($type)) {
+        if (!$this->organizations->isMtf() || $userId < 1 || !KpiTypeRegistry::isUserCreatable($type)
+            || !UserKpiPageSettings::isEnabled($this->db, (string) KpiTypeRegistry::page($type))) {
             return $this->json($response->withStatus(403), ['error' => 'Недоступно']);
         }
         if ($label === '' || mb_strlen($label) > 150) {

@@ -7,6 +7,7 @@ use App\Database\DbInterface;
 use App\Reports\ReportConfig;
 use App\Reports\WagonConfig;
 use App\Reports\KpiTypeRegistry;
+use App\Reports\UserKpiPageSettings;
 use App\Services\Navigation\PageAvailability;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -33,6 +34,13 @@ class DashboardController
         $navConfig = require __DIR__ . '/../Navigation.php';
         $reportDefinitions = ReportConfig::forContext('page');
         $kpiTypes = KpiTypeRegistry::clientConfig();
+        if ($this->db) {
+            $settings = UserKpiPageSettings::all($this->db);
+            foreach ($kpiTypes as &$definition) {
+                $definition['user_kpi_enabled'] = $settings[$definition['page']]['enabled'] ?? false;
+            }
+            unset($definition);
+        }
         $userKpiManagementEnabled = (bool) $this->config['user_kpi_management_enabled'];
         $disabledPages = (array) (\App\Services\Config\ConfigSchema::current()['disabled_pages'] ?? []);
         $pageAvailability = new PageAvailability(

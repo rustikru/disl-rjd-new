@@ -7,6 +7,7 @@ use App\Database\DbInterface;
 use App\Logging\ErrorLogger;
 use App\Services\Logging\AuditLog;
 use App\Services\Auth\Authorization;
+use App\Reports\UserKpiPageSettings;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -19,6 +20,11 @@ final class KpiController
     public function page(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         if (!Authorization::isSuper()) return $response->withStatus(403);
+        try {
+            UserKpiPageSettings::sync($this->db);
+        } catch (\Throwable $error) {
+            ErrorLogger::logThrowable($error, ['operation' => 'sync_kpi_page_settings'], $request);
+        }
         try {
             $rows = $this->db->fetchAll(
                 "SELECT k.id, k.type, k.code, k.label, k.order_by, k.trend_period, k.trend_unit,
@@ -38,6 +44,7 @@ final class KpiController
         $user = $_SESSION['user'] ?? [];
         $csrf = $_SESSION['csrf_token'] ?? '';
         $userKpiManagementEnabled = (bool) ($this->config['user_kpi_management_enabled'] ?? false);
+        $pageSettings = UserKpiPageSettings::all($this->db);
         ob_start();
         include __DIR__ . '/../../templates/admin/kpi.php';
         $response->getBody()->write((string) ob_get_clean());
@@ -101,6 +108,24 @@ final class KpiController
             return $this->redirect($response, '/admin/kpi?error=' . rawurlencode($code));
         }
         return $this->redirect($response, '/admin/kpi?deleted=1');
+    }
+
+    public function savePageSettings(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $body = (array) $request->getParsedBody();
+        if (!Authorization::isSuper() || !$this->validCsrf($body)) return $response->withStatus(403);
+        $page = trim((string) ($body['page_code'] ?? ''));
+        $enabled = ($body['create_enabled'] ?? 'N') === 'Y' ? 'Y' : 'N';
+        try {
+            $this->db->execute(
+                'UPDATE XX_ETW.XX_RJD_KPI_PAGE_CFG SET create_enabled = :enabled, updated_at = SYSDATE, updated_by = :user_id WHERE page_code = :page_code',
+                ['enabled' => $enabled, 'user_id' => (int) ($_SESSION['user']['id'] ?? 0), 'page_code' => $page]
+            );
+        } catch (\Throwable $error) {
+            $code = ErrorLogger::logThrowable($error, ['operation' => 'save_kpi_page_settings', 'page_code' => $page], $request);
+            return $this->redirect($response, '/admin/kpi?error=' . rawurlencode($code));
+        }
+        return $this->redirect($response, '/admin/kpi?saved=1');
     }
 
     private function validCsrf(array $body): bool
