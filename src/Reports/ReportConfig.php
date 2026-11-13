@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Reports;
 
+use App\Reports\Kpi\KpiGroupingTemplates;
+
 final class ReportConfig
 {
     public static function kpiDetail(string $code): ?array

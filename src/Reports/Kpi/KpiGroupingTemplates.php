@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Reports\Kpi;
 
+use App\Reports\ReportConfig;
+
 final class KpiGroupingTemplates
 {
     private const COMPUTED_FIELDS = [

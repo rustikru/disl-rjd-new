@@ -3,10 +3,78 @@
 ## Назначение
 
 Пользовательские карточки включаются отдельно для каждого типа в
-`src/Reports/KpiTypeRegistry.php`. Сейчас это «Подход вагонов» (`approach_kpi`),
+`src/Reports/Kpi/KpiTypeRegistry.php`. Сейчас это «Подход вагонов» (`approach_kpi`),
 «Отправление вагонов» (`departue_kpi`) и «Простои» (`downtime_kpi`). Карточки
 доступны создавшему их пользователю; `SUPER` может создавать общие карточки.
 Системные KPI сохраняют отдельную PL/SQL-логику.
+
+## Атрибуты записи в `KpiTypeRegistry`
+
+Каждый ключ верхнего уровня массива `TYPES` — стабильный код типа KPI. Он
+используется в URL, API и таблице `XX_ETW.XX_RJD_KPI_TBL`, поэтому должен быть
+уникальным.
+
+| Атрибут | Обязателен | Допустимые значения | Назначение |
+| --- | --- | --- | --- |
+| `page` | Да | Код страницы из `PageRegistry`, например `approach`, `departure`, `downtime` | Связывает KPI со страницей и проверяется при запросе сводки. |
+| `tab` | Да | Код вкладки страницы | Определяет вкладку, к которой относится KPI. |
+| `label` | Да | Непустая строка | Отображаемое название страницы или типа KPI. |
+| `container_id` | Да | HTML `id` существующего `.kpi-grid` | Контейнер для карточек и кнопки создания `+`. |
+| `user_creatable` | Да | `true` / `false` | Разрешает создание пользовательских KPI данного типа. |
+| `source` | Да | Профиль `oracle_function` или `query_profile` | Описывает источник данных и выбирает обработчик в API. |
+| `reference_type` | Да | Строка (`Подход`, `Отправка`) или `null` | Ограничивает источник по `type_reference` для пользовательских условий. |
+| `fields` | Да | Массив `поле => тип` | Разрешённые поля условий. Типы: `string`, `number`, `date`. Пустой массив отключает условия. |
+| `actions` | Нет | Флаги `create`, `edit`, `hide`, `restore` | Доступные действия карточки. Если атрибут не указан, используется пустой массив. |
+
+### Формат `source`
+
+Для Oracle-пакета:
+
+```php
+'source' => [
+    'type' => 'oracle_function',
+    'package' => 'XX_RJD_DISLOCATION_NEW_PKG',
+    'name' => 'GET_PAGE_KPI',
+    'params' => [
+        'kpi_type' => 'approach_kpi',
+        'user_id' => 'session.user_id',
+    ],
+],
+```
+
+| Ключ | Обязателен | Значение |
+| --- | --- | --- |
+| `source.type` | Да | `oracle_function` — вызов доверенной Oracle-функции; `query_profile` — профиль SQL в приложении. |
+| `source.package` | Для `oracle_function` | Имя Oracle-пакета, например `XX_RJD_DISLOCATION_NEW_PKG`. |
+| `source.name` | Да | Имя функции (`GET_PAGE_KPI`) или ключ query-профиля (`downtime`). |
+| `source.params` | Для `oracle_function` | Параметры вызова. `session.user_id` подставляется из текущей сессии. |
+
+Атрибут `actions` задаётся так:
+
+```php
+'actions' => [
+    'create' => true,
+    'edit' => true,
+    'hide' => true,
+    'restore' => true,
+],
+```
+
+Флаги управляют интерфейсом и форматом ответа API, но не заменяют серверные
+проверки прав, владельца, `visibility`, CSRF и допустимости объекта.
+
+Атрибут `fields` задаётся так:
+
+```php
+'fields' => [
+    'wagon_no' => 'string',
+    'cargo_weight_kg' => 'number',
+    'oper_dt' => 'date',
+],
+```
+
+Подписи полей находятся в `FIELD_LABELS`. Поля из `HIDDEN_FIELDS` не показываются
+в форме новым KPI, но могут использоваться для ранее сохранённых условий.
 
 ## Хранение
 
@@ -16,7 +84,7 @@
 
 ## Условия отбора
 
-`src/Reports/KpiCondition.php` проверяет поля и операторы и формирует SQL с bind-параметрами. Для строкового оператора «Содержит» используется `LIKE`: приложение добавляет `%` в начало и конец значения. Пользователь также может указывать `%` (любая последовательность символов) и `_` (один символ) внутри шаблона. Обратная косая черта экранируется; SQL и имена колонок из пользовательского ввода не принимаются.
+`src/Reports/Kpi/KpiCondition.php` проверяет поля и операторы и формирует SQL с bind-параметрами. Для строкового оператора «Содержит» используется `LIKE`: приложение добавляет `%` в начало и конец значения. Пользователь также может указывать `%` (любая последовательность символов) и `_` (один символ) внутри шаблона. Обратная косая черта экранируется; SQL и имена колонок из пользовательского ввода не принимаются.
 
 В конструкторе не предлагаются поля `wagon_no`, `wagon_state`,
 `cargo_weight_kg`, `oper_dt` и `norm_delivery_dt`. Они остаются в серверном
@@ -57,7 +125,7 @@ HTML-форма и API-действия пользовательских KPI с�
 
 Для `TABLE` открывается стандартная детализация. Для группировки доступны
 фиксированные шаблоны `TRAIN_NUMBER`, `TRAIN_INDEX` и `WAGON_TYPE`, определённые
-в `src/Reports/KpiGroupingTemplates.php`. Системные KPI не переводятся на JSON и
+в `src/Reports/Kpi/KpiGroupingTemplates.php`. Системные KPI не переводятся на JSON и
 сохраняют PL/SQL-логику.
 
 ## Изменения БД
@@ -75,7 +143,7 @@ HTML-форма и API-действия пользовательских KPI с�
 
 ### Порядок работ
 
-1. В `src/Reports/KpiTypeRegistry.php` добавить тип с `page`, `tab`, уникальным
+1. В `src/Reports/Kpi/KpiTypeRegistry.php` добавить тип с `page`, `tab`, уникальным
    `container_id`, `user_creatable = true` и списком `fields`. Подписи полей
    добавить в `FIELD_LABELS`; типы — `string`, `number` или `date`. Источник
    задаётся там же через профиль `source`, например `oracle_function` с
@@ -100,7 +168,7 @@ HTML-форма и API-действия пользовательских KPI с�
 6. В `ApiController::dislDetail()` повторно проверить `kpi_id`, владельца, тип,
    visibility и active, применить те же условия и источник, а `group_value`
    передавать только bind-параметром. Шаблоны группировки добавляются в
-   `src/Reports/KpiGroupingTemplates.php`; вычисляемые поля дополнительно
+   `src/Reports/Kpi/KpiGroupingTemplates.php`; вычисляемые поля дополнительно
    обрабатываются в `detailFieldExpression()`.
 7. Кнопка карты формируется в `templates/detail.php` через `detailMapUrl()`.
    Для нового `group_field` явно проверить право `maps`, передачу `kpi_id`,
@@ -132,8 +200,8 @@ CHECK (IS_SYSTEM = 'Y' OR PAGE_CODE IN ('approach', 'departure', 'downtime', 'ne
 ### Проверки
 
 ```bash
-php -l src/Reports/KpiTypeRegistry.php
-php -l src/Reports/KpiGroupingTemplates.php
+php -l src/Reports/Kpi/KpiTypeRegistry.php
+php -l src/Reports/Kpi/KpiGroupingTemplates.php
 php -l src/Controllers/ApiController.php
 php -l src/Controllers/UserKpiController.php
 php -l templates/app.php
