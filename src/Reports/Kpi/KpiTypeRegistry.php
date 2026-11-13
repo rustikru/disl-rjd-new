@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace App\Reports;
+namespace App\Reports\Kpi;
 
 final class KpiTypeRegistry
 {
@@ -20,6 +20,7 @@ final class KpiTypeRegistry
             'label' => 'Дашборд',
             'container_id' => 'kpiGrid',
             'user_creatable' => false,
+            'source' => ['type' => 'oracle_function', 'package' => 'XX_RJD_DISLOCATION_NEW_PKG', 'name' => 'GET_PAGE_KPI', 'params' => ['kpi_type' => 'dashboard_kpi', 'user_id' => 'session.user_id']],
             'reference_type' => null,
             'fields' => [],
         ],
@@ -29,6 +30,7 @@ final class KpiTypeRegistry
             'label' => 'Подход вагонов',
             'container_id' => 'approachMetrics',
             'user_creatable' => true,
+            'source' => ['type' => 'oracle_function', 'package' => 'XX_RJD_DISLOCATION_NEW_PKG', 'name' => 'GET_PAGE_KPI', 'params' => ['kpi_type' => 'approach_kpi', 'user_id' => 'session.user_id']],
             'reference_type' => 'Подход',
             'fields' => [
                 'wagon_no' => 'string', 'depart_station' => 'string', 'dest_station' => 'string',
@@ -46,6 +48,7 @@ final class KpiTypeRegistry
             'label' => 'Отправление вагонов',
             'container_id' => 'departureMetrics',
             'user_creatable' => true,
+            'source' => ['type' => 'oracle_function', 'package' => 'XX_RJD_DISLOCATION_NEW_PKG', 'name' => 'GET_PAGE_KPI', 'params' => ['kpi_type' => 'departue_kpi', 'user_id' => 'session.user_id']],
             'reference_type' => 'Отправка',
             'fields' => [
                 'wagon_no' => 'string', 'depart_station' => 'string', 'dest_station' => 'string',
@@ -62,6 +65,7 @@ final class KpiTypeRegistry
             'label' => 'Погрузка',
             'container_id' => 'loadingMetrics',
             'user_creatable' => false,
+            'source' => ['type' => 'oracle_function', 'package' => 'XX_RJD_DISLOCATION_NEW_PKG', 'name' => 'GET_PAGE_KPI', 'params' => ['kpi_type' => 'loading_kpi', 'user_id' => 'session.user_id']],
             'reference_type' => 'Отправка',
             'fields' => [],
         ],
@@ -71,6 +75,8 @@ final class KpiTypeRegistry
             'label' => 'Простои вагонов',
             'container_id' => 'downtimeMetrics',
             'user_creatable' => true,
+            'source' => ['type' => 'query_profile', 'name' => 'downtime'],
+            'actions' => ['create' => true, 'edit' => true, 'hide' => true, 'restore' => true],
             'reference_type' => 'Подход',
             'fields' => [
                 'wagon_no' => 'string', 'cargo_name' => 'string',
@@ -170,6 +176,8 @@ final class KpiTypeRegistry
                 'label' => $definition['label'],
                 'container_id' => $definition['container_id'],
                 'user_creatable' => $definition['user_creatable'],
+                'source' => $definition['source'] ?? null,
+                'actions' => $definition['actions'] ?? [],
             ];
         }
         return $result;

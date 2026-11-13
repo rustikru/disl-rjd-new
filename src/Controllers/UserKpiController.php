@@ -5,10 +5,10 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Logging\ErrorLogger;
-use App\Reports\KpiCondition;
-use App\Reports\KpiGroupingTemplates;
-use App\Reports\KpiTypeRegistry;
-use App\Reports\UserKpiPageSettings;
+use App\Reports\Kpi\KpiCondition;
+use App\Reports\Kpi\KpiGroupingTemplates;
+use App\Reports\Kpi\KpiTypeRegistry;
+use App\Reports\Kpi\UserKpiPageSettings;
 use App\Services\Auth\Authorization;
 use App\Services\Data\Organizations;
 use App\Services\Navigation\PageRegistry;

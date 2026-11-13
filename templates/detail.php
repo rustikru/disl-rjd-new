@@ -407,7 +407,7 @@ $basePath = $basePath ?? '';
         userKpiParams.set('kpi_id', userKpiId);
 
         // API проверяет доступ к исходному разделу, где размещена KPI-карточка.
-        var kpiTypes = <?= json_encode(\App\Reports\KpiTypeRegistry::clientConfig(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+        var kpiTypes = <?= json_encode(\App\Reports\Kpi\KpiTypeRegistry::clientConfig(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
         var kpiType = kpiTypes[params.get('kpi_type')] || {};
         var sourcePage = params.get('source_page') || kpiType.page || '';
         if (sourcePage) userKpiParams.set('source_page', sourcePage);

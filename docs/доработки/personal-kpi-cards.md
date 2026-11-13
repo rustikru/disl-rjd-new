@@ -77,7 +77,11 @@ HTML-форма и API-действия пользовательских KPI с�
 
 1. В `src/Reports/KpiTypeRegistry.php` добавить тип с `page`, `tab`, уникальным
    `container_id`, `user_creatable = true` и списком `fields`. Подписи полей
-   добавить в `FIELD_LABELS`; типы — `string`, `number` или `date`.
+   добавить в `FIELD_LABELS`; типы — `string`, `number` или `date`. Источник
+   задаётся там же через профиль `source`, например `oracle_function` с
+   `package`, `name` и `params` либо `query_profile` с именем профиля. Действия
+   задаются через `actions`; контроллер не должен проверять имя конкретного типа
+   напрямую.
 2. В `templates/app.php` добавить контейнер `.kpi-grid` с тем же id, что и
    `container_id`. `public/assets/js/user-kpi.js` автоматически добавит кнопку
    «+» и откроет общий `/kpi/create?kpi_type=...`; отдельную форму создавать нельзя.
@@ -86,11 +90,12 @@ HTML-форма и API-действия пользовательских KPI с�
    Серверное право страницы обязательно.
 4. Проверить `PageRegistry::kpiSourcePage()` для детализации. `app.js` обычно не
    меняется: `KPI_BOARDS` строится из `window.APP_KPI_TYPES`.
-5. В `ApiController::kpiSummary()` использовать `GET_PAGE_KPI()` только если
-   новый тип уже поддержан PL/SQL. Для особого источника добавить отдельный
-   расчёт: выбрать доступные активные KPI, проверить `PRIVATE`/`GLOBAL`, получить
-   источник без фильтров страницы, вызвать `KpiCondition::compile()`, выполнить
-   агрегаты bind-параметрами и вернуть карточки. Ошибки логировать через
+5. `ApiController::kpiSummary()` выбирает обработчик по `source.type` из
+   `KpiTypeRegistry`; отдельную проверку вида
+   `if ($kpiType === '...')` добавлять нельзя. Для источника выбрать доступные
+   активные KPI, проверить `PRIVATE`/`GLOBAL`, получить источник без фильтров
+   страницы, вызвать `KpiCondition::compile()`, выполнить агрегаты
+   bind-параметрами и вернуть карточки. Ошибки логировать через
    `ErrorLogger::logThrowable()`.
 6. В `ApiController::dislDetail()` повторно проверить `kpi_id`, владельца, тип,
    visibility и active, применить те же условия и источник, а `group_value`

@@ -5,9 +5,9 @@ namespace App\Controllers;
 
 use App\Database\DbInterface;
 use App\Reports\ReportConfig;
-use App\Reports\KpiCondition;
-use App\Reports\KpiGroupingTemplates;
-use App\Reports\KpiTypeRegistry;
+use App\Reports\Kpi\KpiCondition;
+use App\Reports\Kpi\KpiGroupingTemplates;
+use App\Reports\Kpi\KpiTypeRegistry;
 use App\Services\Security\Claims;
 use App\Services\DislDataSource\DislDataSource;
 use App\Services\Data\Organizations;
@@ -159,8 +159,9 @@ class ApiController
         }
 
         try {
-            if ($kpiType === 'downtime_kpi') {
-                return $this->downtimeKpiSummary($request, $response);
+            $definition = KpiTypeRegistry::get($kpiType) ?? [];
+            if (($definition['source']['type'] ?? '') === 'query_profile') {
+                return $this->userKpiSummary($request, $response, $kpiType, $definition);
             }
             $rows = $this->db->fetchAll(
                 'SELECT *
@@ -275,11 +276,14 @@ class ApiController
         ]);
     }
 
-    /** Пользовательские KPI простоев считаются без фильтров экрана и без Oracle GET_PAGE_KPI. */
-    private function downtimeKpiSummary(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    /** Пользовательские KPI со специальным источником считаются без фильтров экрана. */
+    private function userKpiSummary(ServerRequestInterface $request, ResponseInterface $response, string $kpiType, array $definition): ResponseInterface
     {
         $userId = (int) ($_SESSION['user']['id'] ?? 0);
-        $source = $this->downtimeFrom([]);
+        $source = ($definition['source']['name'] ?? '') === 'downtime' ? $this->downtimeFrom([]) : null;
+        if (!$source) {
+            return $this->json($response->withStatus(400), ['error' => 'Источник KPI не настроен']);
+        }
         $rows = $this->db->fetchAll(
             "SELECT k.id, k.type, k.label, k.owner_id, k.visibility,
                     DBMS_LOB.SUBSTR(k.where_config, 3500, 1) AS where_config
@@ -288,12 +292,12 @@ class ApiController
                 AND (k.owner_id = :owner_id AND k.visibility = 'PRIVATE' OR k.visibility = 'GLOBAL')
                 AND NOT EXISTS (SELECT 1 FROM XX_ETW.XX_RJD_KPI_HIDDEN h WHERE h.user_id = :hidden_id AND h.kpi_id = k.id)
               ORDER BY k.order_by, k.id",
-            ['kpi_type' => 'downtime_kpi', 'owner_id' => $userId, 'hidden_id' => $userId]
+            ['kpi_type' => $kpiType, 'owner_id' => $userId, 'hidden_id' => $userId]
         );
         $values = [];
         foreach ($rows as $row) {
             try {
-                $condition = KpiCondition::compile('downtime_kpi', (string) $row['where_config']);
+                $condition = KpiCondition::compile($kpiType, (string) $row['where_config']);
                 $bindings = array_merge($source['bindings'], $condition['params']);
                 $stats = $this->db->fetchOne(
                     "SELECT COUNT(*) AS total, MAX(station_idle_days) AS max_days, MIN(station_idle_days) AS min_days, AVG(station_idle_days) AS avg_days
@@ -302,11 +306,11 @@ class ApiController
                 ) ?: [];
                 $value = (int) ($stats['TOTAL'] ?? $stats['total'] ?? 0);
                 $values[] = [
-                    'id' => $row['id'], 'type' => 'downtime_kpi', 'value' => (string) $value,
+                    'id' => $row['id'], 'type' => $kpiType, 'value' => (string) $value,
                     'label' => $row['label'], 'is_user' => 'Y',
                     'is_global' => ($row['visibility'] ?? '') === 'GLOBAL' ? 'Y' : 'N',
                     'can_edit' => (($row['visibility'] ?? '') === 'GLOBAL' || (int) $row['owner_id'] === $userId) ? 'Y' : 'N',
-                    'can_hide' => 'Y', 'detail' => ['ctx' => 'dislocation', 'params' => ['kpi_id' => $row['id'], 'kpi_view' => 'GROUPED', 'kpi_type' => 'downtime_kpi']],
+                    'can_hide' => !empty($definition['actions']['hide']) ? 'Y' : 'N', 'detail' => ['ctx' => 'dislocation', 'params' => ['kpi_id' => $row['id'], 'kpi_view' => 'GROUPED', 'kpi_type' => $kpiType]],
                     'config' => json_decode((string) $row['where_config'], true),
                     'metrics' => ['max_days' => (float) ($stats['MAX_DAYS'] ?? $stats['max_days'] ?? 0), 'min_days' => (float) ($stats['MIN_DAYS'] ?? $stats['min_days'] ?? 0), 'avg_days' => (float) ($stats['AVG_DAYS'] ?? $stats['avg_days'] ?? 0)],
                 ];
@@ -439,7 +443,8 @@ class ApiController
                 return $this->json($response->withStatus(404), ['error' => 'Карточка KPI не найдена']);
             }
 
-            if ((string) ($kpiRow['type'] ?? '') === 'downtime_kpi') {
+            $kpiDefinition = KpiTypeRegistry::get((string) ($kpiRow['type'] ?? '')) ?? [];
+            if (($kpiDefinition['source']['type'] ?? '') === 'query_profile') {
                 // KPI простоев всегда использует объединённые последние справки без фильтров экрана.
                 $source = $this->downtimeFrom([]);
                 $bindings = $source['bindings'];

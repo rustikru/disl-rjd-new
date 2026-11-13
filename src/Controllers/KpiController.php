@@ -7,7 +7,7 @@ use App\Database\DbInterface;
 use App\Logging\ErrorLogger;
 use App\Services\Logging\AuditLog;
 use App\Services\Auth\Authorization;
-use App\Reports\UserKpiPageSettings;
+use App\Reports\Kpi\UserKpiPageSettings;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 

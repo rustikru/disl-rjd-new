@@ -4,7 +4,7 @@ require dirname(__DIR__).'/vendor/autoload.php';
 
 use App\Controllers\ApiController;
 use App\Reports\ReportConfig;
-use App\Reports\KpiTypeRegistry;
+use App\Reports\Kpi\KpiTypeRegistry;
 use App\Reports\WagonConfig;
 use App\Services\Config\ConfigSchema;
 use App\Services\Navigation\PageRegistry;

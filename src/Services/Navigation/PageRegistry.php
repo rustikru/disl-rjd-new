@@ -3,7 +3,7 @@ declare(strict_types=1);
 namespace App\Services\Navigation;
 
 use App\Reports\ReportConfig;
-use App\Reports\KpiTypeRegistry;
+use App\Reports\Kpi\KpiTypeRegistry;
 use App\Services\Auth\Authorization;
 
 /** каталог страниц, маршрутов, прав, видимости и меню. */
