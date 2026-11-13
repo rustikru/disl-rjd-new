@@ -6,8 +6,8 @@ $user = $user ?? ['display_name' => 'Пользователь'];
 $reportDtLabel = $reportDtLabel ?? '';
 $reportIsStale = $reportIsStale ?? false;
 $stationsWithoutCoordinatesJson = $stationsWithoutCoordinatesJson ?? '[]';
-$canOpenDetail = \App\Services\Auth\Authorization::isSuper($user)
-    || in_array('wagon-detail', (array) ($user['allowed_pages'] ?? $_SESSION['user']['allowed_pages'] ?? []), true);
+$canOpenWagon = \App\Services\Auth\Authorization::isSuper($user)
+    || in_array('wagon-card', (array) ($user['allowed_pages'] ?? $_SESSION['user']['allowed_pages'] ?? []), true);
 ?>
 <!DOCTYPE html>
 <html lang="ru">
@@ -27,7 +27,7 @@ $canOpenDetail = \App\Services\Auth\Authorization::isSuper($user)
 
     <script>
         window.APP_BASE = '<?= htmlspecialchars($basePath, ENT_QUOTES) ?>';
-        window.APP_CAN_OPEN_DETAIL = <?= $canOpenDetail ? 'true' : 'false' ?>;
+        window.APP_CAN_OPEN_WAGON = <?= $canOpenWagon ? 'true' : 'false' ?>;
     </script>
     <style>
         :root {
@@ -827,8 +827,8 @@ $canOpenDetail = \App\Services\Auth\Authorization::isSuper($user)
                 var wagonsListHtml = wagons.map(function (w) {
                     var wagonNumber = '<strong style="color: var(--primary); font-family: var(--mono); font-size: 12px;">' +
                         w.wagon_num + '</strong>';
-                    if (window.APP_CAN_OPEN_DETAIL) {
-                        wagonNumber = '<a href="' + (window.APP_BASE || '') + '/detail?ctx=dislocation&source_page=maps&wagon_no=' + encodeURIComponent(w.wagon_num) + '" target="_blank" title="Открыть детализацию по вагону">' +
+                    if (window.APP_CAN_OPEN_WAGON) {
+                        wagonNumber = '<a href="' + (window.APP_BASE || '') + '/wagon?wagon_no=' + encodeURIComponent(w.wagon_num) + '" target="_blank" title="Открыть карточку вагона">' +
                             wagonNumber + '</a>';
                     }
                     return '<div style="border-bottom: 1px solid #e2e1e7; padding: 5px 0; font-size: 11px; line-height: 1.4;">' +

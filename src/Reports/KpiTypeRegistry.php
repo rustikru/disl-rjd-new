@@ -33,6 +33,7 @@ final class KpiTypeRegistry
             'fields' => [
                 'wagon_no' => 'string', 'depart_station' => 'string', 'dest_station' => 'string',
                 'oper_station' => 'string', 'cargo_name' => 'string',
+                'consignor' => 'string', 'consignee' => 'string',
                 'wagon_type_code' => 'string', 'wagon_state' => 'string',
                 'train_index' => 'string', 'train_no' => 'string',
                 'cargo_weight_kg' => 'number', 'oper_dt' => 'date',
@@ -49,6 +50,7 @@ final class KpiTypeRegistry
             'fields' => [
                 'wagon_no' => 'string', 'depart_station' => 'string', 'dest_station' => 'string',
                 'oper_station' => 'string', 'cargo_name' => 'string',
+                'consignor' => 'string', 'consignee' => 'string',
                 'wagon_type_code' => 'string', 'wagon_state' => 'string',
                 'train_index' => 'string', 'train_no' => 'string',
                 'cargo_weight_kg' => 'number', 'oper_dt' => 'date',
@@ -71,6 +73,8 @@ final class KpiTypeRegistry
         'dest_station' => 'Станция назначения',
         'oper_station' => 'Станция операции',
         'cargo_name' => 'Груз',
+        'consignor' => 'Грузоотправитель',
+        'consignee' => 'Грузополучатель',
         'wagon_type_code' => 'Род вагона',
         'wagon_state' => 'Состояние вагона',
         'train_index' => 'Индекс поезда',
