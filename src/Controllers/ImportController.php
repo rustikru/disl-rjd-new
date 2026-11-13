@@ -623,8 +623,8 @@ class ImportController
 
         // Excel serial date (число дней с 01.01.1900)
         if (is_numeric($raw)) {
-            $ts = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToTimestamp((float) $raw);
-            return date('Y-m-d H:i:s', $ts);
+            return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float) $raw)
+                ->format('Y-m-d H:i:s');
         }
 
         return null;

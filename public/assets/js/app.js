@@ -164,7 +164,7 @@ function showDislocationDate(value) {
   if (!container) return
 
   container.replaceChildren()
-  container.append(document.createTextNode('Дислокация РЖД на ' + value))
+  container.append(document.createTextNode('Дислокация РЖД на ' + value + ' (мск)'))
 
   var match = String(value).match(
     /^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})$/,
@@ -543,13 +543,22 @@ function fillReportFilterOptions(reportDefinition, optionLists) {
 function clearReportFilterValues(reportDefinition) {
   ;(reportDefinition.filters || []).forEach(function (filterDefinition) {
     var $field = $('#' + filterDefinition.field_id)
-    $field.val(filterDefinition.multiple ? [] : '')
+    $field.val(
+      !filterDefinition.multiple && filterDefinition.value_type === 'select'
+        ? reportInitialFilterValue(filterDefinition.initial_value)
+        : filterDefinition.multiple
+          ? []
+          : '',
+    )
     if (filterDefinition.multiple) refreshMultiSelect($field)
   })
 }
 
 function reportInitialFilterValue(initialValue) {
   if (!initialValue) return ''
+  if (['month_start', 'today'].indexOf(initialValue) === -1) {
+    return initialValue
+  }
   var date = new Date()
   var year = String(date.getFullYear())
   var month = String(date.getMonth() + 1).padStart(2, '0')
@@ -582,7 +591,7 @@ function buildReportFilterFields(reportCode, reportDefinition) {
       $field = $('<select>')
       if (filterDefinition.multiple) {
         $field.attr('multiple', 'multiple')
-      } else {
+      } else if (!filterDefinition.required) {
         $field.append($('<option>').val('').text('— Все —'))
       }
       ;(filterDefinition.choices || []).forEach(function (choice) {
@@ -981,13 +990,6 @@ function loadSummary(cfg) {
         })
       }
 
-      _matrixData[cfg.sumTableId] = {
-        col_groups: data.col_groups || null,
-        cols: data.cols || [],
-        group_cols: cfg.groupCols || [],
-        roads: data.roads || [],
-      }
-
       var cells = drawSummary(
         '#' + cfg.sumTableId,
         data.roads,
@@ -1071,6 +1073,63 @@ function loadSummary(cfg) {
             $('<tr class="row-pinned">' + pinnedCells.join('') + '</tr>'),
           )
         }
+      }
+
+      var exportValue = function (cell, values) {
+        if (!cell.isSubtotal) return values[cell.dataIdx] || 0
+        return (cell.indices || []).reduce(function (sum, index) {
+          return sum + (values[index] || 0)
+        }, 0)
+      }
+      var exportRoads = (data.roads || []).map(function (road) {
+        var copy = Object.assign({}, road, {
+          total: (cells || []).map(function (cell) {
+            return exportValue(cell, road.total || [])
+          }),
+          stations: (road.stations || []).map(function (station) {
+            return Object.assign({}, station, {
+              v: (cells || []).map(function (cell) {
+                return exportValue(cell, station.v || [])
+              }),
+            })
+          }),
+        })
+        return copy
+      })
+      if (pinnedStation && cells && cells.length) {
+        var pinnedRoad = {
+          total: cells.map(function (cell) {
+            return exportValue(cell, pinnedStation.v || [])
+          }),
+          grand_total: pinnedStation.grand_total,
+          stations: [],
+        }
+        var exportRoadKey = (cfg.groupCols[0] || {}).key
+        if (exportRoadKey) pinnedRoad[exportRoadKey] = cfg.pinnedRowLabel
+        exportRoads.unshift(pinnedRoad)
+      }
+
+      var exportColGroups = data.col_groups || null
+      var subtotalCells = (cells || []).filter(function (cell) {
+        return cell.isSubtotal
+      })
+      if (subtotalCells.length) {
+        exportColGroups = (data.col_groups || []).slice()
+        exportColGroups.unshift({
+          label: 'Итого',
+          subs: subtotalCells.map(function (cell) {
+            var labels = (cell.subs || []).filter(function (label) {
+              return label
+            })
+            return labels[labels.length - 1] || ''
+          }),
+        })
+      }
+      _matrixData[cfg.sumTableId] = {
+        col_groups: exportColGroups,
+        cols: subtotalCells.length ? [] : data.cols || [],
+        group_cols: cfg.groupCols || [],
+        roads: exportRoads,
       }
 
       $sub.text(

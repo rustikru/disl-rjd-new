@@ -804,6 +804,14 @@ a.nav-item {
   background: var(--surface);
 }
 
+select.filter-input {
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 32px 0 11px;
+  border-color: var(--border);
+  background: var(--surface);
+}
+
 .filter-item--wagon .filter-input {
   min-width: 300px;
 }

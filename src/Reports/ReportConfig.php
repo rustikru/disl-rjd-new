@@ -103,6 +103,10 @@ final class ReportConfig
                 '/api/approach/summary',
                 '/api/approach/detail',
                 [
+                    self::filter('cargo_state_source', 'Источник', 'select', 'fApproachCargoStateSource', null, ['page'], true, [
+                        ['value' => 'pn', 'label' => 'Дислокация ПН'],
+                        ['value' => 'rjd', 'label' => 'Справка РЖД'],
+                    ], 'pn', false),
                     self::filter('wagon_no', '№ вагона', 'text', 'fApproachWagonNo'),
                     self::filter('cargo', 'Груз', 'select', 'fApproachCargo', 'cargo'),
                     self::filter('depart_station', 'Станция отправления', 'select', 'fDepartStation', 'depart_station', ['page', 'mailing']),
@@ -273,7 +277,7 @@ final class ReportConfig
             $reportDefinition['page'] = $pageSettings[$reportCode] ?? [];
             $reportDefinition['navigation'] = $navigationSettings[$reportCode] ?? null;
             foreach ($reportDefinition['filters'] as &$filter) {
-                $filter['multiple'] = $filter['value_type'] === 'select';
+                $filter['multiple'] = $filter['multiple'] ?? $filter['value_type'] === 'select';
             }
             unset($filter);
             $reportDefinition['mailing_handler'] = $mailingHandlers[$reportCode] ?? null;
@@ -610,7 +614,8 @@ final class ReportConfig
         array $contexts = ['page', 'mailing'],
         bool $required = false,
         array $choices = [],
-        ?string $initialValue = null
+        ?string $initialValue = null,
+        ?bool $multiple = null
     ): array {
         return [
             'key' => $key,
@@ -622,6 +627,7 @@ final class ReportConfig
             'required' => $required,
             'choices' => $choices,
             'initial_value' => $initialValue,
+            'multiple' => $multiple,
         ];
     }
 

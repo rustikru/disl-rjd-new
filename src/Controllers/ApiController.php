@@ -1315,6 +1315,7 @@ class ApiController
         // Фильтр по реестру исключений временно отключён.
         // $whereCond .= $this->excludedWagonsCondition();
 
+        $usePnCargoState = ($params['cargo_state_source'] ?? 'pn') !== 'rjd';
         if ($withPn) {
             $from = $this->dislDataSource->approachSource($whereCond, $bindings);
         } else {
@@ -1325,7 +1326,7 @@ class ApiController
             'from' => $from,
             'bindings' => $bindings,
             'reportDt' => $reportDt,
-            'cargoStateExpression' => $withPn ? 'pn_cargo_state' : null,
+            'cargoStateExpression' => $withPn && $usePnCargoState ? 'pn_cargo_state' : null,
             'wagonTypeExpression' => $withPn ? 'report_wagon_type' : null,
         ];
     }
