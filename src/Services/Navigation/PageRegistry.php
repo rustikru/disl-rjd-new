@@ -118,25 +118,32 @@ final class PageRegistry
         foreach (ReportConfig::all() as $code => $report) {
             if (empty($report['navigation']))
                 continue;
-            $kpiType = null;
-            foreach (KpiTypeRegistry::all() as $type => $kpi) {
-                if (($kpi['page'] ?? null) === $code) {
-                    $kpiType = $type;
-                    break;
-                }
-            }
+            $reportConfig = match ($code) {
+                'approach' => ReportConfig::approach(),
+                'departure' => ReportConfig::departure(),
+                'loading' => ReportConfig::loading(),
+                'downtime' => ReportConfig::downtime(),
+                default => $report,
+            };
+            $kpiConfig = match ($code) {
+                'approach' => KpiTypeRegistry::approach(),
+                'departure' => KpiTypeRegistry::departure(),
+                'loading' => KpiTypeRegistry::loading(),
+                'downtime' => KpiTypeRegistry::downtime(),
+                default => KpiTypeRegistry::forPage($code),
+            };
             $pages[$code] = [
                 'label' => (string) ($report['name'] ?? $code),
-                'routes' => array_values(array_filter([$report['initial_endpoint'] ?? null, $report['filters_endpoint'] ?? null, $report['summary_endpoint'] ?? null, $report['detail_endpoint'] ?? null])),
+                'routes' => array_values(array_filter([$report['filters_endpoint'] ?? null, $report['summary_endpoint'] ?? null, $report['detail_endpoint'] ?? null])),
                 'visibility_group' => 'Сайт — отчёты',
                 'navigation' => $report['navigation'],
-                'report' => $code,
-                'kpi_type' => $kpiType,
-                'filters' => $report['filters'] ?? [],
-                'table' => $report['page'] ?? [],
-                'map' => $report['map'] ?? null,
-                'export' => $report['export'] ?? null,
-                'extra_blocks' => $report['extra_blocks'] ?? [],
+                'report' => $reportConfig,
+                'kpi' => $kpiConfig,
+                'filters' => $reportConfig['filters'] ?? [],
+                'table' => $reportConfig['page'] ?? [],
+                'map' => $reportConfig['map'] ?? null,
+                'export' => $reportConfig['export'] ?? null,
+                'extra_blocks' => $reportConfig['extra_blocks'] ?? [],
                 'layout' => self::layout($code),
             ];
         }

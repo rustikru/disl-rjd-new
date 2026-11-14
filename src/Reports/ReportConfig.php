@@ -73,9 +73,51 @@ final class ReportConfig
 
     public static function all(): array
     {
-        $reports = [
-            // Дислокация
-            'dislocation' => self::report(
+        $reports = [];
+        foreach (self::reportMethods() as $code => $method) {
+            $reports[$code] = self::$method();
+        }
+        $detailSettings = self::detailSettings();
+        $pageSettings = self::pageSettings();
+        $navigationSettings = self::navigationSettings();
+        $mailingHandlers = self::mailingHandlers();
+        $apiHandlers = self::apiHandlers();
+        foreach ($reports as $reportCode => &$reportDefinition) {
+            $reportDefinition['page'] = $pageSettings[$reportCode] ?? [];
+            $reportDefinition['navigation'] = $navigationSettings[$reportCode] ?? null;
+            foreach ($reportDefinition['filters'] as &$filter) {
+                $filter['multiple'] = $filter['multiple'] ?? $filter['value_type'] === 'select';
+            }
+            unset($filter);
+            $reportDefinition['mailing_handler'] = $mailingHandlers[$reportCode] ?? null;
+            $reportDefinition['api_handlers'] = $apiHandlers[$reportCode] ?? [];
+            if (!empty($reportDefinition['filters_endpoint'])
+                && (!empty($reportDefinition['summary_endpoint']) || !empty($reportDefinition['detail_endpoint']))) {
+                $reportDefinition['initial_endpoint'] = '/api/' . $reportCode . '/initial';
+                $reportDefinition['api_handlers']['initial'] = 'reportInitial';
+            } else {
+                $reportDefinition['initial_endpoint'] = null;
+            }
+            if (!isset($detailSettings[$reportCode])) {
+                continue;
+            }
+            $reportDefinition['detail_tabs'] = self::detailTabs();
+            $reportDefinition['detail_label'] = $detailSettings[$reportCode]['label'];
+            $reportDefinition['detail_sort'] = $detailSettings[$reportCode]['sort'];
+            $reportDefinition['detail_columns'] = $detailSettings[$reportCode]['columns'];
+        }
+        unset($reportDefinition);
+        return $reports;
+    }
+
+    private static function reportMethods(): array
+    {
+        return ['dislocation' => 'dislocation', 'approach' => 'approach', 'departure' => 'departure', 'loading' => 'loading', 'downtime' => 'downtime', 'technical-state' => 'technicalState', 'claims' => 'claims', 'raw-material' => 'rawMaterial', 'analysis-period' => 'analysisPeriod', 'downtime-control' => 'downtimeControl', 'source-approach' => 'sourceApproach', 'source-departure' => 'sourceDeparture'];
+    }
+
+    public static function dislocation(): array
+    {
+        return self::report(
                 'Общая дислокация',
                 '/api/dislocation/filters',
                 '/api/dislocation/summary',
@@ -96,10 +138,12 @@ final class ReportConfig
                 true,
                 true,
                 false
-            ),
+            );
+    }
 
-            // Подход вагонов
-            'approach' => self::report(
+    public static function approach(): array
+    {
+        return self::report(
                 'Подход вагонов',
                 '/api/approach/filters',
                 '/api/approach/summary',
@@ -121,10 +165,12 @@ final class ReportConfig
                     self::columnDimension('wagon_type_code', 'wagon_type'),
                     self::columnDimension('cargo_w_type', 'cargo_state'),
                 ]
-            ),
+            );
+    }
 
-            // Отправление вагонов
-            'departure' => self::report(
+    public static function departure(): array
+    {
+        return self::report(
                 'Отправление вагонов',
                 '/api/departure/filters',
                 '/api/departure/summary',
@@ -142,10 +188,12 @@ final class ReportConfig
                     self::columnDimension('wagon_type_code', 'wagon_type'),
                     self::columnDimension('cargo_w_type', 'cargo_state'),
                 ]
-            ),
+            );
+    }
 
-            // Погрузка
-            'loading' => self::report(
+    public static function loading(): array
+    {
+        return self::report(
                 'Погрузка',
                 '/api/loading/filters',
                 '/api/loading/summary',
@@ -162,10 +210,12 @@ final class ReportConfig
                     self::columnDimension('wagon_type_code', 'wagon_type'),
                     self::columnDimension('cargo_w_type', 'cargo_state'),
                 ]
-            ),
+            );
+    }
 
-            // Простои
-            'downtime' => array_merge(self::report(
+    public static function downtime(): array
+    {
+        return array_merge(self::report(
                 'Простои',
                 '/api/downtime/filters',
                 '/api/downtime/summary',
@@ -213,10 +263,12 @@ final class ReportConfig
                         ],
                     ],
                 ],
-            ]),
+            ]);
+    }
 
-            // Техническое состояние
-            'technical-state' => self::report(
+    public static function technicalState(): array
+    {
+        return self::report(
                 'Тех.состояние',
                 '/api/technical-state/filters',
                 null,
@@ -230,10 +282,12 @@ final class ReportConfig
                 true,
                 true,
                 false
-            ),
+            );
+    }
 
-            // Претензии
-            'claims' => self::report(
+    public static function claims(): array
+    {
+        return self::report(
                 'Претензии',
                 '/api/claims/filters',
                 '/api/claims/summary',
@@ -243,10 +297,12 @@ final class ReportConfig
                     self::filter('station_code', 'Станция', 'select', 'fClaimsStation', 'stations'),
                     self::filter('wagon_type', 'Род вагона', 'select', 'fClaimsWagonType', 'wagon_type'),
                 ]
-            ),
+            );
+    }
 
-            // Сырьё
-            'raw-material' => self::report(
+    public static function rawMaterial(): array
+    {
+        return self::report(
                 'Сырьё',
                 null,
                 '/api/raw-material/summary',
@@ -259,10 +315,12 @@ final class ReportConfig
                     self::dimension('cargo_name', 'Груз'),
                 ],
                 [self::columnDimension('wagon_type_code', 'wagon_type')]
-            ),
+            );
+    }
 
-            // Анализ данных за период
-            'analysis-period' => self::report(
+    public static function analysisPeriod(): array
+    {
+        return self::report(
                 'Анализ данных за период',
                 '/api/analysis/filters',
                 null,
@@ -277,10 +335,12 @@ final class ReportConfig
                 true,
                 true,
                 false
-            ),
+            );
+    }
 
-            // Контроль простоев
-            'downtime-control' => self::report(
+    public static function downtimeControl(): array
+    {
+        return self::report(
                 'Контроль простоев',
                 null,
                 null,
@@ -294,125 +354,19 @@ final class ReportConfig
                 [],
                 false,
                 false
-            ),
-
-            // Полные строки последней загруженной справки без условий экранных отчётов.
-            'source-approach' => self::mailingReport('Справка РЖД - Подход', 'rjd-reference'),
-            'source-departure' => self::mailingReport('Справка РЖД - Отправка', 'rjd-reference'),
-        ];
-
-        $detailSettings = self::detailSettings();
-        $pageSettings = self::pageSettings();
-        $navigationSettings = self::navigationSettings();
-        $mailingHandlers = self::mailingHandlers();
-        $apiHandlers = self::apiHandlers();
-        foreach ($reports as $reportCode => &$reportDefinition) {
-            $reportDefinition['page'] = $pageSettings[$reportCode] ?? [];
-            $reportDefinition['navigation'] = $navigationSettings[$reportCode] ?? null;
-            foreach ($reportDefinition['filters'] as &$filter) {
-                $filter['multiple'] = $filter['multiple'] ?? $filter['value_type'] === 'select';
-            }
-            unset($filter);
-            $reportDefinition['mailing_handler'] = $mailingHandlers[$reportCode] ?? null;
-            $reportDefinition['api_handlers'] = $apiHandlers[$reportCode] ?? [];
-            if (!empty($reportDefinition['filters_endpoint'])
-                && (!empty($reportDefinition['summary_endpoint']) || !empty($reportDefinition['detail_endpoint']))) {
-                $reportDefinition['initial_endpoint'] = '/api/' . $reportCode . '/initial';
-                $reportDefinition['api_handlers']['initial'] = 'reportInitial';
-            } else {
-                $reportDefinition['initial_endpoint'] = null;
-            }
-            if (!isset($detailSettings[$reportCode])) {
-                continue;
-            }
-            $reportDefinition['detail_tabs'] = self::detailTabs();
-            $reportDefinition['detail_label'] = $detailSettings[$reportCode]['label'];
-            $reportDefinition['detail_sort'] = $detailSettings[$reportCode]['sort'];
-            $reportDefinition['detail_columns'] = $detailSettings[$reportCode]['columns'];
-        }
-        unset($reportDefinition);
-
-        return $reports;
+            );
     }
 
-    /** Нормализует и проверяет фильтры по тому же описанию, из которого строится UI. */
-    public static function validateFilters(string $reportCode, array $values, bool $require = true): array
+    public static function sourceApproach(): array
     {
-        $definition = self::all()[$reportCode] ?? null;
-        if ($definition === null)
-            throw new \InvalidArgumentException('Неизвестный отчёт: ' . $reportCode);
-        $result = [];
-        foreach ((array) ($definition['filters'] ?? []) as $filter) {
-            $key = (string) $filter['key'];
-            $value = trim((string) ($values[$key] ?? ''));
-            if ($require && !empty($filter['required']) && $value === '')
-                throw new \InvalidArgumentException('Укажите поле «' . $filter['label'] . '»');
-            if ($value === '')
-                continue;
-            if (($filter['value_type'] ?? '') === 'date') {
-                $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
-                if (!$date || $date->format('Y-m-d') !== $value)
-                    throw new \InvalidArgumentException('Некорректная дата в поле «' . $filter['label'] . '»');
-            }
-            if (($filter['value_type'] ?? '') === 'number' && (!ctype_digit($value) || (int) $value < 0))
-                throw new \InvalidArgumentException('Укажите неотрицательное целое число в поле «' . $filter['label'] . '»');
-            $choices = (array) ($filter['choices'] ?? []);
-            if ($choices !== [] && !in_array($value, array_column($choices, 'value'), true))
-                throw new \InvalidArgumentException('Недопустимое значение поля «' . $filter['label'] . '»');
-            $result[$key] = $value;
-        }
-        return $result;
+        return self::mailingReport('Справка РЖД - Подход', 'rjd-reference');
     }
 
-    private static function mailingHandlers(): array
+    public static function sourceDeparture(): array
     {
-        // Обработчики формирования строк отчёта для рассылки.
-        return [
-            'dislocation' => 'dislDetail',
-            'approach' => 'approachDetail',
-            'departure' => 'departureDetail',
-            'loading' => 'loadingDetail',
-            'downtime' => 'downtimeDetail',
-            'technical-state' => 'technicalDetail',
-            'claims' => 'claimsDetail',
-            'raw-material' => 'rawDetail',
-            'analysis-period' => 'analysisPeriod',
-            'source-approach' => 'sourceApproach',
-            'source-departure' => 'sourceDeparture',
-        ];
+        return self::mailingReport('Справка РЖД - Отправка', 'rjd-reference');
     }
-    private static function apiHandlers(): array
-    {
-        return [
-            'dislocation' => ['filters' => 'dislFilters', 'summary' => 'dislSummary', 'detail' => 'dislDetail'],
-            'approach' => ['filters' => 'approachFilters', 'summary' => 'approachSummary', 'detail' => 'approachDetail'],
-            'departure' => ['filters' => 'departureFilters', 'summary' => 'departureSummary', 'detail' => 'departureDetail'],
-            'loading' => ['filters' => 'loadingFilters', 'summary' => 'loadingSummary', 'detail' => 'loadingDetail'],
-            'downtime' => ['filters' => 'downtimeFilters', 'summary' => 'downtimeSummary', 'detail' => 'downtimeDetail'],
-            'technical-state' => ['filters' => 'technicalFilters', 'detail' => 'technicalDetail'],
-            'claims' => ['filters' => 'claimsFilters', 'summary' => 'claimsSummary', 'detail' => 'claimsDetail'],
-            'raw-material' => ['summary' => 'rawSummary', 'detail' => 'rawDetail'],
-            'analysis-period' => ['filters' => 'analysisFilters', 'detail' => 'analysisPeriod'],
-            'downtime-control' => ['detail' => 'downtimeControlDetail'],
-        ];
-    }
-    // Раздел меню и порядок отчёта.
-    private static function navigationSettings(): array
-    {
-        return [
-            'dislocation' => ['group' => 'movement', 'order' => 10],
-            'approach' => ['group' => 'movement', 'order' => 20],
-            'departure' => ['group' => 'movement', 'order' => 30],
-            'loading' => ['group' => 'movement', 'order' => 40],
-            'technical-state' => ['group' => 'analytics', 'order' => 10],
-            'analysis-period' => ['group' => 'analytics', 'order' => 20],
-            'downtime' => ['group' => 'downtime', 'order' => 10],
-            'raw-material' => ['group' => 'downtime', 'order' => 20],
-            'claims' => ['group' => 'downtime', 'order' => 30],
-            'downtime-control' => ['group' => 'registry', 'order' => 10],
-        ];
-    }
-    // Настройки страницы отчёта, передаваемые в клиентскую часть.
+
     private static function pageSettings(): array
     {
         return [
@@ -573,6 +527,63 @@ final class ReportConfig
         ];
     }
 
+    private static function navigationSettings(): array
+    {
+        return [
+            'dislocation' => ['group' => 'movement', 'order' => 10],
+            'approach' => ['group' => 'movement', 'order' => 20],
+            'departure' => ['group' => 'movement', 'order' => 30],
+            'loading' => ['group' => 'movement', 'order' => 40],
+            'technical-state' => ['group' => 'analytics', 'order' => 10],
+            'analysis-period' => ['group' => 'analytics', 'order' => 20],
+            'downtime' => ['group' => 'downtime', 'order' => 10],
+            'raw-material' => ['group' => 'downtime', 'order' => 20],
+            'claims' => ['group' => 'downtime', 'order' => 30],
+            'downtime-control' => ['group' => 'registry', 'order' => 10],
+        ];
+    }
+
+    private static function mailingHandlers(): array
+    {
+        // Обработчики формирования строк отчёта для рассылки.
+        return [
+            'dislocation' => 'dislDetail',
+            'approach' => 'approachDetail',
+            'departure' => 'departureDetail',
+            'loading' => 'loadingDetail',
+            'downtime' => 'downtimeDetail',
+            'technical-state' => 'technicalDetail',
+            'claims' => 'claimsDetail',
+            'raw-material' => 'rawDetail',
+            'analysis-period' => 'analysisPeriod',
+            'source-approach' => 'sourceApproach',
+            'source-departure' => 'sourceDeparture',
+        ];
+    }
+
+    private static function apiHandlers(): array
+    {
+        return [
+            'dislocation' => ['filters' => 'dislFilters', 'summary' => 'dislSummary', 'detail' => 'dislDetail'],
+            'approach' => ['filters' => 'approachFilters', 'summary' => 'approachSummary', 'detail' => 'approachDetail'],
+            'departure' => ['filters' => 'departureFilters', 'summary' => 'departureSummary', 'detail' => 'departureDetail'],
+            'loading' => ['filters' => 'loadingFilters', 'summary' => 'loadingSummary', 'detail' => 'loadingDetail'],
+            'downtime' => ['filters' => 'downtimeFilters', 'summary' => 'downtimeSummary', 'detail' => 'downtimeDetail'],
+            'technical-state' => ['filters' => 'technicalFilters', 'detail' => 'technicalDetail'],
+            'claims' => ['filters' => 'claimsFilters', 'summary' => 'claimsSummary', 'detail' => 'claimsDetail'],
+            'raw-material' => ['summary' => 'rawSummary', 'detail' => 'rawDetail'],
+            'analysis-period' => ['filters' => 'analysisFilters', 'detail' => 'analysisPeriod'],
+            'downtime-control' => ['detail' => 'downtimeControlDetail'],
+        ];
+    }
+
+
+
+    private static function detailTabs(): array
+    {
+        return [['key' => 'main', 'name' => 'Основная информация'], ['key' => 'data-wagon', 'name' => 'Данные о вагоне'], ['key' => 'disl-wagon', 'name' => 'Дислокация вагона'], ['key' => 'techn-state-wagon', 'name' => 'Техн. состояние']];
+    }
+
     public static function forContext(string $context): array
     {
         $reports = [];
@@ -592,6 +603,11 @@ final class ReportConfig
     public static function find(string $reportCode): ?array
     {
         return self::all()[$reportCode] ?? null;
+    }
+
+    public static function forPage(string $page): ?array
+    {
+        return self::find(trim($page));
     }
 
     private static function report(
@@ -676,10 +692,7 @@ final class ReportConfig
     {
         return ['key' => $key, 'parameter' => $parameter];
     }
-    private static function detailTabs(): array
-    {
-        return [['key' => 'main', 'name' => 'Основная информация'], ['key' => 'data-wagon', 'name' => 'Данные о вагоне'], ['key' => 'disl-wagon', 'name' => 'Дислокация вагона'], ['key' => 'techn-state-wagon', 'name' => 'Техн. состояние']];
-    }
+
     // Настройки детальной таблицы, передаваемые в клиентскую часть.
     private static function detailSettings(): array
     {
