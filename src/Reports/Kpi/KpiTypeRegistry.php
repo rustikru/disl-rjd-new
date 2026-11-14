@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Reports\Kpi;
 
+
 final class KpiTypeRegistry
 {
     private const HIDDEN_FIELDS = [

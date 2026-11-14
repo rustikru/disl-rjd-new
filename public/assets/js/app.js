@@ -126,6 +126,7 @@ function loadKPI(keys, force) {
   }).map(function (key) {
     var board = KPI_BOARDS[key]
     KPI_LOADED[key] = true
+    kpiContainer(board.containerKey).addClass('is-loading').attr('aria-busy', 'true')
     return $.getJSON(board.dataUrl, board.params ? board.params() : {}).done(
       function (data) {
         //console.log('Ключ:', data)
@@ -134,6 +135,7 @@ function loadKPI(keys, force) {
           $('#headerDate').text(data.updated_at)
         }
         showKpi(data, board.containerKey)
+        kpiContainer(board.containerKey).removeClass('is-loading').attr('aria-busy', 'false')
       },
     ).fail(function (jqXHR) {
       delete KPI_LOADED[key]
@@ -141,6 +143,7 @@ function loadKPI(keys, force) {
         ? ' (' + jqXHR.responseJSON.code + ')'
         : ''
       kpiContainer(board.containerKey)
+        .removeClass('is-loading').attr('aria-busy', 'false')
         .html('<div class="ui-empty">Не удалось загрузить KPI' + esc(code) + '</div>')
         .trigger('kpi:rendered')
     })

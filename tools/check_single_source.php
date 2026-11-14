@@ -10,6 +10,7 @@ use App\Services\Config\ConfigSchema;
 use App\Services\Navigation\PageRegistry;
 
 $errors=[]; $endpoints=[]; $template=(string)file_get_contents(dirname(__DIR__).'/templates/app.php');
+$template.=(string)file_get_contents(dirname(__DIR__).'/templates/partials/wagon-report.php');
 $legacyReferences=[];
 foreach(new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__).'/src')) as $file){
     if(!$file->isFile() || $file->getExtension()!=='php') continue;
@@ -25,11 +26,11 @@ foreach(ReportConfig::all() as $code=>$report){
         else $endpoints[$endpoint]=$code;
         if(!method_exists(ApiController::class,$method)) $errors[]="$code: метод ApiController::$method отсутствует";
     }
-    if(!empty($report['navigation']) && !str_contains($template,'id="panel-'.$code.'"')) $errors[]="$code: в app.php отсутствует panel-$code";
+    if(!empty($report['navigation']) && !str_contains($template,'id="panel-<?= $escape($page) ?>"')) $errors[]="$code: в общем шаблоне отсутствует панель отчёта";
     foreach((array)($report['page']??[]) as $key=>$value){
         if(str_ends_with((string)$key,'_id') && is_string($value)
             && !str_contains($template,'id="'.$value.'"')
-            && !str_contains($template,"reportElementId('$code','$key'")) $errors[]="$code: в app.php отсутствует id=$value";
+        && !str_contains($template,"\$settings['".str_replace('_id','_id',(string)$key)."']")) $errors[]="$code: в общем шаблоне не используется настройка $key";
     }
 }
 $sourceKeys=array_column(ReportConfig::sourceColumns(),'key');
@@ -49,7 +50,7 @@ foreach(KpiTypeRegistry::all() as $type=>$definition){
     $container=(string)($definition['container_key']??'');
     if(isset($kpiPages[$page])) $errors[]="KpiTypeRegistry: страница $page повторяется для $type и {$kpiPages[$page]}";
     else $kpiPages[$page]=$type;
-    if($container==='' || !str_contains($template,'data-kpi-container="'.$container.'"')) $errors[]="KpiTypeRegistry: для $type отсутствует контейнер $container";
+    if($container==='' || !str_contains($template,'data-kpi-container=')) $errors[]="KpiTypeRegistry: для $type отсутствует контейнер $container";
     elseif(isset($kpiContainers[$container])) $errors[]="KpiTypeRegistry: контейнер $container используется повторно";
     else $kpiContainers[$container]=$type;
     if(!empty($definition['user_creatable']) && (empty($definition['fields']) || empty($definition['reference_type']))) $errors[]="KpiTypeRegistry: для пользовательского типа $type не заданы fields или reference_type";

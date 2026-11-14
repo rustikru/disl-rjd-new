@@ -33,6 +33,10 @@ class DashboardController
         $allowedPages = $this->resolveAllowedPages($user);
         $navConfig = require __DIR__ . '/../Navigation.php';
         $reportDefinitions = ReportConfig::forContext('page');
+        $pageLayouts = [];
+        foreach (array_keys($reportDefinitions) as $pageCode) {
+            $pageLayouts[$pageCode] = \App\Services\Navigation\PageRegistry::layout($pageCode);
+        }
         $kpiTypes = KpiTypeRegistry::clientConfig();
         if ($this->db) {
             $settings = UserKpiPageSettings::all($this->db);
