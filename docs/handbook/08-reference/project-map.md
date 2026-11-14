@@ -57,7 +57,7 @@
 ## Отчёты
 
 - `src/Reports/ReportConfig.php` — отчёты, фильтры, endpoints, колонки и детализации.
-- `src/Reports/source-columns.php` — исходные поля и подписи.
+- `src/Reports/rjd-reference-columns.php` — исходные поля и подписи.
 - `src/Reports/WagonConfig.php` — конфигурация карточки вагона.
 
 ## Шаблоны

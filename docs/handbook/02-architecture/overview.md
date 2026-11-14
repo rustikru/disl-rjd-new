@@ -49,7 +49,7 @@ flowchart TD
 
 - `src/Services/PageRegistry.php` — каталог страниц, URL, права и навигация.
 - `src/Reports/ReportConfig.php` — отчёты, endpoints, фильтры, dimensions, колонки, настройки детализации и контексты страницы/рассылки.
-- `src/Reports/source-columns.php` — исходные подписи и метаданные колонок.
+- `src/Reports/rjd-reference-columns.php` — исходные подписи и метаданные колонок.
 - `src/Reports/WagonConfig.php` — конфигурация карточки вагона.
 - `src/Services/ConfigSchema.php` — список параметров, типы, значения по умолчанию и проверки.
 

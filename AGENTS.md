@@ -99,7 +99,7 @@
 - Глобально отключённые страницы: таблица `XX_RJD_DISABLED_PAGES`, доступ через
   `PageVisibility`; не хранить список отключённых страниц в `rjd_config.php`.
 - Отчёты, endpoints, фильтры и колонки: `src/Reports/ReportConfig.php`.
-- Исходные колонки справки РЖД: `src/Reports/source-columns.php`.
+- Исходные колонки справки РЖД: `src/Reports/rjd-reference-columns.php`.
 - Структура карточки вагона: `src/Reports/WagonConfig.php`.
 - Параметры, типы, значения по умолчанию и ограничения: `ConfigSchema`.
 - Не повторять эти определения в контроллерах, JavaScript и шаблонах.

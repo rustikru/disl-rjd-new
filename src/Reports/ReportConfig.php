@@ -742,7 +742,7 @@ final class ReportConfig
     /** Поля полной справки в исходном порядке;  */
     public static function sourceColumns(): array
     {
-        return require __DIR__ . '/source-columns.php';
+        return require __DIR__ . '/rjd-reference-columns.php';
     }
     //
     private static function baseColumns(): array

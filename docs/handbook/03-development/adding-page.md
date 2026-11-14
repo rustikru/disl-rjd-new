@@ -128,7 +128,7 @@ git diff --check
 
 1. Добавьте серверные методы в `ApiController` с именами, указанными в `apiHandlers()`.
 2. Используйте `ReportConfig::validateFilters()` для проверки входных фильтров. Генератор маршрутов уже вызывает эту проверку для endpoints, зарегистрированных через реестр.
-3. Добавьте/проверьте нужные колонки в `ReportConfig` и `source-columns.php`.
+3. Добавьте/проверьте нужные колонки в `ReportConfig` и `rjd-reference-columns.php`.
 4. Если есть нестандартная навигация или панель, проверьте `navigationSettings()` и `pageSettings()` в `ReportConfig` и шаблон `templates/app.php`.
 5. Проверьте API, права, фильтры, summary/detail и экспорт.
 6. Выполните `composer check:registry`.

@@ -34,7 +34,7 @@ foreach(ReportConfig::all() as $code=>$report){
     }
 }
 $sourceKeys=array_column(ReportConfig::sourceColumns(),'key');
-if(count($sourceKeys)!==count(array_unique($sourceKeys))) $errors[]='source-columns.php содержит повторяющиеся key';
+if(count($sourceKeys)!==count(array_unique($sourceKeys))) $errors[]='rjd-reference-columns.php содержит повторяющиеся key';
 $wagonConfig=WagonConfig::all(); $wagonFields=(array)($wagonConfig['fields']??[]);
 if(count($wagonFields)!==count(array_unique($wagonFields))) $errors[]='WagonConfig содержит повторяющиеся поля';
 $wagonKnown=array_merge($sourceKeys,['report_dt','type_reference']);

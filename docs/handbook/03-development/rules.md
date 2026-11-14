@@ -43,7 +43,7 @@
 |---|---|
 | Страницы, маршруты прав, меню, видимость | `src/Services/PageRegistry.php` |
 | Отчёты, API endpoints, фильтры, колонки | `src/Reports/ReportConfig.php` |
-| Исходные подписи колонок | `src/Reports/source-columns.php` |
+| Исходные подписи колонок | `src/Reports/rjd-reference-columns.php` |
 | Структура карточки вагона | `src/Reports/WagonConfig.php` |
 | Параметры, типы, defaults, ограничения | `src/Services/ConfigSchema.php` |
 
