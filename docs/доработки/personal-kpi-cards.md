@@ -19,7 +19,7 @@
 | `page` | Да | Код страницы из `PageRegistry`, например `approach`, `departure`, `downtime` | Связывает KPI со страницей и проверяется при запросе сводки. |
 | `tab` | Да | Код вкладки страницы | Определяет вкладку, к которой относится KPI. |
 | `label` | Да | Непустая строка | Отображаемое название страницы или типа KPI. |
-| `container_id` | Да | HTML `id` существующего `.kpi-grid` | Контейнер для карточек и кнопки создания `+`. |
+| `container_key` | Да | Стабильный код контейнера, например `approach_kpi` | Связывает KPI с контейнером `.kpi-grid` через `data-kpi-container`. |
 | `user_creatable` | Да | `true` / `false` | Разрешает создание пользовательских KPI данного типа. |
 | `source` | Да | Профиль `oracle_function` или `query_profile` | Описывает источник данных и выбирает обработчик в API. |
 | `reference_type` | Да | Строка (`Подход`, `Отправка`) или `null` | Ограничивает источник по `type_reference` для пользовательских условий. |
@@ -144,14 +144,14 @@ HTML-форма и API-действия пользовательских KPI с�
 ### Порядок работ
 
 1. В `src/Reports/Kpi/KpiTypeRegistry.php` добавить тип с `page`, `tab`, уникальным
-   `container_id`, `user_creatable = true` и списком `fields`. Подписи полей
+   `container_key`, `user_creatable = true` и списком `fields`. Подписи полей
    добавить в `FIELD_LABELS`; типы — `string`, `number` или `date`. Источник
    задаётся там же через профиль `source`, например `oracle_function` с
    `package`, `name` и `params` либо `query_profile` с именем профиля. Действия
    задаются через `actions`; контроллер не должен проверять имя конкретного типа
    напрямую.
-2. В `templates/app.php` добавить контейнер `.kpi-grid` с тем же id, что и
-   `container_id`. `public/assets/js/user-kpi.js` автоматически добавит кнопку
+2. В `templates/app.php` добавить контейнер `.kpi-grid` с атрибутом
+   `data-kpi-container`, равным `container_key`. `public/assets/js/user-kpi.js` автоматически добавит кнопку
    «+» и откроет общий `/kpi/create?kpi_type=...`; отдельную форму создавать нельзя.
 3. Для отчёта проверить `src/Reports/ReportConfig.php`; для самостоятельной
    страницы добавить её в `src/Services/PageRegistry.php` и `src/routes.php`.
@@ -221,7 +221,7 @@ git diff --check
 
 | Ошибка | Причина | Проверка |
 |---|---|---|
-| Нет кнопки «+» | `user_creatable = false`, неверный `container_id`, отсутствует контейнер или выключен `user_kpi_management_enabled` | Реестр, `templates/app.php`, конфигурация и права |
+| Нет кнопки «+» | `user_creatable = false`, неверный `container_key`, отсутствует контейнер или выключен `user_kpi_management_enabled` | Реестр, `templates/app.php`, конфигурация и права |
 | Некорректный запрос KPI | `source_page` не совпадает с `KpiTypeRegistry::page()` | `/api/kpi/summary` и `APP_KPI_TYPES` |
 | Шаблон недоступен | `KpiGroupingTemplates::get()` вернул `null` | Поля исходные или разрешённые вычисляемые |
 | ORA-02290 `PAGE_CK` | Constraint не знает новый `PAGE_CODE` | Применить DDL-миграцию |

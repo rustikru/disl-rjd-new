@@ -59,7 +59,7 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
 
       <!-- Дислокация -->
       <div id="panel-dislocation" class="tab-panel active">
-        <div class="kpi-grid" id="kpiGrid" style="margin-bottom:16px"></div>
+        <div class="kpi-grid" data-kpi-container="dashboard_kpi" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="disl-summary">Сводная дислокация</button>
           <button class="inner-tab" data-inner="disl-extended">Подробная</button>
@@ -109,7 +109,7 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
       <div id="panel-approach" class="tab-panel">
         <div class="kpi-board-wrap">
           <?php if (!empty($userKpiManagementEnabled)): ?><div class="kpi-settings-link"><a class="kpi-hidden-open" href="<?= htmlspecialchars($basePath) ?>/kpi/hidden" aria-label="Скрытые KPI" title="Скрытые KPI"><img src="<?= htmlspecialchars($basePath) ?>/assets/img/icon/icon-hide.svg" class="user-menu-item-icon""></a></div><?php endif; ?>
-          <div class="kpi-grid" id="approachMetrics" style="margin-bottom:16px"></div>
+          <div class="kpi-grid" data-kpi-container="approach_kpi" style="margin-bottom:16px"></div>
         </div>
 
         <!-- Внутренние вкладки -->
@@ -165,7 +165,7 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
       <div id="panel-departure" class="tab-panel">
         <div class="kpi-board-wrap">
           <?php if (!empty($userKpiManagementEnabled)): ?><div class="kpi-settings-link"><a class="kpi-hidden-open" href="<?= htmlspecialchars($basePath) ?>/kpi/hidden" aria-label="Скрытые KPI" title="Скрытые KPI"><img src="<?= htmlspecialchars($basePath) ?>/assets/img/icon/icon-hide.svg" class="user-menu-item-icon""></a></div><?php endif; ?>
-          <div class="kpi-grid" id="departureMetrics" style="margin-bottom:16px"></div>
+          <div class="kpi-grid" data-kpi-container="departue_kpi" style="margin-bottom:16px"></div>
         </div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="departure-summary">Сводная</button>
@@ -223,7 +223,7 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
 
       <!-- Погрузка -->
       <div id="panel-loading" class="tab-panel">
-        <div class="kpi-grid" id="loadingMetrics" style="margin-bottom:16px"></div>
+        <div class="kpi-grid" data-kpi-container="loading_kpi" style="margin-bottom:16px"></div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="loading-summary">Сводная</button>
           <button class="inner-tab" data-inner="loading-detail">Подробная</button>
@@ -270,7 +270,7 @@ $reportElementId = static fn(string $report,string $key,string $fallback): strin
       <div id="panel-downtime" class="tab-panel">
         <div class="kpi-board-wrap">
           <?php if (!empty($userKpiManagementEnabled)): ?><div class="kpi-settings-link"><a class="kpi-hidden-open" href="<?= htmlspecialchars($basePath) ?>/kpi/hidden" aria-label="Скрытые KPI" title="Скрытые KPI"><img src="<?= htmlspecialchars($basePath) ?>/assets/img/icon/icon-hide.svg" class="user-menu-item-icon""></a></div><?php endif; ?>
-          <div class="kpi-grid" id="downtimeMetrics" style="margin-bottom:16px"></div>
+        <div class="kpi-grid" data-kpi-container="downtime_kpi" style="margin-bottom:16px"></div>
         </div>
         <div class="inner-tabs">
           <button class="inner-tab active" data-inner="downtime-summary">Сводная</button>

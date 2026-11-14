@@ -46,10 +46,10 @@ foreach(KpiTypeRegistry::all() as $type=>$definition){
     if(trim($type)==='' || trim((string)($definition['page']??''))==='') $errors[]="KpiTypeRegistry: для $type отсутствует page";
     if(trim((string)($definition['label']??''))==='') $errors[]="KpiTypeRegistry: для $type отсутствует label";
     $page=(string)($definition['page']??'');
-    $container=(string)($definition['container_id']??'');
+    $container=(string)($definition['container_key']??'');
     if(isset($kpiPages[$page])) $errors[]="KpiTypeRegistry: страница $page повторяется для $type и {$kpiPages[$page]}";
     else $kpiPages[$page]=$type;
-    if($container==='' || !str_contains($template,'id="'.$container.'"')) $errors[]="KpiTypeRegistry: для $type отсутствует контейнер $container";
+    if($container==='' || !str_contains($template,'data-kpi-container="'.$container.'"')) $errors[]="KpiTypeRegistry: для $type отсутствует контейнер $container";
     elseif(isset($kpiContainers[$container])) $errors[]="KpiTypeRegistry: контейнер $container используется повторно";
     else $kpiContainers[$container]=$type;
     if(!empty($definition['user_creatable']) && (empty($definition['fields']) || empty($definition['reference_type']))) $errors[]="KpiTypeRegistry: для пользовательского типа $type не заданы fields или reference_type";

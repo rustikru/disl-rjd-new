@@ -133,14 +133,14 @@ function loadKPI(keys, force) {
           showDislocationDate(data.updated_at)
           $('#headerDate').text(data.updated_at)
         }
-        showKpi(data, board.containerId)
+        showKpi(data, board.containerKey)
       },
     ).fail(function (jqXHR) {
       delete KPI_LOADED[key]
       var code = jqXHR.responseJSON && jqXHR.responseJSON.code
         ? ' (' + jqXHR.responseJSON.code + ')'
         : ''
-      $('#' + board.containerId)
+      kpiContainer(board.containerKey)
         .html('<div class="ui-empty">Не удалось загрузить KPI' + esc(code) + '</div>')
         .trigger('kpi:rendered')
     })
@@ -189,13 +189,18 @@ function showDislocationDate(value) {
 }
 
 // KPI карточки
-function showKpi(data, containerId) {
-  // 1. Если containerId не передан, берем дефолтный от dashboard
-  var targetContainer = containerId || KPI_BOARDS.dashboard.containerId
+function kpiContainer(key) {
+  return $('.kpi-grid[data-kpi-container]').filter(function () {
+    return $(this).attr('data-kpi-container') === key
+  })
+}
+
+function showKpi(data, containerKey) {
+  var targetContainer = containerKey || KPI_BOARDS.dashboard.containerKey
 
   // в объекте KPI_BOARDS  ищем конфигурацию
   var currentBoard = Object.values(KPI_BOARDS).find(function (board) {
-    return board.containerId === targetContainer
+    return board.containerKey === targetContainer
   })
 
   // Если вдруг не нашли
@@ -205,7 +210,7 @@ function showKpi(data, containerId) {
 
   var cardsHtml = currentBoard.cards(data).map(kpiCard).join('')
 
-  $('#' + targetContainer).html(cardsHtml).trigger('kpi:rendered')
+  kpiContainer(targetContainer).html(cardsHtml).trigger('kpi:rendered')
 }
 
 // Конфиг вкладок
@@ -821,7 +826,7 @@ var KPI_BOARDS = {}
 Object.keys(window.APP_KPI_TYPES || {}).forEach(function (type) {
   var definition = window.APP_KPI_TYPES[type]
   KPI_BOARDS[definition.page] = {
-    containerId: definition.container_id,
+    containerKey: definition.container_key,
     dataUrl: BASE + '/api/kpi/summary',
     params: function () {
       var params = { kpi_type: type, source_page: definition.page }

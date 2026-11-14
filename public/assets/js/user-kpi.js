@@ -7,7 +7,7 @@
   var boards = Object.keys(kpiTypes).filter(function (type) {
     return kpiTypes[type].user_creatable && kpiTypes[type].user_kpi_enabled !== false
   }).map(function (type) {
-    return { id: kpiTypes[type].container_id, type: type }
+    return { key: kpiTypes[type].container_key, type: type }
   })
 
   function openForm(type, id, admin) {
@@ -36,7 +36,9 @@
   }
 
   function initBoard(board) {
-    var $grid = $('#' + board.id)
+    var $grid = $('.kpi-grid[data-kpi-container]').filter(function () {
+      return $(this).attr('data-kpi-container') === board.key
+    })
     if (!$grid.length || $grid.data('user-kpi-ready')) return
     $grid.data('user-kpi-ready', true).addClass('user-kpi-enabled')
     var $button = $(
@@ -95,7 +97,7 @@
       var $card = $button.closest('.kpi-card')
       var $grid = $card.closest('.kpi-grid')
       var board = boards.find(function (item) {
-        return item.id === $grid.attr('id')
+        return item.key === $grid.attr('data-kpi-container')
       })
       var type = $button.attr('data-kpi-type') || (board ? board.type : '')
       openForm(type, Number($button.data('kpi-id')), $button.data('kpi-admin') === 1)
